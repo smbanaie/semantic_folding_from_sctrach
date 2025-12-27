@@ -1,0 +1,28 @@
+services:
+  memgraph:
+    image: docker.arvancloud.ir/memgraph/memgraph-mage:latest
+    container_name: memgraph-mage
+    ports:
+      - "7687:7687"
+      - "7444:7444"
+    command: ["--log-level=TRACE"]
+    networks:
+      - knowledge-graph-network
+ 
+  lab:
+    image: docker.arvancloud.ir/memgraph/lab:latest
+    container_name: memgraph-lab
+    ports:
+      - "3000:3000"
+    depends_on:
+      - memgraph
+    environment:
+      - QUICK_CONNECT_MG_HOST=memgraph
+      - QUICK_CONNECT_MG_PORT=7687
+    networks:
+      - knowledge-graph-network
+
+  
+networks:
+  knowledge-graph-network:
+    driver: bridge

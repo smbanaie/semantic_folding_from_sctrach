@@ -1,0 +1,96 @@
+models:
+  # Recommended for Knowledge Graph generation (best instruction following and reasoning)
+  recommended:
+    - name: "DeepSeek V3.1"
+      id: "deepseek/deepseek-v3.1:free"
+      provider: "DeepSeek"
+      context: "164K"
+      description: "Large hybrid reasoning model (671B parameters, 37B active) with thinking and non-thinking modes. Excellent for research, coding, and agentic workflows."
+      reasoning: true
+      tool_use: true
+      best_for: "Complex reasoning, research tasks, tool use"
+      
+    - name: "GLM 4.5 Air"
+      id: "z-ai/glm-4.5-air:free"
+      provider: "Z.AI"
+      context: "131K"
+      description: "Lightweight variant with MoE architecture, purpose-built for agent-centric applications. Supports hybrid inference modes."
+      reasoning: true
+      tool_use: true
+      best_for: "Agent tasks, reasoning, tool use"
+      
+    - name: "Tongyi DeepResearch 30B"
+      id: "alibaba/tongyi-deepresearch-30b-a3b:free"
+      provider: "Alibaba"
+      context: "131K"
+      description: "Agentic LLM optimized for long-horizon, deep information-seeking tasks. Superior for complex agentic search and reasoning."
+      reasoning: true
+      tool_use: true
+      best_for: "Research, complex reasoning, multi-step problem solving"
+
+  # Good alternatives for KG generation
+  alternatives:
+    - name: "OpenAI GPT-OSS 20B"
+      id: "openai/gpt-oss-20b:free"
+      provider: "OpenAI"
+      context: "131K"
+      description: "Open-weight 21B parameter model with MoE architecture. Supports function calling, tool use, and structured outputs."
+      reasoning: true
+      tool_use: true
+      best_for: "Tool use, structured outputs, function calling"
+      
+    - name: "NVIDIA Nemotron Nano 9B V2"
+      id: "nvidia/nemotron-nano-9b-v2:free"
+      provider: "NVIDIA"
+      context: "128K"
+      description: "Unified model for both reasoning and non-reasoning tasks. Generates reasoning traces before final response."
+      reasoning: true
+      tool_use: false
+      best_for: "Reasoning tasks, step-by-step analysis"
+      
+    - name: "Qwen3 Coder 480B"
+      id: "qwen/qwen3-coder-480b-a35b:free"
+      provider: "Qwen"
+      context: "262K"
+      description: "MoE code generation model optimized for agentic coding tasks, function calling, and long-context reasoning."
+      reasoning: true
+      tool_use: true
+      best_for: "Code generation, function calling, long context"
+
+  # Specialized models
+  specialized:
+    - name: "Meituan LongCat Flash Chat"
+      id: "meituan/longcat-flash-chat:free"
+      provider: "Meituan"
+      context: "131K"
+      description: "Large-scale MoE model (560B parameters, 27B active) optimized for conversational and agentic tasks."
+      reasoning: false
+      tool_use: true
+      best_for: "Conversational tasks, tool use"
+      
+    - name: "Kimi K2 0711"
+      id: "moonshotai/kimi-k2-0711:free"
+      provider: "MoonshotAI"
+      context: "33K"
+      description: "1T parameter MoE model with 32B active parameters. Optimized for agentic capabilities and tool use."
+      reasoning: true
+      tool_use: true
+      best_for: "Agent tasks, tool use, reasoning"
+      
+    - name: "Venice Uncensored"
+      id: "cognitivecomputations/venice-uncensored:free"
+      provider: "Venice"
+      context: "33K"
+      description: "Uncensored instruct-tuned LLM emphasizing steerability and transparent behavior."
+      reasoning: false
+      tool_use: false
+      best_for: "Unrestricted use cases, custom behavior"
+      
+    - name: "Google Gemma 3n 2B"
+      id: "google/gemma-3n-2b:free"
+      provider: "Google"
+      context: "8K"
+      description: "Multimodal, instruction-tuned model optimized for low-resource deployment with strong multilingual performance."
+      reasoning: true
+      tool_use: false
+      best_for: "Lightweight tasks, multilingual, basic reasoning"

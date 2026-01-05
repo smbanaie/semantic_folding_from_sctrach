@@ -49,12 +49,26 @@ htmlcov/
 # Logs
 *.log
 logs/
+src/agents/output/
+src/agents/output/*
+
+# Agent run outputs
+src/agents/output/**/
+
+# Generated triples and outputs
+data/output/
+data/output/*
+!data/output/.gitkeep
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Project specific
-data/output/*.json
-!data/output/.gitkeep
+# Local notebooks, caches
+.ipynb_checkpoints/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
 

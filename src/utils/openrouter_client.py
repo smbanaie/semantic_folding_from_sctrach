@@ -109,6 +109,16 @@ class OpenRouterClient:
         last_error = None
         for attempt in range(1, self.max_retries + 1):
             try:
+                # Debug: log outgoing request summary (avoid logging full prompt)
+                try:
+                    prompt_len = sum(len(m.get("content", "")) for m in messages)
+                except Exception:
+                    prompt_len = len(prompt) if prompt else 0
+                logger.debug(
+                    f"OpenRouter request -> model={self.model}, prompt_len={prompt_len}, "
+                    f"response_format={response_format}, attempt={attempt}"
+                )
+
                 async with self.session.post(
                     f"{self.base_url}/chat/completions",
                     json=payload,
@@ -116,7 +126,53 @@ class OpenRouterClient:
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
-                        result = data["choices"][0]["message"]["content"]
+
+                        def _extract_text_from_response(d):
+                            # Try common response shapes returned by chat/completion-style APIs
+                            if not isinstance(d, dict):
+                                return None
+
+                            # 1) OpenAI-like: { choices: [ { message: { content: "..." } } ] }
+                            choices = d.get("choices")
+                            if isinstance(choices, list) and choices:
+                                first = choices[0]
+                                if isinstance(first, dict):
+                                    # message.content
+                                    msg = first.get("message")
+                                    if isinstance(msg, dict) and "content" in msg:
+                                        return msg.get("content")
+                                    # direct text fields
+                                    for key in ("text", "content"):
+                                        if key in first and isinstance(first[key], str):
+                                            return first[key]
+
+                            # 2) Some providers return 'output' or 'result' fields
+                            for key in ("output", "result", "results", "data"):
+                                val = d.get(key)
+                                if val:
+                                    # If list, prefer string or nested content
+                                    if isinstance(val, list) and val:
+                                        for item in val:
+                                            if isinstance(item, str):
+                                                return item
+                                            if isinstance(item, dict):
+                                                for sub in ("content", "text", "message"):
+                                                    if sub in item and isinstance(item[sub], str):
+                                                        return item[sub]
+                                                    if sub in item and isinstance(item[sub], dict):
+                                                        # message: { content: "" }
+                                                        if "content" in item[sub] and isinstance(item[sub]["content"], str):
+                                                            return item[sub]["content"]
+                                    elif isinstance(val, str):
+                                        return val
+                                    elif isinstance(val, dict):
+                                        for sub in ("content", "text"):
+                                            if sub in val and isinstance(val[sub], str):
+                                                return val[sub]
+
+                            return None
+
+                        result = _extract_text_from_response(data)
 
                         # Log token usage if available
                         if "usage" in data:
@@ -127,6 +183,11 @@ class OpenRouterClient:
                                 f"Completion: {usage.get('completion_tokens', 0)}, "
                                 f"Total: {usage.get('total_tokens', 0)}"
                             )
+
+                        if result is None:
+                            # Unexpected response shape - include snippet in error for debugging
+                            logger.error(f"Unexpected API response shape: {data}")
+                            raise ValueError(f"Could not extract text from API response: {data}")
 
                         return result
 

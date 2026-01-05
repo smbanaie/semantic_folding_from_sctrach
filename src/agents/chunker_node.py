@@ -13,6 +13,7 @@ import tiktoken
 
 from src.config import get_config
 from src.models.data_models import Chunk, GraphState, Section
+from src.utils.io_utils import save_agent_output
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,18 @@ async def chunker_agent(state: GraphState) -> GraphState:
     # Update state
     state["chunks"] = chunks
     state["chunk_mapping"] = chunk_mapping
+
+    # Save chunker output for inspection
+    try:
+        save_agent_output(
+            "chunker",
+            {
+                "chunks": [c.dict() for c in chunks],
+                "chunk_mapping": chunk_mapping,
+            },
+        )
+    except Exception:
+        logger.exception("Failed to save chunker output")
 
     return state
 
@@ -248,6 +261,7 @@ def _chunk_section(
     )
 
     return validated_chunks
+
 
 
 

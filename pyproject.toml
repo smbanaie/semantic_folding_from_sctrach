@@ -17,6 +17,7 @@ dependencies = [
     "nltk>=3.8.0",
     "rich>=13.0.0",
     "tqdm>=4.66.0",
+    "loguru>=0.7.3",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +25,14 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
+]
+
+nlp = [
+    "sentence-transformers>=2.2.2",
+    "scikit-learn>=1.2.0",
+    # Optional (faster NN for large corpora): install faiss-cpu or faiss-gpu as appropriate
+    "faiss-cpu>=1.7.3; platform_system!='Windows'",
+    "spacy>=3.5.0",
 ]
 
 [build-system]

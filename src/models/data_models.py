@@ -34,6 +34,14 @@ class Section(BaseModel):
         default=0,
         description="Ending character position in original corpus",
     )
+    representative_samples: Optional[List[str]] = Field(
+        default_factory=list,
+        description="Representative sample paragraphs chosen for this section (for Analyzer/Extractor context)",
+    )
+    sample_metadata: Optional[List[Dict]] = Field(
+        default_factory=list,
+        description="Optional metadata for each representative sample (e.g., paragraph_index, score)",
+    )
 
     class Config:
         """Pydantic configuration."""

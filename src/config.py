@@ -55,24 +55,30 @@ class Config(BaseSettings):
 
     # Model Configuration (using recommended OpenRouter free models)
     analyzer_model: str = Field(
-        default="deepseek/deepseek-v3.1:free",
+        default="deepseek/deepseek-chat-v3.1",
         description="Model for Analyzer agent (complex reasoning)",
     )
     splitter_model: str = Field(
-        default="z-ai/glm-4.5-air:free",
+        default="deepseek/deepseek-chat-v3.1",
         description="Model for Splitter agent (fast, efficient)",
     )
     chunker_model: str = Field(
-        default="z-ai/glm-4.5-air:free",
+        default="deepseek/deepseek-chat-v3.1",
         description="Model for Chunker agent (fast, efficient)",
     )
     extractor_model: str = Field(
-        default="openai/gpt-oss-20b:free",
+        default="deepseek/deepseek-chat-v3.1",
         description="Model for Extractor agent (balanced quality/speed)",
     )
     reviewer_model: str = Field(
-        default="deepseek/deepseek-v3.1:free",
+        default="deepseek/deepseek-chat-v3.1",
         description="Model for Reviewer agent (complex reasoning)",
+    )
+    
+    # Splitting Configuration
+    use_quick_splitting: bool = Field(
+        default=True,
+        description="Use boundary-based splitting instead of embeddings for faster processing",
     )
 
     # Processing Settings
@@ -99,6 +105,18 @@ class Config(BaseSettings):
         ge=1,
         le=20,
         description="Batch size for processing",
+    )
+    
+    # Entity Normalization Configuration
+    max_entity_words: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum number of words allowed in entity names",
+    )
+    use_llm_entity_shortening: bool = Field(
+        default=True,
+        description="Use LLM-based shortening for entities exceeding max_entity_words",
     )
 
     @field_validator("corpus_files", mode="before")

@@ -20,6 +20,7 @@ from src.agents import (
 from src.config import get_config
 from src.models.data_models import GraphState
 from src.storage.memgraph_client import MemgraphClient
+from src.utils.io_utils import save_agent_output
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,37 @@ async def storage_node(state: GraphState) -> GraphState:
 
             state["graph_stats"] = stats
             state["storage_status"] = "success"
+            # Save storage output for inspection
+            try:
+                save_agent_output(
+                    "storage",
+                    {
+                        "graph_stats": stats,
+                        "stored_triples_count": len(validated_triples),
+                    },
+                )
+            except Exception:
+                logger.exception("Failed to save storage output")
+                # Also save the validated triples themselves in the run output folder
+                try:
+                    # Convert Triple objects (pydantic) to dicts if necessary
+                    triples_to_save = []
+                    for t in validated_triples:
+                        try:
+                            triples_to_save.append(t.dict())
+                        except Exception:
+                            # Fallback: attempt to serialize attributes
+                            triples_to_save.append({
+                                "subject": getattr(t, "subject", None),
+                                "predicate": getattr(t, "predicate", None),
+                                "object": getattr(t, "object", None),
+                                "confidence": getattr(t, "confidence", None),
+                                "source_chunk_id": getattr(t, "source_chunk_id", None),
+                            })
+
+                    save_agent_output("triples", {"triples": triples_to_save}, filename=f"triples_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+                except Exception:
+                    logger.exception("Failed to save validated triples to run output folder")
 
     except Exception as e:
         logger.error(f"Error storing to Memgraph: {e}", exc_info=True)
@@ -194,6 +226,7 @@ def visualize_graph() -> str:
         style storage fill:#e1ffe1
     """
     return mermaid.strip()
+
 
 
 

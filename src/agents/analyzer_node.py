@@ -12,6 +12,7 @@ from typing import Dict
 from src.config import get_config
 from src.models.data_models import GraphState
 from src.utils.openrouter_client import OpenRouterClient
+from src.utils.io_utils import save_agent_output
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +43,46 @@ async def analyzer_agent(state: GraphState) -> GraphState:
     logger.info("Starting analyzer agent")
     logger.info(f"Corpus length: {len(corpus)} characters")
 
-    # Build analysis prompt
-    analysis_prompt = f"""You are an expert knowledge extraction analyst. Analyze the following text corpus and provide a comprehensive extraction strategy.
+    # Prefer using representative samples from sections when available to limit LLM input size
+    sections = state.get("sections", [])
+    sample_text = None
+    try:
+        if sections:
+            collected = []
+            # take up to 2 representative samples per section, stop when reaching ~4000 chars
+            max_chars = 4000
+            for s in sections:
+                reps = None
+                try:
+                    # pydantic model attribute
+                    reps = s.representative_samples
+                except Exception:
+                    # dict-like section
+                    reps = s.get("representative_samples") if isinstance(s, dict) else None
+                if reps:
+                    for r in reps[:2]:
+                        if sum(len(x) for x in collected) + len(r) > max_chars:
+                            break
+                        collected.append(r)
+                if sum(len(x) for x in collected) >= max_chars:
+                    break
+            if collected:
+                sample_text = "\n\n".join(collected)
+    except Exception:
+        sample_text = None
 
-CORPUS (first 5000 characters):
-{corpus[:5000]}
+    if sample_text:
+        analysis_corpus_snippet = sample_text
+        snippet_note = f"SAMPLES FROM SECTIONS (up to {len(analysis_corpus_snippet)} chars)"
+    else:
+        analysis_corpus_snippet = corpus[:5000]
+        snippet_note = "CORPUS (first 5000 characters)"
+
+    # Build analysis prompt
+    analysis_prompt = f"""You are an expert knowledge extraction analyst. Analyze the following text corpus samples and provide a comprehensive extraction strategy.
+
+{snippet_note}:
+{analysis_corpus_snippet}
 
 CORPUS STATISTICS:
 - Total length: {len(corpus)} characters
@@ -73,19 +109,7 @@ GUIDELINES:
 - Create domain-specific prompts that will help extractors understand what to look for
 - The extraction prompts should be clear, specific, and tailored to this corpus
 
-EXAMPLE OUTPUT FORMAT:
-{{
-  "domain": "technical",
-  "topic": "Artificial Intelligence and Machine Learning",
-  "key_entity_types": ["Technology", "Organization", "Person", "Concept", "Method"],
-  "common_relationship_types": ["DEVELOPED", "USES", "IMPLEMENTS", "RELATED_TO", "CREATED_BY"],
-  "extraction_strategy": "Focus on extracting technologies, organizations developing them, key researchers, and relationships between concepts. Pay attention to technical terminology and domain-specific relationships.",
-  "entity_extraction_prompt": "Extract all entities from the text, focusing on: technologies (AI models, frameworks, tools), organizations (companies, research labs), people (researchers, developers), and concepts (algorithms, methodologies). Use full canonical names when possible.",
-  "relationship_extraction_prompt": "Extract relationships between entities. Common patterns include: technologies DEVELOPED by organizations, concepts USED in technologies, people WORK_FOR organizations, technologies IMPLEMENT concepts. Be specific and accurate.",
-  "domain_context": "This corpus discusses AI/ML technologies, their development, applications, and relationships between various components of the AI ecosystem."
-}}
-
-Now analyze the provided corpus and return your JSON response:"""
+Now analyze the provided corpus samples and return your JSON response:"""
 
     # Initialize OpenRouter client
     client = OpenRouterClient(
@@ -94,9 +118,13 @@ Now analyze the provided corpus and return your JSON response:"""
         base_url=config.openrouter_base_url,
     )
 
+    # Debug: log prompt size after it's built
+    logger.debug(f"Analyzer prompt length: {len(analysis_prompt)} chars; model={config.analyzer_model}")
+
     try:
         async with client:
             logger.info(f"Calling {config.analyzer_model} for analysis")
+            logger.debug("Calling OpenRouter API for analyzer_agent")
             system_prompt = "You are an expert knowledge extraction analyst. Always respond with valid JSON only, no additional text."
             response = await client.generate(
                 prompt=analysis_prompt,
@@ -155,6 +183,21 @@ Now analyze the provided corpus and return your JSON response:"""
                 ),
             }
             state["corpus_metadata"] = corpus_metadata
+
+            # Save analyzer output for inspection
+            try:
+                save_agent_output(
+                    "analyzer",
+                    {
+                        "analysis_result": analysis_result,
+                        "extraction_strategy": state["extraction_strategy"],
+                        "extraction_prompts": state["extraction_prompts"],
+                        "domain_context": state["domain_context"],
+                        "corpus_metadata": state.get("corpus_metadata", {}),
+                    },
+                )
+            except Exception:
+                logger.exception("Failed to save analyzer output")
 
             return state
 

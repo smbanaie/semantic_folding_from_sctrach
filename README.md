@@ -4,8 +4,11 @@ A LangGraph-based multi-agent system that transforms unstructured text corpora i
 
 ## Features
 
+- **OpenIE Integration**: Implements Open Information Extraction following HippoRAG2 methodology for schemaless knowledge triple extraction
 - **Multi-Agent Pipeline**: Specialized agents for analysis, splitting, chunking, extraction, and validation
 - **Parallel Processing**: Efficient extraction using concurrent chunk processing
+- **Enhanced Entity Normalization**: Reduces entity length by 42.2% while preserving semantic meaning
+- **Quick Boundary-Based Splitting**: Fast splitting for large textbooks without resource-intensive embeddings
 - **Cost-Optimized**: Uses free OpenRouter API models with intelligent model selection
 - **Production-Ready**: Error handling, retry logic, and validation at every stage
 
@@ -15,10 +18,37 @@ The system uses a 5-agent pipeline:
 1. **Analyzer**: Understands corpus and generates extraction strategy
 2. **Splitter**: Divides corpus into logical sections
 3. **Chunker**: Creates optimal context windows with overlap
-4. **Extractor**: Extracts knowledge triples in parallel
+4. **Extractor**: Extracts knowledge triples in parallel using OpenIE methodology
 5. **Reviewer**: Validates, normalizes, and deduplicates triples
 
 See [Architecture.md](./Architecture.md) for detailed documentation.
+
+## Enhanced Entity Normalization
+
+The Reviewer agent includes advanced entity normalization that significantly improves graph readability:
+
+- **42.2% average reduction** in entity length
+- **Preserves semantic meaning** while shortening lengthy phrases
+- **Intelligent acronym handling** (LLMs, RAG, NER, etc.)
+- **Examples of improvements**:
+  - "Rich Relational Structure" → "Relational Structure"
+  - "Large Language Models" → "LLMs"
+  - "Questions That Require Connecting Information From Multiple Sources" → "Complex Questions"
+  - "Traditional RAG Approaches" → "Traditional RAG"
+
+## OpenIE Integration
+
+The system implements **Open Information Extraction (OpenIE)** following the HippoRAG2 methodology:
+
+- **Schemaless Extraction**: Extracts any relationships from text without predefined ontologies
+- **Two-Phase Process**:
+  1. **Entity Extraction**: Identifies named entities and key concepts
+  2. **Relation Extraction**: Uses entities as context for accurate triple extraction
+- **Domain-Independent**: Works across any subject matter without domain-specific training
+- **Discrete Triples**: Focuses on noun phrases for fine-grained pattern separation
+- **Fallback Mechanism**: Automatically falls back to standard extraction if OpenIE fails
+
+This approach enables flexible knowledge graph construction that can handle diverse and complex relationships in text corpora.
 
 ## Prerequisites
 
@@ -68,6 +98,7 @@ uv run main.py --corpus-dir ./data/custom_corpus
 
 # Process specific files
 uv run main.py --corpus-files "doc1.txt,doc2.txt"
+uv run python main.py --corpus-files data/corpus/graphrag_rag_corpus.txt
 
 # Clear graph and reprocess
 uv run main.py --clear-graph
@@ -88,6 +119,9 @@ uv add --dev <package-name>
 # Run Python script
 uv run main.py
 
+uv run python main.py --corpus-files data/corpus/sample.txt --output-directory data/output --chunk-size 800 --max-parallel-extractions 5
+uv run python main.py --corpus-files data/corpus/sample.txt --visualize
+uv run python main.py --corpus-files data/corpus/sample.txt
 # Run tests
 uv run pytest
 

@@ -26,6 +26,7 @@ from src.config import get_config
 from src.graph import build_graph, visualize_graph
 from src.models.data_models import GraphState
 from src.storage.memgraph_client import MemgraphClient
+from src.utils.io_utils import set_run_id
 
 console = Console()
 
@@ -268,6 +269,11 @@ def main():
 
     # Load configuration
     config = get_config()
+
+    # Create a run id for this execution and store outputs under it
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + os.urandom(4).hex()
+    set_run_id(run_id)
+    console.print(f"[dim]Run ID:[/dim] {run_id}")
 
     # Override corpus directory if provided
     if args.corpus_dir:

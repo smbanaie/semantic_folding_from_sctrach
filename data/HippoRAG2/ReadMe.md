@@ -395,3 +395,59 @@ If you find this work useful, please consider citing our papers:
 - [ ] Add support for embedding endpoints
 
 Please feel free to open an issue or PR if you have any questions or suggestions.
+
+[5 tools called]
+
+Based on my check of the HippoRAG2 GitHub repository and HuggingFace dataset, here are the different ways to download the HippoRAG2 datasets:
+
+## Two Main Download Options:
+
+### 1. **Complete Dataset Collection (Recommended)**
+The full set of datasets used in HippoRAG2 is available on **HuggingFace** at: `osunlp/HippoRAG_2`
+
+**Available Datasets:**
+- **Factual Memory Tasks:** `nq_rear.json/.corpus`, `popqa.json/.corpus`
+- **Multi-hop QA Tasks:** `musique.json/.corpus`, `2wikimultihopqa.json/.corpus`, `hotpotqa.json/.corpus`, `lveval.json/.corpus`
+- **Discourse Understanding:** `narrativeqa_dev_10_doc.json/.corpus`
+- **Sample/Test Data:** `sample.json/.corpus`, `case_study_university.json/.corpus`
+
+**Download Methods:**
+- **Via HuggingFace Hub (Python):**
+```python
+from datasets import load_dataset
+dataset = load_dataset("osunlp/HippoRAG_2", data_files="sample.json")  # Replace with desired dataset
+```
+
+- **Via HuggingFace CLI:**
+```bash
+huggingface-cli download osunlp/HippoRAG_2 --repo-type dataset --local-dir ./hipporag_datasets
+```
+
+- **Direct Download:** Each dataset has individual download links (e.g., `https://huggingface.co/datasets/osunlp/HippoRAG_2/resolve/main/sample.json`)
+
+### 2. **Sample Datasets from GitHub Repository**
+Some sample datasets are included directly in the GitHub repository under `reproduce/dataset/` directory:
+
+**Available in GitHub:**
+- `sample.json` (small dataset for testing/debugging)
+- `sample_corpus.json`
+
+**Download from GitHub:**
+```bash
+git clone https://github.com/ianliuwd/HippoRAG2.git
+# Datasets will be in: HippoRAG2/reproduce/dataset/
+```
+
+## Dataset Structure:
+- Files ending in `_corpus.json` contain the document collections
+- Files without `_corpus` suffix contain the query questions and expected answers
+- Format follows the JSON structure specified in the GitHub repository documentation
+
+## Quick Start for Testing:
+For getting started quickly, download the sample dataset:
+```bash
+wget https://huggingface.co/datasets/osunlp/HippoRAG_2/resolve/main/sample.json
+wget https://huggingface.co/datasets/osunlp/HippoRAG_2/resolve/main/sample_corpus.json
+```
+
+The HuggingFace repository contains the complete evaluation datasets used in the HippoRAG2 paper, while the GitHub repository only has minimal samples for testing purposes.

@@ -1,0 +1,802 @@
+[
+  {
+    "chunk_id": "doc_9506_chunk_0",
+    "timestamp": "2026-01-27T21:30:52.806324",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9511_chunk_0",
+    "timestamp": "2026-01-27T21:30:54.059238",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9513_chunk_0",
+    "timestamp": "2026-01-27T21:30:55.348747",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9516_chunk_0",
+    "timestamp": "2026-01-27T21:30:55.913998",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9519_chunk_0",
+    "timestamp": "2026-01-27T21:30:57.193517",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9520_chunk_0",
+    "timestamp": "2026-01-27T21:30:57.715804",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9522_chunk_0",
+    "timestamp": "2026-01-27T21:30:59.039514",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9529_chunk_0",
+    "timestamp": "2026-01-27T21:30:59.578035",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9530_chunk_0",
+    "timestamp": "2026-01-27T21:31:00.871627",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9531_chunk_0",
+    "timestamp": "2026-01-27T21:31:01.543524",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9532_chunk_0",
+    "timestamp": "2026-01-27T21:31:02.102637",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9533_chunk_0",
+    "timestamp": "2026-01-27T21:31:02.671031",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9534_chunk_0",
+    "timestamp": "2026-01-27T21:31:03.196812",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9535_chunk_0",
+    "timestamp": "2026-01-27T21:31:04.499724",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9536_chunk_0",
+    "timestamp": "2026-01-27T21:31:05.764335",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9538_chunk_0",
+    "timestamp": "2026-01-27T21:31:06.301620",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9539_chunk_0",
+    "timestamp": "2026-01-27T21:31:07.519349",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9540_chunk_0",
+    "timestamp": "2026-01-27T21:31:08.780205",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9542_chunk_0",
+    "timestamp": "2026-01-27T21:31:09.782817",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9543_chunk_0",
+    "timestamp": "2026-01-27T21:31:11.762583",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9548_chunk_0",
+    "timestamp": "2026-01-27T21:31:13.029458",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9550_chunk_0",
+    "timestamp": "2026-01-27T21:31:14.330467",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9551_chunk_0",
+    "timestamp": "2026-01-27T21:31:14.931916",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9552_chunk_0",
+    "timestamp": "2026-01-27T21:31:15.768776",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9556_chunk_0",
+    "timestamp": "2026-01-27T21:31:16.608987",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9558_chunk_0",
+    "timestamp": "2026-01-27T21:31:17.111145",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9559_chunk_0",
+    "timestamp": "2026-01-27T21:31:18.373183",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9560_chunk_0",
+    "timestamp": "2026-01-27T21:31:18.936517",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9561_chunk_0",
+    "timestamp": "2026-01-27T21:31:20.230643",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9562_chunk_0",
+    "timestamp": "2026-01-27T21:31:20.772125",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9564_chunk_0",
+    "timestamp": "2026-01-27T21:31:22.136008",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9565_chunk_0",
+    "timestamp": "2026-01-27T21:31:22.659422",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9567_chunk_0",
+    "timestamp": "2026-01-27T21:31:23.166799",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9568_chunk_0",
+    "timestamp": "2026-01-27T21:31:24.458608",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9570_chunk_0",
+    "timestamp": "2026-01-27T21:31:25.732701",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9572_chunk_0",
+    "timestamp": "2026-01-27T21:31:26.271079",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9574_chunk_0",
+    "timestamp": "2026-01-27T21:31:27.545225",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9576_chunk_0",
+    "timestamp": "2026-01-27T21:31:28.526969",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9577_chunk_0",
+    "timestamp": "2026-01-27T21:31:29.906233",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9578_chunk_0",
+    "timestamp": "2026-01-27T21:31:31.154314",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9579_chunk_0",
+    "timestamp": "2026-01-27T21:31:32.576014",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9580_chunk_0",
+    "timestamp": "2026-01-27T21:31:33.825561",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9581_chunk_0",
+    "timestamp": "2026-01-27T21:31:35.040056",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9584_chunk_0",
+    "timestamp": "2026-01-27T21:31:35.605373",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9585_chunk_0",
+    "timestamp": "2026-01-27T21:31:37.059780",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9587_chunk_0",
+    "timestamp": "2026-01-27T21:31:38.416671",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9590_chunk_0",
+    "timestamp": "2026-01-27T21:31:39.507952",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9591_chunk_0",
+    "timestamp": "2026-01-27T21:31:40.947372",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9592_chunk_0",
+    "timestamp": "2026-01-27T21:31:43.051877",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9593_chunk_0",
+    "timestamp": "2026-01-27T21:31:43.649345",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9594_chunk_0",
+    "timestamp": "2026-01-27T21:31:44.314530",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9595_chunk_0",
+    "timestamp": "2026-01-27T21:31:44.850185",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9596_chunk_0",
+    "timestamp": "2026-01-27T21:31:45.384473",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9600_chunk_0",
+    "timestamp": "2026-01-27T21:31:46.673133",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9603_chunk_0",
+    "timestamp": "2026-01-27T21:31:47.631575",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9604_chunk_0",
+    "timestamp": "2026-01-27T21:31:48.941550",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9606_chunk_0",
+    "timestamp": "2026-01-27T21:31:49.561487",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9607_chunk_0",
+    "timestamp": "2026-01-27T21:31:50.273943",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9608_chunk_0",
+    "timestamp": "2026-01-27T21:31:51.626275",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9610_chunk_0",
+    "timestamp": "2026-01-27T21:31:52.328152",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9612_chunk_0",
+    "timestamp": "2026-01-27T21:31:54.006711",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9619_chunk_0",
+    "timestamp": "2026-01-27T21:31:54.982112",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9620_chunk_0",
+    "timestamp": "2026-01-27T21:31:56.216481",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9621_chunk_0",
+    "timestamp": "2026-01-27T21:31:57.456147",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9622_chunk_0",
+    "timestamp": "2026-01-27T21:31:58.740132",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9623_chunk_0",
+    "timestamp": "2026-01-27T21:31:59.321430",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9624_chunk_0",
+    "timestamp": "2026-01-27T21:32:00.319699",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9625_chunk_0",
+    "timestamp": "2026-01-27T21:32:01.326869",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9626_chunk_0",
+    "timestamp": "2026-01-27T21:32:02.569543",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9627_chunk_0",
+    "timestamp": "2026-01-27T21:32:03.695555",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9634_chunk_0",
+    "timestamp": "2026-01-27T21:32:04.371023",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9638_chunk_0",
+    "timestamp": "2026-01-27T21:32:06.300829",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9639_chunk_0",
+    "timestamp": "2026-01-27T21:32:06.915965",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9640_chunk_0",
+    "timestamp": "2026-01-27T21:32:07.549855",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9641_chunk_0",
+    "timestamp": "2026-01-27T21:32:08.251617",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9642_chunk_0",
+    "timestamp": "2026-01-27T21:32:09.621422",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9643_chunk_0",
+    "timestamp": "2026-01-27T21:32:10.285490",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9644_chunk_0",
+    "timestamp": "2026-01-27T21:32:11.703364",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9645_chunk_0",
+    "timestamp": "2026-01-27T21:32:13.016045",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9646_chunk_0",
+    "timestamp": "2026-01-27T21:32:13.523563",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9647_chunk_0",
+    "timestamp": "2026-01-27T21:32:14.782799",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9648_chunk_0",
+    "timestamp": "2026-01-27T21:32:16.045690",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9649_chunk_0",
+    "timestamp": "2026-01-27T21:32:16.637975",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9650_chunk_0",
+    "timestamp": "2026-01-27T21:32:17.866271",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9651_chunk_0",
+    "timestamp": "2026-01-27T21:32:18.388282",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9652_chunk_0",
+    "timestamp": "2026-01-27T21:32:19.063469",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9653_chunk_0",
+    "timestamp": "2026-01-27T21:32:20.306620",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9654_chunk_0",
+    "timestamp": "2026-01-27T21:32:20.816796",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9655_chunk_0",
+    "timestamp": "2026-01-27T21:32:21.314281",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9656_chunk_0",
+    "timestamp": "2026-01-27T21:32:22.763708",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9657_chunk_0",
+    "timestamp": "2026-01-27T21:32:23.315570",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9658_chunk_0",
+    "timestamp": "2026-01-27T21:32:24.596796",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9659_chunk_0",
+    "timestamp": "2026-01-27T21:32:25.550267",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9660_chunk_0",
+    "timestamp": "2026-01-27T21:32:26.813938",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9661_chunk_0",
+    "timestamp": "2026-01-27T21:32:27.773180",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9662_chunk_0",
+    "timestamp": "2026-01-27T21:32:29.116666",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9663_chunk_0",
+    "timestamp": "2026-01-27T21:32:29.660349",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9664_chunk_0",
+    "timestamp": "2026-01-27T21:32:30.935770",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9665_chunk_0",
+    "timestamp": "2026-01-27T21:32:31.473518",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  },
+  {
+    "chunk_id": "doc_9666_chunk_0",
+    "timestamp": "2026-01-27T21:32:32.759309",
+    "status": "failed",
+    "triples": [],
+    "raw_response": null,
+    "error": "API error: deepseek/deepseek-v3.1:free is not a valid model ID"
+  }
+]

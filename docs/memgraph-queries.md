@@ -1,139 +1,186 @@
-**Memgraph Quick Queries**
+# Cypher Query Guide for Knowledge Graph Visualization
 
-Use these example Cypher queries in Memgraph Lab (http://localhost:3000/lab/query) after importing `data/output/triples_YYYYMMDD_HHMMSS.json`.
+## Cypher Quick Tutorial
 
-- **Quick Checks:**
+**Cypher** is Neo4j's query language for graphs, used by Memgraph. Here are the basics:
 
+### Core Concepts
+- **Nodes**: `(n:Entity)` - entities like "RAG", "LLMs"
+- **Relationships**: `[r:PREDICATE]` - connections like "COMBINE", "REPRESENTS"
+- **Patterns**: `(subject)-[relationship]->(object)`
+
+### Basic Syntax
+- `MATCH` - find patterns in the graph
+- `WHERE` - filter results
+- `RETURN` - specify what to return
+- `LIMIT` - restrict number of results
+- `ORDER BY` - sort results
+
+### Common Patterns
 ```cypher
-MATCH (n:Entity) RETURN count(n) AS entities;
-MATCH ()-[r:REL]->() RETURN count(r) AS relationships;
+-- Find all nodes
+MATCH (n) RETURN n;
+
+-- Find relationships between nodes
+MATCH (s)-[r]->(o) RETURN s, r, o;
+
+-- Filter by property
+MATCH (n) WHERE n.name CONTAINS "RAG" RETURN n;
+
+-- Count things
+MATCH (n) RETURN count(n) AS total_nodes;
 ```
 
-- **Show a sample of triples:**
+---
 
-```cypher
-MATCH (s:Entity)-[r:REL]->(o:Entity)
-RETURN s.name AS subject, r.predicate AS predicate, o.name AS object, r.confidence
-LIMIT 50;
+## Memgraph Quick Queries
+
+Use these example Cypher queries in **Memgraph Lab** (`http://localhost:3000`) after importing triples with:
+
+```bash
+uv run python graph_importer.py data/output/triples.json
 ```
 
-- **Top predicates:**
+## Essential Queries
 
+### Quick Graph Statistics
 ```cypher
-MATCH ()-[r:REL]->()
-RETURN r.predicate AS predicate, count(*) AS cnt
-ORDER BY cnt DESC
-LIMIT 20;
+-- Count all nodes and relationships
+MATCH (n) RETURN count(n) AS total_nodes;
+MATCH ()-[r]->() RETURN count(r) AS total_relationships;
+
+-- Get basic graph info
+CALL graph_info.info() YIELD nodes, edges RETURN nodes, edges;
 ```
 
-- **Inspect neighborhood of an entity (example: `GraphRAG`):**
-
+### Explore Triples and Relationships
 ```cypher
-MATCH (g:Entity {name: 'GraphRAG'})-[r]->(o)
-RETURN g, r, o
-LIMIT 200;
+-- View entire graph (sample)
+MATCH (s)-[r]->(o) RETURN s, r, o LIMIT 50;
+
+-- Show triples as table with properties
+MATCH (s)-[r]->(o)
+RETURN s.name AS subject, type(r) AS predicate, o.name AS object, r.confidence AS confidence
+ORDER BY r.confidence DESC
+LIMIT 25;
+
+-- Find most common relationship types
+MATCH ()-[r]->()
+RETURN type(r) AS relationship_type, count(*) AS frequency
+ORDER BY frequency DESC
+LIMIT 15;
 ```
 
-- **Shortest path between two entities:**
-
+### Entity Analysis
 ```cypher
+-- Find most connected entities (highest degree)
+MATCH (n)-[r]-()
+RETURN n.name, count(r) AS connections
+ORDER BY connections DESC LIMIT 10;
+
+-- Explore relationships for specific entity
+MATCH (s)-[r]->(o)
+WHERE s.name CONTAINS "RAG"
+RETURN s, r, o LIMIT 20;
+
+-- Find entities with highest confidence relationships
+MATCH (s)-[r]->(o)
+RETURN DISTINCT s.name, max(r.confidence) AS max_confidence
+ORDER BY max_confidence DESC LIMIT 10;
+```
+
+### Advanced Path Finding
+```cypher
+-- Shortest path between two entities
 MATCH p=shortestPath(
-  (a:Entity {name:'GraphRAG'})-[*]-(b:Entity {name:'Traditional RAG Approaches'})
+  (a {name:'RAG'})-[*]-(b {name:'LLMs'})
 )
 RETURN p;
+
+-- Find all paths up to length 3
+MATCH p=(a {name:'RAG'})-[*1..3]-(b)
+RETURN p LIMIT 10;
+
+-- Find subgraph around an entity (2-hop neighborhood)
+MATCH (center {name:'RAG'})-[*1..2]-(neighbor)
+RETURN center, neighbor LIMIT 50;
 ```
 
-- **Create an index for faster lookups:**
-
+### Performance Optimization
 ```cypher
+-- Create index on node names for faster lookups
 CREATE INDEX ON :Entity(name);
+
+-- Show existing indexes
+SHOW INDEX INFO;
+
+-- Profile query performance
+PROFILE MATCH (n)-[r]->() RETURN count(r);
 ```
-
-**Notes**
-
-- The loader script (`scripts/load_triples_to_memgraph.py`) by default creates nodes with label `:Entity` and relationships as `:REL` with a `predicate` property. If you ran the loader with `--use-relationship-type` it may create relationship types derived from the predicate.
-- If Memgraph Lab is not reachable at `http://localhost:3000`, ensure the service is running and port `3000` is exposed (Docker example below).
-
-Docker run example to start Memgraph with Lab exposed:
-
-```bash
-docker run -p 7687:7687 -p 3000:3000 --name memgraph -it memgraph/memgraph:latest
-```
-
-Import example (after starting Memgraph):
-
-```bash
-python scripts/load_triples_to_memgraph.py --file data/output/triples_20251228_024650.json --bolt bolt://localhost:7687
-```
-
-If you want, I can also add a short README section with screenshots or pre-made queries tailored to your dataset—tell me which queries you want saved as favorites in Lab.
 
 ---
 
 ## Visualization Guide
 
-If the **Graph** tab in Memgraph Lab is disabled after running a query, it's usually because the result set contains only scalar values (strings, numbers) instead of node/relationship objects. The Lab graph visualizer requires actual graph objects to render nodes and edges.
+### Getting Started with Memgraph Lab
 
-- Why your CSV-like result appears but Graph tab is disabled
+1. **Import your triples** using the graph importer:
+   ```bash
+   uv run python graph_importer.py data/output/triples.json
+   ```
 
-  Example scalar-returning query you ran:
+2. **Open Memgraph Lab**: Visit `http://localhost:3000` in your browser
 
-  ```cypher
-  MATCH (s:Entity)-[r:REL]->(o:Entity)
-  RETURN s.name AS subject, r.predicate AS predicate, o.name AS object, r.confidence
-  LIMIT 50;
-  ```
+3. **Run queries** in the query editor and click **Graph** tab for visualization
 
-  This returns plain columns (`subject`, `predicate`, `object`, `confidence`) — Lab shows them as a table (CSV-like) but cannot enable the Graph view because there are no `Node` / `Relationship` objects in the result.
+### Graph vs Table View
 
-- How to enable the Graph view
+The **Graph** tab in Memgraph Lab only works when your query returns actual `Node` and `Relationship` objects.
 
-  Return the actual node and relationship objects instead of their properties:
+**❌ Won't show graph (table only):**
+```cypher
+MATCH (s)-[r]->(o)
+RETURN s.name, type(r), o.name  -- Returns strings only
+```
 
-  ```cypher
-  MATCH (s:Entity)-[r:REL]->(o:Entity)
-  RETURN s, r, o
-  LIMIT 50;
-  ```
+**✅ Will show graph:**
+```cypher
+MATCH (s)-[r]->(o)
+RETURN s, r, o  -- Returns graph objects
+```
 
-  After running that, click the **Graph** tab in the results pane — Lab will render the returned nodes and edges.
+### Tips for Better Visualization
 
-- Helpful variants
+- **Limit results** for performance: `LIMIT 50` for exploration
+- **Use focused queries** instead of full graph queries
+- **Create indexes** for faster neighborhood exploration
+- **Increase limits** in Lab settings if needed (gear icon → visualization settings)
 
-  - If you want to label the returned columns while keeping objects:
+### Memgraph Lab Features
 
-    ```cypher
-    MATCH (s:Entity)-[r:REL]->(o:Entity)
-    RETURN s AS subject_node, r AS rel, o AS object_node
-    LIMIT 50;
-    ```
+- **Query Editor**: Write and execute Cypher queries
+- **Graph Canvas**: Interactive visualization of nodes and relationships
+- **Table View**: Tabular results for data inspection
+- **Query History**: Access previous queries
+- **Settings**: Customize visualization limits and appearance
 
-  - If you need both the table view and the graph view, run two queries: one returning scalars for CSV export, and another returning objects for visualization.
+### Starting Memgraph (if not running)
 
-- If the Graph tab is still disabled
+If you're using Docker Compose (recommended):
+```bash
+docker-compose up -d
+```
 
-  - Reduce the `LIMIT` (Lab may refuse large result sets for visualization).
-  - Open Lab settings (gear icon) and increase the `Max nodes` / `Max relationships` visualization limits.
-  - Ensure returned values are real `Node`/`Relationship` objects (those come directly from `MATCH` results; if you use custom projections, return the objects explicitly).
+Or standalone Memgraph + Lab:
+```bash
+docker run -d -p 7687:7687 -p 3000:3000 memgraph/memgraph-mage:latest
+```
 
-- Performance and indexing
+### Troubleshooting
 
-  - Create an index on `:Entity(name)` to speed lookups and interactive exploration:
+- **Can't connect?** Ensure Memgraph is running on `bolt://localhost:7687`
+- **Graph tab disabled?** Check that query returns `Node`/`Relationship` objects
+- **Slow performance?** Create indexes and use smaller result limits
+- **Large graphs?** Use focused neighborhood queries instead of full graph
 
-    ```cypher
-    CREATE INDEX ON :Entity(name);
-    ```
-
-  - Use small, focused queries when exploring the graph (e.g., neighborhood of a single entity) to keep the visualization responsive.
-
-- Example: show neighborhood and then visualize
-
-  ```cypher
-  MATCH (g:Entity {name: 'GraphRAG'})-[r]->(o)
-  RETURN g, r, o
-  LIMIT 200;
-  ```
-
-  Click **Graph** to inspect the rendered subgraph.
-
-If you'd like, I will append a short note to `docs/memgraph-queries.md` with a screenshot example or add pre-saved Lab queries — tell me which you'd prefer.
+This guide covers the most common operations for exploring your knowledge graph. Start with the statistics queries, then explore specific entities and relationships that interest you!

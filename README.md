@@ -185,7 +185,106 @@ The system generates:
 - **Triples JSON**: Validated triples saved to `data/output/triples.json`
 - **Statistics**: Console output with processing stats
 
-Visualize the graph using [Memgraph Lab](http://localhost:3000).
+### Loading Triples into Memgraph
+
+Use the provided graph importer script for easy import:
+
+```bash
+# Import triples from JSON file
+uv run python graph_importer.py data/output/triples.json
+
+# Or with a specific file
+uv run python graph_importer.py data/output/triples_20251228_234452.json
+
+# Skip the visualization guide
+uv run python graph_importer.py data/output/triples.json --no-guide
+```
+
+The script will:
+- Load triples from your JSON file
+- Clear any existing graph in Memgraph
+- Bulk import all triples
+- Show import statistics
+- Display visualization and querying instructions
+
+**JSON Format Expected:**
+```json
+[
+  {
+    "subject": "RAG",
+    "predicate": "COMBINE",
+    "object": "LLMs",
+    "confidence": 0.95,
+    "source_chunk_id": "section_0_chunk_0",
+    "metadata": {}
+  }
+]
+```
+
+### Visualization with Memgraph Lab
+
+After importing with `graph_importer.py`, you'll get a complete guide. For quick reference:
+
+- **Memgraph Lab Web Interface**: Open `http://localhost:3000` in your browser
+- **Interactive Graph Exploration**: Visual graph representations with Cypher queries
+- **Query Editor**: Write and execute Cypher queries with syntax highlighting
+
+### Essential Cypher Queries
+
+**View the entire graph:**
+```cypher
+MATCH (s)-[r]->(o) RETURN s, r, o LIMIT 50;
+```
+
+**Find most connected entities:**
+```cypher
+MATCH (n)-[r]-()
+RETURN n.name, count(r) AS connections
+ORDER BY connections DESC LIMIT 10;
+```
+
+**Explore relationships for specific entities:**
+```cypher
+MATCH (s)-[r]->(o)
+WHERE s.name CONTAINS "RAG"
+RETURN s, r, o;
+```
+
+**Get graph statistics:**
+```cypher
+MATCH (n) RETURN count(n) AS nodes;
+MATCH ()-[r]->() RETURN count(r) AS relationships;
+```
+
+**Find relationships by type:**
+```cypher
+MATCH (s)-[r]->(o)
+WHERE type(r) = "COMBINE"
+RETURN s, r, o LIMIT 20;
+```
+
+**Analyze confidence scores:**
+```cypher
+MATCH (s)-[r]->(o)
+RETURN s.name, type(r), o.name, r.confidence
+ORDER BY r.confidence DESC LIMIT 25;
+```
+
+**Find paths between entities:**
+```cypher
+MATCH path = (a)-[*2]-(b)
+WHERE a.name = "RAG" AND b.name = "LLMs"
+RETURN path LIMIT 5;
+```
+
+**Advanced: Subgraph extraction:**
+```cypher
+MATCH (n)-[r]-()
+WITH n, count(r) AS degree
+WHERE degree > 5
+MATCH (n)-[r]-(m)
+RETURN n, r, m;
+```
 
 ## Performance
 

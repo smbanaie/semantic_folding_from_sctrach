@@ -1,0 +1,473 @@
+subject,predicate,object,source_chunk_id
+Slavic languages,have grammatical genders,"masculine, feminine, neuter",doc_3260_chunk_0
+Slavic languages,have grammatical numbers,"singular, plural",doc_3260_chunk_0
+Slavic languages,have grammatical number considered by some,paucal or dual,doc_3260_chunk_0
+Slavic languages,preserve gender distinction in plural unlike,Russian,doc_3260_chunk_0
+Slavic languages,preserve gender distinction in plural unlike,Čakavian dialect,doc_3260_chunk_0
+"numbers dva, dvije/dve, tri, četiri",require,genitive singular,doc_3260_chunk_0
+numbers pet and above,require,genitive plural,doc_3260_chunk_0
+adjectives,agree with nouns in,case and number,doc_3260_chunk_0
+adjectives,placement relative to noun,preceding,doc_3260_chunk_0
+Catalan personal pronouns,has morphology,complex,doc_3261_chunk_0
+Catalan personal pronouns,has feature,gender-neutral ho,doc_3261_chunk_0
+Catalan personal pronouns,has unstressed forms count,13,doc_3261_chunk_0
+Spanish,has unstressed forms count,11,doc_3261_chunk_0
+Italian,has unstressed forms count,9,doc_3261_chunk_0
+Catalan personal pronouns,allows combinations,65 unstressed pronoun combinations,doc_3261_chunk_0
+unstressed forms,belong to,Catalan personal pronouns,doc_3261_chunk_0
+gender-neutral ho,is feature of,Catalan personal pronouns,doc_3261_chunk_0
+"Bosnian, Serbian and Croatian standards of Serbo-Croatian",undergone,deliberate highlighting of minor linguistic differences in the name of nationalism,doc_3262_chunk_0
+Most Slavic languages (including Czech),distanced from,Russian influences,doc_3262_chunk_0
+Soviet Union,occupied,Czechoslovakia in 1968,doc_3262_chunk_0
+Czech and Slovak,form,dialect continuum,doc_3262_chunk_0
+Neighboring Czech and Slovak dialects,have,great similarity,doc_3262_chunk_0
+Greece,has majority language,Greek,doc_3263_chunk_0
+Pontic dialect,spoken by,speakers from Asia Minor,doc_3263_chunk_0
+Speakers from Asia Minor,came to,Greece,doc_3263_chunk_0
+Speakers from Asia Minor,came after,Greek genocide,doc_3263_chunk_0
+Cappadocian dialect,came to,Greece,doc_3263_chunk_0
+Cappadocian dialect,endangered,true,doc_3263_chunk_0
+Sarakatsani,speak,archaic Greek,doc_3263_chunk_0
+Sarakatsani,are,traditional transhumant shepherds,doc_3263_chunk_0
+Sarakatsani,located in,Greek Macedonia,doc_3263_chunk_0
+Sarakatsani,located in,Northern Greece,doc_3263_chunk_0
+Tsakonian language,derives from,Doric Greek,doc_3263_chunk_0
+Tsakonian language,spoken in,southeastern Peloponnese,doc_3263_chunk_0
+Tsakonian language,distinct from,Ionic Greek,doc_3263_chunk_0
+Valencian,classified as,Western dialect,doc_3264_chunk_0
+Western dialect,spoken in,Western Catalonia,doc_3264_chunk_0
+Western Catalonia,has province,Lleida,doc_3264_chunk_0
+Western Catalonia,has province,Tarragona,doc_3264_chunk_0
+Catalan,mutually intelligible with,Valencian,doc_3264_chunk_0
+Western Catalan,comprises,Northwestern Catalan,doc_3265_chunk_0
+Western Catalan,comprises,Valencian,doc_3265_chunk_0
+Eastern block,comprises,Central Catalan,doc_3265_chunk_0
+Eastern block,comprises,Balearic,doc_3265_chunk_0
+Eastern block,comprises,Rossellonese,doc_3265_chunk_0
+Eastern block,comprises,Alguerese,doc_3265_chunk_0
+Chukotkan,is part of,Chukotko-Kamchatkan language family,doc_3266_chunk_0
+Chukotkan,spoken in,Russia,doc_3266_chunk_0
+Chukotkan,bounded on the east by,Pacific Ocean,doc_3266_chunk_0
+Chukotkan,bounded on the north by,Arctic Ocean,doc_3266_chunk_0
+Chukotkan,has alternative name,Chukotian,doc_3266_chunk_0
+Chukotkan,has alternative name,Chukotic,doc_3266_chunk_0
+Majorcan,has vowel reduction pattern,four unstressed vowels,doc_3267_chunk_0
+Majorcan,follows reduction pattern for vowels,Eastern Catalan,doc_3267_chunk_0
+Majorcan,reduces vowels /o ɔ/ to,[o],doc_3267_chunk_0
+Majorcan,keeps vowel /u/ distinct as in,Western Catalan,doc_3267_chunk_0
+Uranium carbides,are,relatively inert semimetallic compounds,doc_3268_chunk_0
+Uranium nitrides,are,relatively inert semimetallic compounds,doc_3268_chunk_0
+Uranium carbides,are minimally soluble in,acids,doc_3268_chunk_0
+Uranium nitrides,are minimally soluble in,acids,doc_3268_chunk_0
+Uranium carbides,react with,water,doc_3268_chunk_0
+Uranium nitrides,react with,water,doc_3268_chunk_0
+Uranium carbides,ignite in air to form,U3O8,doc_3268_chunk_0
+Uranium nitrides,ignite in air to form,U3O8,doc_3268_chunk_0
+Uranium carbides,include,uranium monocarbide (UC),doc_3268_chunk_0
+Uranium carbides,include,uranium dicarbide (UC2),doc_3268_chunk_0
+Uranium carbides,include,diuranium tricarbide (U2C3),doc_3268_chunk_0
+UC,formed by,adding carbon to molten uranium,doc_3268_chunk_0
+UC2,formed by,adding carbon to molten uranium,doc_3268_chunk_0
+UC,formed by,exposing uranium to carbon monoxide at high temperatures,doc_3268_chunk_0
+UC2,formed by,exposing uranium to carbon monoxide at high temperatures,doc_3268_chunk_0
+U2C3,prepared by,subjecting heated mixture of UC and UC2 to mechanical stress,doc_3268_chunk_0
+U2C3,stable below,1800 °C,doc_3268_chunk_0
+Uranium nitrides,include,uranium mononitride (UN),doc_3268_chunk_0
+Uranium nitrides,include,uranium dinitride (UN2),doc_3268_chunk_0
+Uranium nitrides,include,diuranium trinitride (U2N3),doc_3268_chunk_0
+UN,obtained by,direct exposure of uranium to nitrogen,doc_3268_chunk_0
+UN2,obtained by,direct exposure of uranium to nitrogen,doc_3268_chunk_0
+U2N3,obtained by,direct exposure of uranium to nitrogen,doc_3268_chunk_0
+Modern Nationalism,developed since,French Revolution,doc_3269_chunk_0
+Modern Nationalism,has made distinction,language vs dialect,doc_3269_chunk_0
+language vs dialect,is,issue of political importance,doc_3269_chunk_0
+Group speaking separate language,seen as,separate people,doc_3269_chunk_0
+separate people,deserve,independent state,doc_3269_chunk_0
+Group speaking dialect,seen as,sub-group,doc_3269_chunk_0
+sub-group,part of,bigger people,doc_3269_chunk_0
+bigger people,content with,regional autonomy,doc_3269_chunk_0
+distinction between language and dialect,based on,political basis,doc_3269_chunk_0
+distinction between language and dialect,based on,linguistic basis,doc_3269_chunk_0
+distinction between language and dialect,can lead to,political controversy,doc_3269_chunk_0
+distinction between language and dialect,can lead to,armed conflict,doc_3269_chunk_0
+Catalan language,has feature,relative uniformity,doc_3270_chunk_0
+Catalan dialects,exhibit,high mutual intelligibility,doc_3270_chunk_0
+Alguerese dialect,is a,Catalan dialect,doc_3270_chunk_0
+Alguerese dialect,has characteristic,isolated idiosyncrasy,doc_3270_chunk_0
+Supervisory Board,meets frequency,twice a month,doc_3284_chunk_0
+Supervisory Board,discusses,ECB’s supervisory tasks,doc_3284_chunk_0
+Supervisory Board,plans,ECB’s supervisory tasks,doc_3284_chunk_0
+Supervisory Board,carries out,ECB’s supervisory tasks,doc_3284_chunk_0
+Supervisory Board,proposes,draft decisions to Governing Council,doc_3284_chunk_0
+Supervisory Board,proposes under procedure,non-objection procedure,doc_3284_chunk_0
+Supervisory Board,composed of,Chair,doc_3284_chunk_0
+Supervisory Board,composed of,Vice-Chair,doc_3284_chunk_0
+Supervisory Board,composed of,four ECB representatives,doc_3284_chunk_0
+Supervisory Board,composed of,representatives of national supervisors,doc_3284_chunk_0
+Chair,has appointment term,non-renewable five years,doc_3284_chunk_0
+Vice-Chair,chosen from,ECB Executive Board members,doc_3284_chunk_0
+national supervisory authority,designated by,Member State,doc_3284_chunk_0
+representative of competent authority,can be accompanied by,representative from NCB,doc_3284_chunk_0
+representative of competent authority and NCB representative,considered as,one member for voting procedure,doc_3284_chunk_0
+George Packer,served with,Peace Corps,doc_3285_chunk_0
+George Packer,wrote,The Village of Waiting,doc_3285_chunk_0
+The Village of Waiting,chronicles,George Packer's experiences in Togo,doc_3285_chunk_0
+George Packer,was,English teacher in Lavie,doc_3285_chunk_0
+Lavie,located in,Togo,doc_3285_chunk_0
+George Packer,visited,Lomé,doc_3285_chunk_0
+Lomé,is capital of,Togo,doc_3285_chunk_0
+The Village of Waiting,criticizes,Gnassingbe Eyadema,doc_3285_chunk_0
+Gnassingbe Eyadema,is,President of Togo,doc_3285_chunk_0
+2001 edition,has afterword by,George Packer,doc_3285_chunk_0
+George Packer,reflects on,changes in Togo,doc_3285_chunk_0
+George Packer,was,early termination from Peace Corps,doc_3285_chunk_0
+George Packer,omitted mention of,early termination in The Village of Waiting,doc_3285_chunk_0
+Lavie,means,wait a little longer,doc_3285_chunk_0
+Peace Corps service,occurred during,1982–1983,doc_3285_chunk_0
+The Unwinding: An Inner History of the New America,author,George Packer,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,publication year,2013,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,genre,non-fiction,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,discusses,subprime mortgage crisis,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,discusses,decline of American manufacturing,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,discusses,influence of money on politics,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,profiles,Peter Thiel,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,profiles,Jay-Z,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,profiles,Newt Gingrich,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,profiles,Alice Waters,doc_3286_chunk_0
+Peter Thiel,occupation,Silicon Valley entrepreneur,doc_3286_chunk_0
+Jay-Z,occupation,rapper,doc_3286_chunk_0
+Newt Gingrich,occupation,politician,doc_3286_chunk_0
+Alice Waters,occupation,restaurateur,doc_3286_chunk_0
+Alice Waters,occupation,food activist,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,includes location,"Youngstown, Ohio",doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,includes location,North Carolina,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,includes location,Washington,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,includes location,Silicon Valley,doc_3286_chunk_0
+The Unwinding: An Inner History of the New America,includes location,"Tampa, Florida",doc_3286_chunk_0
+Barry Onouye,is a,structural engineer,doc_3287_chunk_0
+Barry Onouye,is an emeritus faculty member of,Department of Architecture,doc_3287_chunk_0
+Department of Architecture,is part of,University of Washington,doc_3287_chunk_0
+Barry Onouye,author of,textbooks on structural engineering and design,doc_3287_chunk_0
+Susan Evans McCloud,has birth date,"July 28, 1945",doc_3288_chunk_0
+Susan Evans McCloud,has nationality,American,doc_3288_chunk_0
+Susan Evans McCloud,has profession,novelist,doc_3288_chunk_0
+Susan Evans McCloud,has profession,author,doc_3288_chunk_0
+Susan Evans McCloud,has profession,poet,doc_3288_chunk_0
+Susan Evans McCloud,has profession,hymnwriter,doc_3288_chunk_0
+Susan Evans McCloud,is member of,The Church of Jesus Christ of Latter-day Saints,doc_3288_chunk_0
+Socialist Resistance of Kazakhstan,established by,Kazakh members of the Committee for a Workers International,doc_3289_chunk_0
+Socialist Resistance of Kazakhstan,founded in,2002,doc_3289_chunk_0
+Socialist Resistance of Kazakhstan,established during conference in,Russia,doc_3289_chunk_0
+Socialist Resistance of Kazakhstan,came under attack by,authorities,doc_3289_chunk_0
+Socialist Resistance of Kazakhstan,had member detained,en route to conference,doc_3289_chunk_0
+Socialist Resistance of Kazakhstan,members attacked,during conference gathering,doc_3289_chunk_0
+Kazakh members of the Committee for a Workers International,member of,Committee for a Workers International,doc_3289_chunk_0
+Claude Aveline,has pen name,Evgen Avtsine,doc_3290_chunk_0
+Claude Aveline,born on,19 July 1901,doc_3290_chunk_0
+Claude Aveline,died on,4 November 1992,doc_3290_chunk_0
+Claude Aveline,is a,writer,doc_3290_chunk_0
+Claude Aveline,is a,publisher,doc_3290_chunk_0
+Claude Aveline,is a,editor,doc_3290_chunk_0
+Claude Aveline,is a,poet,doc_3290_chunk_0
+Claude Aveline,is a member of,French Resistance,doc_3290_chunk_0
+Claude Aveline,born in,Paris,doc_3290_chunk_0
+Paris,located in,France,doc_3290_chunk_0
+Claude Aveline,writes,novels,doc_3290_chunk_0
+Claude Aveline,writes,poems,doc_3290_chunk_0
+Claude Aveline,writes,screenplays,doc_3290_chunk_0
+Claude Aveline,writes,plays,doc_3290_chunk_0
+Claude Aveline,writes,articles,doc_3290_chunk_0
+Claude Aveline,writes,sayings,doc_3290_chunk_0
+Supreme Court of Ireland,is highest court in,Ireland,doc_3291_chunk_0
+Supreme Court of Ireland,has authority to interpret,Constitution of Ireland,doc_3291_chunk_0
+Supreme Court of Ireland,can strike down,unconstitutional laws,doc_3291_chunk_0
+Supreme Court of Ireland,can strike down,unconstitutional state activities,doc_3291_chunk_0
+Supreme Court of Ireland,is highest authority in,interpretation of the law,doc_3291_chunk_0
+Supreme Court of Ireland,has constitutional authority to interpret,Constitution of Ireland,doc_3291_chunk_0
+Supreme Court of Ireland,has appellate jurisdiction defined by,law,doc_3291_chunk_0
+Supreme Court of Ireland,consists of,Chief Justice,doc_3291_chunk_0
+Supreme Court of Ireland,has number of judges,seven other judges,doc_3291_chunk_0
+Judges of Supreme Court,appointed by,President of Ireland,doc_3291_chunk_0
+President of Ireland,appoints in accordance with advice of,Government of Ireland,doc_3291_chunk_0
+Supreme Court of Ireland,is located in,Four Courts,doc_3291_chunk_0
+Four Courts,is located in,Dublin,doc_3291_chunk_0
+Pakistan,beat,India,doc_3292_chunk_0
+Pakistan,won,ICC Champions Trophy,doc_3292_chunk_0
+Pakistan,achieved margin of victory,180 runs,doc_3292_chunk_0
+Pakistan,was,lowest-ranked team,doc_3292_chunk_0
+Fakhar Zaman,received award,Man of the Match,doc_3292_chunk_0
+Fakhar Zaman,scored,114 runs,doc_3292_chunk_0
+Shikhar Dhawan,received award,Golden Bat,doc_3292_chunk_0
+Shikhar Dhawan,scored,338 runs,doc_3292_chunk_0
+Hasan Ali,received award,Golden Ball,doc_3292_chunk_0
+Hasan Ali,took wickets,13,doc_3292_chunk_0
+Hasan Ali,received award,Man of the Series,doc_3292_chunk_0
+Pakistan,last won ICC ODI title in,1992,doc_3292_chunk_0
+Pakistan,last won ICC tournament title in,2009,doc_3292_chunk_0
+India,is arch-rival of,Pakistan,doc_3293_chunk_0
+Pakistan,beat,India,doc_3293_chunk_0
+Champions Trophy 2017 Final,held at,The Oval,doc_3293_chunk_0
+Champions Trophy 2017 Final,location,London,doc_3293_chunk_0
+India,final appearances,4,doc_3293_chunk_0
+Pakistan,final appearances,1,doc_3293_chunk_0
+Pakistan,won by,180 runs,doc_3293_chunk_0
+Pakistan,ranking,lowest-ranked,doc_3293_chunk_0
+Pakistan,won title,Champions Trophy,doc_3293_chunk_0
+Pakistan,became,seventh nation to win Champions Trophy,doc_3293_chunk_0
+Fakhar Zaman,scored,114 runs,doc_3293_chunk_0
+Fakhar Zaman,received award,Man of the Match,doc_3293_chunk_0
+Shikhar Dhawan,scored,338 runs,doc_3293_chunk_0
+Shikhar Dhawan,received award,Golden Bat,doc_3293_chunk_0
+Hasan Ali,took wickets,13,doc_3293_chunk_0
+Hasan Ali,received award,Golden Ball,doc_3293_chunk_0
+Hasan Ali,received award,Man of the Series,doc_3293_chunk_0
+Pakistan,won ICC ODI title since,1992,doc_3293_chunk_0
+Nargis Dutt,received,National Film Award,doc_3294_chunk_0
+National Film Award,year,1968,doc_3294_chunk_0
+Nargis Dutt,performed_in,Raat Aur Din,doc_3294_chunk_0
+Shabana Azmi,received,Rajat Kamal award,doc_3294_chunk_0
+Shabana Azmi,number_of_wins,5,doc_3294_chunk_0
+Sharada,received,Rajat Kamal award,doc_3294_chunk_0
+Sharada,number_of_wins,3,doc_3294_chunk_0
+Smita Patil,received,Rajat Kamal award,doc_3294_chunk_0
+Smita Patil,number_of_wins,2,doc_3294_chunk_0
+Archana,received,Rajat Kamal award,doc_3294_chunk_0
+Archana,number_of_wins,2,doc_3294_chunk_0
+Shobana,received,Rajat Kamal award,doc_3294_chunk_0
+Shobana,number_of_wins,2,doc_3294_chunk_0
+Tabu,received,Rajat Kamal award,doc_3294_chunk_0
+Tabu,number_of_wins,2,doc_3294_chunk_0
+Kangana Ranaut,received,Rajat Kamal award,doc_3294_chunk_0
+Kangana Ranaut,number_of_wins,2,doc_3294_chunk_0
+Sharada,awarded_in_languages,Malayalam,doc_3294_chunk_0
+Sharada,awarded_in_languages,Telugu,doc_3294_chunk_0
+Archana,awarded_in_languages,Tamil,doc_3294_chunk_0
+Archana,awarded_in_languages,Telugu,doc_3294_chunk_0
+Shobana,awarded_in_languages,Malayalam,doc_3294_chunk_0
+Shobana,awarded_in_languages,English,doc_3294_chunk_0
+Sharada,performed_in,Thulabharam,doc_3294_chunk_0
+Thulabharam,language,Malayalam,doc_3294_chunk_0
+Thulabharam,year,1970,doc_3294_chunk_0
+Sharada,performed_in,Swayamvaram,doc_3294_chunk_0
+Swayamvaram,language,Malayalam,doc_3294_chunk_0
+Swayamvaram,year,1973,doc_3294_chunk_0
+Sharada,performed_in,Nimajjanam,doc_3294_chunk_0
+Nimajjanam,language,Telugu,doc_3294_chunk_0
+Nimajjanam,year,1979,doc_3294_chunk_0
+Archana,performed_in,Veedu,doc_3294_chunk_0
+Veedu,language,Tamil,doc_3294_chunk_0
+Veedu,year,1988,doc_3294_chunk_0
+Archana,performed_in,Daasi,doc_3294_chunk_0
+Daasi,language,Telugu,doc_3294_chunk_0
+Daasi,year,1989,doc_3294_chunk_0
+Shobana,performed_in,Manichitrathazhu,doc_3294_chunk_0
+Manichitrathazhu,language,Malayalam,doc_3294_chunk_0
+Manichitrathazhu,year,1994,doc_3294_chunk_0
+Shobana,performed_in,"Mitr, My Friend",doc_3294_chunk_0
+"Mitr, My Friend",language,English,doc_3294_chunk_0
+"Mitr, My Friend",year,2002,doc_3294_chunk_0
+Monisha Unni,received,National Film Award,doc_3294_chunk_0
+Monisha Unni,age_at_award,16,doc_3294_chunk_0
+Monisha Unni,performed_in,Nakhakshathangal,doc_3294_chunk_0
+Nakhakshathangal,language,Malayalam,doc_3294_chunk_0
+Nakhakshathangal,year,1987,doc_3294_chunk_0
+Indrani Haldar,received,National Film Award,doc_3294_chunk_0
+Rituparna Sengupta,received,National Film Award,doc_3294_chunk_0
+Indrani Haldar,honored_with,Rituparna Sengupta,doc_3294_chunk_0
+Karl Popper,won,Lippincott Award,doc_3295_chunk_0
+Karl Popper,won,Sonning Prize,doc_3295_chunk_0
+Karl Popper,won,Otto Hahn Peace Medal,doc_3295_chunk_0
+American Political Science Association,awarded,Lippincott Award to Karl Popper,doc_3295_chunk_0
+United Nations Association of Germany,awarded,Otto Hahn Peace Medal to Karl Popper,doc_3295_chunk_0
+Karl Popper,was fellow of,Royal Society,doc_3295_chunk_0
+Karl Popper,was fellow of,British Academy,doc_3295_chunk_0
+Karl Popper,was fellow of,London School of Economics,doc_3295_chunk_0
+Karl Popper,was fellow of,King's College London,doc_3295_chunk_0
+Karl Popper,was fellow of,"Darwin College, Cambridge",doc_3295_chunk_0
+Karl Popper,was fellow of,"Charles University, Prague",doc_3295_chunk_0
+Austria,awarded,Grand Decoration of Honour in Gold to Karl Popper,doc_3295_chunk_0
+Austria,awarded year,1986,doc_3295_chunk_0
+Federal Republic of Germany,awarded,Grand Cross with Star and Sash to Karl Popper,doc_3295_chunk_0
+Federal Republic of Germany,awarded,Order Pour le Mérite to Karl Popper,doc_3295_chunk_0
+International Academy of Humanism,awarded,Humanist Laureate Award to Karl Popper,doc_3295_chunk_0
+Queen Elizabeth II,knighted,Karl Popper,doc_3295_chunk_0
+Queen Elizabeth II,knighted year,1965,doc_3295_chunk_0
+Royal Society,elected Karl Popper as Fellow year,1976,doc_3295_chunk_0
+United Kingdom,invested Karl Popper with,Insignia of a Companion of Honour,doc_3295_chunk_0
+United Kingdom,invested year,1982,doc_3295_chunk_0
+R. Vasudevan,is a,Indian civil servant,doc_3296_chunk_0
+R. Vasudevan,served as special secretary to,Prime Minister Rajiv Gandhi,doc_3296_chunk_0
+R. Vasudevan,served as Secretary of,Ministry of Steel,doc_3296_chunk_0
+R. Vasudevan,served as Secretary of,Ministry of Power,doc_3296_chunk_0
+R. Vasudevan,was born in,Tamil Nadu,doc_3296_chunk_0
+R. Vasudevan,has master's degree from,University of Delhi,doc_3296_chunk_0
+R. Vasudevan,has master's degree from,Harvard University,doc_3296_chunk_0
+R. Vasudevan,has master's degree in,Economics,doc_3296_chunk_0
+R. Vasudevan,has master's degree in,public administration,doc_3296_chunk_0
+R. Vasudevan,died on,25 July 2010,doc_3296_chunk_0
+Government of India,awarded,Padma Shri to R. Vasudevan,doc_3296_chunk_0
+Padma Shri to R. Vasudevan,was awarded in,2015,doc_3296_chunk_0
+Padma Shri to R. Vasudevan,was,posthumous,doc_3296_chunk_0
+Padma Shri,is,fourth highest Indian civilian award,doc_3296_chunk_0
+Ministry of Steel,is part of,Government of India,doc_3296_chunk_0
+Ministry of Power,is part of,Government of India,doc_3296_chunk_0
+Bharat Ratna,was awarded to,C. Rajagopalachari,doc_3297_chunk_0
+Bharat Ratna,was awarded to,Sarvepalli Radhakrishnan,doc_3297_chunk_0
+Bharat Ratna,was awarded to,C.V. Raman,doc_3297_chunk_0
+C. Rajagopalachari,was awarded in,1954,doc_3297_chunk_0
+Sarvepalli Radhakrishnan,was awarded in,1954,doc_3297_chunk_0
+C.V. Raman,was awarded in,1954,doc_3297_chunk_0
+Bharat Ratna,has been awarded to,45 individuals,doc_3297_chunk_0
+Bharat Ratna,has posthumous awards,12,doc_3297_chunk_0
+Bharat Ratna statutes,were amended in,January 1955,doc_3297_chunk_0
+Bharat Ratna statutes,allow,posthumous awards,doc_3297_chunk_0
+Lal Bahadur Shastri,was the first posthumous recipient of,Bharat Ratna,doc_3297_chunk_0
+Sachin Tendulkar,is the youngest recipient of,Bharat Ratna,doc_3297_chunk_0
+Sachin Tendulkar,was awarded in,2014,doc_3297_chunk_0
+Dhondo Keshav Karve,was awarded on,100th birthday,doc_3297_chunk_0
+Mother Teresa,is a naturalised citizen recipient of,Bharat Ratna,doc_3297_chunk_0
+Khan Abdul Ghaffar Khan,is a non-Indian recipient of,Bharat Ratna,doc_3297_chunk_0
+Nelson Mandela,is a non-Indian recipient of,Bharat Ratna,doc_3297_chunk_0
+Madan Mohan Malaviya,was awarded posthumously,Bharat Ratna,doc_3297_chunk_0
+Atal Bihari Vajpayee,was awarded,Bharat Ratna,doc_3297_chunk_0
+Indian government,announced award to,Madan Mohan Malaviya,doc_3297_chunk_0
+Indian government,announced award to,Atal Bihari Vajpayee,doc_3297_chunk_0
+Indian government,announced on,24 December 2014,doc_3297_chunk_0
+Rohini Hattangadi,wonAward,32nd National Film Awards,doc_3298_chunk_0
+Rohini Hattangadi,performedIn,Party (1984),doc_3298_chunk_0
+Party (1984),isLanguage,Hindi,doc_3298_chunk_0
+Surekha Sikri,wonAward,National Film Award for Tamas (1987),doc_3298_chunk_0
+Surekha Sikri,wonAward,National Film Award for Mammo (1994),doc_3298_chunk_0
+K.P.A.C. Lalitha,wonAward,National Film Award for Amaram (1990),doc_3298_chunk_0
+K.P.A.C. Lalitha,wonAward,National Film Award for Shantham (2000),doc_3298_chunk_0
+Amaram (1990),isLanguage,Malayalam,doc_3298_chunk_0
+Shantham (2000),isLanguage,Malayalam,doc_3298_chunk_0
+Aida El-Kashef,isNationality,Egyptian,doc_3298_chunk_0
+Aida El-Kashef,wonAward,61st National Film Awards,doc_3298_chunk_0
+Aida El-Kashef,performedIn,Ship of Theseus (2013),doc_3298_chunk_0
+Ship of Theseus (2013),isLanguage,English-Hindi,doc_3298_chunk_0
+Sudipta Chakraborty,wonAward,47th National Film Awards,doc_3298_chunk_0
+Sudipta Chakraborty,performedIn,Bariwali (2000),doc_3298_chunk_0
+Sohini Sengupta,wonAward,47th National Film Awards,doc_3298_chunk_0
+Sohini Sengupta,performedIn,Paromitar Ek Din (2000),doc_3298_chunk_0
+Bariwali (2000),isLanguage,Bengali,doc_3298_chunk_0
+Paromitar Ek Din (2000),isLanguage,Bengali,doc_3298_chunk_0
+Konkona Sen Sharma,wonAward,Best Actress,doc_3298_chunk_0
+Konkona Sen Sharma,wonAward,Best Supporting Actress,doc_3298_chunk_0
+Sharmila Tagore,wonAward,Best Actress,doc_3298_chunk_0
+Sharmila Tagore,wonAward,Best Supporting Actress,doc_3298_chunk_0
+Kangana Ranaut,wonAward,Best Actress,doc_3298_chunk_0
+Kangana Ranaut,wonAward,Best Supporting Actress,doc_3298_chunk_0
+Zaira Wasim,wonAward,64th National Film Awards,doc_3298_chunk_0
+Zaira Wasim,performedIn,Dangal (2016),doc_3298_chunk_0
+Dangal (2016),isLanguage,Hindi,doc_3298_chunk_0
+Bharat Ratna,is the highest civilian award of,Republic of India,doc_3299_chunk_0
+Bharat Ratna,was instituted in,1954,doc_3299_chunk_0
+Bharat Ratna,is conferred in recognition of,exceptional service/performance of the highest order,doc_3299_chunk_0
+Government of India,expanded criteria of,Bharat Ratna,doc_3299_chunk_0
+Bharat Ratna criteria expansion,occurred in,December 2011,doc_3299_chunk_0
+Prime Minister of India,recommends recipients for,Bharat Ratna,doc_3299_chunk_0
+President of India,confers,Bharat Ratna,doc_3299_chunk_0
+Bharat Ratna recipients,receive,Sanad (certificate),doc_3299_chunk_0
+Bharat Ratna recipients,receive,peepal-leaf-shaped medallion,doc_3299_chunk_0
+Bharat Ratna recipients,rank,seventh in Indian order of precedence,doc_3299_chunk_0
+Prime Minister,makes recommendations to,President,doc_3299_chunk_0
+Bharat Ratna,was originally limited to,"achievements in arts, literature, science, and public services",doc_3299_chunk_0
+Bharat Ratna,now includes,any field of human endeavour,doc_3299_chunk_0
+Bharat Ratna,has maximum annual recipients of,three nominees,doc_3299_chunk_0
+Nargis Dutt,was first recipient of,National Film Award,doc_3300_chunk_0
+Nargis Dutt,won award for,Raat Aur Din,doc_3300_chunk_0
+15th National Film Award,occurred in,1968,doc_3300_chunk_0
+Shabana Azmi,has most wins of,Rajat Kamal awards (5),doc_3300_chunk_0
+Sharada,has wins of,Rajat Kamal awards (3),doc_3300_chunk_0
+Smita Patil,won,National Film Award (twice),doc_3300_chunk_0
+Archana,won,National Film Award (twice),doc_3300_chunk_0
+Shobana,won,National Film Award (twice),doc_3300_chunk_0
+Tabu,won,National Film Award (twice),doc_3300_chunk_0
+Kangana Ranaut,won,National Film Award (twice),doc_3300_chunk_0
+Sharada,won awards in,multiple languages,doc_3300_chunk_0
+Archana,won awards in,multiple languages,doc_3300_chunk_0
+Shobana,won awards in,multiple languages,doc_3300_chunk_0
+Sharada,awarded for,Thulabharam (Malayalam),doc_3300_chunk_0
+Sharada,awarded for,Swayamvaram (Malayalam),doc_3300_chunk_0
+Sharada,awarded for,Nimajjanam (Telugu),doc_3300_chunk_0
+Archana,awarded for,Veedu (Tamil),doc_3300_chunk_0
+Archana,awarded for,Daasi (Telugu),doc_3300_chunk_0
+Shobana,awarded for,Manichitrathazhu (Malayalam),doc_3300_chunk_0
+Shobana,awarded for,"Mitr, My Friend (English)",doc_3300_chunk_0
+Monisha Unni,is youngest recipient,National Film Award,doc_3300_chunk_0
+Monisha Unni,awarded for,Nakhakshathangal (Malayalam),doc_3300_chunk_0
+Monisha Unni,was age,16,doc_3300_chunk_0
+Indrani Haldar,shared award with,Rituparna Sengupta,doc_3300_chunk_0
+Rituparna Sengupta,shared award with,Indrani Haldar,doc_3300_chunk_0
+Sridevi,is most recent recipient,National Film Award,doc_3300_chunk_0
+Sridevi,awarded posthumously for,Mom (Hindi),doc_3300_chunk_0
+65th National Film Awards,occurred in,2017,doc_3300_chunk_0
+Sali Nivica,bornOn,1890-05-15,doc_3301_chunk_0
+Sali Nivica,diedOn,1920-01-10,doc_3301_chunk_0
+Sali Nivica,hasProfession,politician,doc_3301_chunk_0
+Sali Nivica,hasProfession,patriot,doc_3301_chunk_0
+Sali Nivica,hasProfession,Albanian journalist,doc_3301_chunk_0
+Sali Nivica,hasProfession,teacher,doc_3301_chunk_0
+Sali Nivica,receivedAward,Honour of the Nation,doc_3301_chunk_0
+Sali Nivica,receivedAward,Teacher of the People,doc_3301_chunk_0
+Sali Nivica,alsoKnownAs,Sali Nivitza,doc_3301_chunk_0
+Pakistan,beat,India,doc_3302_chunk_0
+Pakistan,won,ICC Champions Trophy,doc_3302_chunk_0
+Pakistan vs India ICC Champions Trophy Final,had margin of victory,180 runs,doc_3302_chunk_0
+180 runs,is,largest margin of victory in ICC ODI tournament final,doc_3302_chunk_0
+Pakistan,was,lowest-ranked team in ICC Champions Trophy,doc_3302_chunk_0
+Pakistan,was,massive underdogs,doc_3302_chunk_0
+Pakistan,is,seventh nation to win ICC Champions Trophy,doc_3302_chunk_0
+Pakistan,won,first ICC ODI tournament title since 1992,doc_3302_chunk_0
+Fakhar Zaman,received,Man of the Match award,doc_3302_chunk_0
+Fakhar Zaman,scored,114 runs,doc_3302_chunk_0
+Shikhar Dhawan,received,Golden Bat award,doc_3302_chunk_0
+Shikhar Dhawan,scored,338 runs in tournament,doc_3302_chunk_0
+Hasan Ali,received,Golden Ball award,doc_3302_chunk_0
+Hasan Ali,took,13 wickets,doc_3302_chunk_0
+Hasan Ali,received,Man of the Series award,doc_3302_chunk_0
+Hasan Ali,contributed to,Pakistan's first ICC tournament title since 2009,doc_3302_chunk_0
+Filmfare Awards,honour,Hindi-language film industry of India,doc_3303_chunk_0
+Filmfare Awards,introduced by,The Times Group,doc_3303_chunk_0
+Filmfare Awards,introduced in,1954,doc_3303_chunk_0
+Filmfare Awards,initially referred to as,Clare Awards,doc_3303_chunk_0
+Clare Awards,named after,Clare Mendonca,doc_3303_chunk_0
+Clare Mendonca,editor of,The Times of India,doc_3303_chunk_0
+Filmfare Awards,has voting system,dual voting system,doc_3303_chunk_0
+dual voting system,developed in,1956,doc_3303_chunk_0
+National Film Awards,decided by,panel,doc_3303_chunk_0
+panel,appointed by,Indian Government,doc_3303_chunk_0
+Filmfare Awards,voted by,public,doc_3303_chunk_0
+Filmfare Awards,voted by,committee of experts,doc_3303_chunk_0
+Raghunath Karve,born in,Murud,doc_3304_chunk_0
+Raghunath Karve,son of,Dhondo Keshav Karve,doc_3304_chunk_0
+Raghunath Karve,mother,Radhabai,doc_3304_chunk_0
+Radhabai,died in,1891,doc_3304_chunk_0
+Raghunath Karve,studied at,"New English School, Pune",doc_3304_chunk_0
+Raghunath Karve,stood first in,matriculation examination 1899,doc_3304_chunk_0
+Raghunath Karve,studied at,"Fergusson College, Pune",doc_3304_chunk_0
+Raghunath Karve,obtained degree,Bachelor of Arts,doc_3304_chunk_0
+Raghunath Karve,graduated year,1904,doc_3304_chunk_0
+Raghunath Karve,professor of,mathematics,doc_3304_chunk_0
+Raghunath Karve,worked at,"Wilson College, Mumbai",doc_3304_chunk_0
+"Wilson College, Mumbai",administrators,conservative Christian administrators,doc_3304_chunk_0
+"Wilson College, Mumbai",asked to resign,Raghunath Karve,doc_3304_chunk_0
+Raghunath Karve,devoted to,family planning,doc_3304_chunk_0
+Raghunath Karve,devoted to,population control,doc_3304_chunk_0
+Raghunath Karve,devoted to,women's rights,doc_3304_chunk_0
+Dhondo Keshav Karve,awarded,Bharat Ratna,doc_3304_chunk_0
+Vishwanath,honored by,Rajendra Prasad,doc_3307_chunk_0
+Rajendra Prasad,position held,first President of India,doc_3307_chunk_0
+Rajendra Prasad,country,India,doc_3307_chunk_0
+honoring event,event,golden jubilee celebrations of Gandharva Mahavidyalaya,doc_3307_chunk_0
+golden jubilee celebrations,of,Gandharva Mahavidyalaya,doc_3307_chunk_0
+golden jubilee celebrations,location,Delhi,doc_3307_chunk_0
+golden jubilee celebrations,date,4 April 1952,doc_3307_chunk_0
+honoring event,date,4 April 1952,doc_3307_chunk_0
+K. B. Blues,is an album by,Kenny Burrell,doc_4271_chunk_0
+K. B. Blues,recorded in,1957,doc_4271_chunk_0
+K. B. Blues,originally released on,Japanese Blue Note label,doc_4271_chunk_0
+K. B. Blues,originally released in,1979,doc_4271_chunk_0
+K. B. Blues,reissued on,CD,doc_4271_chunk_0
+K. B. Blues,incorrectly identified as recorded in,1956,doc_4271_chunk_0

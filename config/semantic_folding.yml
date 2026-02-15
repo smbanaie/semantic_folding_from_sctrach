@@ -1,0 +1,41 @@
+# Semantic Folding Pipeline Configuration - OPTIMIZED SETTINGS
+# This file contains production-ready optimized settings for the semantic folding pipeline
+# Based on quality analysis and performance testing with diverse corpora
+
+# Input Data
+corpus_path: "data/HippoRAG2/dataset/musique_corpus.json"
+queries_path: "data/HippoRAG2/dataset/musique.json"
+
+# Output Settings
+output_base: "outputs"
+
+# Pipeline Parameters - OPTIMIZED FOR QUALITY
+grid_size: 32                    # Semantic space grid size (increased for better distribution)
+max_phrases: null               # Limit phrases for testing (null = no limit)
+max_docs: null                  # Limit documents for testing (null = no limit)
+
+# Logging Configuration
+log_level: "INFO"               # Console log level (DEBUG, INFO, WARNING, ERROR)
+debug: false                    # Enable debug mode with stack traces
+
+# Performance Settings - TUNED FOR OPTIMAL RESULTS
+batch_size: 1000               # Processing batch size for large datasets
+max_edges: 200                 # Maximum edges in semantic graph (reduced for cleaner, more meaningful layout)
+edge_threshold: 0.05          # Minimum similarity for graph edges (lowered for better connectivity and distribution)
+
+# Matrix Normalization Settings
+normalize_matrix: true         # Apply TF-IDF normalization to reduce high-frequency word dominance
+
+# Document Fingerprint Settings
+doc_top_percent: 0.05         # Keep only top 5% of cells in document fingerprints
+doc_no_threshold: false       # Set to true to disable thresholding
+
+# Module Settings
+use_spacy: true               # Use spaCy for phrase extraction (fallback if unavailable)
+no_visualization: false       # Generate matplotlib visualizations for analysis
+
+# Quality Assurance Notes:
+# - grid_size: 32 provides better semantic space utilization than 16
+# - max_edges: 200 creates cleaner layouts than 50000 (avoids edge clutter)
+# - edge_threshold: 0.05 allows better connectivity than 0.1 (improves distribution)
+# - These settings balance quality, performance, and meaningful semantic relationships

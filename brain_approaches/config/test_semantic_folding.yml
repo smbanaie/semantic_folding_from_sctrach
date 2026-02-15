@@ -1,0 +1,13 @@
+# Test Configuration for Quality Analysis - IMPROVED PARAMETERS
+corpus_path: "test_corpus.json"
+output_base: "test_outputs"
+grid_size: 32                    # Larger grid for better distribution
+max_phrases: null               # No limit for analysis
+max_docs: null                  # Process all documents
+log_level: "INFO"
+debug: false
+batch_size: 1000
+max_edges: 200                 # Reduced edges for cleaner layout
+edge_threshold: 0.05          # Lower threshold for better connectivity
+use_spacy: true
+no_visualization: false         # Enable visualizations for analysis

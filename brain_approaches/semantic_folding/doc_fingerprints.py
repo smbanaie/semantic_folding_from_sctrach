@@ -12,7 +12,8 @@ import os
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any, Set
 import warnings
-
+from lib import process_lemmatize, load_contexts_dict, load_phrases, load_fingerprint_cache
+from phrase_extractor import expand_phrases, extract_phrases_spacy, extract_phrases_fallback
 import loguru
 from loguru import logger
 from tqdm import tqdm
@@ -28,130 +29,20 @@ except ImportError:
 # Try to import spaCy for phrase extraction (optional)
 try:
     import spacy
-    nlp = spacy.load("en_core_web_sm")
     SPACY_AVAILABLE = True
+    # Try to load the model
+    try:
+        nlp = spacy.load("en_core_web_sm")
+        SPACY_MODEL_AVAILABLE = True
+    except OSError:
+        logger.warning("spaCy model 'en_core_web_sm' not found. Run: python -m spacy download en_core_web_sm")
+        SPACY_MODEL_AVAILABLE = False
+        nlp = None
 except ImportError:
     logger.warning("spaCy not available. Install with: pip install spacy")
     SPACY_AVAILABLE = False
+    SPACY_MODEL_AVAILABLE = False
     nlp = None
-
-
-def load_phrases(phrases_path: Path) -> List[str]:
-    """Load phrases from file"""
-    logger.info(f"Loading phrases from: {phrases_path}")
-
-    phrases = []
-    with open(phrases_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            if ':' in line:
-                phrase = line.split(':', 1)[0].strip()
-                if phrase:
-                    phrases.append(phrase)
-
-    logger.success(f"Loaded {len(phrases)} phrases")
-    return phrases
-
-
-def load_corpus_contexts(corpus_path: Path) -> Dict[str, str]:
-    """Load context texts from corpus file"""
-    logger.info(f"Loading corpus contexts from: {corpus_path}")
-
-    contexts = {}
-    with open(corpus_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if not line or ',' not in line:
-                continue
-
-            context_id, context_text = line.split(',', 1)
-            context_id = context_id.strip()
-            contexts[context_id] = context_text.strip()
-
-    logger.success(f"Loaded {len(contexts)} context texts")
-    return contexts
-
-
-def load_fingerprint_cache(fingerprints_dir: Path,
-                          phrases: List[str],
-                          grid_size: int) -> Dict[str, Optional[np.ndarray]]:
-    """Load and cache fingerprint matrices"""
-    logger.info(f"Loading fingerprint matrices from: {fingerprints_dir}")
-
-    cache = {}
-    loaded_count = 0
-
-    for phrase in phrases:
-        # Create safe filename (same logic as in phrase_fingerprints.py)
-        safe_name = "".join(c for c in phrase if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        safe_name = safe_name.replace(' ', '_')[:50]
-
-        fingerprint_file = fingerprints_dir / f"{safe_name}_fingerprint.txt"
-
-        try:
-            if fingerprint_file.exists():
-                with open(fingerprint_file, 'r', encoding='utf-8') as f:
-                    matrix_data = []
-                    for line in f:
-                        row = [int(x) for x in line.strip().split('\t')]
-                        matrix_data.append(row)
-
-                fingerprint = np.array(matrix_data)
-                if fingerprint.shape == (grid_size, grid_size):
-                    cache[phrase] = fingerprint
-                    loaded_count += 1
-                else:
-                    logger.warning(f"Fingerprint for phrase '{phrase}' has wrong shape: {fingerprint.shape}")
-                    cache[phrase] = None
-            else:
-                cache[phrase] = None
-
-        except Exception as e:
-            logger.warning(f"Failed to load fingerprint for phrase '{phrase}': {e}")
-            cache[phrase] = None
-
-    logger.success(f"Loaded {loaded_count}/{len(phrases)} fingerprint matrices")
-    return cache
-
-
-def extract_phrases_from_text(text: str) -> List[str]:
-    """Extract phrases from text using spaCy or fallback method"""
-    if SPACY_AVAILABLE and nlp:
-        try:
-            doc = nlp(text)
-            # Extract noun chunks and some verb phrases
-            phrases = []
-            for chunk in doc.noun_chunks:
-                phrases.append(chunk.text.lower().strip())
-
-            # Add some verb phrases
-            for token in doc:
-                if token.pos_ == "VERB":
-                    verb_phrase = token.text.lower()
-                    if len(verb_phrase) > 3:  # Filter very short verbs
-                        phrases.append(verb_phrase)
-
-            return phrases
-
-        except Exception as e:
-            logger.warning(f"spaCy extraction failed, using fallback: {e}")
-
-    # Fallback: simple n-gram extraction
-    return extract_phrases_fallback(text)
-
-
-def extract_phrases_fallback(text: str, max_ngram: int = 4) -> List[str]:
-    """Fallback phrase extraction using n-gram approach"""
-    words = text.lower().split()
-    phrases = []
-
-    # Extract 1-4 grams
-    for n in range(1, min(max_ngram + 1, len(words) + 1)):
-        for i in range(len(words) - n + 1):
-            phrase = ' '.join(words[i:i+n])
-            if len(phrase) > 2:  # Filter very short phrases
-                phrases.append(phrase)
-
-    return phrases
 
 
 def apply_top_percent_threshold(fingerprint: np.ndarray, top_percent: float = 0.05) -> Tuple[np.ndarray, Dict[str, Any]]:
@@ -202,28 +93,42 @@ def apply_top_percent_threshold(fingerprint: np.ndarray, top_percent: float = 0.
 def generate_document_fingerprint(context_text: str,
                                 fingerprint_cache: Dict[str, Optional[np.ndarray]],
                                 phrases: List[str],
-                                grid_size: int) -> Tuple[np.ndarray, Dict[str, Any]]:
+                                grid_size: int,
+                                no_threshold : bool, 
+                                top_percent: float) -> Tuple[np.ndarray, Dict[str, Any]]:
     """Generate document fingerprint by aggregating phrase fingerprints"""
     doc_fingerprint = np.zeros((grid_size, grid_size), dtype=np.int32)
 
     # Extract phrases from document
-    doc_phrases = extract_phrases_from_text(context_text)
-
+    logger.info("\n"+"==="*40)
+    doc_phrases = phrases
+    logger.info(f"Context: {context_text}")
+    logger.info("\n"+"---"*40)
+    logger.info(f"Extracted Phrases: {doc_phrases}")
     # Match document phrases to our vocabulary
     matched_phrases = []
     unmatched_phrases = []
 
+    metadata = {}
+
     for doc_phrase in doc_phrases:
+        logger.info("\n"+"-+-"*10)
+        logger.info(f"Processing Phrase : {doc_phrase}")
+        
         # Try exact match first
         if doc_phrase in fingerprint_cache and fingerprint_cache[doc_phrase] is not None:
+            logger.info(f"Phrase : {doc_phrase} Added to DOC Fingerprints")
             doc_fingerprint += fingerprint_cache[doc_phrase]
             matched_phrases.append(doc_phrase)
         else:
             unmatched_phrases.append(doc_phrase)
-
+    logger.info("\n"+"-"*20)
+    logger.info(f"Unmatched Phrases: {unmatched_phrases}")
+    logger.info("\n"+"-"*20)
+    logger.info(f"Matched Phrases: {matched_phrases}")
     # Apply threshold cutoff to retain only top cells
-    if not args.no_threshold and np.sum(doc_fingerprint) > 0:
-        doc_fingerprint, threshold_info = apply_top_percent_threshold(doc_fingerprint, args.top_percent)
+    if not no_threshold and np.sum(doc_fingerprint) > 0:
+        doc_fingerprint, threshold_info = apply_top_percent_threshold(doc_fingerprint, top_percent)
         metadata.update(threshold_info)
     else:
         metadata.update({
@@ -242,7 +147,9 @@ def generate_document_fingerprint(context_text: str,
         'coverage': len(matched_phrases) / max(1, len(doc_phrases)),
         'total_fingerprint_sum': int(np.sum(doc_fingerprint))
     })
-
+    logger.info("\n"+"---"*40)
+    logger.info(metadata)
+    logger.info("\n"+"==="*40)
     return doc_fingerprint, metadata
 
 
@@ -344,10 +251,9 @@ def main():
         logger.warning("spaCy requested but not available")
     elif not args.use_spacy:
         SPACY_AVAILABLE = False
-
     # Load inputs
-    phrases = load_phrases(Path(args.phrases_path))
-    contexts = load_corpus_contexts(Path(args.corpus_path))
+    all_phrases = load_phrases(Path(args.phrases_path))
+    contexts = load_contexts_dict(Path(args.corpus_path))
 
     # Limit documents for testing
     if args.max_docs:
@@ -357,7 +263,7 @@ def main():
 
     # Load fingerprint cache
     fingerprint_cache = load_fingerprint_cache(
-        Path(args.fingerprints_dir), phrases, args.grid_size
+        Path(args.fingerprints_dir), all_phrases, args.grid_size
     )
 
     # Create output directory
@@ -376,9 +282,20 @@ def main():
     with tqdm(total=len(contexts), desc="Generating document fingerprints") as pbar:
         for context_id, context_text in contexts.items():
             try:
-                # Generate document fingerprint
+                if args.use_spacy and SPACY_AVAILABLE and SPACY_MODEL_AVAILABLE:
+                    context_phrases = extract_phrases_spacy(context_text, 1000)                   
+                else:
+                    context_phrases = extract_phrases_fallback(context_text)
+                    # Generate document fingerprint
+                context_phrases = expand_phrases(context_phrases)
+                final_phrases = []
+                for p in context_phrases : 
+                    normalized_phrase = process_lemmatize(p)
+                    if len(normalized_phrase) > 1 : 
+                        final_phrases.append(normalized_phrase)
+                final_phrases = [ item for item in set(final_phrases)]
                 doc_fingerprint, metadata = generate_document_fingerprint(
-                    context_text, fingerprint_cache, phrases, args.grid_size
+                    context_text, fingerprint_cache, final_phrases, args.grid_size, args.no_threshold, args.top_percent
                 )
 
                 # Save fingerprint and metadata

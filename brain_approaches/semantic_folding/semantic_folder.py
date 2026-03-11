@@ -52,7 +52,7 @@ class SemanticFoldingTUI:
             2: {"name": "Phrase Extraction", "script": "phrase_extractor.py", "completed": False},
             3: {"name": "Term-Context Matrix", "script": "term_context.py", "completed": False},
             4: {"name": "Semantic Space Construction", "script": "semantic_space.py", "completed": False},
-            5: {"name": "Fingerprint Generation", "script": "phrase_fingerprints.py", "completed": False},
+            5: {"name": "Fingerprints Generation", "script": "phrase_fingerprints.py", "completed": False},
             6: {"name": "LanceDB Integration", "script": "lance_storage.py", "completed": False},
         }
 
@@ -147,7 +147,7 @@ class SemanticFoldingTUI:
             while getattr(threading.current_thread(), "do_run", True):
                 elapsed = time.time() - start_time
                 progress_char = progress_chars[i % len(progress_chars)]
-                print(f"\r{progress_char} {phase_name}... ({elapsed:.1f}s elapsed)", end="", flush=True)
+                logger.info(f"\r{progress_char} {phase_name}... ({elapsed:.1f}s elapsed)", end="", flush=True)
                 time.sleep(0.5)
                 i += 1
 
@@ -163,7 +163,7 @@ class SemanticFoldingTUI:
         if progress_thread and progress_thread.is_alive():
             progress_thread.do_run = False
             progress_thread.join(timeout=1.0)
-            print("\r" + " " * 50 + "\r", end="", flush=True)  # Clear the line
+            logger.info("\r" + " " * 50 + "\r", end="", flush=True)  # Clear the line
 
     def show_phase_completion_stats(self, phase_num: int, output_dir: str) -> None:
         """Show statistics about what was created in the phase"""
@@ -175,14 +175,14 @@ class SemanticFoldingTUI:
                 if corpus_file.exists():
                     with open(corpus_file, 'r', encoding='utf-8') as f:
                         lines = sum(1 for _ in f)
-                    print(f"   Documents processed: {lines}")
+                    logger.success(f"   Documents processed: {lines}")
 
             elif phase_num == 2:
                 phrases_file = output_path / "phrases.txt"
                 if phrases_file.exists():
                     with open(phrases_file, 'r', encoding='utf-8') as f:
                         lines = sum(1 for _ in f)
-                    print(f"   Phrases extracted: {lines}")
+                    logger.success(f"   Phrases extracted: {lines}")
 
             elif phase_num == 3:
                 matrix_file = output_path / "term_context_matrix.npz"
@@ -192,34 +192,34 @@ class SemanticFoldingTUI:
                     if stats_file.exists():
                         with open(stats_file, 'r', encoding='utf-8') as f:
                             stats = json.load(f)
-                        print(f"   Matrix created: {stats.get('num_contexts', '?')} × {stats.get('num_phrases', '?')}")
-                        print(f"   Sparsity: {stats.get('density', 0):.4f} ({stats.get('entries', 0)} entries)")
+                        logger.success(f"   Matrix created: {stats.get('num_contexts', '?')} × {stats.get('num_phrases', '?')}")
+                        logger.success(f"   Sparsity: {stats.get('density', 0):.4f} ({stats.get('entries', 0)} entries)")
                     else:
-                        print(f"   Matrix file created: {matrix_file.stat().st_size / (1024*1024):.1f} MB")
+                        logger.success(f"   Matrix file created: {matrix_file.stat().st_size / (1024*1024):.1f} MB")
 
             elif phase_num == 4:
                 coords_file = output_path / "context_coordinates.csv"
                 if coords_file.exists():
                     with open(coords_file, 'r', encoding='utf-8') as f:
                         lines = sum(1 for _ in f) - 1  # Subtract header
-                    print(f"   Semantic space: {lines} contexts mapped to {self.config['grid_size']}×{self.config['grid_size']} grid")
+                    logger.success(f"   Semantic space: {lines} contexts mapped to {self.config['grid_size']}×{self.config['grid_size']} grid")
 
             elif phase_num == 5:
                 fp_dir = output_path / "fingerprints"
                 doc_fp_dir = output_path / "doc_fingerprints"
 
                 fp_count = len(list(fp_dir.glob("*.txt"))) if fp_dir.exists() else 0
-                doc_fp_count = len(list(doc_fp_dir.glob("*_fingerprint.txt"))) if doc_fp_dir.exists() else 0
+                doc_fp_count = len(list(doc_fp_dir.glob("*_fingerlogger.info.txt"))) if doc_fp_dir.exists() else 0
 
-                print(f"   Phrase fingerprints: {fp_count}")
-                print(f"   Document fingerprints: {doc_fp_count}")
+                logger.success(f"   Phrase fingerprints: {fp_count}")
+                logger.success(f"   Document fingerprints: {doc_fp_count}")
 
             elif phase_num == 6:
                 lance_dir = output_path / "lance_db"
                 if lance_dir.exists():
                     # Count files in lance directory
                     total_files = sum(1 for _ in lance_dir.rglob("*") if _.is_file())
-                    print(f"   LanceDB created: {total_files} database files")
+                    logger.success(f"   LanceDB created: {total_files} database files")
 
         except Exception as e:
             # Don't fail if we can't read stats, just skip
@@ -255,30 +255,30 @@ class SemanticFoldingTUI:
                     stats['matrix_entries'] = matrix_data.get('entries', 0)
                     stats['matrix_density'] = matrix_data.get('density', 0)
 
-            # Fingerprint stats
+            # Fingerlogger.info stats
             fp_dir = last_run / "fingerprints"
             doc_fp_dir = last_run / "doc_fingerprints"
 
             stats['phrase_fingerprints'] = len(list(fp_dir.glob("*.txt"))) if fp_dir.exists() else 0
-            stats['doc_fingerprints'] = len(list(doc_fp_dir.glob("*_fingerprint.txt"))) if doc_fp_dir.exists() else 0
+            stats['doc_fingerprints'] = len(list(doc_fp_dir.glob("*_fingerlogger.info.txt"))) if doc_fp_dir.exists() else 0
 
             # Output directory size
             total_size = sum(f.stat().st_size for f in last_run.rglob('*') if f.is_file())
             stats['total_size_mb'] = total_size / (1024 * 1024)
 
             # Display stats
-            print(f"   Documents processed: {stats.get('documents', '?')}")
-            print(f"   Phrases extracted: {stats.get('phrases', '?')}")
-            print(f"   Matrix entries: {stats.get('matrix_entries', '?'):,}")
-            print(f"   Matrix density: {stats.get('matrix_density', 0):.4f}")
-            print(f"   Phrase fingerprints: {stats.get('phrase_fingerprints', '?')}")
-            print(f"   Document fingerprints: {stats.get('doc_fingerprints', '?')}")
-            print(f"   Total output size: {stats.get('total_size_mb', 0):.1f} MB")
-            print(f"   Output directory: {last_run.name}")
+            logger.success(f"   Documents processed: {stats.get('documents', '?')}")
+            logger.success(f"   Phrases extracted: {stats.get('phrases', '?')}")
+            logger.success(f"   Matrix entries: {stats.get('matrix_entries', '?'):,}")
+            logger.success(f"   Matrix density: {stats.get('matrix_density', 0):.4f}")
+            logger.success(f"   Phrase fingerprints: {stats.get('phrase_fingerprints', '?')}")
+            logger.success(f"   Document fingerprints: {stats.get('doc_fingerprints', '?')}")
+            logger.success(f"   Total output size: {stats.get('total_size_mb', 0):.1f} MB")
+            logger.success(f"   Output directory: {last_run.name}")
 
         except Exception as e:
             logger.debug(f"Could not show final stats: {e}")
-            print("   📊 Pipeline completed (detailed stats unavailable)")
+            logger.info("   📊 Pipeline completed (detailed stats unavailable)")
 
     def check_last_run_status(self) -> Optional[Path]:
         """Check for the most recent output directory and its status"""
@@ -291,7 +291,7 @@ class SemanticFoldingTUI:
             return None
 
         latest_dir = max(output_dirs, key=lambda x: x.stat().st_mtime)
-        logger.info(f"Found latest run: {latest_dir.name}")
+        logger.success(f"Found latest run: {latest_dir.name}")
         return latest_dir
 
     def check_phase_completion(self, output_dir: Path) -> None:
@@ -345,51 +345,51 @@ class SemanticFoldingTUI:
 
     def show_status(self) -> None:
         """Display current pipeline status"""
-        print("\n" + "="*60)
-        print("SEMANTIC FOLDING PIPELINE STATUS")
-        print("="*60)
+        logger.success("\n" + "="*60)
+        logger.success("SEMANTIC FOLDING PIPELINE STATUS")
+        logger.success("="*60)
 
         # Configuration
-        print("\nConfiguration:")
-        print(f"   Corpus: {self.config['corpus_path']}")
-        print(f"   Output: {self.output_base}")
-        print(f"   Grid Size: {self.config['grid_size']}x{self.config['grid_size']}")
-        print(f"   Log Level: {self.config['log_level']}")
+        logger.success("\nConfiguration:")
+        logger.success(f"   Corpus: {self.config['corpus_path']}")
+        logger.success(f"   Output: {self.output_base}")
+        logger.success(f"   Grid Size: {self.config['grid_size']}x{self.config['grid_size']}")
+        logger.success(f"   Log Level: {self.config['log_level']}")
 
         # Check last run
         last_run = self.check_last_run_status()
         if last_run:
-            print(f"\nLast Run: {last_run.name}")
+            logger.info(f"\nLast Run: {last_run.name}")
 
             # Check for errors
             errors = self.check_log_errors(last_run)
             if errors:
-                print("ERRORS FOUND:")
+                logger.info("ERRORS FOUND:")
                 for error in errors:
-                    print(f"   WARNING: {error}")
+                    logger.info(f"   WARNING: {error}")
             else:
-                print("No errors detected in logs")
+                logger.info("No errors detected in logs")
 
             # Check phase completion
             self.check_phase_completion(last_run)
-            print("\nPhase Completion:")
+            logger.info("\nPhase Completion:")
             for phase_num, phase_info in self.phases.items():
                 status = "COMPLETED" if phase_info["completed"] else "PENDING"
-                print(f"   {status}: Phase {phase_num} - {phase_info['name']}")
+                logger.info(f"   {status}: Phase {phase_num} - {phase_info['name']}")
         else:
-            print("\nNo previous runs found")
+            logger.info("\nNo previous runs found")
 
-        print()
+        
 
     def configure_pipeline(self) -> None:
         """Interactive configuration"""
         if not QUESTIONARY_AVAILABLE:
-            print("ERROR: questionary not available for interactive configuration")
+            logger.info("ERROR: questionary not available for interactive configuration")
             return
 
-        print("\n" + "="*50)
-        print("PIPELINE CONFIGURATION")
-        print("="*50)
+        logger.info("\n" + "="*50)
+        logger.info("PIPELINE CONFIGURATION")
+        logger.info("="*50)
 
         # Corpus path
         corpus_path = questionary.text(
@@ -422,18 +422,18 @@ class SemanticFoldingTUI:
         if questionary.confirm("Save configuration to file?").ask():
             self.save_config()
 
-        print("✅ Configuration updated!")
+        logger.info("✅ Configuration updated!")
 
     def run_pipeline_menu(self) -> None:
         """Main pipeline execution menu"""
         if not QUESTIONARY_AVAILABLE:
-            print("ERROR: questionary not available for interactive menu")
+            logger.info("ERROR: questionary not available for interactive menu")
             return
 
         while True:
-            print("\n" + "="*50)
-            print("SEMANTIC FOLDING PIPELINE")
-            print("="*50)
+            logger.info("\n" + "="*50)
+            logger.info("SEMANTIC FOLDING PIPELINE")
+            logger.info("="*50)
 
             self.show_status()
 
@@ -466,28 +466,28 @@ class SemanticFoldingTUI:
 
     def run_all_phases(self) -> None:
         """Run all pipeline phases"""
-        print("\nSTARTING COMPLETE SEMANTIC FOLDING PIPELINE")
-        print("=" * 60)
+        logger.info("\nSTARTING COMPLETE SEMANTIC FOLDING PIPELINE")
+        logger.info("=" * 60)
 
         # Check if we should clean old outputs
         last_run = self.check_last_run_status()
         if last_run and questionary.confirm("Remove previous output directory first?").ask():
-            print(f"Cleaning up previous run: {last_run.name}")
+            logger.info(f"Cleaning up previous run: {last_run.name}")
             shutil.rmtree(last_run)
             logger.info(f"Removed old output directory: {last_run}")
 
         # Show pipeline overview
-        print("Pipeline Overview:")
-        print(f"   Output Base: {self.output_base}")
-        print(f"   Corpus: {self.config['corpus_path']}")
-        print(f"   Grid Size: {self.config['grid_size']}×{self.config['grid_size']}")
-        print(f"   Total Phases: 6")
-        print(f"   Estimated Time: 5-15 minutes (depending on corpus size)")
-        print()
+        logger.info("Pipeline Overview:")
+        logger.info(f"   Output Base: {self.output_base}")
+        logger.info(f"   Corpus: {self.config['corpus_path']}")
+        logger.info(f"   Grid Size: {self.config['grid_size']}×{self.config['grid_size']}")
+        logger.info(f"   Total Phases: 6")
+        logger.info(f"   Estimated Time: 5-15 minutes (depending on corpus size)")
+        
 
         # Run all phases sequentially with progress tracking
-        print("Executing complete pipeline...")
-        print()
+        logger.info("Executing complete pipeline...")
+        
 
         # Create a timestamped output directory
         from datetime import datetime
@@ -495,8 +495,8 @@ class SemanticFoldingTUI:
         output_dir = Path(f"{self.output_base}/pipeline_{timestamp}")
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"Output directory: {output_dir}")
-        print()
+        logger.info(f"Output directory: {output_dir}")
+        
 
         # Run all phases
         phases = [1, 2, 3, 4, 5, 6]
@@ -504,12 +504,12 @@ class SemanticFoldingTUI:
             try:
                 self.run_specific_phase_non_interactive(phase_num, str(output_dir))
             except SystemExit as e:
-                print(f"Pipeline failed at Phase {phase_num}")
+                logger.info(f"Pipeline failed at Phase {phase_num}")
                 return
 
-        print("\nPipeline completed successfully!")
-        print()
-        print("Final Results:")
+        logger.success("\nPipeline completed successfully!")
+        
+        logger.success("Final Results:")
 
         # Show final statistics
         self.show_final_pipeline_stats()
@@ -543,20 +543,20 @@ class SemanticFoldingTUI:
                 text = doc.get('text', '')
                 f.write(f"{i},{title}: {text}\n")
 
-            print(f"Processed {len(corpus)} documents")
+            logger.success(f"Processed {len(corpus)} documents")
         return str(output_dir_path)
 
     def run_phase_5(self, output_dir: str) -> None:
         """Run Phase 5: Generate both phrase and document fingerprints"""
         # First, generate phrase fingerprints
-        cmd1 = ["uv", "run", "python", "phrase_fingerprints.py",
+        cmd1 = ["uv", "run", "python", "brain_approaches/semantic_folding/phrase_fingerprints.py",
                 "--matrix_path", str(Path(output_dir) / "term_context_matrix.npz"),
                 "--coordinates_path", str(Path(output_dir) / "context_coordinates.csv"),
                 "--phrases_path", str(Path(output_dir) / "phrases.txt"),
                 "--output_dir", output_dir]
 
         # Then, generate document fingerprints
-        cmd2 = ["uv", "run", "python", "doc_fingerprints.py",
+        cmd2 = ["uv", "run", "python", "brain_approaches/semantic_folding/doc_fingerprints.py",
                 "--corpus_path", str(Path(output_dir) / "corpus.txt"),
                 "--phrases_path", str(Path(output_dir) / "phrases.txt"),
                 "--fingerprints_dir", str(Path(output_dir) / "fingerprints"),
@@ -564,23 +564,23 @@ class SemanticFoldingTUI:
 
         # Execute both commands
         import subprocess
-        print("Generating phrase fingerprints...")
+        logger.info("Generating phrase fingerprints...")
         result1 = subprocess.run(cmd1, cwd=os.getcwd(), capture_output=True, text=True)
         if result1.returncode != 0:
-            print(f"Phrase fingerprints failed: {result1.stderr}")
+            logger.info(f"Phrase fingerprints failed: {result1.stderr}")
             raise RuntimeError("Phase 5a failed")
 
-        print("Generating document fingerprints...")
+        logger.info("Generating document fingerprints...")
         result2 = subprocess.run(cmd2, cwd=os.getcwd(), capture_output=True, text=True)
         if result2.returncode != 0:
-            print(f"Document fingerprints failed: {result2.stderr}")
+            logger.info(f"Document fingerprints failed: {result2.stderr}")
             raise RuntimeError("Phase 5b failed")
 
     def run_specific_phase_non_interactive(self, phase_num: int, output_dir: str) -> str:
         """Run a specific pipeline phase in non-interactive mode"""
         phase_name = self.phases[phase_num]['name']
-        print(f"\n>>> Phase {phase_num}: {phase_name}")
-        print("=" * 60)
+        logger.info(f"\n>>> Phase {phase_num}: {phase_name}")
+        logger.info("=" * 60)
 
         # Estimate duration for progress indicator
         duration_estimates = {
@@ -588,7 +588,7 @@ class SemanticFoldingTUI:
             2: 120,  # Phrase extraction (can be slow)
             3: 60,   # Term-context matrix
             4: 30,   # Semantic space construction
-            5: 180,  # Fingerprint generation (can be slow)
+            5: 180,  # Fingerlogger.info generation (can be slow)
             6: 60    # LanceDB integration
         }
 
@@ -598,7 +598,7 @@ class SemanticFoldingTUI:
         if phase_num == 1:
             actual_output_dir = self.run_phase_1(output_dir)
             # For Phase 1, we don't need subprocess since we handled it directly
-            print("[SUCCESS] Phase 1 completed successfully!")
+            logger.success("[SUCCESS] Phase 1 completed successfully!")
             self.show_phase_completion_stats(phase_num, actual_output_dir)
             self.phases[phase_num]["completed"] = True
             return actual_output_dir
@@ -606,25 +606,25 @@ class SemanticFoldingTUI:
             # Special handling for Phase 5 (two-step process)
             actual_output_dir = output_dir
             self.run_phase_5(actual_output_dir)
-            print("[SUCCESS] Phase 5 completed successfully!")
+            logger.success("[SUCCESS] Phase 5 completed successfully!")
             self.show_phase_completion_stats(phase_num, actual_output_dir)
             self.phases[phase_num]["completed"] = True
             return actual_output_dir
         elif phase_num == 2:
             corpus_path = Path(actual_output_dir) / "corpus.txt"
-            cmd = ["uv", "run", "python", "phrase_extractor.py",
+            cmd = ["uv", "run", "python", "brain_approaches/semantic_folding/phrase_extractor.py",
                    "--corpus_path", str(corpus_path), "--output_dir", actual_output_dir]
         elif phase_num == 3:
             phrases_path = Path(actual_output_dir) / "phrases.txt"
             corpus_path = Path(actual_output_dir) / "corpus.txt"
-            cmd = ["uv", "run", "python", "term_context.py",
+            cmd = ["uv", "run", "python", "brain_approaches/semantic_folding/term_context.py",
                    "--phrases_path", str(phrases_path), "--corpus_path", str(corpus_path),
                    "--output_dir", actual_output_dir]
 
             if not self.config.get('normalize_matrix', True):
                 cmd.append("--no_normalization")
         elif phase_num == 4:
-            cmd = ["uv", "run", "python", "semantic_space.py",
+            cmd = ["uv", "run", "python", "brain_approaches/semantic_folding/semantic_space.py",
                    "--corpus_path", str(Path(actual_output_dir) / "corpus.txt"),
                    "--matrix_path", str(Path(actual_output_dir) / "term_context_matrix.npz"),
                    "--output_dir", actual_output_dir,
@@ -652,17 +652,17 @@ class SemanticFoldingTUI:
                 cmd2.append("--no_threshold")
 
         elif phase_num == 6:
-            cmd = ["uv", "run", "python", "lance_storage.py",
+            cmd = ["uv", "run", "python", "brain_approaches/semantic_folding/lance_storage.py",
                    "--corpus_path", str(Path(actual_output_dir) / "corpus.txt"),
                    "--fingerprints_dir", str(Path(actual_output_dir) / "fingerprints"),
                    "--doc_fingerprints_dir", str(Path(actual_output_dir) / "doc_fingerprints"),
                    "--output_dir", actual_output_dir]
         else:
-            print(f"Phase {phase_num} execution not yet implemented")
+            logger.info(f"Phase {phase_num} execution not yet implemented")
             sys.exit(1)
 
-        print(f"Command: {' '.join(cmd)}")
-        print("Starting execution...")
+        logger.info(f"Command: {' '.join(cmd)}")
+        logger.info("Starting execution...")
 
         # Start progress indicator
         progress_thread = self.show_progress_indicator(phase_name, duration_estimates.get(phase_num, 30))
@@ -674,24 +674,24 @@ class SemanticFoldingTUI:
             self.stop_progress_indicator(progress_thread)
 
             if result.returncode == 0:
-                print(f"[SUCCESS] Phase {phase_num} completed successfully!")
+                logger.success(f"[SUCCESS] Phase {phase_num} completed successfully!")
 
                 # Show some statistics about what was created
                 self.show_phase_completion_stats(phase_num, output_dir)
 
                 self.phases[phase_num]["completed"] = True
             else:
-                print(f"[FAILED] Phase {phase_num} failed with exit code {result.returncode}")
+                logger.error(f"[FAILED] Phase {phase_num} failed with exit code {result.returncode}")
                 if result.stdout:
-                    print("STDOUT:")
-                    print(result.stdout[-1000:])  # Last 1000 chars
+                    logger.error("STDOUT:")
+                    logger.error(result.stdout[-1000:])  # Last 1000 chars
                 if result.stderr:
-                    print("STDERR:")
-                    print(result.stderr[-1000:])  # Last 1000 chars
+                    logger.error("STDERR:")
+                    logger.error(result.stderr[-1000:])  # Last 1000 chars
                 sys.exit(result.returncode)
         except Exception as e:
             self.stop_progress_indicator(progress_thread)
-            print(f"[ERROR] Error running phase {phase_num}: {e}")
+            logger.error(f"[ERROR] Error running phase {phase_num}: {e}")
             sys.exit(1)
 
         return actual_output_dir
@@ -701,17 +701,17 @@ class SemanticFoldingTUI:
         last_output_dir = resume_state['last_output_dir']
         last_phase = resume_state['last_phase']
 
-        print("RESUMING SEMANTIC FOLDING PIPELINE")
-        print("=" * 60)
-        print(f"Output Directory: {last_output_dir}")
-        print(f"Resuming from: Phase {last_phase + 1}")
-        print(f"Last saved: {resume_state.get('timestamp', 'unknown')}")
-        print()
+        logger.info("RESUMING SEMANTIC FOLDING PIPELINE")
+        logger.info("=" * 60)
+        logger.info(f"Output Directory: {last_output_dir}")
+        logger.info(f"Resuming from: Phase {last_phase + 1}")
+        logger.info(f"Last saved: {resume_state.get('timestamp', 'unknown')}")
+        
 
         # Check if output directory exists
         output_path = Path(last_output_dir)
         if not output_path.exists():
-            print(f"ERROR: Output directory {last_output_dir} does not exist")
+            logger.info(f"ERROR: Output directory {last_output_dir} does not exist")
             sys.exit(1)
 
         # Update phase completion status based on directory contents
@@ -722,34 +722,34 @@ class SemanticFoldingTUI:
         total_remaining = len(remaining_phases)
 
         if total_remaining == 0:
-            print("All phases already completed!")
+            logger.info("All phases already completed!")
             self.clear_resume_state()
             return
 
-        print(f"Progress: {last_phase}/{6} phases completed, {total_remaining} remaining")
-        print()
+        logger.info(f"Progress: {last_phase}/{6} phases completed, {total_remaining} remaining")
+        
 
         # Run remaining phases
         completed_count = last_phase
         for i, phase_num in enumerate(remaining_phases, 1):
-            print(f"Phase {i}/{total_remaining}: {self.phases[phase_num]['name']}")
+            logger.info(f"Phase {i}/{total_remaining}: {self.phases[phase_num]['name']}")
             try:
                 self.run_specific_phase_non_interactive(phase_num, last_output_dir)
                 # Save progress after each phase
                 self.save_resume_state(last_output_dir, phase_num)
                 completed_count = phase_num
             except SystemExit:
-                print(f"Pipeline interrupted at Phase {phase_num}. Progress saved for resume.")
+                logger.info(f"Pipeline interrupted at Phase {phase_num}. Progress saved for resume.")
                 sys.exit(1)
 
         # Clear resume state on successful completion
         self.clear_resume_state()
-        print("\nPipeline completed successfully!")
-        print("All phases have been executed and results are ready.")
+        logger.success("\nPipeline completed successfully!")
+        logger.success("All phases have been executed and results are ready.")
 
     def run_specific_phase(self) -> None:
         """Run a specific pipeline phase"""
-        print("\nSelect Phase to Run:")
+        logger.success("\nSelect Phase to Run:")
 
         phase_choices = []
         for phase_num, phase_info in self.phases.items():
@@ -770,7 +770,7 @@ class SemanticFoldingTUI:
         # Get output directory
         last_run = self.check_last_run_status()
         if not last_run:
-            print("No output directory found. Please run Phase 1 first or specify output directory.")
+            logger.info("No output directory found. Please run Phase 1 first or specify output directory.")
             return
 
         # Run the phase with progress reporting
@@ -780,69 +780,69 @@ class SemanticFoldingTUI:
         """View and explore output files"""
         last_run = self.check_last_run_status()
         if not last_run:
-            print("No output directory found")
+            logger.info("No output directory found")
             return
 
-        print(f"\nOutput Directory: {last_run}")
+        logger.info(f"\nOutput Directory: {last_run}")
 
         # Show directory structure
-        print("\nDirectory Structure:")
+        logger.info("\nDirectory Structure:")
         for root, dirs, files in os.walk(last_run):
             level = root.replace(str(last_run), '').count(os.sep)
             indent = ' ' * 2 * level
-            print(f"{indent}{os.path.basename(root)}/")
+            logger.info(f"{indent}{os.path.basename(root)}/")
             subindent = ' ' * 2 * (level + 1)
             for file in files[:5]:  # Show first 5 files
-                print(f"{subindent}{file}")
+                logger.info(f"{subindent}{file}")
             if len(files) > 5:
-                print(f"{subindent}... and {len(files) - 5} more files")
+                logger.info(f"{subindent}... and {len(files) - 5} more files")
 
         # Show key statistics
-        print("\nKey Statistics:")
+        logger.info("\nKey Statistics:")
         try:
             if (last_run / "corpus.txt").exists():
                 with open(last_run / "corpus.txt", 'r', encoding='utf-8') as f:
                     corpus_lines = sum(1 for _ in f)
-                print(f"   Corpus passages: {corpus_lines}")
+                logger.info(f"   Corpus passages: {corpus_lines}")
 
             if (last_run / "phrases.txt").exists():
                 with open(last_run / "phrases.txt", 'r', encoding='utf-8') as f:
                     phrases_lines = sum(1 for _ in f)
-                print(f"   Phrases extracted: {phrases_lines}")
+                logger.info(f"   Phrases extracted: {phrases_lines}")
 
             fingerprints_dir = last_run / "fingerprints"
             if fingerprints_dir.exists():
                 fp_count = len(list(fingerprints_dir.glob("*.txt")))
-                print(f"   Phrase fingerprints: {fp_count}")
+                logger.info(f"   Phrase fingerprints: {fp_count}")
 
             doc_fp_dir = last_run / "doc_fingerprints"
             if doc_fp_dir.exists():
-                doc_fp_count = len(list(doc_fp_dir.glob("*_fingerprint.txt")))
-                print(f"   Document fingerprints: {doc_fp_count}")
+                doc_fp_count = len(list(doc_fp_dir.glob("*_fingerlogger.info.txt")))
+                logger.info(f"   Document fingerprints: {doc_fp_count}")
 
         except Exception as e:
-            print(f"   ERROR: Error reading statistics: {e}")
+            logger.info(f"   ERROR: Error reading statistics: {e}")
 
     def clean_outputs(self) -> None:
         """Clean old output directories"""
         if not QUESTIONARY_AVAILABLE:
-            print("questionary not available")
+            logger.info("questionary not available")
             return
 
         if not self.output_base.exists():
-            print("No output directory found")
+            logger.info("No output directory found")
             return
 
         # List output directories
         output_dirs = [d for d in self.output_base.iterdir() if d.is_dir() and d.name.startswith('musique_')]
         if not output_dirs:
-            print("No output directories found")
+            logger.info("No output directories found")
             return
 
-        print(f"\nFound {len(output_dirs)} output directories:")
+        logger.info(f"\nFound {len(output_dirs)} output directories:")
         for i, d in enumerate(sorted(output_dirs, reverse=True)):
             size_mb = sum(f.stat().st_size for f in d.rglob('*') if f.is_file()) / (1024 * 1024)
-            print(f"   {d.name}: {size_mb:.1f} MB")
+            logger.info(f"   {d.name}: {size_mb:.1f} MB")
         choices = ["All", "None"] + [d.name for d in sorted(output_dirs, reverse=True)]
 
         to_delete = questionary.checkbox(
@@ -855,11 +855,11 @@ class SemanticFoldingTUI:
                 dir_path = self.output_base / dirname
                 try:
                     shutil.rmtree(dir_path)
-                    print(f"Deleted: {dirname}")
+                    logger.info(f"Deleted: {dirname}")
                 except Exception as e:
-                    print(f"Failed to delete {dirname}: {e}")
+                    logger.info(f"Failed to delete {dirname}: {e}")
         else:
-            print("No directories selected for deletion")
+            logger.info("No directories selected for deletion")
 
 
 def main():
@@ -876,6 +876,7 @@ def main():
                                             "  - Edge Threshold: 0.05 (better connectivity)")
     parser.add_argument("--config", help="Configuration YAML file")
     parser.add_argument("--non-interactive", action="store_true", help="Run in non-interactive mode")
+    parser.add_argument("--run-all", action="store_true", help="Run all phases in non-interactive mode")
     parser.add_argument("--run-phase", type=int, choices=[1, 2, 3, 4, 5, 6],
                        help="Run specific phase (1-6) in non-interactive mode")
     parser.add_argument("--output-dir", help="Output directory for phase execution")
@@ -885,8 +886,8 @@ def main():
 
     # Check dependencies
     if not QUESTIONARY_AVAILABLE:
-        print("questionary not available. Install with: uv add questionary")
-        print("Falling back to basic configuration...")
+        logger.info("questionary not available. Install with: uv add questionary")
+        logger.info("Falling back to basic configuration...")
 
         # Basic config mode
         config_file = args.config or "config/semantic_folding.yml"
@@ -901,19 +902,22 @@ def main():
         # Resume from saved state
         resume_state = tui.load_resume_state()
         if resume_state:
-            print(f"Resuming from: {resume_state['last_output_dir']}")
-            print(f"Last completed phase: {resume_state['last_phase']}")
+            logger.info(f"Resuming from: {resume_state['last_output_dir']}")
+            logger.info(f"Last completed phase: {resume_state['last_phase']}")
             tui.resume_pipeline(resume_state)
         else:
-            print("No resume state found. Starting fresh...")
+            logger.info("No resume state found. Starting fresh...")
             tui.show_status()
+    elif args.run_all:
+        # Run all phases in non-interactive mode
+        tui.run_all_phases()
     elif args.run_phase:
         # Run specific phase in non-interactive mode
         if not args.output_dir:
-            print("Error: --output-dir is required when using --run-phase")
+            logger.info("Error: --output-dir is required when using --run-phase")
             sys.exit(1)
         result_dir = tui.run_specific_phase_non_interactive(args.run_phase, args.output_dir)
-        print(f"\nOutput directory: {result_dir}")
+        logger.info(f"\nOutput directory: {result_dir}")
     elif args.non_interactive:
         # Non-interactive mode - just show status
         tui.show_status()
@@ -921,6 +925,21 @@ def main():
         # Interactive mode
         tui.run_pipeline_menu()
 
+def test() -> None :
+    config_file = "config/semantic_folding.yml"
+    tui = SemanticFoldingTUI(config_file)
+    phase  = 5
+    if phase ==1 : 
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = Path(f"{tui.output_base}/pipeline_{timestamp}")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Output directory: {output_dir}")
+    else : 
+        output_dir = "outputs\\pipeline_20260305_182700"
+    tui.run_specific_phase_non_interactive(phase, str(output_dir))
+
 
 if __name__ == "__main__":
-    main()
+    # main()
+    test()

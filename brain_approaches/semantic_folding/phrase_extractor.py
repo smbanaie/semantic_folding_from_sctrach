@@ -12,6 +12,8 @@ from collections import Counter
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 
+from lib import expand_phrases, process_lemmatize
+
 import loguru
 from loguru import logger
 from tqdm import tqdm
@@ -35,7 +37,7 @@ except ImportError:
     nlp = None
 
 
-def extract_phrases_spacy(text: str, batch_size: int = 100) -> List[str]:
+def extract_phrases_spacy(text: str, batch_size: int = 500) -> List[str]:
     """Extract phrases using spaCy with proper batching"""
     if not SPACY_AVAILABLE or not SPACY_MODEL_AVAILABLE:
         raise RuntimeError("spaCy not available. Cannot extract phrases.")
@@ -74,7 +76,7 @@ def extract_phrases_spacy(text: str, batch_size: int = 100) -> List[str]:
                         verb_phrase.append(child.text)
                 if len(verb_phrase) > 1:  # Only multi-word verb phrases
                     phrases.append(' '.join(verb_phrase).lower().strip())
-
+    logger.info(phrases)
     return phrases
 
 
@@ -115,17 +117,19 @@ def extract_phrases_fallback(text: str) -> List[str]:
                 all(word.isalnum() for word in [words[i], words[i+1], words[i+2], words[i+3]])):
                 phrases.append(fourgram)
 
+    logger.info("Extraxt Phrases - Fallback")
+    logger.info(phrases)
     return phrases
 
 
 def filter_and_normalize_phrases(phrase_counts: Counter,
                                min_length: int = 2,
-                               max_length: int = 50,
-                               min_freq: int = 1,
+                               max_length: int = 25,
+                               min_freq: int = 0,
                                max_words: int = 4) -> Dict[str, int]:
     """Filter and normalize phrases"""
     filtered = {}
-
+    logger.info("=================== filter_and_normalize_phrases ==================")
     for phrase, freq in phrase_counts.items():
         # Skip if frequency too low
         if freq < min_freq:
@@ -133,6 +137,8 @@ def filter_and_normalize_phrases(phrase_counts: Counter,
 
         # Normalize
         normalized = phrase.strip().lower()
+
+        normalized = process_lemmatize(normalized)
 
         # Skip if too short or too long (character length)
         if len(normalized) < min_length or len(normalized) > max_length:
@@ -169,21 +175,17 @@ def process_corpus_file(corpus_path: Path,
     with open(corpus_path, 'r', encoding='utf-8') as f:
         for line_num, line in enumerate(tqdm(f, total=total_lines, desc="Processing corpus")):
             # Parse line: format is "idx,title: text"
+            logger.info(f"Start Extracting for the Line: {line}")
             if ',' not in line:
                 continue
 
-            parts = line.split(',', 1)
-            if len(parts) != 2:
-                continue
-
-            text_part = parts[1].strip()
-            if ':' not in text_part:
-                continue
+            text_part = line[line.find(",")+1:]
 
             # Extract just the text content
-            title_and_text = text_part.split(':', 1)[1].strip()
-            if not title_and_text:
-                continue
+            title_and_text = text_part
+            # if not title_and_text:
+            #     title_and_text = text_part
+            logger.info(f"Text&Title : {title_and_text}")
 
             # Extract phrases
             try:
@@ -192,8 +194,14 @@ def process_corpus_file(corpus_path: Path,
                 else:
                     phrases = extract_phrases_fallback(title_and_text)
 
+                phrases = expand_phrases(phrases)
+                final_phrases = []
+                for p in phrases : 
+                    phrase = process_lemmatize(p)
+                    if len(phrase) > 1 : 
+                        final_phrases.append(phrase)
                 total_phrases.update(phrases)
-
+                final_phrases = [ item for item in set(final_phrases)]
             except Exception as e:
                 logger.warning(f"Error processing line {line_num}: {e}")
                 continue
@@ -203,6 +211,47 @@ def process_corpus_file(corpus_path: Path,
                 logger.info(f"Processed {line_num + 1}/{total_lines} lines, {len(total_phrases)} unique phrases so far")
 
     return total_phrases
+
+def extract_phrases_general(text: str) -> List[str]:
+    """
+    Extract, expand, and linguistically normalize meaningful phrases from text.
+
+    Steps:
+    1. Extract phrases (via spaCy or fallback logic)
+    2. Expand multi-word phrases into sub-phrases
+    3. Lemmatize and clean (remove verbs and stopwords)
+    4. Deduplicate and return
+    """
+    final_phrases: List[str] = []
+    logger.info("--" * 20)
+
+    try:
+        if SPACY_AVAILABLE and SPACY_MODEL_AVAILABLE:
+            phrases = extract_phrases_spacy(text)
+        else:
+            phrases = extract_phrases_fallback(text)
+
+        logger.info(f"Before Expansion: {phrases}")
+        phrases = expand_phrases(phrases)
+        logger.info(f"After Expansion: {phrases}")
+
+        # Lemmatize and filter
+        for p in phrases:
+            phrase = process_lemmatize(p).strip()
+            if len(phrase) > 1:  # ensure non-empty and meaningful
+                final_phrases.append(phrase)
+
+        # Deduplicate while preserving clean results
+        final_phrases = list(set(final_phrases))
+
+        logger.info(f"Final Phrases: {final_phrases}")
+        logger.info("--" * 20)
+
+        return final_phrases
+
+    except Exception as e:
+        logger.warning(f"Error processing text: {e}")
+        return []
 
 
 def create_visualization(phrases: Dict[str, int], output_dir: Path) -> None:
@@ -258,9 +307,9 @@ def main():
     parser.add_argument("--corpus_path", required=True, help="Path to corpus.txt file")
     parser.add_argument("--output_dir", required=True, help="Output directory")
     parser.add_argument("--batch_size", type=int, default=100, help="Batch size for spaCy processing")
-    parser.add_argument("--min_freq", type=int, default=2, help="Minimum phrase frequency")
-    parser.add_argument("--min_length", type=int, default=2, help="Minimum phrase length")
-    parser.add_argument("--max_length", type=int, default=50, help="Maximum phrase length")
+    parser.add_argument("--min_freq", type=int, default=0, help="Minimum phrase frequency")
+    parser.add_argument("--min_length", type=int, default=1, help="Minimum phrase length")
+    parser.add_argument("--max_length", type=int, default=25, help="Maximum phrase length")
     parser.add_argument("--use_spacy", action="store_true", default=True, help="Use spaCy for extraction")
     parser.add_argument("--no_visualization", action="store_true", help="Skip visualization")
     parser.add_argument("--max_words", type=int, default=4, help="Maximum words per phrase (1-4)")
@@ -283,7 +332,7 @@ def main():
         phrase_counts,
         min_length=args.min_length,
         max_length=args.max_length,
-        min_freq=args.min_freq,
+        min_freq=0,
         max_words=args.max_words
     )
 

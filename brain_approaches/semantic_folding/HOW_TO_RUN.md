@@ -255,6 +255,9 @@ Each module supports additional command-line arguments:
 --max_length INT           # Maximum phrase length (default: 50)
 --use_spacy               # Force spaCy usage
 --max_words INT           # Maximum words per phrase (default: 4)
+
+Sample:
+ uv run python brain_approaches/semantic_folding/phrase_extractor.py --corpus_path outputs\pipeline_20260305_182700\corpus.txt --output_dir outputs\pipeline_20260305_182700
 ```
 
 #### Term-Context Matrix (`term_context.py`)
@@ -264,6 +267,9 @@ Each module supports additional command-line arguments:
 --output_dir DIR          # Output directory
 --chunk_size INT          # Processing chunk size (default: 1000)
 --no_normalization        # Disable TF-IDF normalization
+
+uv run python brain_approaches/semantic_folding/term_context.py --phrases_path outputs\pipeline_20260305_182700\phrases.txt --corpus_path outputs\pipeline_20260305_182700\corpus.txt --output_dir outputs\pipeline_20260305_182700
+
 ```
 
 #### Semantic Space (`semantic_space.py`)
@@ -274,6 +280,14 @@ Each module supports additional command-line arguments:
 --grid_size INT           # Grid size (default: 16)
 --max_edges INT           # Maximum edges in graph (default: 50000)
 --edge_threshold FLOAT    # Edge weight threshold (default: 0.1)
+
+
+uv run python brain_approaches/semantic_folding/semantic_space.py --corpus_path outputs\pipeline_20260305_182700\corpus.txt --matrix_path outputs\pipeline_20260305_182700\term_context_matrix.npz --output_dir outputs\pipeline_20260305_182700 --grid_size 32 --max_edges 200 --edge_threshold 0.2
+
+
+uv run python .\brain_approaches\semantic_folding\context-similarity.py --matrix_path outputs\pipeline_20260305_182700\term_context_matrix.npz --phrases_path outputs\pipeline_20260305_182700\phrases.txt                                          
+
+
 ```
 
 #### Phrase Fingerprints (`phrase_fingerprints.py`)
@@ -284,6 +298,9 @@ Each module supports additional command-line arguments:
 --output_dir DIR          # Output directory
 --grid_size INT           # Grid size (default: 16)
 --max_phrases INT         # Limit phrases to process
+
+uv run python brain_approaches/semantic_folding/phrase_fingerprints.py --matrix_path outputs\pipeline_20260305_182700\term_context_matrix.npz --output_dir outputs\pipeline_20260305_182700 --phrases_path outputs\pipeline_20260305_182700\phrases.txt --coordinates_path outputs\pipeline_20260305_182700\context_coordinates.csv --grid_size 32 --max_phrases 1000 
+
 ```
 
 #### Document Fingerprints (`doc_fingerprints.py`)
@@ -297,8 +314,18 @@ Each module supports additional command-line arguments:
 --top_percent FLOAT      # Top percentage threshold (default: 0.05)
 --no_threshold           # Disable thresholding
 --use_spacy              # Force spaCy usage
+
+uv run python brain_approaches/semantic_folding/doc_fingerprints.py --corpus_path outputs\pipeline_20260305_182700\corpus.txt --output_dir outputs\pipeline_20260305_182700 --phrases_path outputs\pipeline_20260305_182700\phrases.txt --fingerprints_dir outputs\pipeline_20260305_182700\fingerprints --grid_size 32 --max_docs 100 --top_percent 0.1
+
 ```
 
+#### Query Test
+
+```bash
+
+python brain_approaches/semantic_folding/query-processing.py --fingerprints_dir outputs\pipeline_20260305_182700\fingerprints --doc_fingerprints_dir outputs\pipeline_20260305_182700\doc_fingerprints --phrases_path outputs\pipeline_20260305_182700\phrases.txt --fingerprints_dir outputs\pipeline_20260305_182700\fingerprints --grid_size 32 --query_text "How does emotional intelligence contribute to effective leadership and teamwork?"
+
+```
 ### Performance Tuning Guidelines
 
 #### For Speed

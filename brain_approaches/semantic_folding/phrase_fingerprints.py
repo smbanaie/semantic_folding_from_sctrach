@@ -135,13 +135,17 @@ def create_phrase_fingerprint(phrase: str,
         # Get contexts where this phrase appears
         phrase_vector = matrix[:, phrase_idx].toarray().flatten()
         context_indices = np.where(phrase_vector > 0)[0]
+        # logger.info("-/"*10)
+        # logger.info(f"Phrase: {phrase}")
 
         for context_idx in context_indices:
             context_id = f"context_{context_idx}"
+            # logger.info(f"Context: {context_id}")
             if context_id in coordinates:
                 x, y = coordinates[context_id]
                 if 0 <= x < grid_size and 0 <= y < grid_size:
                     fingerprint[y, x] += 1  # Note: matrix indexing
+        # logger.info("-/"*10)
 
     else:
         # Dense matrix case (fallback)

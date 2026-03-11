@@ -11,6 +11,7 @@ import csv
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Tuple
+from lib import load_contexts
 
 import loguru
 from loguru import logger
@@ -40,29 +41,6 @@ def load_phrases(phrases_path: Path) -> List[str]:
 
     logger.success(f"Loaded {len(phrases)} phrases")
     return phrases
-
-
-def load_contexts(corpus_path: Path) -> List[Tuple[str, str]]:
-    """Load contexts from corpus file"""
-    logger.info(f"Loading contexts from: {corpus_path}")
-
-    contexts = []
-    with open(corpus_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if not line or ',' not in line:
-                continue
-
-            context_id, context_text = line.split(',', 1)
-            context_id = context_id.strip()
-            context_text = context_text.strip()
-
-            if context_id and context_text:
-                contexts.append((context_id, context_text))
-
-    logger.success(f"Loaded {len(contexts)} contexts")
-    return contexts
-
 
 def apply_tf_idf_normalization(matrix: scipy.sparse.lil_matrix,
                              phrases: List[str],

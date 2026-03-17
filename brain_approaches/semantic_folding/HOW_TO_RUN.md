@@ -324,8 +324,41 @@ uv run python brain_approaches/semantic_folding/doc_fingerprints.py --corpus_pat
 ```bash
 
 python brain_approaches/semantic_folding/query-processing.py --fingerprints_dir outputs\pipeline_20260305_182700\fingerprints --doc_fingerprints_dir outputs\pipeline_20260305_182700\doc_fingerprints --phrases_path outputs\pipeline_20260305_182700\phrases.txt --fingerprints_dir outputs\pipeline_20260305_182700\fingerprints --grid_size 32 --query_text "How does emotional intelligence contribute to effective leadership and teamwork?"
+Top 3 results  [strategy=gaussian]:
+  #1  0_fingerprint                        similarity: 0.9508
+  #2  12_fingerprint                       similarity: 0.2808
+  #3  18_fingerprint                       similarity: 0.2264
 
+
+--query_text "How does cognitive-behavioral therapy treat anxiety and depression?" 
+Top 3 results  [strategy=gaussian]:
+  #1  1_fingerprint                        similarity: 0.9017
+  #2  2_fingerprint                        similarity: 0.1580
+  #3  10_fingerprint                       similarity: 0.1025
+
+--query_text "How do cultural rituals and language evolution reflect societal values?"
+Top 3 results  [strategy=gaussian]:
+  #1  6_fingerprint                        similarity: 0.8458
+  #2  4_fingerprint                        similarity: 0.7680
+  #3  7_fingerprint                        similarity: 0.7077  
 ```
+
+### ⚙️ Tuning Recommendations
+If you want to widen the gap between #1 and #2/#3:
+
+Parameter	Current (likely)	Adjustment	Effect
+--sigma	1.0	→ 0.7	Tighter neighbourhood → less false overlap
+--radius	1	→ 0	Disable spreading → exact cell matching only
+Grid size	32	→ 64	Finer spatial resolution → better discrimination
+Example:
+
+```bash
+python query_matching.py \
+  --query_text "How does emotional intelligence contribute to effective leadership and teamwork?" \
+  --strategy gaussian \
+  --sigma 0.7 \
+  --grid_size 64
+ ``` 
 ### Performance Tuning Guidelines
 
 #### For Speed

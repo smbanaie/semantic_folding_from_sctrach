@@ -1,748 +1,903 @@
-# Semantic Folding Pipeline - How to Run
+# Semantic Folding Pipeline: Complete Guide
 
-This guide provides step-by-step instructions for running the Semantic Folding evaluation pipeline on different corpora.
+## Introduction
+
+Semantic Folding is a brain-inspired approach to semantic representation and retrieval that maps linguistic concepts into a discrete 2D semantic space. Unlike traditional vector embeddings, this method creates sparse, interpretable "fingerprints" that preserve semantic relationships while enabling efficient similarity search.
+
+The pipeline transforms raw text into semantic fingerprints through dimensionality reduction and spatial encoding, mimicking how the cortex organizes conceptual knowledge. Documents and queries are represented as activation patterns over a shared semantic grid, enabling context-aware retrieval without dense vector operations.
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
-3. [Interactive TUI Interface](#interactive-tui-interface)
-4. [Quick Start](#quick-start)
-5. [Running the Pipeline](#running-the-pipeline)
-6. [Testing with Different Corpora](#testing-with-different-corpora)
-7. [Output Structure](#output-structure)
-8. [Configuration Options](#configuration-options)
-9. [Troubleshooting](#troubleshooting)
-10. [Performance Tuning](#performance-tuning)
+3. [Configuration](#configuration)
+4. [Pipeline Overview](#pipeline-overview)
+5. [Pipeline Steps](#pipeline-steps)
+   - [Phase 1: Phrase Extraction](#phase-1-phrase-extraction)
+   - [Phase 2: Term-Context Matrix](#phase-2-term-context-matrix)
+   - [Phase 3: Semantic Space](#phase-3-semantic-space)
+   - [Phase 4: Phrase Fingerprints](#phase-4-phrase-fingerprints)
+   - [Phase 5: Document Fingerprints](#phase-5-document-fingerprints)
+   - [Phase 6: Query Processing](#phase-6-query-processing)
+6. [Utility Scripts](#utility-scripts)
+7. [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
-### System Requirements
-- **Python**: 3.11+
-- **RAM**: Minimum 8GB, recommended 16GB+ for large corpora
-- **Storage**: 10GB+ free space for intermediate files
-- **OS**: Linux, macOS, or Windows (with WSL recommended)
+**System Requirements:**
+- Python 3.11 or higher
+- 8GB+ RAM (16GB recommended for large corpora)
+- macOS, Linux, or Windows with WSL
 
-### Dependencies
-The pipeline uses `uv` for dependency management. Key dependencies include:
-- `loguru` - Advanced logging
-- `scipy` - Sparse matrix operations (optional, falls back to dense)
+**Core Dependencies:**
+- `loguru` - Structured logging
+- `scipy` - Sparse matrix operations
+- `spacy` - NLP and phrase extraction
+- `scikit-learn` - Dimensionality reduction (t-SNE, PCA)
+- `umap-learn` - UMAP dimensionality reduction
 - `tqdm` - Progress bars
-- `lancedb` - Vector storage (for Phase 4+)
-- `rank-bm25` - BM25 baseline
-- `sentence-transformers` - Dense retrieval baseline
-- `plotly` - Visualization (optional)
+- `pyyaml` - Configuration file parsing
 
 ## Installation
 
-### 1. Install UV (if not already installed)
+Install `uv` (fast Python package manager):
+
 ```bash
-# On Linux/macOS
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# On Windows
-powershell -c "irm https://astral.sh/uv/install.sh | iex"
 ```
 
-### 2. Clone and setup the project
+Clone the project:
+
 ```bash
+git clone https://github.com/yourusername/knowledge-graph-builder.git
 cd knowledge-graph-builder
-uv sync
 ```
 
-### 3. Optional: Install additional dependencies
-```bash
-# For full functionality (recommended)
-uv add scipy lancedb rank-bm25 plotly
-
-# For NLP processing (if available)
-uv sync --extra nlp
-
-# For the interactive TUI interface
-uv add pyyaml questionary
-```
-
-## Interactive TUI Interface
-
-The easiest way to run and manage the semantic folding pipeline is through the interactive Text User Interface (TUI):
+Install dependencies:
 
 ```bash
-# Launch the TUI
-uv run python brain_approaches/semantic_folding/semantic_folder.py
+uv pip install loguru scipy spacy scikit-learn umap-learn tqdm pyyaml
+python -m spacy download en_core_web_sm
 ```
 
-### TUI Features
+Optional dependencies:
 
-- **Pipeline Status Overview**: Shows completion status of each phase and automatically detects errors from previous runs
-- **Interactive Phase Selection**: Run individual phases or the complete pipeline
-- **Configuration Management**: Easily modify corpus path, grid size, and logging options
-- **Output File Browser**: View and inspect generated files and directory structure
-- **Error Detection**: Automatically checks log files for errors and warnings
-- **Output Management**: Clean up old output directories with confirmation
-- **Progress Reporting**: Real-time progress indicators with elapsed time and completion statistics
-- **Resume Capability**: Automatically resume interrupted pipelines from the last completed phase
+```bash
+uv pip install matplotlib seaborn  # For visualizations
+uv pip install networkx            # For semantic graphs
+```
 
-### TUI Menu Options
+## Configuration
 
-1. **🔄 Run All Phases**: Execute the complete pipeline from start to finish
-2. **🎯 Run Specific Phase**: Select and run individual pipeline phases (useful for debugging or resuming)
-3. **🗂️ View Output Files**: Browse output directories, view file counts, and key statistics
-4. **📋 Configure Pipeline**: Interactive setup of corpus path, grid size, and logging levels
-5. **🧹 Clean Old Outputs**: Remove previous run directories with size information and confirmation
-6. **❌ Exit**: Close the interface
+The pipeline uses a centralized YAML configuration file located at `config/semantic_folding.yml`. This file controls all pipeline parameters, from phrase extraction to query processing.
 
-### Configuration File
+**Configuration File Structure:**
 
-Pipeline settings are managed through `config/semantic_folding.yml`:
+Create `config/semantic_folding.yml` with the following structure:
 
 ```yaml
-# Semantic Folding Pipeline Configuration - OPTIMIZED SETTINGS
-# This file contains production-ready optimized settings for quality results
-# Based on extensive testing and quality analysis
+# ============================================================
+# Semantic Folding Pipeline Configuration
+# ============================================================
+# Production-ready settings for brain-inspired semantic retrieval
 
-# Input Data
-corpus_path: "data/HippoRAG2/dataset/musique_corpus.json"
-queries_path: "data/HippoRAG2/dataset/musique.json"
+# ============================================================
+# INPUT/OUTPUT PATHS
+# ============================================================
+paths:
+  # Input data files
+  corpus_path: "data/corpus.txt"
+  queries_path: null  # Optional: path to queries file
+  
+  # Output directory structure
+  output_base: "outputs"
+  output_timestamp: true  # Append timestamp to output folder names
+  
+  # Optional: Pre-computed artifacts (skip earlier stages)
+  phrases_path: null
+  matrix_path: null
+  coordinates_path: null
+  phrase_fingerprints_path: null
+  doc_fingerprints_path: null
 
-# Output Settings
-output_base: "outputs"
+# ============================================================
+# PHASE 1: PHRASE EXTRACTION
+# ============================================================
+phrase_extraction:
+  # Frequency filtering
+  min_freq: 2                    # Minimum phrase frequency to keep
+  min_word_length: 3             # Minimum character length for single words
+  
+  # Extraction method
+  use_spacy: true                # Use spaCy (fallback to NLTK if unavailable)
+  filter_generic: true           # Remove generic words (get, do, make, etc.)
+  
+  # N-gram settings (fallback mode)
+  max_ngram: 3                   # Maximum n-gram size for extraction
+  
+  # Output options
+  show_stats: true               # Print extraction statistics
 
-# Pipeline Parameters - OPTIMIZED FOR QUALITY
-grid_size: 32                    # Semantic space grid size (optimized for distribution)
-max_phrases: null               # Limit phrases for testing (null = no limit)
-max_docs: null                  # Limit documents for testing (null = no limit)
+# ============================================================
+# PHASE 2: TERM-CONTEXT MATRIX
+# ============================================================
+term_context_matrix:
+  # Matrix construction
+  min_phrase_freq: 0             # Additional frequency filter for matrix
+  use_tfidf: true                # Apply TF-IDF normalization
+  word_boundaries: true          # Use word boundary matching (not substring)
+  keep_verbs: false              # Include verbal elements in phrases
+  
+  # Processing
+  batch_size: 1000               # Chunk size for large datasets
+  sparse_format: "csr"           # Sparse matrix format (csr, csc, lil)
 
-# Logging Configuration
-log_level: "INFO"               # Console log level (DEBUG, INFO, WARNING, ERROR)
-debug: false                    # Enable debug mode with stack traces
+# ============================================================
+# PHASE 3: SEMANTIC SPACE
+# ============================================================
+semantic_space:
+  # Dimensionality reduction method
+  method: "tsne"                 # Options: tsne, umap, pca
+  
+  # Grid configuration
+  grid_size: 32                  # Semantic space resolution (8, 16, 32, 64)
+  grid_padding: 0                # Padding around grid edges
+  enable_grid: true              # Generate discrete grid coordinates
+  
+  # t-SNE specific parameters
+  tsne:
+    perplexity: 30               # Balance local vs global structure (5-50)
+    max_iter: 1000               # Maximum iterations
+    learning_rate: 200           # Step size (auto, or 10-1000)
+    early_exaggeration: 12       # Initial separation strength
+    metric: "cosine"             # Distance metric
+    
+  # UMAP specific parameters
+  umap:
+    n_neighbors: 15              # Local neighborhood size (2-100)
+    min_dist: 0.1                # Minimum separation (0.0-0.99)
+    metric: "cosine"             # Distance metric
+    
+  # PCA specific parameters
+  pca:
+    n_components: 2              # Number of dimensions (always 2 for 2D space)
+    
+  # Collision resolution
+  collision_resolution: true     # Use Morton Z-order curve for collisions
+  
+  # Performance
+  n_jobs: 1                      # Parallel jobs (-1 = all cores)
+  use_sparse: false              # Use sparse matrices (UMAP/PCA only)
+  
+  # Visualization
+  visualize: true                # Generate PNG plots
+  show_density: false            # Add density heatmap overlay
 
-# Performance Settings - TUNED FOR OPTIMAL RESULTS
-batch_size: 1000               # Processing batch size for large datasets
-max_edges: 200                 # Maximum edges in semantic graph (tuned for clean layouts)
-edge_threshold: 0.05          # Minimum similarity for graph edges (optimized for connectivity)
+# ============================================================
+# PHASE 4: PHRASE FINGERPRINTS
+# ============================================================
+phrase_fingerprints:
+  # Fingerprint representation
+  binary: false                  # Use presence/absence (not weights)
+  normalization: "none"          # Options: none, l1, l2, binary
+  
+  # Sparsification
+  sparsify_threshold: 0.0        # Zero out values below threshold (0.0 = disabled)
+  
+  # Grid indexing
+  use_morton: true               # Enable Morton Z-order indexing
+  
+  # Testing/debugging
+  max_phrases: null              # Limit phrases for testing (null = all)
 
-# Matrix Normalization Settings
-normalize_matrix: true         # Apply TF-IDF normalization to reduce high-frequency word dominance
+# ============================================================
+# PHASE 5: DOCUMENT FINGERPRINTS
+# ============================================================
+document_fingerprints:
+  # Thresholding strategy
+  enable_threshold: true         # Apply thresholding to reduce fingerprint size
+  threshold_method: "z_order"    # Options: z_order (locality-preserving), value (magnitude)
+  top_percent: 0.05              # Keep top N% of cells (0.01-0.20 recommended)
+  
+  # Weighting
+  use_idf: false                 # Apply IDF weighting to phrases
+  normalization: "l2"            # Options: none, l1, l2, binary
+  
+  # Phrase extraction from documents
+  max_ngram: 2                   # Maximum n-gram size (1-3)
+  min_word_length: 2             # Minimum token length
+  
+  # Export options
+  export_numpy: false            # Export as NumPy array (.npy)
+  export_statistics: true        # Generate corpus statistics JSON
+  
+  # Testing/debugging
+  max_docs: null                 # Limit documents for testing (null = all)
 
-# Document Fingerprint Settings
-doc_top_percent: 0.05         # Keep only top N% of cells in document fingerprints (default: 5%)
-doc_no_threshold: false       # Set to true to disable document fingerprint thresholding
+# ============================================================
+# PHASE 6: QUERY PROCESSING
+# ============================================================
+query_processing:
+  # Weighting scheme
+  weighting: "uniform"           # Options: uniform, frequency, idf
+  normalization: "l2"            # Options: none, l1, l2, binary
+  
+  # Query phrase extraction
+  max_ngram: 3                   # Maximum n-gram size for query
+  min_word_length: 2             # Minimum token length
+  
+  # Spatial spreading (context expansion)
+  spreading:
+    enabled: true                # Enable spreading to neighboring cells
+    radius: 1                    # Spreading radius (0 = exact match, 1-3 = recall boost)
+    decay: 0.5                   # Decay factor per distance (0.0-1.0)
+    normalize_after: false       # Renormalize fingerprint after spreading
+  
+  # Ranking
+  top_k: 10                      # Number of results to return
+  min_similarity: 0.0            # Minimum similarity threshold (0.0-1.0)
+  use_batch: true                # Use batch cosine similarity (faster)
+  
+  # Output
+  verbose: false                 # Show detailed query construction info
+  output_json: null              # Optional: save results to JSON file
 
-# Module Settings
-use_spacy: true               # Use spaCy for phrase extraction (fallback if unavailable)
-no_visualization: false       # Generate matplotlib visualizations
+# ============================================================
+# SEMANTIC GRAPH (VISUALIZATION)
+# ============================================================
+semantic_graph:
+  enabled: false                 # Generate semantic graph visualization
+  max_edges: 200                 # Maximum edges in graph
+  edge_threshold: 0.05           # Minimum similarity for edge creation
+  layout: "force"                # Layout algorithm (force, circular, spring)
 
-# Quality Optimization Notes:
-# - grid_size: 32 provides better semantic space utilization than 16 or 8
-# - max_edges: 200 creates cleaner, more meaningful layouts than 50000
-# - edge_threshold: 0.05 allows better connectivity than 0.1
-# - normalize_matrix: TF-IDF weighting reduces high-frequency word dominance
-# - doc_top_percent: 5% threshold improves document fingerprint sparsity
-# - These settings were determined through quality analysis and testing
+# ============================================================
+# LOGGING & DEBUGGING
+# ============================================================
+logging:
+  level: "INFO"                  # Console log level (DEBUG, INFO, WARNING, ERROR)
+  debug: false                   # Enable debug mode with stack traces
+  log_file: null                 # Optional: write logs to file
+  progress_bars: true            # Show tqdm progress bars
+
+# ============================================================
+# PERFORMANCE & OPTIMIZATION
+# ============================================================
+performance:
+  # Memory management
+  max_memory_gb: null            # Maximum memory usage (null = unlimited)
+  clear_intermediate: false      # Delete intermediate files after each phase
+  
+  # Parallel processing
+  n_jobs: 1                      # Number of parallel workers (-1 = all cores)
+  
+  # Batch processing
+  batch_size: 1000               # Default batch size for chunked operations
+
+# ============================================================
+# EXPERIMENTAL FEATURES
+# ============================================================
+experimental:
+  # Advanced phrase extraction
+  use_dependency_parsing: false  # Use dependency trees for phrase extraction
+  
+  # Alternative similarity metrics
+  similarity_metric: "cosine"    # Options: cosine, euclidean, manhattan
+  
+  # Fingerprint compression
+  quantize_fingerprints: false   # Quantize values to reduce storage
+  quantization_bits: 8           # Bits per value (4, 8, 16)
+
+# ============================================================
+# PRESETS (QUICK CONFIGURATIONS)
+# ============================================================
+# Uncomment one preset to override individual settings
+
+# presets:
+#   # Fast prototyping (small grid, minimal processing)
+#   fast:
+#     semantic_space:
+#       grid_size: 16
+#       tsne:
+#         max_iter: 500
+#     document_fingerprints:
+#       top_percent: 0.10
+#     query_processing:
+#       spreading:
+#         radius: 0
+  
+#   # Balanced quality (recommended for most use cases)
+#   balanced:
+#     semantic_space:
+#       grid_size: 32
+#       tsne:
+#         perplexity: 30
+#         max_iter: 1000
+#     document_fingerprints:
+#       top_percent: 0.05
+#     query_processing:
+#       spreading:
+#         radius: 1
+#         decay: 0.5
+  
+#   # High precision (large grid, aggressive filtering)
+#   precision:
+#     semantic_space:
+#       grid_size: 64
+#       tsne:
+#         perplexity: 50
+#         max_iter: 2000
+#     document_fingerprints:
+#       top_percent: 0.03
+#       use_idf: true
+#     query_processing:
+#       weighting: "idf"
+#       spreading:
+#         radius: 1
+#         decay: 0.3
+  
+#   # High recall (spreading enabled, relaxed thresholds)
+#   recall:
+#     semantic_space:
+#       grid_size: 32
+#     document_fingerprints:
+#       top_percent: 0.10
+#     query_processing:
+#       spreading:
+#         radius: 2
+#         decay: 0.6
+#       top_k: 20
 ```
 
-### Resume Mode
+**Loading Configuration in Scripts:**
 
-Resume a pipeline that was interrupted:
+All pipeline scripts support loading configuration via the `--config` flag:
 
 ```bash
-# Resume from last saved state
-uv run python brain_approaches/semantic_folding/semantic_folder.py --resume
+uv run python scripts/semantic_folding/phrase_extraction.py --config config/semantic_folding.yml
 ```
 
-The resume state is automatically saved after each completed phase and stored in `~/.semantic_folding_resume.json`.
-
-### Progress Reporting
-
-The TUI provides real-time progress feedback during execution:
-
-- **Progress Indicators**: ASCII spinning indicators showing current phase and elapsed time
-- **Phase Statistics**: Detailed output showing what was created (documents processed, files generated, etc.)
-- **Completion Summary**: Final statistics for the entire pipeline including file counts and sizes
-- **Error Details**: Clear error reporting with relevant output when phases fail
-
-Example progress output:
-```
->>> Phase 2: Phrase Extraction
-============================================================
-Command: uv run python brain_approaches/semantic_folding/phrase_extractor.py --corpus_path outputs/musique_20260215_123456/corpus.txt --output_dir outputs/musique_20260215_123456
-Starting execution...
-| Phrase Extraction... (0.0s elapsed)
-/ Phrase Extraction... (0.5s elapsed)
-- Phrase Extraction... (1.0s elapsed)
-   [SUCCESS] Phase 2 completed successfully!
-   Phrases extracted: 25,572
-   Matrix created: 11656 × 25572
-   Sparsity: 0.0028 (827,185 entries)
-```
-
-### Matrix Normalization & Document Fingerprint Thresholding
-
-The pipeline includes advanced normalization and thresholding features:
-
-#### TF-IDF Matrix Normalization
-- **Purpose**: Reduces dominance of high-frequency/common words in semantic relationships
-- **Method**: Applies TF-IDF weighting to term-context matrix entries
-- **Benefit**: Prevents stopwords and frequent phrases from overwhelming semantic connections
-- **Control**: Set `normalize_matrix: false` to disable
-
-#### Document Fingerprint Sparsification
-- **Purpose**: Creates more focused and interpretable document representations
-- **Method**: Retains only top 5% of activated cells in document fingerprints
-- **Benefit**: Improves semantic specificity and reduces noise
-- **Control**: Adjust `doc_top_percent` (default: 0.05) or set `doc_no_threshold: true`
-
-#### Expected Improvements
-- **Better semantic separation** between related vs unrelated documents
-- **Reduced centralization** in semantic space visualizations
-- **More meaningful fingerprints** with higher information density
-- **Improved retrieval quality** through focused semantic representations
-
-### Complete Configuration Reference
-
-The semantic folding pipeline supports extensive configuration for optimization:
-
-#### Input/Output Settings
-```yaml
-corpus_path: "data/HippoRAG2/dataset/musique_corpus.json"  # Path to input corpus
-queries_path: "data/HippoRAG2/dataset/musique.json"       # Path to query file (optional)
-output_base: "outputs"                                    # Base directory for outputs
-```
-
-#### Core Pipeline Parameters
-```yaml
-grid_size: 32                    # Semantic space grid size (8, 16, 32 recommended)
-max_phrases: null               # Limit phrases for testing (null = no limit)
-max_docs: null                  # Limit documents for testing (null = no limit)
-```
-
-#### Semantic Graph Construction
-```yaml
-max_edges: 200                 # Maximum edges in semantic graph (tuned for clean layouts)
-edge_threshold: 0.05          # Minimum similarity for graph edges (optimized for connectivity)
-```
-
-#### Matrix Processing
-```yaml
-normalize_matrix: true         # Apply TF-IDF normalization to reduce high-frequency word dominance
-batch_size: 1000               # Processing chunk size for large datasets
-```
-
-#### Document Fingerprint Generation
-```yaml
-doc_top_percent: 0.05         # Keep only top N% of cells in document fingerprints
-doc_no_threshold: false       # Disable thresholding to keep all cells
-```
-
-#### Logging and Visualization
-```yaml
-log_level: "INFO"             # Console log level (DEBUG, INFO, WARNING, ERROR)
-debug: false                  # Enable debug mode with detailed tracebacks
-use_spacy: true               # Use spaCy for phrase extraction (fallback if unavailable)
-no_visualization: false       # Generate matplotlib visualizations
-```
-
-### Command-Line Arguments
-
-Each module supports additional command-line arguments:
-
-#### Phrase Extraction (`phrase_extractor.py`)
-```bash
---corpus_path PATH          # Input corpus file
---output_dir DIR           # Output directory
---batch_size INT           # Batch size for spaCy processing (default: 100)
---min_freq INT             # Minimum phrase frequency (default: 2)
---max_length INT           # Maximum phrase length (default: 50)
---use_spacy               # Force spaCy usage
---max_words INT           # Maximum words per phrase (default: 4)
-
-Sample:
- uv run python brain_approaches/semantic_folding/phrase_extractor.py --corpus_path outputs\pipeline_20260305_182700\corpus.txt --output_dir outputs\pipeline_20260305_182700
-```
-
-#### Term-Context Matrix (`term_context.py`)
-```bash
---phrases_path PATH        # Phrases file path
---corpus_path PATH         # Corpus file path
---output_dir DIR          # Output directory
---chunk_size INT          # Processing chunk size (default: 1000)
---no_normalization        # Disable TF-IDF normalization
-
-uv run python brain_approaches/semantic_folding/term_context.py --phrases_path outputs\pipeline_20260305_182700\phrases.txt --corpus_path outputs\pipeline_20260305_182700\corpus.txt --output_dir outputs\pipeline_20260305_182700
-
-```
-
-#### Semantic Space (`semantic_space.py`)
-```bash
---matrix_path PATH        # Term-context matrix file
---corpus_path PATH        # Corpus file path
---output_dir DIR          # Output directory
---grid_size INT           # Grid size (default: 16)
---max_edges INT           # Maximum edges in graph (default: 50000)
---edge_threshold FLOAT    # Edge weight threshold (default: 0.1)
-
-
-uv run python brain_approaches/semantic_folding/semantic_space.py --corpus_path outputs\pipeline_20260305_182700\corpus.txt --matrix_path outputs\pipeline_20260305_182700\term_context_matrix.npz --output_dir outputs\pipeline_20260305_182700 --grid_size 32 --max_edges 200 --edge_threshold 0.2
-
-
-uv run python .\brain_approaches\semantic_folding\context-similarity.py --matrix_path outputs\pipeline_20260305_182700\term_context_matrix.npz --phrases_path outputs\pipeline_20260305_182700\phrases.txt                                          
-
-
-```
-
-#### Phrase Fingerprints (`phrase_fingerprints.py`)
-```bash
---matrix_path PATH        # Term-context matrix file
---coordinates_path PATH   # Context coordinates file
---phrases_path PATH       # Phrases file path
---output_dir DIR          # Output directory
---grid_size INT           # Grid size (default: 16)
---max_phrases INT         # Limit phrases to process
-
-uv run python brain_approaches/semantic_folding/phrase_fingerprints.py --matrix_path outputs\pipeline_20260305_182700\term_context_matrix.npz --output_dir outputs\pipeline_20260305_182700 --phrases_path outputs\pipeline_20260305_182700\phrases.txt --coordinates_path outputs\pipeline_20260305_182700\context_coordinates.csv --grid_size 32 --max_phrases 1000 
-
-```
-
-#### Document Fingerprints (`doc_fingerprints.py`)
-```bash
---corpus_path PATH        # Corpus file path
---phrases_path PATH       # Phrases file path
---fingerprints_dir DIR    # Phrase fingerprints directory
---output_dir DIR          # Output directory
---grid_size INT           # Grid size (default: 16)
---max_docs INT           # Limit documents to process
---top_percent FLOAT      # Top percentage threshold (default: 0.05)
---no_threshold           # Disable thresholding
---use_spacy              # Force spaCy usage
-
-uv run python brain_approaches/semantic_folding/doc_fingerprints.py --corpus_path outputs\pipeline_20260305_182700\corpus.txt --output_dir outputs\pipeline_20260305_182700 --phrases_path outputs\pipeline_20260305_182700\phrases.txt --fingerprints_dir outputs\pipeline_20260305_182700\fingerprints --grid_size 32 --max_docs 100 --top_percent 0.1
-
-```
-
-#### Query Test
+Configuration values can be overridden via command-line arguments:
 
 ```bash
-
-python brain_approaches/semantic_folding/query-processing.py --fingerprints_dir outputs\pipeline_20260305_182700\fingerprints --doc_fingerprints_dir outputs\pipeline_20260305_182700\doc_fingerprints --phrases_path outputs\pipeline_20260305_182700\phrases.txt --fingerprints_dir outputs\pipeline_20260305_182700\fingerprints --grid_size 32 --query_text "How does emotional intelligence contribute to effective leadership and teamwork?"
-Top 3 results  [strategy=gaussian]:
-  #1  0_fingerprint                        similarity: 0.9508
-  #2  12_fingerprint                       similarity: 0.2808
-  #3  18_fingerprint                       similarity: 0.2264
-
-
---query_text "How does cognitive-behavioral therapy treat anxiety and depression?" 
-Top 3 results  [strategy=gaussian]:
-  #1  1_fingerprint                        similarity: 0.9017
-  #2  2_fingerprint                        similarity: 0.1580
-  #3  10_fingerprint                       similarity: 0.1025
-
---query_text "How do cultural rituals and language evolution reflect societal values?"
-Top 3 results  [strategy=gaussian]:
-  #1  6_fingerprint                        similarity: 0.8458
-  #2  4_fingerprint                        similarity: 0.7680
-  #3  7_fingerprint                        similarity: 0.7077  
+# Override grid_size from config
+uv run python scripts/semantic_folding/semantic_space.py \
+  --config config/semantic_folding.yml \
+  --grid-size 64
 ```
 
-### ⚙️ Tuning Recommendations
-If you want to widen the gap between #1 and #2/#3:
+**Configuration Guidelines:**
 
-Parameter	Current (likely)	Adjustment	Effect
---sigma	1.0	→ 0.7	Tighter neighbourhood → less false overlap
---radius	1	→ 0	Disable spreading → exact cell matching only
-Grid size	32	→ 64	Finer spatial resolution → better discrimination
-Example:
+Grid Size Recommendations:
+- 16: Fast prototyping, small corpora (<1K docs)
+- 32: Balanced quality, medium corpora (1K-10K docs)
+- 64: High precision, large corpora (>10K docs)
+
+Spreading Radius Guidelines:
+- 0: Exact cell matching (high precision, low recall)
+- 1: Moderate context expansion (balanced)
+- 2-3: Aggressive expansion (high recall, lower precision)
+
+Top Percent Guidelines:
+- 0.03-0.05: Sparse, distinctive fingerprints
+- 0.05-0.10: Balanced representation
+- 0.10-0.20: Dense, comprehensive coverage
+
+Memory Considerations:
+- Grid 16: ~256 cells, minimal memory
+- Grid 32: ~1,024 cells, moderate memory
+- Grid 64: ~4,096 cells, high memory usage
+
+## Pipeline Overview
+
+The Semantic Folding pipeline consists of 6 sequential phases:
+
+Raw Corpus (corpus.txt)
+    ↓
+[Phase 1: Phrase Extraction]
+    → phrases.json (25,572 phrases)
+    ↓
+[Phase 2: Term-Context Matrix]
+    → term_context_matrix.npz (11656 × 25572, sparsity: 0.0028)
+    ↓
+[Phase 3: Semantic Space]
+    → phrase_coordinates.json (2D embeddings)
+    → semantic_space.png (visualization)
+    ↓
+[Phase 4: Phrase Fingerprints]
+    → phrase_fingerprints.npz (sparse grid activations)
+    ↓
+[Phase 5: Document Fingerprints]
+    → doc_fingerprints.npz (aggregated phrase fingerprints)
+    ↓
+[Phase 6: Query Processing]
+    → query_results.json (ranked document matches)
+
+
+Each phase produces artifacts that serve as inputs to subsequent stages, enabling incremental processing and debugging.
+
+## Pipeline Steps
+
+### Phase 1: Phrase Extraction
+
+Extracts meaningful phrases from raw text using spaCy's linguistic analysis or n-gram fallback.
+
+**Script:** `scripts/semantic_folding/phrase_extraction.py`
+
+**Command-Line Arguments:**
 
 ```bash
-python query_matching.py \
-  --query_text "How does emotional intelligence contribute to effective leadership and teamwork?" \
-  --strategy gaussian \
-  --sigma 0.7 \
-  --grid_size 64
- ``` 
-### Performance Tuning Guidelines
-
-#### For Speed
-```yaml
-grid_size: 16
-max_edges: 100
-edge_threshold: 0.1
-batch_size: 500
+--corpus PATH              # Input corpus file (required)
+--output PATH              # Output JSON file for phrases
+--config PATH              # Configuration file
+--min-freq INT             # Minimum phrase frequency (default: 2)
+--min-word-length INT      # Minimum word length (default: 3)
+--use-spacy                # Use spaCy for extraction (default: True)
+--max-ngram INT            # Maximum n-gram size for fallback (default: 3)
 ```
 
-#### For Quality (Recommended)
-```yaml
-grid_size: 32
-max_edges: 200
-edge_threshold: 0.05
-normalize_matrix: true
-doc_top_percent: 0.05
-```
+**Key Features:**
 
-#### For Memory Efficiency
-```yaml
-batch_size: 100
-max_edges: 100
-grid_size: 16
-```
+- Noun phrase extraction via spaCy dependency parsing
+- Frequency-based filtering to remove rare phrases
+- Generic word filtering (e.g., "get", "do", "make")
+- Fallback to n-gram extraction if spaCy unavailable
 
-#### For Maximum Quality
-```yaml
-grid_size: 32
-max_edges: 500
-edge_threshold: 0.01
-normalize_matrix: true
-doc_top_percent: 0.03
-batch_size: 2000
-```
-
-### Non-Interactive Mode
-
-For automation, CI/CD, or scripting:
+**Usage Example:**
 
 ```bash
-# Show status only (no interactive prompts)
-uv run python brain_approaches/semantic_folding/semantic_folder.py --non-interactive
-
-# Run specific phase in specific output directory
-uv run python brain_approaches/semantic_folding/semantic_folder.py --run-phase 3 --output-dir outputs/musique_20260215_123456
+uv run python scripts/semantic_folding/phrase_extraction.py \
+  --corpus data/corpus.txt \
+  --output outputs/phrases.json \
+  --min-freq 2 \
+  --min-word-length 3
 ```
 
-## Quick Start
+**Expected Output:**
 
-### Run on MuSiQue dataset (default)
-```bash
-cd brain_approaches/semantic_folding
-uv run python scratchpad.py --corpus_path ../../data/HippoRAG2/dataset/musique_corpus.json
-```
+Phrases extracted: 25,572
+Output saved to: outputs/phrases.json
 
-### Run on custom corpus
-```bash
-# Assuming you have a corpus.json file
-uv run python scratchpad.py --corpus_path /path/to/your/corpus.json
-```
 
-## Running the Pipeline
-
-### Command Line Options
-
-```bash
-uv run python scratchpad.py [OPTIONS]
-
-Options:
-  --corpus_path PATH        Path to corpus JSON file (required)
-  --queries_path PATH       Path to queries JSON file (default: musique.json)
-  --grid_size INT           Semantic space grid size (default: 16)
-  --top_k INT [INT ...]     Top-K values for evaluation (default: [1,5,10,20])
-  --output_base PATH        Base output directory (default: "outputs")
-  --log_level {DEBUG,INFO,WARNING,ERROR}
-                            Console logging level (default: INFO)
-  --debug                   Enable debug mode with detailed tracebacks
-  --help                    Show help message
-```
-
-### Pipeline Phases
-
-The pipeline runs through 8 phases with current completion status:
-
-#### ✅ **Completed Phases (1-5)**
-1. **Phase 1**: Corpus Loading & Preprocessing ✅
-   - Loads JSON corpus and converts to text format
-   - Creates timestamped output directory
-   - Logs corpus statistics (11,656 passages, 930K tokens)
-
-2. **Phase 2**: Phrase Extraction ✅
-   - Extracts 1-4 word phrases with quality filtering
-   - Generates 25,572 filtered phrases from raw 134K extractions
-   - Creates phrase frequency visualizations
-
-3. **Phase 3**: Term-Context Matrix ✅
-   - Builds sparse matrix: 11,656 × 25,572 (0.28% density, 827K entries)
-   - 95% memory reduction compared to dense matrices
-   - Generates sparsity heatmaps and statistics
-
-4. **Phase 4**: Semantic Space Construction ✅
-   - Creates 16×16 semantic grid via force-directed graph layout
-   - Maps 11,656 contexts to grid coordinates
-   - Generates network visualizations and grid heatmaps
-
-5. **Phase 5**: Fingerprint Generation ✅
-   - Generates 25K+ phrase fingerprints (16×16 binary matrices)
-   - Creates 11K+ document fingerprints with comprehensive metadata
-   - Efficient phrase-to-fingerprint aggregation
-
-#### 🔄 **Next Phases (6-8)**
-6. **Phase 6**: LanceDB Integration (Next Priority)
-   - Fast vector similarity search for semantic retrieval
-   - Bulk storage of fingerprints with metadata
-   - Query fingerprint matching and ranking
-
-7. **Phase 7**: Multi-Method Evaluation
-   - Compare Semantic Folding vs TF-IDF/BM25/Dense/Graph baselines
-   - Recall@K, MRR, MAP, EM, F1 metrics with statistical testing
-   - Performance analysis and ablation studies
-
-8. **Phase 8**: Comprehensive Benchmarking
-   - Multi-corpus evaluation (MuSiQue, HotpotQA, 2WikiMultiHopQA)
-   - Scalability testing and error analysis
-   - Production deployment validation
-
-## Testing with Different Corpora
-
-### Corpus Format Requirements
-
-Your corpus must be a JSON file with the following structure:
+**Output Format (phrases.json):**
 
 ```json
-[
-  {
-    "title": "Document Title",
-    "text": "Full document text content..."
-  },
-  {
-    "title": "Another Document",
-    "text": "More text content..."
+{
+  "neural network": 1247,
+  "machine learning": 892,
+  "deep learning": 634,
+  "artificial intelligence": 521
+}
+```
+
+### Phase 2: Term-Context Matrix
+
+Constructs a sparse term-context co-occurrence matrix with TF-IDF weighting.
+
+**Script:** `scripts/semantic_folding/term_context_matrix.py`
+
+**Command-Line Arguments:**
+
+```bash
+--corpus PATH              # Input corpus file (required)
+--phrases PATH             # Phrases JSON from Phase 1 (required)
+--output PATH              # Output .npz file for matrix
+--config PATH              # Configuration file
+--use-tfidf                # Apply TF-IDF normalization (default: True)
+--min-phrase-freq INT      # Additional frequency filter (default: 0)
+--batch-size INT           # Processing batch size (default: 1000)
+```
+
+**Key Features:**
+
+- Sparse matrix representation (CSR format)
+- TF-IDF normalization for semantic weighting
+- Word boundary matching (not substring matching)
+- Memory-efficient batch processing
+
+**Usage Example:**
+
+```bash
+uv run python scripts/semantic_folding/term_context_matrix.py \
+  --corpus data/corpus.txt \
+  --phrases outputs/phrases.json \
+  --output outputs/term_context_matrix.npz \
+  --use-tfidf
+```
+
+**Expected Output:**
+
+Matrix created: 11656 × 25572
+Sparsity: 0.0028
+Output saved to: outputs/term_context_matrix.npz
+
+
+**Output Format:**
+
+- Sparse matrix in `.npz` format (SciPy `save_npz`)
+- Rows: Context windows (documents/sentences)
+- Columns: Phrases
+- Values: TF-IDF weighted co-occurrence counts
+
+### Phase 3: Semantic Space
+
+Reduces the term-context matrix to 2D coordinates using t-SNE, UMAP, or PCA, then maps to a discrete grid.
+
+**Script:** `scripts/semantic_folding/semantic_space.py`
+
+**Command-Line Arguments:**
+
+```bash
+--matrix PATH              # Term-context matrix from Phase 2 (required)
+--phrases PATH             # Phrases JSON from Phase 1 (required)
+--output PATH              # Output JSON file for coordinates
+--config PATH              # Configuration file
+--method STR               # Reduction method: tsne, umap, pca (default: tsne)
+--grid-size INT            # Grid resolution (default: 32)
+--perplexity FLOAT         # t-SNE perplexity (default: 30)
+--n-neighbors INT          # UMAP neighbors (default: 15)
+--visualize                # Generate PNG visualization (default: True)
+```
+
+**Key Features:**
+
+- Multiple dimensionality reduction algorithms
+- Discrete grid quantization with collision resolution
+- Morton Z-order curve for spatial locality preservation
+- Automatic visualization with density heatmaps
+
+**Usage Example:**
+
+```bash
+uv run python scripts/semantic_folding/semantic_space.py \
+  --matrix outputs/term_context_matrix.npz \
+  --phrases outputs/phrases.json \
+  --output outputs/phrase_coordinates.json \
+  --method tsne \
+  --grid-size 32 \
+  --perplexity 30 \
+  --visualize
+```
+
+**Expected Output:**
+
+Dimensionality reduction: t-SNE (perplexity=30)
+Grid size: 32x32 (1024 cells)
+Collisions resolved: 142 using Morton Z-order
+Visualization saved to: outputs/semantic_space.png
+Output saved to: outputs/phrase_coordinates.json
+
+
+**Output Format (phrase_coordinates.json):**
+
+```json
+{
+  "neural network": {"x": 15, "y": 22, "morton": 734},
+  "machine learning": {"x": 14, "y": 23, "morton": 742},
+  "deep learning": {"x": 16, "y": 21, "morton": 726}
+}
+```
+
+**Visualization:**
+
+- PNG scatter plot with phrase labels
+- Optional density heatmap overlay
+- Color-coded by semantic clusters
+
+### Phase 4: Phrase Fingerprints
+
+Converts phrase coordinates into sparse grid-based fingerprints.
+
+**Script:** `scripts/semantic_folding/phrase_fingerprints.py`
+
+**Command-Line Arguments:**
+
+```bash
+--coordinates PATH         # Phrase coordinates from Phase 3 (required)
+--output PATH              # Output .npz file for fingerprints
+--config PATH              # Configuration file
+--grid-size INT            # Grid resolution (must match Phase 3)
+--binary                   # Use binary fingerprints (default: False)
+--normalization STR        # Normalization: none, l1, l2, binary (default: none)
+```
+
+**Key Features:**
+
+- Sparse fingerprint representation (one-hot or weighted)
+- Optional L1/L2 normalization
+- Morton Z-order indexing for spatial queries
+- Memory-efficient storage
+
+**Usage Example:**
+
+```bash
+uv run python scripts/semantic_folding/phrase_fingerprints.py \
+  --coordinates outputs/phrase_coordinates.json \
+  --output outputs/phrase_fingerprints.npz \
+  --grid-size 32
+```
+
+**Expected Output:**
+
+Fingerprints created: 25,572 phrases
+Grid size: 32x32 (1024 cells)
+Average sparsity: 0.0009 (1 active cell per phrase)
+Output saved to: outputs/phrase_fingerprints.npz
+
+
+**Output Format:**
+
+- Sparse matrix (CSR format): `(num_phrases, grid_size^2)`
+- Each row is a phrase fingerprint
+- Values represent activation strength at grid cells
+
+### Phase 5: Document Fingerprints
+
+Aggregates phrase fingerprints into document-level representations with thresholding.
+
+**Script:** `scripts/semantic_folding/doc_fingerprints.py`
+
+**Command-Line Arguments:**
+
+```bash
+--corpus PATH              # Input corpus file (required)
+--phrases PATH             # Phrases JSON from Phase 1 (required)
+--phrase-fps PATH          # Phrase fingerprints from Phase 4 (required)
+--output PATH              # Output .npz file for document fingerprints
+--config PATH              # Configuration file
+--threshold-method STR     # Thresholding: z_order, value (default: z_order)
+--top-percent FLOAT        # Keep top N% of cells (default: 0.05)
+--use-idf                  # Apply IDF weighting (default: False)
+--normalization STR        # Normalization: none, l1, l2 (default: l2)
+```
+
+**Key Features:**
+
+- Phrase-to-document aggregation
+- Locality-preserving thresholding (z_order method)
+- Optional IDF weighting for rare phrases
+- Corpus statistics export
+
+**Usage Example:**
+
+```bash
+uv run python scripts/semantic_folding/doc_fingerprints.py \
+  --corpus data/corpus.txt \
+  --phrases outputs/phrases.json \
+  --phrase-fps outputs/phrase_fingerprints.npz \
+  --output outputs/doc_fingerprints.npz \
+  --threshold-method z_order \
+  --top-percent 0.05 \
+  --normalization l2
+```
+
+**Expected Output:**
+
+Documents processed: 1,000
+Average phrases per document: 23.4
+Fingerprint sparsity: 0.05 (51 active cells per document)
+Output saved to: outputs/doc_fingerprints.npz
+Statistics saved to: outputs/corpus_stats.json
+
+
+**Output Format:**
+
+- Sparse matrix (CSR format): `(num_documents, grid_size^2)`
+- Each row is a document fingerprint
+- Thresholded to top N% most active cells
+
+**Thresholding Methods:**
+
+- `z_order`: Preserves spatial locality using Morton curve ordering
+- `value`: Keeps highest magnitude cells (may fragment spatial structure)
+
+### Phase 6: Query Processing
+
+Processes natural language queries and retrieves similar documents using fingerprint similarity.
+
+**Script:** `scripts/semantic_folding/query_processing.py`
+
+**Command-Line Arguments:**
+
+```bash
+--query STR                # Query string (required)
+--phrases PATH             # Phrases JSON from Phase 1 (required)
+--phrase-fps PATH          # Phrase fingerprints from Phase 4 (required)
+--doc-fps PATH             # Document fingerprints from Phase 5 (required)
+--corpus PATH              # Original corpus for result display (optional)
+--config PATH              # Configuration file
+--weighting STR            # Weighting: uniform, frequency, idf (default: uniform)
+--spreading-radius INT     # Spatial spreading radius (default: 1)
+--spreading-decay FLOAT    # Decay factor per distance (default: 0.5)
+--top-k INT                # Number of results (default: 10)
+--output-json PATH         # Save results to JSON (optional)
+```
+
+**Key Features:**
+
+- Automatic query phrase extraction
+- Spatial spreading for context expansion
+- Multiple weighting schemes (uniform, frequency, IDF)
+- Cosine similarity ranking
+
+**Usage Example:**
+
+```bash
+uv run python scripts/semantic_folding/query_processing.py \
+  --query "neural networks for image classification" \
+  --phrases outputs/phrases.json \
+  --phrase-fps outputs/phrase_fingerprints.npz \
+  --doc-fps outputs/doc_fingerprints.npz \
+  --corpus data/corpus.txt \
+  --weighting uniform \
+  --spreading-radius 1 \
+  --spreading-decay 0.5 \
+  --top-k 10
+```
+
+**Expected Output:**
+
+Query: "neural networks for image classification"
+Extracted phrases: ['neural networks', 'image classification']
+Query fingerprint sparsity: 0.012 (12 active cells after spreading)
+
+Top 10 Results:
+1. Document 42 (similarity: 0.847)
+   "Convolutional neural networks have revolutionized image classification..."
+2. Document 156 (similarity: 0.792)
+   "Deep learning approaches to computer vision tasks..."
+3. Document 89 (similarity: 0.734)
+   "Neural network architectures for visual recognition..."
+
+
+**Output Format (query_results.json):**
+
+```json
+{
+  "query": "neural networks for image classification",
+  "extracted_phrases": ["neural networks", "image classification"],
+  "query_fingerprint_sparsity": 0.012,
+  "results": [
+    {
+      "doc_id": 42,
+      "similarity": 0.847,
+      "text": "Convolutional neural networks have revolutionized..."
+    },
+    {
+      "doc_id": 156,
+      "similarity": 0.792,
+      "text": "Deep learning approaches to computer vision..."
+    }
+  ],
+  "parameters": {
+    "weighting": "uniform",
+    "spreading_radius": 1,
+    "spreading_decay": 0.5,
+    "top_k": 10
   }
-]
+}
 ```
 
-### Example: Testing with Custom Corpus
+**Spreading Mechanism:**
 
-1. **Prepare your corpus**:
+Spreading expands the query fingerprint to neighboring grid cells, increasing recall:
+
+Original query cell: (15, 22)
+Radius 1 spreading: (14,21), (14,22), (14,23), (15,21), (15,22), (15,23), (16,21), (16,22), (16,23)
+Weights decay by factor 0.5 per Manhattan distance
+
+
+## Utility Scripts
+
+### Context Similarity Analysis
+
+Analyzes semantic similarity between phrase contexts in the term-context matrix.
+
+**Script:** `scripts/semantic_folding/context_similarity.py`
+
+**Usage:**
+
 ```bash
-# Create a corpus.json file
-[
-  {"title": "Doc 1", "text": "This is a sample document about artificial intelligence and machine learning."},
-  {"title": "Doc 2", "text": "Natural language processing is a subfield of AI that focuses on language understanding."}
-]
+uv run python scripts/semantic_folding/context_similarity.py \
+  --matrix outputs/term_context_matrix.npz \
+  --phrases outputs/phrases.json \
+  --phrase1 "neural network" \
+  --phrase2 "deep learning"
 ```
 
-2. **Run the pipeline**:
+**Output:**
+
+Cosine similarity: 0.823
+Shared contexts: 142
+Unique to "neural network": 58
+Unique to "deep learning": 34
+
+
+### Phrase Fingerprint Inspector
+
+Visualizes individual phrase fingerprints on the semantic grid.
+
+**Script:** `scripts/semantic_folding/inspect_fingerprint.py`
+
+**Usage:**
+
 ```bash
-uv run python scratchpad.py --corpus_path /path/to/your/corpus.json
+uv run python scripts/semantic_folding/inspect_fingerprint.py \
+  --phrase-fps outputs/phrase_fingerprints.npz \
+  --phrases outputs/phrases.json \
+  --phrase "machine learning" \
+  --grid-size 32
 ```
 
-3. **Check results**:
+**Output:**
+
+- PNG heatmap showing active grid cells
+- List of neighboring phrases in adjacent cells
+
+### Document Fingerprint Comparator
+
+Compares two document fingerprints and identifies shared semantic regions.
+
+**Script:** `scripts/semantic_folding/compare_docs.py`
+
+**Usage:**
+
 ```bash
-ls -la outputs/$(date +%Y%m%d)_*/
-# Look for:
-# - corpus.txt (processed corpus)
-# - phrases.txt (extracted phrases)
-# - term_context_matrix.npz (sparse matrix)
-# - logs/pipeline.log (execution log)
+uv run python scripts/semantic_folding/compare_docs.py \
+  --doc-fps outputs/doc_fingerprints.npz \
+  --doc1 42 \
+  --doc2 156 \
+  --grid-size 32
 ```
 
-### Supported Corpus Types
+**Output:**
 
-- **MuSiQue**: Question-answering dataset (19K passages)
-- **HotpotQA**: Multi-hop QA dataset
-- **2WikiMultiHopQA**: Wikipedia-based QA
-- **Custom JSON**: Any corpus in the required JSON format
+Cosine similarity: 0.734
+Shared active cells: 23
+Unique to doc 42: 28
+Unique to doc 156: 31
+Overlap visualization saved to: outputs/doc_comparison.png
 
-### Corpus Size Guidelines
-
-| Corpus Size | Memory | Time | Recommended Config |
-|-------------|--------|------|-------------------|
-| < 1K docs   | 2GB    | 5min | Default settings  |
-| 1K-10K docs | 4GB    | 15min| Default settings  |
-| 10K-50K docs| 8GB    | 1hr  | `--grid_size 16`  |
-| > 50K docs  | 16GB+  | 4hr+ | `--grid_size 8`   |
-
-## Output Structure
-
-```
-outputs/YYYYMMDD_HHMMSS/
-├── corpus.txt                    # Processed corpus (idx,title: text)
-├── phrases.txt                   # 25K+ filtered phrases with frequencies
-├── term_context_matrix.npz      # Sparse matrix (827K entries, 0.28% density)
-├── term_context_matrix.json     # Matrix metadata and statistics
-├── context_coordinates.csv      # 16×16 grid coordinates for all contexts
-├── fingerprints/                # 25K+ phrase fingerprint files (16×16 matrices)
-│   ├── phrase_1_fingerprint.txt
-│   └── ...
-├── doc_fingerprints/            # 11K+ document fingerprints + metadata
-│   ├── doc_0_fingerprint.txt
-│   ├── doc_0_metadata.json
-│   └── ...
-├── logs/
-│   └── pipeline.log             # Comprehensive execution log
-└── visualizations/              # Charts and plots (if matplotlib available)
-    ├── phrase_frequencies.png   # Top phrases bar chart
-    ├── matrix_sparsity.png      # Matrix sparsity visualization
-    ├── semantic_network.png     # Force-directed graph layout
-    └── semantic_grid_heatmap.png # Grid distribution heatmap
-```
-
-## Configuration Options
-
-### Logging Options
-Control logging verbosity and output:
-- `--log_level INFO`: Default console logging (INFO, WARNING, ERROR)
-- `--log_level DEBUG`: Detailed console logging with all messages
-- `--debug`: Enable debug mode with stack traces and diagnostics
-
-### Grid Size
-Controls semantic space resolution:
-- `--grid_size 8`: Faster, lower resolution (64 dimensions)
-- `--grid_size 16`: Default, balanced (256 dimensions)
-- `--grid_size 32`: Higher resolution, slower (1024 dimensions)
-
-### Top-K Values
-Evaluation metrics computed for these ranks:
-- `--top_k 1 5 10 20`: Default (standard IR metrics)
-- `--top_k 1 3 5 10 20 50`: More detailed analysis
-
-### Memory Optimization
-For large corpora, the pipeline automatically:
-- Uses sparse matrices when scipy is available
-- Falls back to memory-efficient dense operations
-- Processes documents in batches
-- Limits visualization for very large datasets
 
 ## Troubleshooting
 
-### Common Issues
+**Issue: "Phrases extracted: 0"**
 
-#### 1. "scipy not available" Warning
-**Symptom**: Pipeline falls back to dense matrix operations
-**Solution**:
-```bash
-uv add scipy
-# Restart pipeline
-```
+- Check corpus file encoding (must be UTF-8)
+- Verify minimum frequency threshold is not too high
+- Ensure spaCy model is installed: `python -m spacy download en_core_web_sm`
 
-#### 2. Memory Errors
-**Symptom**: "MemoryError" or "killed" process
-**Solutions**:
-- Reduce grid size: `--grid_size 8`
-- Process smaller batches (modify code)
-- Add more RAM or use smaller corpus
+**Issue: "Matrix sparsity too high (>0.99)"**
 
-#### 3. Slow Performance
-**Symptom**: Pipeline takes very long
-**Solutions**:
-- Use smaller grid size
-- Process subset of corpus for testing
-- Ensure scipy is installed for sparse operations
+- Increase `min_freq` in phrase extraction
+- Reduce corpus size or use more focused domain text
+- Check for data quality issues (e.g., excessive boilerplate)
 
-#### 4. No Output Files Created
-**Symptom**: Pipeline runs but no files in output directory
-**Check**:
-```bash
-# Check logs
-tail -f outputs/*/logs/pipeline.log
+**Issue: "t-SNE convergence warning"**
 
-# Verify corpus format
-python -c "import json; print(len(json.load(open('corpus.json'))))"
-```
+- Increase `max_iter` (try 2000-5000)
+- Adjust `perplexity` (try 10-50 range)
+- Switch to UMAP for faster convergence: `--method umap`
 
-#### 5. Import Errors
-**Symptom**: "ModuleNotFoundError"
-**Solution**:
-```bash
-# Ensure dependencies are installed
-uv sync
-uv add loguru tqdm
+**Issue: "Query returns no results"**
 
-# If using NLP features
-uv sync --extra nlp
-```
+- Reduce `spreading_radius` to 0 for exact matching
+- Check if query phrases exist in `phrases.json`
+- Lower `min_similarity` threshold
+- Verify document fingerprints are not over-thresholded (increase `top_percent`)
 
-### Debug Mode
+**Issue: "Out of memory during semantic space generation"**
 
-Run with detailed logging:
-```bash
-# Set log level to DEBUG
-export LOGURU_LEVEL=DEBUG
-uv run python scratchpad.py --corpus_path corpus.json
-```
+- Reduce `grid_size` (try 16 instead of 32)
+- Use PCA instead of t-SNE: `--method pca`
+- Enable sparse matrices: set `use_sparse: true` in config
+- Process in batches by limiting `max_phrases` temporarily
 
-### Recovery from Failures
+**Issue: "Configuration file not loading"**
 
-If pipeline fails mid-execution:
+- Verify YAML syntax (use online validator)
+- Check file path is correct relative to script location
+- Ensure all required sections are present
+- Use `--config` flag explicitly in command
 
-1. **Check logs** for exact failure point
-2. **Resume from checkpoint** (if implemented) or
-3. **Restart** - pipeline will recreate output directory
-
-## Performance Tuning
-
-### For Speed
-```bash
-# Smaller grid, fewer evaluation points
-uv run python scratchpad.py \
-  --corpus_path corpus.json \
-  --grid_size 8 \
-  --top_k 1 5 10
-```
-
-### For Accuracy
-```bash
-# Larger grid, more evaluation points
-uv run python scratchpad.py \
-  --corpus_path corpus.json \
-  --grid_size 32 \
-  --top_k 1 3 5 10 20 50
-```
-
-### Memory Usage Optimization
-- Use scipy for sparse matrices (reduces memory by ~95%)
-- Process smaller corpora first
-- Monitor memory with `htop` or `top`
-
-### Scaling to Large Corpora
-1. **Test on small subset first**
-2. **Use appropriate grid size** (8-16 for large corpora)
-3. **Ensure scipy is available**
-4. **Monitor disk space** (matrices can be large)
-
-## Validation
-
-### Check Pipeline Completion
-```bash
-# Verify all phases completed
-grep "Phase.*completed successfully" outputs/*/logs/pipeline.log
-
-# Check file counts
-find outputs/*/ -name "*.txt" -o -name "*.npz" -o -name "*.json" | wc -l
-```
-
-### Validate Results
-```bash
-# Check phrase quality
-head -20 outputs/*/phrases.txt
-
-# Verify matrix dimensions
-python -c "
-import numpy as np
-import json
-meta = json.load(open('outputs/*/term_context_matrix.json'))
-print(f'Matrix: {meta[\"num_contexts\"]} x {meta[\"num_phrases\"]}')
-print(f'Density: {meta[\"density\"]:.4f}')
-"
-```
-
-## Contributing
-
-### Adding New Corpora
-1. Convert to required JSON format
-2. Test with small subset first
-3. Update this guide with corpus-specific notes
-4. Document any format variations
-
-### Extending the Pipeline
-1. Add new phases in `scratchpad.py`
-2. Update task list in `SCRATCHPAD.md`
-3. Add configuration options as needed
-4. Update this documentation
-
-## Support
-
-For issues or questions:
-1. Check the logs in `outputs/*/logs/pipeline.log`
-2. Verify corpus format matches requirements
-3. Test with smaller corpus first
-4. Check dependency installation
-
----
-
-*Last updated: February 15, 2026*
+Configuration complete. The pipeline now supports centralized YAML-based configuration with command-line overrides.

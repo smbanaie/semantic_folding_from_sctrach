@@ -1,380 +1,480 @@
 #!/usr/bin/env python3
 """
-Modernized Term-Context Matrix Builder for Semantic Folding Pipeline
+Term-Context Matrix Builder for Semantic Folding Pipeline
 
-Builds sparse term-context co-occurrence matrix from corpus and phrases,
-with memory-efficient processing and visualization capabilities.
+Constructs sparse term-context co-occurrence matrix from corpus and phrase inventory,
+applying TF-IDF normalization to reduce high-frequency term dominance.
 """
 
 import argparse
-import csv
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Tuple
-from lib import load_contexts
+from typing import List, Tuple, Dict, Set
+from nltk import pos_tag, word_tokenize
 
-import loguru
 from loguru import logger
 from tqdm import tqdm
 
-# Try to import scipy for sparse matrices
+# Import from centralized library
+from lib import (
+    load_contexts,
+    load_phrases,
+    find_phrase_occurrences,
+    normalize_phrase,
+    is_valid_phrase_structure
+)
+
+# Sparse matrix dependencies
 try:
     import scipy.sparse
     import numpy as np
     SCIPY_AVAILABLE = True
 except ImportError:
-    logger.warning("scipy not available. Install with: pip install scipy")
+    logger.warning("scipy not available. Install with: pip install scipy numpy")
     SCIPY_AVAILABLE = False
 
 
-def load_phrases(phrases_path: Path) -> List[str]:
-    """Load phrases from file"""
-    logger.info(f"Loading phrases from: {phrases_path}")
-
-    phrases = []
-    with open(phrases_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            if ':' in line:
-                phrase = line.split(':', 1)[0].strip()
-                if phrase:
-                    phrases.append(phrase)
-
-    logger.success(f"Loaded {len(phrases)} phrases")
-    return phrases
-
-def apply_tf_idf_normalization(matrix: scipy.sparse.lil_matrix,
-                             phrases: List[str],
-                             contexts: List[Tuple[str, str]]) -> scipy.sparse.lil_matrix:
-    """Apply TF-IDF normalization to reduce high-frequency word dominance"""
+def apply_tf_idf_normalization(
+    matrix: scipy.sparse.lil_matrix,
+    num_contexts: int
+) -> scipy.sparse.lil_matrix:
+    """
+    Apply TF-IDF weighting to term-context matrix.
+    
+    TF-IDF reduces the dominance of high-frequency terms by weighting
+    each term by its inverse document frequency:
+    
+        TF-IDF(t,d) = TF(t,d) × log(N / DF(t))
+    
+    where:
+        TF(t,d) = raw count of term t in document d
+        DF(t) = number of documents containing term t
+        N = total number of documents
+    
+    Args:
+        matrix: Sparse LIL matrix (contexts × phrases)
+        num_contexts: Total number of contexts
+    
+    Returns:
+        TF-IDF weighted sparse matrix
+    """
     if not SCIPY_AVAILABLE:
-        logger.warning("scipy not available, skipping TF-IDF normalization")
+        logger.warning("scipy unavailable, skipping TF-IDF normalization")
         return matrix
-
-    num_contexts, num_phrases = matrix.shape
-
-    # Convert to CSR for efficient operations
-    matrix_csr = matrix.tocsr()
-
+    
+    num_phrases = matrix.shape[1]
+    
+    # Convert to CSC for efficient column operations
+    matrix_csc = matrix.tocsc()
+    
     # Calculate document frequency (DF) for each phrase
-    df = np.array([np.count_nonzero(matrix_csr[:, i].toarray()) for i in range(num_phrases)])
-
+    # DF(t) = number of contexts where phrase t appears (non-zero entries)
+    df = np.diff(matrix_csc.indptr)
+    
     # Calculate inverse document frequency (IDF)
-    # Add 1 to avoid division by zero, and smooth IDF
-    idf = np.log((num_contexts + 1) / (df + 1)) + 1
-
-    # Apply TF-IDF weighting
-    # TF is already the raw counts in our matrix
-    # Multiply each column by its IDF weight
-    for i in range(num_phrases):
-        if idf[i] > 0:
-            matrix_csr[:, i] = matrix_csr[:, i].multiply(idf[i])
-
-    # Convert back to LIL format for compatibility
-    normalized_matrix = matrix_csr.tolil()
-
-    # Log some statistics about the normalization
-    original_nnz = matrix.nnz
-    normalized_nnz = normalized_matrix.nnz
-    logger.info(f"TF-IDF normalization applied: {original_nnz} -> {normalized_nnz} non-zero entries")
-
+    # Use standard IDF formula with smoothing: log(N / DF)
+    # Add 1 to DF to avoid log(0) for phrases appearing in all documents
+    idf = np.log(num_contexts / (df + 1))
+    
+    # Apply IDF weighting to each column (phrase)
+    # Multiply each column by its IDF value
+    idf_diag = scipy.sparse.diags(idf, format='csc')
+    normalized_matrix = matrix_csc @ idf_diag
+    
+    # Convert back to LIL format for consistency
+    normalized_matrix = normalized_matrix.tolil()
+    
+    logger.info(f"TF-IDF applied: {matrix.nnz} → {normalized_matrix.nnz} non-zero entries")
+    logger.info(f"IDF range: [{idf.min():.4f}, {idf.max():.4f}]")
+    
     return normalized_matrix
 
 
-def build_term_context_matrix_sparse(phrases: List[str],
-                                   contexts: List[Tuple[str, str]],
-                                   chunk_size: int = 1000,
-                                   normalize: bool = True) -> scipy.sparse.lil_matrix:
-    """Build sparse term-context matrix efficiently"""
-    if not SCIPY_AVAILABLE:
-        raise RuntimeError("scipy not available for sparse matrix operations")
+def normalize_and_validate_phrases(
+    phrases: List[Tuple[str, int]],
+    remove_verbs: bool = True
+) -> List[Tuple[str, int]]:
+    """
+    Normalize and validate phrases for matrix construction.
+    
+    Ensures phrases match the normalization applied during extraction,
+    maintaining consistency across the pipeline.
+    
+    Args:
+        phrases: List of (phrase, frequency) tuples
+        remove_verbs: Remove verbal elements during normalization
+    
+    Returns:
+        List of (normalized_phrase, frequency) tuples
+    """
+    normalized_phrases = []
+    skipped = 0
+    
+    for phrase, freq in phrases:
+        # Normalize phrase using lib.py function
+        normalized = normalize_phrase(phrase, remove_verbs=remove_verbs)
+        
+        # Skip empty phrases after normalization
+        if not normalized or not normalized.strip():
+            skipped += 1
+            logger.warning(f"Skipped {phrase} (Normalized:{normalized}) - invalid phrases after normalization")
+            continue
+        
+        # Validate phrase structure
+        # POS-tag the normalized phrase before structural validation
+        tagged = pos_tag(word_tokenize(normalized))
+        if not is_valid_phrase_structure(tagged):
+            skipped += 1
+            logger.warning(f"Skipped {phrase} (Normalized:{normalized}) - wrong phrases structure")
+            continue
+        
+        normalized_phrases.append((normalized, freq))
+    
+    if skipped > 0:
+        logger.warning(f"Skipped {skipped} invalid phrases after normalization")
+    
+    logger.info(f"Normalized phrases: {len(phrases)} → {len(normalized_phrases)}")
+    
+    return normalized_phrases
 
+
+def build_phrase_index(phrases: List[Tuple[str, int]]) -> Dict[str, int]:
+    """
+    Build efficient phrase lookup index.
+    
+    Args:
+        phrases: List of (phrase, frequency) tuples
+    
+    Returns:
+        Dictionary mapping phrase to matrix column index
+    """
+    return {phrase: idx for idx, (phrase, _) in enumerate(phrases)}
+
+
+def count_phrase_in_context(
+    context_text: str,
+    phrases: List[str],
+    phrase_to_idx: Dict[str, int],
+    use_word_boundaries: bool = True
+) -> Dict[int, int]:
+    """
+    Count all phrase occurrences in a single context.
+    
+    Args:
+        context_text: Normalized context text
+        phrases: List of normalized phrases to search for
+        phrase_to_idx: Phrase to index mapping
+        use_word_boundaries: Use word boundary detection
+    
+    Returns:
+        Dictionary mapping phrase index to occurrence count
+    """
+    counts = {}
+    
+    for phrase in phrases:
+        count = find_phrase_occurrences(
+            context_text,
+            phrase,
+            use_word_boundaries=use_word_boundaries
+        )
+        
+        if count > 0:
+            phrase_idx = phrase_to_idx[phrase]
+            counts[phrase_idx] = count
+    
+    return counts
+
+
+def build_term_context_matrix(
+    phrases: List[Tuple[str, int]],
+    contexts: List[Tuple[str, str]],
+    normalize_tfidf: bool = True,
+    use_word_boundaries: bool = True,
+    remove_verbs: bool = True
+) -> scipy.sparse.lil_matrix:
+    """
+    Construct sparse term-context co-occurrence matrix.
+    
+    Args:
+        phrases: List of (phrase, frequency) tuples
+        contexts: List of (context_id, context_text) tuples
+        normalize_tfidf: Apply TF-IDF normalization
+        use_word_boundaries: Use word boundary detection for phrase matching
+        remove_verbs: Remove verbs during phrase normalization
+    
+    Returns:
+        Sparse matrix (contexts × phrases) with co-occurrence counts
+    """
+    if not SCIPY_AVAILABLE:
+        raise RuntimeError("scipy required for sparse matrix operations. "
+                         "Install with: pip install scipy numpy")
+    
+    # Normalize and validate phrases
+    logger.info("Normalizing and validating phrases...")
+    phrases = normalize_and_validate_phrases(phrases, remove_verbs=remove_verbs)
+    
+    if not phrases:
+        raise ValueError("No valid phrases after normalization")
+    
     num_contexts = len(contexts)
     num_phrases = len(phrases)
-
-    logger.info(f"Building sparse matrix: {num_contexts} contexts × {num_phrases} phrases")
-
-    # Use LIL matrix for efficient construction
-    matrix = scipy.sparse.lil_matrix((num_contexts, num_phrases), dtype=np.int32)
-
-    # Create phrase to index mapping for faster lookup
-    phrase_to_idx = {phrase: idx for idx, phrase in enumerate(phrases)}
-
-    # Process contexts in chunks to show progress
+    
+    logger.info(f"Building matrix: {num_contexts} contexts × {num_phrases} phrases")
+    
+    # Initialize sparse matrix (LIL format for efficient construction)
+    matrix = scipy.sparse.lil_matrix((num_contexts, num_phrases), dtype=np.float32)
+    
+    # Build phrase lookup index
+    phrase_list = [p[0] for p in phrases]
+    phrase_to_idx = build_phrase_index(phrases)
+    
+    # Track statistics
+    total_matches = 0
+    contexts_with_matches = 0
+    
+    # Build co-occurrence matrix
     with tqdm(total=num_contexts, desc="Building matrix") as pbar:
         for context_idx, (context_id, context_text) in enumerate(contexts):
+            # Normalize context text using lib.py function
+            # This ensures consistency with phrase extraction
+            normalized_text = normalize_phrase(context_text, remove_verbs=remove_verbs)
+            
             # Count phrase occurrences in this context
-            context_counts = defaultdict(int)
-            for phrase in phrases:
-                count = context_text.count(phrase)
-                if count > 0:
-                    context_counts[phrase] = count
-
+            phrase_counts = count_phrase_in_context(
+                normalized_text,
+                phrase_list,
+                phrase_to_idx,
+                use_word_boundaries=use_word_boundaries
+            )
+            
             # Update matrix
-            for phrase, count in context_counts.items():
-                phrase_idx = phrase_to_idx[phrase]
-                matrix[context_idx, phrase_idx] = count
-
-            # Update progress
+            if phrase_counts:
+                contexts_with_matches += 1
+                for phrase_idx, count in phrase_counts.items():
+                    matrix[context_idx, phrase_idx] = count
+                    total_matches += count
+            
             pbar.update(1)
-
-            # Log progress every 1000 contexts
+            
+            # Log progress periodically
             if (context_idx + 1) % 1000 == 0:
                 nnz = matrix.nnz
                 density = nnz / (num_contexts * num_phrases) * 100
-                logger.info(f"Processed {context_idx + 1}/{num_contexts} contexts, "
-                          f"{nnz} non-zero entries ({density:.4f}% density)")
-
-    # Apply TF-IDF normalization to reduce high-frequency word dominance
-    if normalize:
-        logger.info("Applying TF-IDF normalization to reduce high-frequency word dominance...")
-        matrix = apply_tf_idf_normalization(matrix, phrases, contexts)
-
+                logger.info(f"Progress: {context_idx + 1}/{num_contexts} contexts, "
+                          f"{nnz:,} non-zero entries ({density:.4f}% density), "
+                          f"{total_matches:,} total matches")
+    
+    logger.info(f"Contexts with matches: {contexts_with_matches}/{num_contexts} "
+               f"({contexts_with_matches/num_contexts*100:.2f}%)")
+    logger.info(f"Total phrase matches: {total_matches:,}")
+    
+    # Apply TF-IDF normalization
+    if normalize_tfidf:
+        logger.info("Applying TF-IDF normalization...")
+        matrix = apply_tf_idf_normalization(matrix, num_contexts)
+    
     return matrix
 
+def save_matrix(
+    matrix: scipy.sparse.lil_matrix,
+    contexts: List[Tuple[str, str]],
+    phrases: List[Tuple[str, int]],
+    output_path: Path
+) -> None:
+    """
+    Save sparse matrix in compressed NPZ format with metadata.
 
-def build_term_context_matrix_dense(phrases: List[str],
-                                   contexts: List[Tuple[str, str]]) -> Dict[str, Dict[str, int]]:
-    """Fallback dense matrix builder when scipy not available"""
-    logger.warning("Using dense matrix (scipy not available)")
+    The matrix is transposed from (num_contexts × num_phrases) to
+    (num_phrases × num_contexts) before saving so that downstream steps
+    (semantic_space.py, phrase_fingerprints.py) receive it in the expected
+    orientation: rows = phrases, columns = contexts.
 
-    term_context_matrix = defaultdict(lambda: defaultdict(int))
+    Args:
+        matrix: Sparse co-occurrence matrix (num_contexts × num_phrases)
+        contexts: List of (context_id, context_text) tuples
+        phrases: List of (phrase, frequency) tuples
+        output_path: Output file path (.npz)
+    """
+    logger.info(f"Saving matrix to: {output_path}")
 
-    num_contexts = len(contexts)
-    with tqdm(total=num_contexts, desc="Building matrix") as pbar:
-        for context_id, context_text in contexts:
-            for phrase in phrases:
-                count = context_text.count(phrase)
-                if count > 0:
-                    term_context_matrix[context_id][phrase] = count
-            pbar.update(1)
+    # Convert to CSR then transpose to (num_phrases × num_contexts)
+    # Downstream contract: rows = phrases, columns = contexts
+    csr_matrix_ctx_phrase = matrix.tocsr()                  # (num_contexts, num_phrases)
+    csr_matrix_phrase_ctx = csr_matrix_ctx_phrase.T.tocsr() # (num_phrases,  num_contexts)
 
-    return term_context_matrix
+    logger.info(
+        f"Matrix transposed for saving: "
+        f"{csr_matrix_ctx_phrase.shape} → {csr_matrix_phrase_ctx.shape} "
+        f"(phrases × contexts)"
+    )
 
+    # Save transposed matrix data
+    np.savez_compressed(
+        output_path,
+        data   = csr_matrix_phrase_ctx.data,
+        indices= csr_matrix_phrase_ctx.indices,
+        indptr = csr_matrix_phrase_ctx.indptr,
+        shape  = csr_matrix_phrase_ctx.shape   # (num_phrases, num_contexts)
+    )
 
-def save_sparse_matrix(matrix: scipy.sparse.lil_matrix,
-                      contexts: List[Tuple[str, str]],
-                      phrases: List[str],
-                      output_path: Path) -> None:
-    """Save sparse matrix in NPZ format"""
-    logger.info(f"Saving sparse matrix to: {output_path}")
-
-    # Convert to CSR for efficient storage
-    csr_matrix = matrix.tocsr()
-
-    # Save matrix
-    np.savez_compressed(output_path, data=csr_matrix.data, indices=csr_matrix.indices,
-                       indptr=csr_matrix.indptr, shape=csr_matrix.shape)
-
-    # Save metadata
+    # Save metadata — num_contexts / num_phrases reflect the LOGICAL counts,
+    # not the saved matrix orientation, so downstream can validate correctly.
+    import json
     metadata = {
-        'num_contexts': len(contexts),
-        'num_phrases': len(phrases),
-        'nnz': csr_matrix.nnz,
-        'density': csr_matrix.nnz / (len(contexts) * len(phrases)),
-        'context_ids': [ctx[0] for ctx in contexts],
-        'phrases': phrases
+        'num_contexts'       : len(contexts),
+        'num_phrases'        : len(phrases),
+        'nnz'                : int(csr_matrix_phrase_ctx.nnz),
+        'density'            : float(
+            csr_matrix_phrase_ctx.nnz / (len(phrases) * len(contexts))
+        ),
+        'matrix_shape'       : list(csr_matrix_phrase_ctx.shape),  # [num_phrases, num_contexts]
+        'matrix_orientation' : 'phrases x contexts',               # explicit contract tag
+        'context_ids'        : [ctx[0] for ctx in contexts],
+        'phrases'            : [p[0]   for p   in phrases],
+        'phrase_frequencies' : [p[1]   for p   in phrases],
     }
 
     metadata_path = output_path.with_suffix('.json')
-    import json
     with open(metadata_path, 'w', encoding='utf-8') as f:
-        json.dump(metadata, f, indent=2)
+        json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    logger.success(f"Saved sparse matrix: {csr_matrix.shape}, {csr_matrix.nnz} non-zero entries")
-
-
-def save_dense_matrix(matrix: Dict[str, Dict[str, int]],
-                     contexts: List[Tuple[str, str]],
-                     phrases: List[str],
-                     output_path: Path) -> None:
-    """Save dense matrix as CSV (not recommended for large matrices)"""
-    logger.warning("Saving dense matrix as CSV (may be very large)")
-
-    with open(output_path, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.writer(f)
-
-        # Header
-        writer.writerow(['Context ID'] + phrases)
-
-        # Data rows
-        context_ids = [ctx[0] for ctx in contexts]
-        for context_id in context_ids:
-            row = [matrix[context_id].get(phrase, 0) for phrase in phrases]
-            writer.writerow([context_id] + row)
-
-    logger.success(f"Saved dense matrix to: {output_path}")
+    logger.success(
+        f"Saved (phrases × contexts): {csr_matrix_phrase_ctx.shape}, "
+        f"{csr_matrix_phrase_ctx.nnz:,} non-zero entries"
+    )
+    logger.info(f"Metadata saved to: {metadata_path}")
 
 
-def create_sparsity_visualization(matrix: scipy.sparse.spmatrix,
-                                 output_dir: Path,
-                                 sample_size: int = 100) -> None:
-    """Create sparsity heatmap visualization"""
-    try:
-        import matplotlib.pyplot as plt
-        import seaborn as sns
+def log_statistics(
+    matrix: scipy.sparse.lil_matrix,
+    contexts: List[Tuple[str, str]],
+    phrases: List[Tuple[str, int]]
+) -> None:
+    """Log comprehensive matrix statistics.
+    
+    Expects matrix in (num_contexts × num_phrases) orientation,
+    i.e. BEFORE the transpose applied during save_matrix().
+    """
+    num_contexts, num_phrases = matrix.shape
 
-        # Sample a subset for visualization
-        if matrix.shape[0] > sample_size or matrix.shape[1] > sample_size:
-            sample_matrix = matrix[:sample_size, :sample_size].toarray()
-        else:
-            sample_matrix = matrix.toarray()
-
-        # Create figure
-        plt.figure(figsize=(10, 8))
-
-        # Plot sparsity pattern
-        plt.spy(sample_matrix, markersize=1, aspect='auto')
-        plt.xlabel('Phrases')
-        plt.ylabel('Contexts')
-        plt.title(f'Matrix Sparsity Pattern (Sample {sample_matrix.shape[0]}×{sample_matrix.shape[1]})')
-
-        # Save plot
-        viz_path = output_dir / "matrix_sparsity.png"
-        plt.savefig(viz_path, dpi=300, bbox_inches='tight')
-        plt.close()
-
-        logger.success(f"Created sparsity visualization: {viz_path}")
-
-    except ImportError:
-        logger.warning("matplotlib not available for visualization")
-    except Exception as e:
-        logger.error(f"Error creating visualization: {e}")
-
-
-def log_matrix_statistics(matrix, contexts: List[Tuple[str, str]], phrases: List[str]) -> None:
+    # Guard: confirm orientation matches expectations
+    assert num_contexts == len(contexts), (
+        f"Shape mismatch: matrix has {num_contexts} rows "
+        f"but {len(contexts)} contexts were passed."
+    )
+    assert num_phrases == len(phrases), (
+        f"Shape mismatch: matrix has {num_phrases} cols "
+        f"but {len(phrases)} phrases were passed."
+    )
     """Log comprehensive matrix statistics"""
-    logger.info("Term-Context Matrix Statistics:")
-
-    if SCIPY_AVAILABLE and hasattr(matrix, 'shape') and hasattr(matrix, 'nnz'):
-        # Sparse matrix
-        num_contexts, num_phrases = matrix.shape
-        nnz = matrix.nnz
-        density = nnz / (num_contexts * num_phrases) * 100
-
-        logger.info(f"  Matrix shape: {num_contexts} × {num_phrases}")
-        logger.info(f"  Non-zero entries: {nnz:,}")
-        logger.info(f"  Density: {density:.6f}%")
-        logger.info(f"  Sparsity: {100 - density:.6f}%")
-
-        # Memory usage estimate
-        memory_mb = (nnz * 4) / (1024 * 1024)  # 4 bytes per int32
-        logger.info(f"  Estimated memory: {memory_mb:.2f} MB")
-
-        # Phrase frequency statistics
-        phrase_frequencies = np.array(matrix.sum(axis=0)).flatten()
-
-    else:
-        # Dense matrix stats
-        num_contexts = len(contexts)
-        num_phrases = len(phrases)
-        total_cells = num_contexts * num_phrases
-        filled_cells = sum(len(context_data) for context_data in matrix.values())
-        density = filled_cells / total_cells * 100
-
-        logger.info(f"  Matrix shape: {num_contexts} × {num_phrases}")
-        logger.info(f"  Filled cells: {filled_cells:,}")
-        logger.info(f"  Density: {density:.6f}%")
-
-        # Phrase frequency statistics
-        phrase_frequencies = []
-        for phrase in phrases:
-            freq = sum(matrix.get(ctx[0], {}).get(phrase, 0) for ctx in contexts)
-            phrase_frequencies.append(freq)
-
-    if len(phrase_frequencies) > 0:
-        if hasattr(phrase_frequencies, 'argmax'):  # numpy array
-            max_freq_idx = phrase_frequencies.argmax()
-            min_freq_idx = phrase_frequencies.argmin()
-            max_freq = int(phrase_frequencies[max_freq_idx])
-            min_freq = int(phrase_frequencies[min_freq_idx])
-        else:  # regular list
-            max_freq = max(phrase_frequencies)
-            min_freq = min(phrase_frequencies)
-            max_freq_idx = phrase_frequencies.index(max_freq)
-            min_freq_idx = phrase_frequencies.index(min_freq)
-
-        logger.info(f"  Most frequent phrase: {phrases[max_freq_idx]} "
-                   f"({max_freq} occurrences)")
-        logger.info(f"  Least frequent phrase: {phrases[min_freq_idx]} "
-                   f"({min_freq} occurrences)")
+    num_contexts, num_phrases = matrix.shape
+    nnz = matrix.nnz
+    density = nnz / (num_contexts * num_phrases) * 100
+    
+    logger.info("Matrix Statistics:")
+    logger.info(f"  Shape: {num_contexts} contexts × {num_phrases} phrases")
+    logger.info(f"  Non-zero entries: {nnz:,}")
+    logger.info(f"  Density: {density:.6f}%")
+    logger.info(f"  Sparsity: {100 - density:.6f}%")
+    
+    # Memory estimate (CSR format)
+    memory_mb = (nnz * 8 + (num_contexts + 1) * 4 + nnz * 4) / (1024 * 1024)
+    logger.info(f"  Estimated memory (CSR): ~{memory_mb:.2f} MB")
+    
+    # Convert to CSR for efficient row/column operations
+    matrix_csr = matrix.tocsr()
+    
+    # Context statistics
+    context_counts = np.array(matrix_csr.sum(axis=1)).flatten()
+    non_empty_contexts = np.count_nonzero(context_counts)
+    logger.info(f"  Non-empty contexts: {non_empty_contexts}/{num_contexts} "
+               f"({non_empty_contexts/num_contexts*100:.2f}%)")
+    logger.info(f"  Avg phrases per context: {context_counts.mean():.2f}")
+    
+    # Phrase statistics
+    phrase_counts = np.array(matrix_csr.sum(axis=0)).flatten()
+    non_empty_phrases = np.count_nonzero(phrase_counts)
+    logger.info(f"  Non-empty phrases: {non_empty_phrases}/{num_phrases} "
+               f"({non_empty_phrases/num_phrases*100:.2f}%)")
+    logger.info(f"  Avg contexts per phrase: {phrase_counts.mean():.2f}")
+    
+    # Top phrases
+    if non_empty_phrases > 0:
+        top_indices = phrase_counts.argsort()[-5:][::-1]
+        logger.info("  Top 5 phrases by occurrence:")
+        for idx in top_indices:
+            if phrase_counts[idx] > 0:
+                logger.info(f"    '{phrases[idx][0]}': {phrase_counts[idx]:.1f} occurrences")
 
 
 def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(description="Build term-context matrix")
-    parser.add_argument("--phrases_path", required=True, help="Path to phrases.txt file")
-    parser.add_argument("--corpus_path", required=True, help="Path to corpus.txt file")
-    parser.add_argument("--output_dir", required=True, help="Output directory")
-    parser.add_argument("--chunk_size", type=int, default=1000, help="Processing chunk size")
-    parser.add_argument("--no_normalization", action="store_true", help="Skip TF-IDF normalization")
-    parser.add_argument("--no_visualization", action="store_true", help="Skip visualization")
-
+    """Main execution function"""
+    parser = argparse.ArgumentParser(
+        description="Build term-context co-occurrence matrix",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python term_context.py --phrases phrases.txt --corpus corpus.txt --output matrix.npz
+  python term_context.py --phrases phrases.txt --corpus corpus.txt --output matrix.npz --no-tfidf
+  python term_context.py --phrases phrases.txt --corpus corpus.txt --output matrix.npz --min-freq 3
+        """
+    )
+    parser.add_argument("--phrases", required=True, 
+                       help="Path to phrases file (phrase:frequency format)")
+    parser.add_argument("--corpus", required=True, 
+                       help="Path to corpus file (context_id|||context_text format)")
+    parser.add_argument("--output", required=True, 
+                       help="Output matrix file (.npz)")
+    parser.add_argument("--min-freq", type=int, default=0,
+                       help="Minimum phrase frequency threshold (default: 0)")
+    parser.add_argument("--no-tfidf", action="store_true",
+                       help="Skip TF-IDF normalization")
+    parser.add_argument("--no-word-boundaries", action="store_true",
+                       help="Disable word boundary detection in phrase matching")
+    parser.add_argument("--keep-verbs", action="store_true",
+                       help="Keep verbal elements during normalization")
+    
     args = parser.parse_args()
-
-    logger.info("Starting term-context matrix construction...")
-    logger.info(f"Phrases: {args.phrases_path}")
-    logger.info(f"Corpus: {args.corpus_path}")
-    logger.info(f"Output: {args.output_dir}")
-
+    
+    logger.info("=" * 60)
+    logger.info("Term-Context Matrix Construction")
+    logger.info("=" * 60)
+    logger.info(f"Phrases: {args.phrases}")
+    logger.info(f"Corpus: {args.corpus}")
+    logger.info(f"Output: {args.output}")
+    logger.info(f"Min frequency: {args.min_freq}")
+    logger.info(f"TF-IDF: {not args.no_tfidf}")
+    logger.info(f"Word boundaries: {not args.no_word_boundaries}")
+    logger.info(f"Remove verbs: {not args.keep_verbs}")
+    logger.info("=" * 60)
+    
     # Load data
-    phrases = load_phrases(Path(args.phrases_path))
-    contexts = load_contexts(Path(args.corpus_path))
-
+    logger.info("Loading phrases...")
+    phrases = load_phrases(Path(args.phrases), min_freq=args.min_freq)
+    
+    logger.info("Loading contexts...")
+    contexts = load_contexts(Path(args.corpus))
+    
     # Build matrix
-    logger.info("Building term-context matrix...")
-    normalize = not args.no_normalization
-    if normalize:
-        logger.info("TF-IDF normalization enabled (reduces high-frequency word dominance)")
-    else:
-        logger.info("TF-IDF normalization disabled")
-
-    if SCIPY_AVAILABLE:
-        matrix = build_term_context_matrix_sparse(phrases, contexts, args.chunk_size, normalize)
-    else:
-        matrix = build_term_context_matrix_dense(phrases, contexts)
-
+    matrix = build_term_context_matrix(
+        phrases,
+        contexts,
+        normalize_tfidf=not args.no_tfidf,
+        use_word_boundaries=not args.no_word_boundaries,
+        remove_verbs=not args.keep_verbs
+    )
+    
     # Log statistics
-    log_matrix_statistics(matrix, contexts, phrases)
-
+    log_statistics(matrix, contexts, phrases)
+    
     # Save matrix
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        if SCIPY_AVAILABLE and hasattr(matrix, 'nnz'):
-            matrix_path = output_dir / "term_context_matrix.npz"
-            save_sparse_matrix(matrix, contexts, phrases, matrix_path)
-        else:
-            matrix_path = output_dir / "term_context_matrix.csv"
-            save_dense_matrix(matrix, contexts, phrases, matrix_path)
-    except Exception as e:
-        logger.error(f"Failed to save matrix: {e}")
-        # Fallback: try to save as dense CSV
-        try:
-            matrix_path = output_dir / "term_context_matrix.csv"
-            # Convert sparse to dense for CSV if needed
-            if SCIPY_AVAILABLE and hasattr(matrix, 'toarray'):
-                dense_matrix = {}
-                for i, context_id in enumerate([ctx[0] for ctx in contexts]):
-                    row_data = matrix[i, :].toarray().flatten()
-                    dense_matrix[context_id] = [int(x) for x in row_data]
-                save_dense_matrix(dense_matrix, contexts, phrases, matrix_path)
-                logger.success(f"Matrix saved as dense CSV fallback: {matrix_path}")
-            else:
-                save_dense_matrix(matrix, contexts, phrases, matrix_path)
-                logger.success(f"Matrix saved as dense CSV: {matrix_path}")
-        except Exception as e2:
-            logger.error(f"Fallback save also failed: {e2}")
-            logger.success(f"Matrix built successfully but save failed. Shape: {len(contexts)} x {len(phrases)}")
-
-    # Create visualization
-    if not args.no_visualization and SCIPY_AVAILABLE and hasattr(matrix, 'nnz'):
-        try:
-            create_sparsity_visualization(matrix, output_dir)
-        except Exception as e:
-            logger.error(f"Failed to create visualization: {e}")
-
-    logger.success("Term-context matrix construction completed")
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    save_matrix(matrix, contexts, phrases, output_path)
+    
+    logger.success("=" * 60)
+    logger.success("Matrix construction completed successfully")
+    logger.success("=" * 60)
 
 
 if __name__ == "__main__":

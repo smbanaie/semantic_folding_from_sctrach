@@ -1,306 +1,972 @@
-#!/usr/bin/env python3
 """
-Modernized Phrase Fingerprint Generator for Semantic Folding Pipeline
+phrase_fingerprints.py
+======================
 
-Generates fingerprint matrices for each phrase based on semantic space coordinates,
-creating 16×16 (or configurable) binary matrices representing phrase distributions.
+Pipeline step: **phrase-fingerprints**
+
+Converts embedded, grid-placed semantic contexts into fixed-length binary
+fingerprint vectors that downstream classifiers and similarity search can
+consume directly.
+
+Overview
+--------
+This step sits between ``semantic_space.py`` (which embeds contexts onto a 2-D
+integer grid) and any model training or retrieval step that needs a compact,
+deterministic numeric representation of each phrase's semantic neighbourhood.
+
+For every phrase that appears in the phrase-metadata JSON the script:
+
+1.  Looks up the phrase's parent context in ``context_coordinates.json`` to
+    obtain its ``(x, y)`` position on the semantic grid.
+2.  Linearises the 2-D coordinate into a 1-D index using either Morton
+    (Z-order) encoding or simple row-major order.
+3.  Sets that index as a "hot" bit in a zero-initialised binary vector whose
+    length equals ``grid_size * grid_size``.
+4.  Optionally smooths the fingerprint with a configurable Gaussian kernel so
+    that nearby contexts contribute fractional signal rather than hard zeros.
+5.  Writes all fingerprint vectors to a compressed ``.npz`` archive and a
+    companion ``phrase_fingerprints_meta.json`` that maps every phrase token to
+    its row index in the matrix.
+
+Inputs
+------
+``context_coordinates.json``
+    Primary output of ``semantic_space.py``.  Maps every ``context_id`` to its
+    finalised integer grid position after spiral-search collision resolution::
+
+        {
+            "context_0": {"x": 5,  "y": 12},
+            "context_1": {"x": 14, "y": 3}
+        }
+
+``phrase_metadata.json``
+    Produced by an earlier pipeline step (e.g. ``phrase_extraction.py``).
+    Each entry associates a phrase token with the context it was drawn from::
+
+        {
+            "phrase_id": "ph_0042",
+            "token":     "neural plasticity",
+            "context_id": "context_7"
+        }
+
+Outputs
+-------
+``phrase_fingerprints.npz``
+    Compressed NumPy archive.  Contains a single 2-D ``float32`` array named
+    ``"fingerprints"`` with shape ``(n_phrases, grid_size * grid_size)``.
+
+``phrase_fingerprints_meta.json``
+    JSON map from phrase token strings to their row index in the fingerprint
+    matrix::
+
+        {
+            "neural plasticity": 42,
+            "synaptic pruning":  43
+        }
+
+Morton Indexing
+---------------
+The ``--use-morton`` flag (default: enabled) encodes 2-D coordinates as
+Morton (Z-order curve) codes before placing the hot bit.  This preserves 2-D
+spatial locality in the 1-D fingerprint index so that bitwise Hamming distance
+between two fingerprints roughly correlates with semantic distance on the grid.
+
+When Morton encoding is disabled (``--no-morton``) simple row-major order is
+used instead::
+
+    index = y * grid_size + x
+
+Gaussian Smoothing
+------------------
+When ``--smooth`` is set, the raw binary fingerprint is convolved with a 1-D
+Gaussian kernel (sigma configurable via ``--sigma``).  The kernel is applied
+**after** all hot bits have been placed so the smoothed result integrates
+signal from every context associated with a phrase before normalisation.
+
+Usage
+-----
+::
+
+    python phrase_fingerprints.py \\
+        --coordinates   runs/run_001/context_coordinates.json \\
+        --metadata      runs/run_001/phrase_metadata.json \\
+        --output-dir    runs/run_001/ \\
+        --grid-size     64 \\
+        --use-morton \\
+        --smooth \\
+        --sigma         1.5
+
+    python phrase_fingerprints.py \\
+        --coordinates   runs/run_001/context_coordinates.json \\
+        --metadata      runs/run_001/phrase_metadata.json \\
+        --output-dir    runs/run_001/ \\
+        --grid-size     64 \\
+        --no-morton \\
+        --no-smooth
+
+Exit Codes
+----------
+0   Success — all phrases fingerprinted and written.
+1   Input file not found or unreadable.
+2   Malformed JSON in coordinates or metadata file.
+3   Grid size mismatch — a coordinate value exceeds ``grid_size - 1``.
+4   Unexpected runtime error.
 """
+
+from __future__ import annotations
 
 import argparse
-import csv
-import os
+import json
+import math
+import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
-import warnings
+from typing import Dict, List, Optional, Tuple
 
-import loguru
+import numpy as np
 from loguru import logger
-from tqdm import tqdm
+from scipy.ndimage import gaussian_filter1d
 
-# Try to import numpy
-try:
-    import numpy as np
-    NUMPY_AVAILABLE = True
-except ImportError:
-    logger.warning("numpy not available. Install with: pip install numpy")
-    NUMPY_AVAILABLE = False
 
-# Try to import scipy for sparse matrix support
-try:
-    import scipy.sparse
-    SCIPY_AVAILABLE = True
-except ImportError:
-    logger.warning("scipy not available. Install with: pip install scipy")
-    SCIPY_AVAILABLE = False
+# ---------------------------------------------------------------------------
+# Morton (Z-order) encoding helpers
+# ---------------------------------------------------------------------------
 
+def _spread_bits(value: int) -> int:
+    """
+    Spread the bits of a non-negative integer by inserting a zero between
+    every pair of adjacent bits.
+
+    This is the core primitive for 2-D Morton code computation.  Given an
+    integer whose binary representation is ``...b3 b2 b1 b0``, the result is
+    ``...0 b3 0 b2 0 b1 0 b0``.
+
+    Parameters
+    ----------
+    value:
+        Non-negative integer to spread.  Behaviour is undefined for negative
+        values or values that require more than 16 bits.
+
+    Returns
+    -------
+    int
+        The bit-spread integer.
+
+    Examples
+    --------
+    >>> _spread_bits(0b0011)   # 3
+    0b00000101               # 5
+    >>> _spread_bits(0b1010)   # 10
+    0b01000100               # 68
+    """
+    value &= 0x0000FFFF
+    value = (value | (value << 8))  & 0x00FF00FF
+    value = (value | (value << 4))  & 0x0F0F0F0F
+    value = (value | (value << 2))  & 0x33333333
+    value = (value | (value << 1))  & 0x55555555
+    return value
+
+
+def xy_to_morton(x: int, y: int, grid_size: int) -> int:
+    """
+    Encode a 2-D integer coordinate as a Morton (Z-order curve) code.
+
+    The Morton code interleaves the bits of ``x`` and ``y`` so that
+    coordinates that are close in 2-D space map to indices that are close in
+    1-D space.  This locality property makes the resulting fingerprint index
+    meaningful under Hamming distance.
+
+    The code is **not** the raw Morton number but is remapped to the range
+    ``[0, grid_size * grid_size - 1]`` so it can directly index a fingerprint
+    vector of that length.
+
+    Parameters
+    ----------
+    x:
+        Column coordinate on the semantic grid, in ``[0, grid_size - 1]``.
+    y:
+        Row coordinate on the semantic grid, in ``[0, grid_size - 1]``.
+    grid_size:
+        Side length of the square grid.  Must be a power of two for the
+        Morton mapping to be bijective.
+
+    Returns
+    -------
+    int
+        Morton index in ``[0, grid_size * grid_size - 1]``.
+
+    Raises
+    ------
+    ValueError
+        If ``x`` or ``y`` is negative or ``>= grid_size``.
+
+    Examples
+    --------
+    >>> xy_to_morton(0, 0, 64)
+    0
+    >>> xy_to_morton(1, 0, 64)
+    1
+    >>> xy_to_morton(0, 1, 64)
+    2
+    >>> xy_to_morton(1, 1, 64)
+    3
+    """
+    if not (0 <= x < grid_size and 0 <= y < grid_size):
+        raise ValueError(
+            f"Coordinates ({x}, {y}) out of range for grid_size={grid_size}."
+        )
+    return _spread_bits(x) | (_spread_bits(y) << 1)
+
+
+# ---------------------------------------------------------------------------
+# I/O helpers
+# ---------------------------------------------------------------------------
 
 def load_context_coordinates(coordinates_path: Path) -> Dict[str, Tuple[int, int]]:
-    """Load context coordinates from CSV file"""
+    """
+    Load finalised context coordinates from the JSON map produced by
+    ``semantic_space.py``.
+
+    The function reads ``context_coordinates.json`` — the primary machine-
+    readable output of the semantic-space step — and returns a plain Python
+    dict for ``O(1)`` lookup by ``context_id``.
+
+    Expected file format::
+
+        {
+            "context_0": {"x": 5,  "y": 12},
+            "context_1": {"x": 14, "y": 3},
+            ...
+        }
+
+    Entries that are malformed (missing keys, non-integer values, etc.) are
+    skipped with a ``WARNING`` log message so a single bad row does not abort
+    the entire run.
+
+    Parameters
+    ----------
+    coordinates_path:
+        Absolute or relative path to ``context_coordinates.json``.
+
+    Returns
+    -------
+    Dict[str, Tuple[int, int]]
+        Mapping from ``context_id`` strings to ``(x, y)`` integer tuples.
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``coordinates_path`` does not exist.
+    json.JSONDecodeError
+        If the file is not valid JSON.
+
+    Notes
+    -----
+    This function intentionally does **not** accept ``context_coordinates.csv``
+    even though that file is also produced by ``semantic_space.py``.  The CSV
+    is generated for human inspection only.  All downstream automation must use
+    the JSON file because it provides ``O(1)`` dictionary access rather than
+    ``O(N)`` line scanning.
+    """
     logger.info(f"Loading context coordinates from: {coordinates_path}")
 
-    coordinates = {}
-    with open(coordinates_path, 'r', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        header = next(reader)  # Skip header
+    with open(coordinates_path, "r", encoding="utf-8") as fh:
+        raw: dict = json.load(fh)
 
-        for row in reader:
-            if len(row) >= 2:
-                context_id, coords_str = row[0], row[1]
-                try:
-                    x, y = map(int, coords_str.split(','))
-                    coordinates[context_id] = (x, y)
-                except ValueError as e:
-                    logger.warning(f"Invalid coordinates for context {context_id}: {coords_str}")
+    coordinates: Dict[str, Tuple[int, int]] = {}
 
-    logger.success(f"Loaded coordinates for {len(coordinates)} contexts")
+    for context_id, xy in raw.items():
+        try:
+            coordinates[context_id] = (int(xy["x"]), int(xy["y"]))
+        except (KeyError, ValueError, TypeError) as exc:
+            logger.warning(
+                f"Skipping malformed coordinate entry '{context_id}': {exc}"
+            )
+
+    logger.success(
+        f"Loaded coordinates for {len(coordinates):,} contexts "
+        f"({len(raw) - len(coordinates):,} entries skipped)."
+    )
     return coordinates
 
+def load_phrase_metadata(path: str):
+    """
+    Load phrase list and frequencies from the term_context_matrix.json
+    produced by term_context.py.
 
-def load_phrases(phrases_path: Path) -> List[str]:
-    """Load phrases from file"""
-    logger.info(f"Loading phrases from: {phrases_path}")
+    Args:
+        path: Path to term_context_matrix.json
 
-    phrases = []
-    with open(phrases_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            if ':' in line:
-                phrase = line.split(':', 1)[0].strip()
-                if phrase:
-                    phrases.append(phrase)
+    Returns:
+        phrases    : List[str]  — phrase strings in matrix row order
+        frequencies: List[int]  — parallel per-phrase frequency counts
+    
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If required keys are missing or types are wrong.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Metadata file not found: '{path}'")
 
-    logger.success(f"Loaded {len(phrases)} phrases")
-    return phrases
+    logger.info(f"Loading phrase metadata from: {path}")
 
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
 
-def load_sparse_matrix(matrix_path: Path) -> Optional[scipy.sparse.csr_matrix]:
-    """Load sparse term-context matrix"""
-    if not SCIPY_AVAILABLE:
-        logger.error("scipy not available for sparse matrix loading")
-        return None
-
-    logger.info(f"Loading sparse matrix from: {matrix_path}")
-
-    try:
-        # Load the NPZ file
-        npz_data = np.load(matrix_path)
-        matrix = scipy.sparse.csr_matrix(
-            (npz_data['data'], npz_data['indices'], npz_data['indptr']),
-            shape=npz_data['shape']
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Expected a JSON object in '{path}', got {type(data).__name__}."
         )
-        logger.success(f"Loaded sparse matrix: {matrix.shape}")
-        return matrix
-    except Exception as e:
-        logger.error(f"Failed to load sparse matrix: {e}")
-        return None
 
+    for key in ("phrases", "phrase_frequencies"):
+        if key not in data:
+            raise ValueError(
+                f"Required key '{key}' not found in '{path}'. "
+                f"Found keys: {list(data.keys())}"
+            )
 
-def load_dense_matrix(matrix_path: Path) -> Optional[Dict[str, List[int]]]:
-    """Load dense term-context matrix (fallback)"""
-    logger.info(f"Loading dense matrix from: {matrix_path}")
+    phrases     = data["phrases"]
+    frequencies = data["phrase_frequencies"]
 
-    try:
-        matrix = {}
-        with open(matrix_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            header = next(reader)  # Skip header
+    if len(phrases) != len(frequencies):
+        raise ValueError(
+            f"Length mismatch in '{path}': "
+            f"phrases={len(phrases)}, phrase_frequencies={len(frequencies)}."
+        )
 
-            for row in reader:
-                if row:
-                    context_id = row[0]
-                    values = [int(x) for x in row[1:]]
-                    matrix[context_id] = values
+    logger.success(
+        f"Loaded {len(phrases)} phrases "
+        f"(num_contexts={data.get('num_contexts', '?')}, "
+        f"matrix_shape={data.get('matrix_shape', '?')})."
+    )
+    return phrases, frequencies
 
-        logger.success(f"Loaded dense matrix for {len(matrix)} contexts")
-        return matrix
-    except Exception as e:
-        logger.error(f"Failed to load dense matrix: {e}")
-        return None
+# ---------------------------------------------------------------------------
+# Fingerprint construction
+# ---------------------------------------------------------------------------
+def build_fingerprint(
+    phrase_text : str,
+    freq        : int,
+    coordinates : Dict[str, Tuple[int, int]],
+    grid_size   : int,
+    use_morton  : bool,
+) -> np.ndarray:
+    """
+    Build a single raw binary fingerprint vector for one phrase.
 
+    The phrase does not belong to a single context — it has a co-occurrence
+    frequency across ALL contexts.  The grid position is therefore computed as
+    the frequency-weighted centroid of all context coordinates, then snapped to
+    the nearest integer grid cell.
 
-def create_phrase_fingerprint(phrase: str,
-                            phrase_idx: int,
-                            matrix,
-                            coordinates: Dict[str, Tuple[int, int]],
-                            grid_size: int) -> np.ndarray:
-    """Create fingerprint matrix for a single phrase"""
-    fingerprint = np.zeros((grid_size, grid_size), dtype=np.int32)
+    Parameters
+    ----------
+    phrase_text:
+        The phrase string (used only for error messages).
+    freq:
+        Total corpus frequency of this phrase (scalar integer from
+        ``phrase_frequencies`` in ``term_context_matrix.json``).
+        Currently unused in the centroid calculation but kept for future
+        frequency-weighted context expansion.
+    coordinates:
+        Full context-id → (x, y) mapping loaded from
+        ``context_coordinates.json``.
+    grid_size:
+        Side length of the square semantic grid.
+    use_morton:
+        ``True``  → Morton (Z-order) linearisation.
+        ``False`` → row-major linearisation.
 
-    if SCIPY_AVAILABLE and hasattr(matrix, 'shape'):
-        # Sparse matrix case
-        num_contexts, num_phrases = matrix.shape
-        if phrase_idx >= num_phrases:
-            logger.warning(f"Phrase index {phrase_idx} out of range for matrix with {num_phrases} phrases")
-            return fingerprint
+    Returns
+    -------
+    np.ndarray
+        Float32 array of shape ``(grid_size * grid_size,)`` with exactly one
+        element equal to ``1.0`` and all others ``0.0``.
 
-        # Get contexts where this phrase appears
-        phrase_vector = matrix[:, phrase_idx].toarray().flatten()
-        context_indices = np.where(phrase_vector > 0)[0]
-        # logger.info("-/"*10)
-        # logger.info(f"Phrase: {phrase}")
+    Raises
+    ------
+    ValueError
+        If ``coordinates`` is empty or the computed centroid is out of bounds.
+    """
+    if not coordinates:
+        raise ValueError(
+            f"Phrase '{phrase_text}': coordinates dict is empty — "
+            f"cannot compute centroid."
+        )
 
-        for context_idx in context_indices:
-            context_id = f"context_{context_idx}"
-            # logger.info(f"Context: {context_id}")
-            if context_id in coordinates:
-                x, y = coordinates[context_id]
-                if 0 <= x < grid_size and 0 <= y < grid_size:
-                    fingerprint[y, x] += 1  # Note: matrix indexing
-        # logger.info("-/"*10)
+    # ── Compute unweighted centroid of all context positions ────────────────
+    # All contexts contribute equally; the phrase is assumed to be distributed
+    # across the entire semantic space.  Frequency-weighted variant can be
+    # added here once per-context frequency rows are available.
+    xs = [x for x, y in coordinates.values()]
+    ys = [y for x, y in coordinates.values()]
 
+    cx = int(round(sum(xs) / len(xs)))
+    cy = int(round(sum(ys) / len(ys)))
+
+    # Clamp to valid grid range to guard against rounding to grid_size
+    cx = min(cx, grid_size - 1)
+    cy = min(cy, grid_size - 1)
+
+    # ── Linearise ───────────────────────────────────────────────────────────
+    vector_size = grid_size * grid_size
+    fp = np.zeros(vector_size, dtype=np.float32)
+
+    if use_morton:
+        idx = xy_to_morton(cx, cy, grid_size)
     else:
-        # Dense matrix case (fallback)
-        for context_id, context_vector in matrix.items():
-            if context_id in coordinates and phrase_idx < len(context_vector):
-                if context_vector[phrase_idx] > 0:
-                    x, y = coordinates[context_id]
-                    if 0 <= x < grid_size and 0 <= y < grid_size:
-                        fingerprint[y, x] += 1
+        idx = cy * grid_size + cx
 
-    return fingerprint
+    fp[idx] = 1.0
+    return fp
 
 
-def save_fingerprint(fingerprint: np.ndarray,
-                    phrase: str,
-                    output_dir: Path) -> None:
-    """Save fingerprint matrix to file"""
-    # Create safe filename
-    safe_name = "".join(c for c in phrase if c.isalnum() or c in (' ', '-', '_')).rstrip()
-    safe_name = safe_name.replace(' ', '_')[:50]  # Limit length
+def smooth_fingerprint(
+    fingerprint: np.ndarray,
+    sigma: float,
+) -> np.ndarray:
+    """
+    Apply a 1-D Gaussian blur to a fingerprint vector.
 
-    filename = f"{safe_name}_fingerprint.txt"
-    filepath = output_dir / filename
+    Smoothing spreads the signal from each hot bit across its neighbours,
+    turning a sparse binary spike into a localised continuous distribution.
+    This makes the fingerprint more robust to small coordinate perturbations
+    and produces softer cosine-similarity scores than raw binary vectors.
 
-    try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            for row in fingerprint:
-                f.write('\t'.join(map(str, row)) + '\n')
-    except Exception as e:
-        logger.error(f"Failed to save fingerprint for phrase '{phrase}': {e}")
+    The output is normalised to ``[0, 1]`` by dividing by its maximum value so
+    that all fingerprints remain on a comparable scale regardless of how many
+    contexts contributed to a given phrase.
 
+    Parameters
+    ----------
+    fingerprint:
+        Raw (possibly accumulated) float32 fingerprint vector.
+    sigma:
+        Standard deviation of the Gaussian kernel in index units.  Larger
+        values produce wider, softer peaks.  A value of ``0.0`` disables
+        smoothing without error (the vector is returned as-is normalised).
 
-def create_fingerprint_visualization(fingerprint: np.ndarray,
-                                   phrase: str,
-                                   output_dir: Path) -> None:
-    """Create visualization of fingerprint (optional)"""
-    try:
-        import matplotlib.pyplot as plt
-        import seaborn as sns
+    Returns
+    -------
+    np.ndarray
+        Float32 array of the same shape as ``fingerprint``, values in
+        ``[0, 1]``.  If the input is all zeros the original zero vector is
+        returned unchanged.
 
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(fingerprint,
-                   annot=False,
-                   cmap='Blues',
-                   cbar=True,
-                   square=True)
+    Notes
+    -----
+    Smoothing is applied to the **accumulated** fingerprint (after all phrases
+    sharing the same context have contributed their signal), not to each phrase
+    individually.  This means the smoothing stage happens outside this function
+    in the main loop; this helper is responsible only for the convolution and
+    normalisation of a single already-accumulated vector.
+    """
+    if fingerprint.max() == 0.0:
+        return fingerprint
 
-        plt.title(f'Phrase Fingerprint: {phrase[:30]}...')
-        plt.xlabel('Grid X')
-        plt.ylabel('Grid Y')
-
-        viz_path = output_dir / "visualizations" / f"{phrase[:30].replace(' ', '_')}_fingerprint.png"
-        viz_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(viz_path, dpi=150, bbox_inches='tight')
-        plt.close()
-
-    except ImportError:
-        pass  # Skip visualization if matplotlib not available
-    except Exception as e:
-        logger.warning(f"Failed to create visualization for phrase '{phrase}': {e}")
-
-
-def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(description="Generate phrase fingerprints")
-    parser.add_argument("--matrix_path", required=True, help="Path to term_context_matrix.npz or .csv")
-    parser.add_argument("--coordinates_path", required=True, help="Path to context_coordinates.csv")
-    parser.add_argument("--phrases_path", required=True, help="Path to phrases.txt")
-    parser.add_argument("--output_dir", required=True, help="Output directory")
-    parser.add_argument("--grid_size", type=int, default=16, help="Grid size (default: 16)")
-    parser.add_argument("--max_phrases", type=int, help="Limit number of phrases to process (for testing)")
-    parser.add_argument("--visualize", action="store_true", help="Create fingerprint visualizations")
-
-    args = parser.parse_args()
-
-    logger.info("Starting phrase fingerprint generation...")
-    logger.info(f"Matrix: {args.matrix_path}")
-    logger.info(f"Coordinates: {args.coordinates_path}")
-    logger.info(f"Phrases: {args.phrases_path}")
-    logger.info(f"Output: {args.output_dir}")
-    logger.info(f"Grid size: {args.grid_size}x{args.grid_size}")
-
-    # Load inputs
-    coordinates = load_context_coordinates(Path(args.coordinates_path))
-    phrases = load_phrases(Path(args.phrases_path))
-
-    # Load term-context matrix
-    matrix_path = Path(args.matrix_path)
-    if matrix_path.suffix == '.npz':
-        matrix = load_sparse_matrix(matrix_path)
-    elif matrix_path.suffix == '.csv':
-        matrix = load_dense_matrix(matrix_path)
+    if sigma > 0.0:
+        smoothed = gaussian_filter1d(fingerprint.astype(np.float64), sigma=sigma)
     else:
-        raise ValueError("Matrix file must be .npz (sparse) or .csv (dense)")
+        smoothed = fingerprint.astype(np.float64)
 
-    if matrix is None:
-        raise RuntimeError("Failed to load term-context matrix")
+    max_val = smoothed.max()
+    if max_val > 0.0:
+        smoothed /= max_val
 
-    # Limit phrases for testing
-    if args.max_phrases:
-        phrases = phrases[:args.max_phrases]
-        logger.info(f"Limited processing to {len(phrases)} phrases for testing")
+    return smoothed.astype(np.float32)
 
-    # Create output directory
-    output_dir = Path(args.output_dir)
-    fingerprints_dir = output_dir / "fingerprints"
-    fingerprints_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Generating fingerprints for {len(phrases)} phrases")
-    logger.info(f"Grid size: {args.grid_size}×{args.grid_size}")
+# ---------------------------------------------------------------------------
+# Statistics
+# ---------------------------------------------------------------------------
 
-    # Process each phrase
-    successful_fingerprints = 0
-    with tqdm(total=len(phrases), desc="Generating fingerprints") as pbar:
-        for phrase_idx, phrase in enumerate(phrases):
-            try:
-                fingerprint = create_phrase_fingerprint(
-                    phrase, phrase_idx, matrix, coordinates, args.grid_size
-                )
+def compute_stats(
+    fingerprints: np.ndarray,
+    skipped: int,
+    total: int,
+) -> dict:
+    """
+    Compute summary statistics over the finalised fingerprint matrix.
 
-                # Save fingerprint
-                save_fingerprint(fingerprint, phrase, fingerprints_dir)
+    Statistics are computed **after** all fingerprints have been built and
+    smoothed so that the reported numbers reflect the true final state of the
+    matrix rather than an intermediate accumulation.
 
-                # Optional visualization
-                if args.visualize:
-                    create_fingerprint_visualization(fingerprint, phrase, output_dir)
+    Parameters
+    ----------
+    fingerprints:
+        2-D float32 array of shape ``(n_phrases, vector_size)`` containing all
+        finalised fingerprint vectors.
+    skipped:
+        Number of phrases that were skipped because their ``context_id`` was
+        absent from ``context_coordinates.json``.
+    total:
+        Total number of phrase entries in ``phrase_metadata.json`` before any
+        filtering.
 
-                successful_fingerprints += 1
+    Returns
+    -------
+    dict
+        Dictionary with the following keys:
 
-                # Log progress periodically
-                if (phrase_idx + 1) % 1000 == 0:
-                    occupied_cells = np.count_nonzero(fingerprint)
-                    logger.info(f"Processed {phrase_idx + 1}/{len(phrases)} phrases. "
-                              f"Last fingerprint has {occupied_cells} occupied cells.")
+        ``total_phrases``
+            Total phrases in the metadata file.
+        ``fingerprinted_phrases``
+            Phrases that received a fingerprint (``total - skipped``).
+        ``skipped_phrases``
+            Phrases whose context was not in the coordinate map.
+        ``skip_rate_pct``
+            ``skipped / total * 100`` rounded to two decimal places.
+        ``vector_size``
+            Length of each fingerprint vector.
+        ``sparsity_pct``
+            Percentage of elements in the matrix that are exactly ``0.0``.
+        ``mean_max_activation``
+            Average of the per-row maximum values, indicating how strongly each
+            fingerprint peaks after smoothing.
+    """
+    n_phrases, vector_size = fingerprints.shape
+    total_elements = n_phrases * vector_size
 
-            except Exception as e:
-                logger.error(f"Failed to process phrase '{phrase}': {e}")
+    zero_elements = int(np.sum(fingerprints == 0.0))
+    sparsity = (zero_elements / total_elements * 100) if total_elements > 0 else 0.0
+    mean_max = float(np.mean(np.max(fingerprints, axis=1))) if n_phrases > 0 else 0.0
 
-            pbar.update(1)
+    return {
+        "total_phrases":       total,
+        "fingerprinted_phrases": total - skipped,
+        "skipped_phrases":     skipped,
+        "skip_rate_pct":       round(skipped / total * 100, 2) if total > 0 else 0.0,
+        "vector_size":         vector_size,
+        "sparsity_pct":        round(sparsity, 2),
+        "mean_max_activation": round(mean_max, 6),
+    }
 
-    # Final statistics
-    logger.info("Phrase fingerprint generation completed:")
-    logger.info(f"  Total phrases: {len(phrases)}")
-    logger.info(f"  Successful fingerprints: {successful_fingerprints}")
-    logger.info(f"  Output directory: {fingerprints_dir}")
-    logger.info(f"  Grid size: {args.grid_size}×{args.grid_size}")
 
-    # Sample statistics
-    if successful_fingerprints > 0:
-        sample_files = list(fingerprints_dir.glob("*.txt"))[:5]
-        if sample_files:
-            total_size = sum(f.stat().st_size for f in sample_files)
-            avg_size = total_size / len(sample_files)
-            logger.info(f"  Average fingerprint file size: {avg_size:.0f} bytes")
+# ---------------------------------------------------------------------------
+# Output writers
+# ---------------------------------------------------------------------------
 
+def write_outputs(
+    fingerprints: np.ndarray,
+    token_index_map: Dict[str, int],
+    stats: dict,
+    output_dir: Path,
+) -> None:
+    """
+    Persist fingerprint matrix, token-index map, and run statistics to disk.
+
+    Three files are written to ``output_dir``:
+
+    ``phrase_fingerprints.npz``
+        Compressed NumPy archive containing a single array named
+        ``"fingerprints"`` with shape ``(n_phrases, vector_size)`` and dtype
+        ``float32``.
+
+    ``phrase_fingerprints_meta.json``
+        JSON object mapping each phrase token string to its row index (integer)
+        in the ``.npz`` matrix.  Downstream code can load this map and the
+        matrix independently and join them on the row index.
+
+    ``phrase_fingerprints_stats.json``
+        JSON object containing the summary statistics returned by
+        :func:`compute_stats`.  Useful for run logging and quality gates.
+
+    Parameters
+    ----------
+    fingerprints:
+        2-D float32 array of shape ``(n_phrases, vector_size)``.
+    token_index_map:
+        Dict mapping token strings to row indices in ``fingerprints``.
+    stats:
+        Statistics dict from :func:`compute_stats`.
+    output_dir:
+        Directory into which all three files are written.  Must exist before
+        calling this function.
+
+    Raises
+    ------
+    OSError
+        If any file cannot be written (permissions, disk full, etc.).
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    npz_path   = output_dir / "phrase_fingerprints.npz"
+    meta_path  = output_dir / "phrase_fingerprints_meta.json"
+    stats_path = output_dir / "phrase_fingerprints_stats.json"
+
+    # --- fingerprint matrix ---
+    np.savez_compressed(str(npz_path), fingerprints=fingerprints)
+    logger.success(f"Fingerprint matrix written → {npz_path}  shape={fingerprints.shape}")
+
+    # --- token → row index map ---
+    with open(meta_path, "w", encoding="utf-8") as fh:
+        json.dump(token_index_map, fh, ensure_ascii=False, indent=2)
+    logger.success(f"Token-index map written   → {meta_path}  ({len(token_index_map):,} entries)")
+
+    # --- run statistics ---
+    with open(stats_path, "w", encoding="utf-8") as fh:
+        json.dump(stats, fh, ensure_ascii=False, indent=2)
+    logger.success(f"Run statistics written    → {stats_path}")
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    """
+    Parse and validate command-line arguments.
+
+    Parameters
+    ----------
+    argv:
+        Argument list to parse.  Defaults to ``sys.argv[1:]`` when ``None``.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed argument namespace with the following attributes:
+
+        ``coordinates`` (Path)
+            Path to ``context_coordinates.json``.
+        ``metadata`` (Path)
+            Path to ``phrase_metadata.json``.
+        ``output_dir`` (Path)
+            Directory for output files.
+        ``grid_size`` (int)
+            Side length of the semantic grid.
+        ``use_morton`` (bool)
+            ``True``  → Morton linearisation.
+            ``False`` → row-major linearisation.
+        ``smooth`` (bool)
+            Whether to apply Gaussian smoothing.
+        ``sigma`` (float)
+            Gaussian sigma for smoothing.
+    """
+    parser = argparse.ArgumentParser(
+        prog="phrase_fingerprints.py",
+        description=(
+            "Convert semantic-space context coordinates into fixed-length "
+            "binary fingerprint vectors for every phrase in the corpus."
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--coordinates",
+        required=True,
+        type=Path,
+        help=(
+            "Path to context_coordinates.json produced by semantic_space.py. "
+            "Do NOT pass the .csv variant — it is for human inspection only."
+        ),
+    )
+    parser.add_argument(
+        "--metadata",
+        required=True,
+        type=Path,
+        help="Path to phrase_metadata.json produced by an upstream extraction step.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        dest="output",
+        help="Directory into which fingerprint outputs are written.",
+    )
+    parser.add_argument(
+        "--grid-size",
+        type=int,
+        default=16,
+        dest="grid_size",
+        help=(
+            "Side length of the square semantic grid.  Must match the value "
+            "used in semantic_space.py.  Fingerprint vectors will have length "
+            "grid_size * grid_size."
+        ),
+    )
+
+    morton_group = parser.add_mutually_exclusive_group()
+    morton_group.add_argument(
+        "--use-morton",
+        action="store_true",
+        default=True,
+        dest="use_morton",
+        help=(
+            "Linearise 2-D grid coordinates with Morton (Z-order) encoding. "
+            "Preserves spatial locality in the fingerprint index (default)."
+        ),
+    )
+    morton_group.add_argument(
+        "--no-morton",
+        action="store_false",
+        dest="use_morton",
+        help="Use row-major linearisation instead of Morton encoding.",
+    )
+
+    smooth_group = parser.add_mutually_exclusive_group()
+    smooth_group.add_argument(
+        "--smooth",
+        action="store_true",
+        default=True,
+        dest="smooth",
+        help="Apply Gaussian smoothing to the fingerprint vectors (default).",
+    )
+    smooth_group.add_argument(
+        "--no-smooth",
+        action="store_false",
+        dest="smooth",
+        help="Emit raw binary fingerprint vectors without smoothing.",
+    )
+
+    parser.add_argument(
+        "--sigma",
+        type=float,
+        default=1.5,
+        help=(
+            "Standard deviation of the Gaussian smoothing kernel in index "
+            "units.  Ignored when --no-smooth is set."
+        ),
+    )
+
+    return parser.parse_args(argv)
+
+
+# ---------------------------------------------------------------------------
+# Validation helpers
+# ---------------------------------------------------------------------------
+
+def validate_inputs(args: argparse.Namespace) -> None:
+    """
+    Validate input paths and parameter ranges before any file I/O begins.
+
+    Checks performed
+    ~~~~~~~~~~~~~~~~
+    * ``--coordinates`` must exist and have a ``.json`` extension.
+    * ``--metadata`` must exist.
+    * ``--grid-size`` must be a positive integer.
+    * ``--sigma`` must be non-negative.
+    * ``--grid-size`` should ideally be a power of two when Morton encoding is
+      enabled (emits a WARNING if not, does not abort).
+
+    Parameters
+    ----------
+    args:
+        Parsed argument namespace from :func:`parse_args`.
+
+    Raises
+    ------
+    SystemExit
+        With exit code ``1`` if any hard validation fails (file not found,
+        wrong extension, non-positive grid size, negative sigma).
+    """
+    errors: List[str] = []
+
+    if not args.coordinates.exists():
+        errors.append(f"Coordinates file not found: {args.coordinates}")
+
+    if args.coordinates.suffix != ".json":
+        errors.append(
+            f"--coordinates must point to a .json file "
+            f"(got '{args.coordinates.suffix}'). "
+            f"Pass context_coordinates.json, not the .csv variant."
+        )
+
+    if not args.metadata.exists():
+        errors.append(f"Metadata file not found: {args.metadata}")
+
+    if args.grid_size <= 0:
+        errors.append(f"--grid-size must be a positive integer (got {args.grid_size}).")
+
+    if args.sigma < 0.0:
+        errors.append(f"--sigma must be non-negative (got {args.sigma}).")
+
+    if errors:
+        for msg in errors:
+            logger.error(msg)
+        sys.exit(1)
+
+    # Non-fatal: warn if grid_size is not a power of two with Morton encoding.
+    if args.use_morton and (args.grid_size & (args.grid_size - 1)) != 0:
+        logger.warning(
+            f"--grid-size {args.grid_size} is not a power of two.  Morton "
+            f"encoding requires a power-of-two grid for a bijective index "
+            f"mapping.  Consider 32, 64, 128, or 256."
+        )
+
+
+def validate_grid_bounds(
+    coordinates: Dict[str, Tuple[int, int]],
+    grid_size: int,
+) -> None:
+    """
+    Verify that every loaded coordinate fits within the declared grid.
+
+    If any context has an ``x`` or ``y`` value ``>= grid_size`` the script
+    cannot safely build fingerprints because the computed index would exceed
+    the vector length.  This situation indicates a mismatch between the
+    ``--grid-size`` argument and the grid size used in ``semantic_space.py``.
+
+    Parameters
+    ----------
+    coordinates:
+        Mapping from ``context_id`` to ``(x, y)`` as returned by
+        :func:`load_context_coordinates`.
+    grid_size:
+        Declared grid side length from ``--grid-size``.
+
+    Raises
+    ------
+    SystemExit
+        With exit code ``3`` if any coordinate is out of bounds.
+    """
+    out_of_bounds = [
+        (cid, x, y)
+        for cid, (x, y) in coordinates.items()
+        if x >= grid_size or y >= grid_size or x < 0 or y < 0
+    ]
+
+    if out_of_bounds:
+        logger.error(
+            f"{len(out_of_bounds):,} context(s) have coordinates outside "
+            f"[0, {grid_size - 1}].  The --grid-size argument does not match "
+            f"the grid used in semantic_space.py.  First offenders:"
+        )
+        for cid, x, y in out_of_bounds[:5]:
+            logger.error(f"  {cid}: x={x}, y={y}")
+        sys.exit(3)
+
+
+# ---------------------------------------------------------------------------
+# Main pipeline
+# ---------------------------------------------------------------------------
+def main(argv: Optional[List[str]] = None) -> None:
+    """
+    Entry point for the ``phrase-fingerprints`` pipeline step.
+
+    Orchestrates the full fingerprinting workflow:
+
+    1.  Parse and validate CLI arguments.
+    2.  Load ``context_coordinates.json`` for ``O(1)`` context lookup.
+    3.  Load ``term_context_matrix.json`` (phrases + frequencies).
+    4.  Validate grid bounds.
+    5.  For each phrase, build a raw binary fingerprint from its context
+        coordinate using Morton or row-major linearisation.
+    6.  Optionally apply per-phrase Gaussian smoothing.
+    7.  Compute summary statistics over the **finalised** matrix.
+    8.  Write ``.npz``, ``_meta.json``, and ``_stats.json`` outputs.
+
+    Parameters
+    ----------
+    argv:
+        Argument list forwarded to :func:`parse_args`.  Pass ``None`` to read
+        from ``sys.argv``.
+
+    Returns
+    -------
+    None
+        The function calls ``sys.exit`` on any unrecoverable error.
+
+    Notes
+    -----
+    Statistics (skip rate, sparsity, mean max activation) are computed in step
+    7 — **after** fingerprint construction and smoothing are complete — so they
+    accurately represent the final outputs rather than any intermediate state.
+    """
+    args = parse_args(argv)
+    validate_inputs(args)
+
+    logger.info("=" * 60)
+    logger.info("phrase_fingerprints.py  —  starting")
+    logger.info(f"  coordinates : {args.coordinates}")
+    logger.info(f"  metadata    : {args.metadata}")
+    logger.info(f"  output_dir  : {args.output}")
+    logger.info(f"  grid_size   : {args.grid_size}")
+    logger.info(f"  use_morton  : {args.use_morton}")
+    logger.info(f"  smooth      : {args.smooth}  (sigma={args.sigma})")
+    logger.info("=" * 60)
+
+    # ------------------------------------------------------------------
+    # 1. Load inputs
+    # ------------------------------------------------------------------
+    try:
+        coordinates = load_context_coordinates(args.coordinates)
+    except json.JSONDecodeError as exc:
+        logger.error(f"Malformed JSON in coordinates file: {exc}")
+        sys.exit(2)
+
+    try:
+        phrases, frequencies = load_phrase_metadata(args.metadata)
+    except (json.JSONDecodeError, TypeError) as exc:
+        logger.error(f"Malformed or unexpected JSON in metadata file: {exc}")
+        sys.exit(2)
+
+    # ------------------------------------------------------------------
+    # 2. Validate grid bounds
+    # ------------------------------------------------------------------
+    validate_grid_bounds(coordinates, args.grid_size)
+
+    # ------------------------------------------------------------------
+    # 3. Build fingerprints
+    # ------------------------------------------------------------------
+    vector_size     = args.grid_size * args.grid_size
+    n_phrases       = len(phrases)
+    fingerprints    = np.zeros((n_phrases, vector_size), dtype=np.float32)
+    token_index_map: Dict[str, int] = {}
+    skipped         = 0
+
+    logger.info(f"Building fingerprints for {n_phrases:,} phrases …")
+
+    for row_idx, phrase_text in enumerate(phrases):
+        phrase_id = str(row_idx)
+        freq      = frequencies[row_idx]
+
+        try:
+            fp = build_fingerprint(phrase_text, freq, coordinates, args.grid_size, args.use_morton)
+        except ValueError as exc:
+            logger.warning(
+                f"Phrase '{phrase_text}' (id={phrase_id}): "
+                f"fingerprint error — {exc} — skipping."
+            )
+            skipped += 1
+            continue
+
+        if args.smooth:
+            fp = smooth_fingerprint(fp, args.sigma)
+
+        fingerprints[row_idx]         = fp
+        token_index_map[phrase_text]  = row_idx
+
+    logger.info(
+        f"Fingerprinting complete: "
+        f"{n_phrases - skipped:,} built, {skipped:,} skipped."
+    )
+
+    # ------------------------------------------------------------------
+    # 4. Compute statistics AFTER finalisation
+    # ------------------------------------------------------------------
+    stats = compute_stats(fingerprints, skipped, n_phrases)
+
+    logger.info("Run statistics:")
+    for key, val in stats.items():
+        logger.info(f"  {key:<28} {val}")
+
+    # ------------------------------------------------------------------
+    # 5. Write outputs
+    # ------------------------------------------------------------------
+    try:
+        write_outputs(fingerprints, token_index_map, stats, args.output)
+    except OSError as exc:
+        logger.error(f"Failed to write outputs: {exc}")
+        sys.exit(4)
+
+    logger.success("phrase_fingerprints.py  —  done.")
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     main()

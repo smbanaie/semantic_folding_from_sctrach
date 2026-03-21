@@ -1,345 +1,441 @@
 #!/usr/bin/env python3
 """
-Modernized Document Fingerprint Generator for Semantic Folding Pipeline
+doc_fingerprints.py — Step 5 of the Semantic Folding Pipeline
 
-Aggregates phrase fingerprints to create document-level semantic fingerprints,
-with efficient phrase matching and comprehensive metadata storage.
+Aggregates phrase-level sparse fingerprints (Step 4) into document-level
+Sparse Distributed Representations (SDRs) using TF-IDF weighted union,
+then sparsifies via Morton (Z-order) curve thresholding.
+
+Usage:
+    python doc_fingerprints.py \
+        --corpus      data/corpus.txt \
+        --phrases     outputs/run/phrases.txt \
+        --fingerprints outputs/run/phrase_fingerprints \
+        --output-dir  outputs/run/doc_fingerprints \
+        --grid-size   16 \
+        --top-percent 0.1
 """
+
+from __future__ import annotations
 
 import argparse
 import json
-import os
+import logging
+import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any, Set
-import warnings
-from lib import process_lemmatize, load_contexts_dict, load_phrases, load_fingerprint_cache
-from phrase_extractor import expand_phrases, extract_phrases_spacy, extract_phrases_fallback
-import loguru
-from loguru import logger
-from tqdm import tqdm
+from typing import Dict, List, Optional, Set, Tuple
 
-# Try to import numpy
-try:
-    import numpy as np
-    NUMPY_AVAILABLE = True
-except ImportError:
-    logger.warning("numpy not available. Install with: pip install numpy")
-    NUMPY_AVAILABLE = False
+import numpy as np
+from scipy.sparse import csr_matrix, lil_matrix
 
-# Try to import spaCy for phrase extraction (optional)
-try:
-    import spacy
-    SPACY_AVAILABLE = True
-    # Try to load the model
-    try:
-        nlp = spacy.load("en_core_web_sm")
-        SPACY_MODEL_AVAILABLE = True
-    except OSError:
-        logger.warning("spaCy model 'en_core_web_sm' not found. Run: python -m spacy download en_core_web_sm")
-        SPACY_MODEL_AVAILABLE = False
-        nlp = None
-except ImportError:
-    logger.warning("spaCy not available. Install with: pip install spacy")
-    SPACY_AVAILABLE = False
-    SPACY_MODEL_AVAILABLE = False
-    nlp = None
+# ---------------------------------------------------------------------------
+# Project-local imports
+# ---------------------------------------------------------------------------
+from phrase_extractor import extract_and_normalize_phrases, SPACY_AVAILABLE
+
+from lib import (
+    compute_fingerprint_diversity,
+    compute_idf_weights,
+    export_fingerprints_to_numpy,
+    load_contexts_dict,
+    load_phrases,
+    normalize_fingerprint,
+    sparsify_fingerprint,
+    load_phrase_fingerprints_sparse,
+)
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
 
 
-def apply_top_percent_threshold(fingerprint: np.ndarray, top_percent: float = 0.05) -> Tuple[np.ndarray, Dict[str, Any]]:
-    """Apply threshold to keep only top N% of cells by value"""
-    total_cells = fingerprint.size
-    top_k = max(1, int(total_cells * top_percent))  # At least 1 cell
+# ---------------------------------------------------------------------------
+# Output writer  (mirrors phrase_fingerprints.py pattern)
+# ---------------------------------------------------------------------------
 
-    # Flatten and find top values
-    flat_fingerprint = fingerprint.flatten()
+def write_outputs(
+    fingerprints  : np.ndarray,
+    doc_index_map : Dict[str, int],
+    stats         : dict,
+    output_dir    : Path,
+) -> None:
+    """
+    Write three files to ``output_dir``:
 
-    # Get indices of top values
-    if np.sum(flat_fingerprint) == 0:
-        # All zeros, nothing to threshold
-        return fingerprint, {
-            'threshold_applied': False,
-            'threshold_percent': top_percent,
-            'cells_kept': total_cells,
-            'cells_zeroed': 0
-        }
+    - ``doc_fingerprints.npz``       — compressed matrix, shape (n_docs, grid_size²)
+    - ``doc_fingerprints_meta.json`` — doc_id → row-index mapping
+    - ``doc_fingerprints_stats.json``— run statistics
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Find threshold value (top_k-th largest value)
-    sorted_values = np.sort(flat_fingerprint[flat_fingerprint > 0])
-    if len(sorted_values) >= top_k:
-        threshold_value = sorted_values[-top_k]  # Keep values >= this threshold
-    else:
-        threshold_value = 0  # Keep all non-zero values
+    npz_path   = output_dir / "doc_fingerprints.npz"
+    meta_path  = output_dir / "doc_fingerprints_meta.json"
+    stats_path = output_dir / "doc_fingerprints_stats.json"
 
-    # Apply threshold
-    thresholded_fingerprint = fingerprint.copy()
-    cells_kept = np.sum(thresholded_fingerprint >= threshold_value)
-    cells_zeroed = total_cells - cells_kept
+    np.savez_compressed(str(npz_path), fingerprints=fingerprints)
+    logger.info("Fingerprint matrix written → %s  shape=%s", npz_path, fingerprints.shape)
 
-    # Zero out cells below threshold
-    thresholded_fingerprint[thresholded_fingerprint < threshold_value] = 0
+    with open(meta_path, "w", encoding="utf-8") as fh:
+        json.dump(doc_index_map, fh, ensure_ascii=False, indent=2)
+    logger.info("Doc-index map written     → %s  (%d entries)", meta_path, len(doc_index_map))
 
-    threshold_info = {
-        'threshold_applied': True,
-        'threshold_percent': top_percent,
-        'threshold_value': int(threshold_value),
-        'cells_kept': int(cells_kept),
-        'cells_zeroed': int(cells_zeroed),
-        'sparsity_after_threshold': cells_kept / total_cells
-    }
-
-    return thresholded_fingerprint, threshold_info
+    with open(stats_path, "w", encoding="utf-8") as fh:
+        json.dump(stats, fh, ensure_ascii=False, indent=2)
+    logger.info("Run statistics written    → %s", stats_path)
 
 
-def generate_document_fingerprint(context_text: str,
-                                fingerprint_cache: Dict[str, Optional[np.ndarray]],
-                                phrases: List[str],
-                                grid_size: int,
-                                no_threshold : bool, 
-                                top_percent: float) -> Tuple[np.ndarray, Dict[str, Any]]:
-    """Generate document fingerprint by aggregating phrase fingerprints"""
-    doc_fingerprint = np.zeros((grid_size, grid_size), dtype=np.int32)
+# ---------------------------------------------------------------------------
+# Per-document phrase extractor
+# ---------------------------------------------------------------------------
 
-    # Extract phrases from document
-    logger.info("\n"+"==="*40)
-    doc_phrases = phrases
-    logger.info(f"Context: {context_text}")
-    logger.info("\n"+"---"*40)
-    logger.info(f"Extracted Phrases: {doc_phrases}")
-    # Match document phrases to our vocabulary
-    matched_phrases = []
-    unmatched_phrases = []
+def extract_phrases_from_doc(
+    text       : str,
+    phrase_fps : Dict[str, np.ndarray],
+    use_spacy  : bool = True,
+) -> List[str]:
+    """
+    Extract normalized phrases from document text that exist in the
+    phrase fingerprint vocabulary (phrase_fps keys).
 
-    metadata = {}
+    Uses the same pipeline as Step 1 (phrase_extractor.py) to guarantee
+    identical normalization.
 
-    for doc_phrase in doc_phrases:
-        logger.info("\n"+"-+-"*10)
-        logger.info(f"Processing Phrase : {doc_phrase}")
-        
-        # Try exact match first
-        if doc_phrase in fingerprint_cache and fingerprint_cache[doc_phrase] is not None:
-            logger.info(f"Phrase : {doc_phrase} Added to DOC Fingerprints")
-            doc_fingerprint += fingerprint_cache[doc_phrase]
-            matched_phrases.append(doc_phrase)
-        else:
-            unmatched_phrases.append(doc_phrase)
-    logger.info("\n"+"-"*20)
-    logger.info(f"Unmatched Phrases: {unmatched_phrases}")
-    logger.info("\n"+"-"*20)
-    logger.info(f"Matched Phrases: {matched_phrases}")
-    # Apply threshold cutoff to retain only top cells
-    if not no_threshold and np.sum(doc_fingerprint) > 0:
-        doc_fingerprint, threshold_info = apply_top_percent_threshold(doc_fingerprint, top_percent)
-        metadata.update(threshold_info)
-    else:
-        metadata.update({
-            'threshold_applied': False,
-            'threshold_percent': 0.0,
-            'cells_kept': int(np.sum(doc_fingerprint > 0)),
-            'cells_zeroed': 0
-        })
-
-    # Metadata
-    metadata.update({
-        'total_doc_phrases': len(doc_phrases),
-        'matched_phrases': len(matched_phrases),
-        'unmatched_phrases': len(unmatched_phrases),
-        'matched_phrase_list': matched_phrases[:10],  # Limit for storage
-        'coverage': len(matched_phrases) / max(1, len(doc_phrases)),
-        'total_fingerprint_sum': int(np.sum(doc_fingerprint))
-    })
-    logger.info("\n"+"---"*40)
-    logger.info(metadata)
-    logger.info("\n"+"==="*40)
-    return doc_fingerprint, metadata
+    Returns
+    -------
+    List[str]
+        Vocabulary-matched phrases (duplicates preserved for TF counting).
+    """
+    candidates: Set[str] = extract_and_normalize_phrases(
+        text,
+        use_spacy    = use_spacy,
+        remove_verbs = True,
+    )
+    matched = [p for p in candidates if p in phrase_fps]
+    if not matched:
+        logger.debug("No vocabulary matches in text snippet: %r...", text[:80])
+    return matched
 
 
-def save_document_fingerprint(fingerprint: np.ndarray,
-                            metadata: Dict[str, Any],
-                            context_id: str,
-                            context_text: str,
-                            output_dir: Path) -> None:
-    """Save document fingerprint and metadata"""
-    # Create safe filename
-    safe_id = "".join(c for c in context_id if c.isalnum() or c in ('-', '_')).rstrip()
-    safe_id = safe_id[:50]  # Limit length
+# ---------------------------------------------------------------------------
+# Coordinate-set → csr_matrix converter
+# ---------------------------------------------------------------------------
 
-    # Save fingerprint matrix
-    fingerprint_file = output_dir / f"{safe_id}_fingerprint.txt"
-    try:
-        with open(fingerprint_file, 'w', encoding='utf-8') as f:
-            for row in fingerprint:
-                f.write('\t'.join(map(str, row)) + '\n')
-    except Exception as e:
-        logger.error(f"Failed to save fingerprint for context {context_id}: {e}")
-        return
-
-    # Save metadata
-    metadata_file = output_dir / f"{safe_id}_metadata.json"
-    try:
-        full_metadata = {
-            **metadata,
-            'context_id': context_id,
-            'context_text_preview': context_text[:200] + ('...' if len(context_text) > 200 else ''),
-            'fingerprint_shape': fingerprint.shape,
-            'fingerprint_file': str(fingerprint_file.name),
-            'metadata_file': str(metadata_file.name)
-        }
-
-        with open(metadata_file, 'w', encoding='utf-8') as f:
-            json.dump(full_metadata, f, indent=2, ensure_ascii=False)
-
-    except Exception as e:
-        logger.error(f"Failed to save metadata for context {context_id}: {e}")
+def coords_to_csr(
+    coords    : Set[Tuple[int, int]],
+    grid_size : int,
+) -> csr_matrix:
+    """Convert (row, col) coordinate set → (1, grid_size²) csr_matrix."""
+    n   = grid_size * grid_size
+    mat = lil_matrix((1, n), dtype=np.float32)
+    for (r, c) in coords:
+        if 0 <= r < grid_size and 0 <= c < grid_size:
+            mat[0, r * grid_size + c] = 1.0
+    return mat.tocsr()
 
 
-def create_document_visualization(fingerprint: np.ndarray,
-                                context_id: str,
-                                output_dir: Path) -> None:
-    """Create visualization of document fingerprint (optional)"""
-    try:
-        import matplotlib.pyplot as plt
-        import seaborn as sns
+# ---------------------------------------------------------------------------
+# Single-document fingerprint builder  (called inside the corpus loop)
+# ---------------------------------------------------------------------------
 
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(fingerprint,
-                   annot=False,
-                   cmap='Reds',
-                   cbar=True,
-                   square=True)
+def build_document_fingerprint(
+    doc_text            : str,
+    phrase_fingerprints : Dict[str, csr_matrix],
+    idf_weights         : Dict[str, float],
+    grid_size           : int,
+    use_spacy           : bool = True,
+    remove_verbs        : bool = True,
+) -> Optional[csr_matrix]:
+    """
+    Build a raw (un-sparsified) TF-IDF weighted fingerprint for one document.
 
-        plt.title(f'Document Fingerprint: {context_id[:30]}...')
-        plt.xlabel('Grid X')
-        plt.ylabel('Grid Y')
+    Steps
+    -----
+    1. Extract phrases present in the vocabulary.
+    2. Accumulate weighted sum:  fp += idf(phrase) * phrase_vector
+    3. Return None if no vocabulary phrase was found.
 
-        viz_path = output_dir / "visualizations" / f"{context_id[:30].replace('/', '_')}_doc_fingerprint.png"
-        viz_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(viz_path, dpi=150, bbox_inches='tight')
-        plt.close()
+    Returns
+    -------
+    csr_matrix of shape (1, grid_size²), or None.
+    """
+    n      = grid_size * grid_size
+    acc    = lil_matrix((1, n), dtype=np.float32)
+    hits   = 0
 
-    except ImportError:
-        pass  # Skip visualization if matplotlib not available
-    except Exception as e:
-        logger.warning(f"Failed to create visualization for document '{context_id}': {e}")
-
-
-def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(description="Generate document fingerprints")
-    parser.add_argument("--corpus_path", required=True, help="Path to corpus.txt file")
-    parser.add_argument("--phrases_path", required=True, help="Path to phrases.txt file")
-    parser.add_argument("--fingerprints_dir", required=True, help="Directory containing phrase fingerprints")
-    parser.add_argument("--output_dir", required=True, help="Output directory")
-    parser.add_argument("--grid_size", type=int, default=16, help="Grid size (default: 16)")
-    parser.add_argument("--max_docs", type=int, help="Limit number of documents to process (for testing)")
-    parser.add_argument("--top_percent", type=float, default=0.05, help="Keep only top N% of cells (default: 0.05)")
-    parser.add_argument("--no_threshold", action="store_true", help="Disable thresholding (keep all cells)")
-    parser.add_argument("--visualize", action="store_true", help="Create document fingerprint visualizations")
-    parser.add_argument("--use_spacy", action="store_true", help="Force use of spaCy for phrase extraction")
-
-    args = parser.parse_args()
-
-    logger.info("Starting document fingerprint generation...")
-    logger.info(f"Corpus: {args.corpus_path}")
-    logger.info(f"Phrases: {args.phrases_path}")
-    logger.info(f"Fingerprints: {args.fingerprints_dir}")
-    logger.info(f"Output: {args.output_dir}")
-    logger.info(f"Grid size: {args.grid_size}x{args.grid_size}")
-
-    # Override spaCy availability if requested
-    global SPACY_AVAILABLE
-    if args.use_spacy and not SPACY_AVAILABLE:
-        logger.warning("spaCy requested but not available")
-    elif not args.use_spacy:
-        SPACY_AVAILABLE = False
-    # Load inputs
-    all_phrases = load_phrases(Path(args.phrases_path))
-    contexts = load_contexts_dict(Path(args.corpus_path))
-
-    # Limit documents for testing
-    if args.max_docs:
-        context_items = list(contexts.items())[:args.max_docs]
-        contexts = dict(context_items)
-        logger.info(f"Limited processing to {len(contexts)} documents for testing")
-
-    # Load fingerprint cache
-    fingerprint_cache = load_fingerprint_cache(
-        Path(args.fingerprints_dir), all_phrases, args.grid_size
+    matched_phrases = extract_phrases_from_doc(
+        doc_text, phrase_fingerprints, use_spacy=use_spacy
     )
 
-    # Create output directory
-    output_dir = Path(args.output_dir)
-    doc_fingerprints_dir = output_dir / "doc_fingerprints"
-    doc_fingerprints_dir.mkdir(parents=True, exist_ok=True)
+    for phrase in matched_phrases:
+        vec = phrase_fingerprints.get(phrase)
+        if vec is None:
+            continue
+        weight = idf_weights.get(phrase, 1.0)
 
-    logger.info(f"Generating document fingerprints for {len(contexts)} documents")
-    logger.info(f"Available phrase fingerprints: {sum(1 for v in fingerprint_cache.values() if v is not None)}")
+        # vec may be ndarray (1-D) or csr_matrix (1, n)
+        if isinstance(vec, np.ndarray):
+            flat = vec.flatten()[:n]
+            acc[0, : len(flat)] += weight * flat
+        else:
+            acc += weight * vec
 
-    # Process each document
-    successful_docs = 0
-    total_matched_phrases = 0
-    total_doc_phrases = 0
+        hits += 1
 
-    with tqdm(total=len(contexts), desc="Generating document fingerprints") as pbar:
-        for context_id, context_text in contexts.items():
-            try:
-                if args.use_spacy and SPACY_AVAILABLE and SPACY_MODEL_AVAILABLE:
-                    context_phrases = extract_phrases_spacy(context_text, 1000)                   
-                else:
-                    context_phrases = extract_phrases_fallback(context_text)
-                    # Generate document fingerprint
-                context_phrases = expand_phrases(context_phrases)
-                final_phrases = []
-                for p in context_phrases : 
-                    normalized_phrase = process_lemmatize(p)
-                    if len(normalized_phrase) > 1 : 
-                        final_phrases.append(normalized_phrase)
-                final_phrases = [ item for item in set(final_phrases)]
-                doc_fingerprint, metadata = generate_document_fingerprint(
-                    context_text, fingerprint_cache, final_phrases, args.grid_size, args.no_threshold, args.top_percent
-                )
+    if hits == 0:
+        return None
 
-                # Save fingerprint and metadata
-                save_document_fingerprint(
-                    doc_fingerprint, metadata, context_id, context_text, doc_fingerprints_dir
-                )
+    return acc.tocsr()
 
-                # Optional visualization
-                if args.visualize:
-                    create_document_visualization(doc_fingerprint, context_id, output_dir)
 
-                successful_docs += 1
-                total_matched_phrases += metadata['matched_phrases']
-                total_doc_phrases += metadata['total_doc_phrases']
+# ---------------------------------------------------------------------------
+# SDR sparsifier  (thin wrapper around lib.sparsify_fingerprint)
+# ---------------------------------------------------------------------------
 
-                # Log progress periodically
-                if successful_docs % 500 == 0:
-                    avg_coverage = total_matched_phrases / max(1, total_doc_phrases)
-                    logger.info(f"Processed {successful_docs}/{len(contexts)} documents. "
-                              f"Average phrase coverage: {avg_coverage:.3f}")
+def sparsify_to_sdr(
+    fingerprint : csr_matrix,
+    top_percent : float,
+    grid_size   : int,
+) -> csr_matrix:
+    """Keep only the top ``top_percent`` fraction of bits (Morton ordering)."""
+    top_k = max(1, int(round(top_percent * grid_size * grid_size)))
+    return sparsify_fingerprint(
+        fingerprint,
+        top_k      = top_k,
+        use_zorder = True,
+        grid_size  = grid_size,
+    )
 
-            except Exception as e:
-                logger.error(f"Failed to process document '{context_id}': {e}")
 
-            pbar.update(1)
+# ---------------------------------------------------------------------------
+# Main pipeline  (build only — saving is handled by write_outputs)
+# ---------------------------------------------------------------------------
 
-    # Final statistics
-    if successful_docs > 0:
-        avg_coverage = total_matched_phrases / max(1, total_doc_phrases)
-        avg_fingerprint_sum = total_matched_phrases / successful_docs
+def build_doc_fingerprints(
+    corpus_path       : Path,
+    phrases_path      : Path,
+    fingerprints_path : Path,
+    grid_size         : int   = 16,
+    top_percent       : float = 0.1,
+    min_freq          : int   = 1,
+    normalize         : bool  = True,
+    normalize_method  : str   = "l2",
+    use_spacy         : bool  = True,
+    remove_verbs      : bool  = True,
+    compute_diversity : bool  = False,
+    diversity_sample  : int   = 100,
+) -> Tuple[np.ndarray, Dict[str, int], dict]:
+    """
+    Full Step-5 pipeline (build only — saving handled by write_outputs).
 
-        logger.info("Document fingerprint generation completed:")
-        logger.info(f"  Total documents: {len(contexts)}")
-        logger.info(f"  Successful fingerprints: {successful_docs}")
-        logger.info(f"  Average phrase coverage: {avg_coverage:.3f}")
-        logger.info(f"  Average matched phrases per doc: {avg_fingerprint_sum:.1f}")
-        logger.info(f"  Output directory: {doc_fingerprints_dir}")
+    Returns
+    -------
+    fingerprint_matrix : np.ndarray, shape (n_docs, grid_size²)
+    doc_index_map      : Dict[str, int]  —  doc_id → row index
+    stats              : dict
+    """
 
-        # Sample file statistics
-        sample_files = list(doc_fingerprints_dir.glob("*_fingerprint.txt"))[:5]
-        if sample_files:
-            total_size = sum(f.stat().st_size for f in sample_files)
-            avg_size = total_size / len(sample_files)
-            logger.info(f"  Average fingerprint file size: {avg_size:.0f} bytes")
+    # 1. Phrase inventory
+    logger.info("Loading phrase inventory from %s ...", phrases_path)
+    phrase_tuples = load_phrases(phrases_path, min_freq=min_freq)
+    phrase_set    = {p for p, _ in phrase_tuples}
+    logger.info("  %d phrases loaded (min_freq=%d)", len(phrase_set), min_freq)
+
+    # 2. Phrase fingerprints from Step 4 output directory
+    logger.info("Loading phrase fingerprints from %s ...", fingerprints_path)
+    phrase_fingerprints = load_phrase_fingerprints_sparse(
+        fingerprints_dir = fingerprints_path,
+        grid_size        = grid_size,
+    )
+    phrase_fingerprints = {
+        p: v for p, v in phrase_fingerprints.items() if p in phrase_set
+    }
+    logger.info("  %d phrase fingerprints after inventory filter.", len(phrase_fingerprints))
+
+    if not phrase_fingerprints:
+        logger.error(
+            "No phrase fingerprints remain after inventory filter. "
+            "Check that --phrases and --fingerprints are from the same pipeline run."
+        )
+        sys.exit(1)
+
+    # 3. Corpus
+    logger.info("Loading corpus from %s ...", corpus_path)
+    contexts = load_contexts_dict(corpus_path)
+    logger.info("  %d documents loaded", len(contexts))
+
+    # 4. IDF weights
+    logger.info("Computing IDF weights ...")
+    idf_weights = compute_idf_weights(
+        list(phrase_fingerprints.keys()),
+        list(contexts.values()),
+    )
+
+    # 5 + 6 + 7.  Build → sparsify → normalise
+    top_k_bits = max(1, int(round(top_percent * grid_size * grid_size)))
+    logger.info(
+        "Building document fingerprints (grid=%d, top_percent=%.3f → top_k=%d bits) ...",
+        grid_size, top_percent, top_k_bits,
+    )
+
+    if use_spacy and not SPACY_AVAILABLE:
+        logger.warning(
+            "spaCy requested but unavailable — falling back to NLTK. "
+            "Ensure this matches the setting used in Step 1."
+        )
+
+    sparse_fps    : Dict[str, csr_matrix] = {}
+    doc_index_map : Dict[str, int]        = {}
+    active_bits   : List[int]             = []
+    skipped = 0
+
+    for doc_id, doc_text in contexts.items():
+
+        # ── single-document fingerprint ──────────────────────────────
+        raw_fp = build_document_fingerprint(          # ← correct function name
+            doc_text            = doc_text,
+            phrase_fingerprints = phrase_fingerprints,
+            idf_weights         = idf_weights,
+            grid_size           = grid_size,
+            use_spacy           = use_spacy,
+            remove_verbs        = remove_verbs,
+        )
+        if raw_fp is None:
+            skipped += 1
+            logger.debug("  doc %s — no matching phrases, skipped", doc_id)
+            continue
+
+        sparse_fp = sparsify_to_sdr(raw_fp, top_percent=top_percent, grid_size=grid_size)
+
+        if normalize:
+            sparse_fp = normalize_fingerprint(sparse_fp, method=normalize_method)
+
+        row_idx               = len(sparse_fps)
+        sparse_fps[doc_id]    = sparse_fp
+        doc_index_map[doc_id] = row_idx
+        active_bits.append(sparse_fp.nnz)
+
+        logger.debug(
+            "  doc %-20s  nnz=%4d  density=%.4f",
+            doc_id, sparse_fp.nnz, sparse_fp.nnz / (grid_size * grid_size),
+        )
+
+    logger.info(
+        "Built %d document fingerprints  (%d skipped — no vocabulary match)",
+        len(sparse_fps), skipped,
+    )
+
+    # 8. Optional diversity report
+    if compute_diversity and sparse_fps:
+        logger.info("Computing fingerprint diversity (sample=%d) ...", diversity_sample)
+        diversity = compute_fingerprint_diversity(sparse_fps, sample_size=diversity_sample)
+        for metric, value in sorted(diversity.items()):
+            logger.info("  %-30s = %.6f", metric, value)
+
+    # 9. Convert sparse dict → dense matrix
+    fp_matrix = (
+        np.vstack([sparse_fps[d].toarray().astype(np.float32) for d in sparse_fps])
+        if sparse_fps
+        else np.zeros((0, grid_size * grid_size), dtype=np.float32)
+    )
+
+    stats = {
+        "total_documents"    : len(contexts),
+        "fingerprinted_docs" : len(sparse_fps),
+        "skipped_docs"       : skipped,
+        "skip_rate_pct"      : round(skipped / len(contexts) * 100, 2) if contexts else 0.0,
+        "vector_size"        : grid_size * grid_size,
+        "avg_active_bits"    : round(float(np.mean(active_bits)), 2) if active_bits else 0.0,
+        "grid_size"          : grid_size,
+        "top_percent"        : top_percent,
+    }
+
+    return fp_matrix, doc_index_map, stats
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Step 5 — Build document fingerprints from phrase SDRs.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument("--corpus",       type=Path, required=True)
+    parser.add_argument("--phrases",      type=Path, required=True)
+    parser.add_argument("--fingerprints", type=Path, required=True,
+        help="Step 4 output directory (contains phrase_fingerprints.npz + _meta.json).")
+
+    # mirrors phrase_fingerprints.py exactly
+    parser.add_argument(
+        "--output-dir", type=Path, required=True, dest="output",
+        help="Directory into which doc fingerprint outputs are written.",
+    )
+
+    parser.add_argument("--grid-size",         type=int,   default=16,   dest="grid_size")
+    parser.add_argument("--top-percent",       type=float, default=0.1,  dest="top_percent")
+    parser.add_argument("--min-freq",          type=int,   default=1,    dest="min_freq")
+
+    parser.add_argument("--normalize",         action="store_true",  default=True)
+    parser.add_argument("--no-normalize",      dest="normalize",     action="store_false")
+    parser.add_argument("--normalize-method",  type=str, default="l2",
+                        choices=["l1", "l2", "max"])
+
+    parser.add_argument("--no-spacy",          action="store_true",  default=False)
+    parser.add_argument("--remove-verbs",      action="store_true",  default=True)
+    parser.add_argument("--keep-verbs",        dest="remove_verbs",  action="store_false")
+
+    parser.add_argument("--compute-diversity", action="store_true",  default=False)
+    parser.add_argument("--diversity-sample",  type=int,   default=100)
+
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+
+    logger.info("=" * 60)
+    logger.info("Semantic Folding — Step 5: Document Fingerprints")
+    logger.info("=" * 60)
+    logger.info("  corpus       : %s", args.corpus)
+    logger.info("  phrases      : %s", args.phrases)
+    logger.info("  fingerprints : %s", args.fingerprints)
+    logger.info("  output_dir   : %s", args.output)
+    logger.info("  grid_size    : %d  (%d bits)", args.grid_size, args.grid_size ** 2)
+    logger.info("  top_percent  : %.4f  (%.1f%%)", args.top_percent, args.top_percent * 100)
+    logger.info("  normalize    : %s (%s)", args.normalize, args.normalize_method)
+    logger.info("=" * 60)
+
+    fp_matrix, doc_index_map, stats = build_doc_fingerprints(
+        corpus_path       = args.corpus,
+        phrases_path      = args.phrases,
+        fingerprints_path = args.fingerprints,
+        grid_size         = args.grid_size,
+        top_percent       = args.top_percent,
+        min_freq          = args.min_freq,
+        normalize         = args.normalize,
+        normalize_method  = args.normalize_method,
+        use_spacy         = not args.no_spacy,
+        remove_verbs      = args.remove_verbs,
+        compute_diversity = args.compute_diversity,
+        diversity_sample  = args.diversity_sample,
+    )
+
+    try:
+        write_outputs(fp_matrix, doc_index_map, stats, args.output)
+    except OSError as exc:
+        logger.error("Failed to write outputs: %s", exc)
+        sys.exit(4)
+
+    logger.info("Step 5 complete — outputs written to: %s", args.output)
+    logger.info("Done.")
 
 
 if __name__ == "__main__":

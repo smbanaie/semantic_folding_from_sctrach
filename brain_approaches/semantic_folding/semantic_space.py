@@ -1,403 +1,1349 @@
 #!/usr/bin/env python3
 """
-Modernized Semantic Space Construction for Semantic Folding Pipeline
+semantic_space.py
+=================
 
-Creates semantic space by force-directed graph layout of term-context relationships,
-generating a configurable grid (16×16 default) with comprehensive visualizations.
+Pipeline step: **semantic-space**
+
+Embeds corpus *contexts* into a 2-D integer grid so that semantically similar
+contexts occupy neighbouring cells.  The resulting grid coordinates are the
+primary input consumed by the ``phrase-fingerprints`` step to construct
+fixed-length binary fingerprint vectors for every phrase.
+
+Overview
+--------
+The script operates on the term-context matrix produced by an upstream
+extraction step (e.g. ``term_context_matrix.npz`` + ``term_context_matrix.json``).
+Each *column* of that matrix is a high-dimensional sparse vector representing
+one context in phrase-space.  The pipeline is:
+
+1.  **Load** the sparse matrix and metadata.
+2.  **Transpose** so contexts become rows ``(num_contexts x num_phrases)``.
+3.  **Normalise** context vectors to unit L2 length (optional).
+4.  **Reduce** to 2-D continuous coordinates using t-SNE, UMAP, or PCA.
+5.  **Scale** continuous coordinates onto a discrete ``grid_size x grid_size``
+    integer grid.
+6.  **Resolve collisions** — contexts that map to the same cell are displaced
+    outward by spiral search.
+7.  **Write outputs** — continuous CSV, discrete CSV, primary JSON lookup map,
+    summary statistics, and optional visualisation PNG files.
+
+Inputs
+------
+``term_context_matrix.npz``
+    Compressed sparse matrix in CSR format with shape
+    ``(num_phrases, num_contexts)``.  Must contain the arrays ``data``,
+    ``indices``, ``indptr``, and ``shape``.
+
+``term_context_matrix.json``
+    Metadata file produced alongside the matrix.  Must contain at minimum:
+
+    * ``"num_contexts"`` — integer count of context columns.
+    * ``"num_phrases"``  — integer count of phrase rows.
+    * ``"context_ids"``  — ordered list of context identifier strings whose
+      position matches the column order of the matrix.
+
+Outputs
+-------
+``context_coordinates_continuous.csv``
+    Human-readable CSV of the raw floating-point 2-D coordinates produced by
+    the dimensionality reduction step, before any grid quantisation.  Format::
+
+        context_id,x,y
+        context_0,0.382941,-1.204718
+        context_1,2.019384, 0.774022
+
+``context_coordinates.csv``
+    Human-readable CSV of the final integer grid positions after quantisation
+    and collision resolution.  For inspection only — **not** consumed by
+    downstream automation::
+
+        context_id,x,y
+        context_0,5,12
+        context_1,14,3
+
+``context_coordinates.json``  *(primary machine-readable output)*
+    JSON object mapping every ``context_id`` to its finalised integer grid
+    position.  This file is the **only** coordinates file read by
+    ``phrase_fingerprints.py`` because it enables ``O(1)`` dictionary
+    lookup::
+
+        {
+            "context_0": {"x": 5,  "y": 12},
+            "context_1": {"x": 14, "y": 3}
+        }
+
+``coordinate_statistics.json``
+    JSON object containing run-level summary statistics.  All grid metrics
+    (collision rate, unique positions) are computed **after** collision
+    resolution is complete so the reported numbers reflect the true final
+    state of the grid.
+
+``semantic_space_{method}_continuous.png``  *(optional)*
+    Scatter plot of the continuous 2-D embedding.  Generated only when
+    ``--visualize`` is passed.
+
+``semantic_space_{method}_grid.png``  *(optional)*
+    Scatter plot of the discrete grid positions.  Generated only when
+    ``--visualize`` is passed and ``--no-grid`` is not set.
+
+Design Decisions
+----------------
+**JSON over CSV for downstream consumption**
+    ``context_coordinates.json`` is the single authoritative coordinate source
+    for all downstream automation.  The CSV files exist solely for human
+    inspection and debugging.  This separation was introduced to provide
+    ``O(1)`` context lookup instead of ``O(N)`` CSV scanning.
+
+**Morton codes are NOT used here**
+    Morton (Z-order) encoding was evaluated for grid construction but was
+    superseded by spiral-search collision resolution, which preserves the
+    spatial layout produced by the dimensionality reducer more faithfully.
+    Morton encoding *is* used in ``phrase_fingerprints.py`` for a different
+    purpose — linearising 2-D grid coordinates into a 1-D fingerprint index.
+
+**Statistics after finalisation**
+    All statistics (collision rate, unique positions) are computed after the
+    spiral-search pass is complete so they accurately describe the outputs
+    that downstream steps will consume.
+
+**Stable output filenames**
+    Output filenames are fixed strings (e.g. ``context_coordinates.json``)
+    and never embed the method name or any runtime parameter.  Method-labelled
+    names are used only for the optional visualisation PNGs.
+
+Usage
+-----
+::
+
+    # t-SNE (default) on a 64x64 grid
+    python semantic_space.py \\
+        --matrix   runs/run_001/term_context_matrix.npz \\
+        --metadata runs/run_001/term_context_matrix.json \\
+        --output   runs/run_001/ \\
+        --method   tsne \\
+        --grid-size 64
+
+    # UMAP, skip collision resolution, produce visualisations
+    python semantic_space.py \\
+        --matrix   runs/run_001/term_context_matrix.npz \\
+        --metadata runs/run_001/term_context_matrix.json \\
+        --output   runs/run_001/ \\
+        --method   umap \\
+        --grid-size 128 \\
+        --no-collision-resolution \\
+        --visualize \\
+        --show-density
+
+    # PCA, continuous coordinates only (no grid)
+    python semantic_space.py \\
+        --matrix   runs/run_001/term_context_matrix.npz \\
+        --metadata runs/run_001/term_context_matrix.json \\
+        --output   runs/run_001/ \\
+        --method   pca \\
+        --no-grid
+
+Exit Codes
+----------
+0   Success.
+1   Input validation error (file not found, shape mismatch, import failure).
 """
 
 import argparse
-import csv
-import json, time
+import json
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
-import warnings
+from typing import Any, Dict, List, Optional, Tuple
 
-from lib import load_contexts_dict
-import loguru
 from loguru import logger
-from tqdm import tqdm
-
-# Try to import required dependencies
-try:
-    import networkx as nx
-    NETWORKX_AVAILABLE = True
-except ImportError:
-    logger.warning("networkx not available. Install with: pip install networkx")
-    NETWORKX_AVAILABLE = False
 
 try:
     import numpy as np
-    NUMPY_AVAILABLE = True
 except ImportError:
-    logger.warning("numpy not available. Install with: pip install numpy")
-    NUMPY_AVAILABLE = False
+    logger.error("numpy is required.  Install with: pip install numpy")
+    exit(1)
 
 try:
-    import scipy.sparse
-    SCIPY_AVAILABLE = True
+    from scipy.sparse import csr_matrix, issparse
 except ImportError:
-    logger.warning("scipy not available. Install with: pip install scipy")
-    SCIPY_AVAILABLE = False
-
-try:
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    MATPLOTLIB_AVAILABLE = True
-except ImportError:
-    logger.warning("matplotlib/seaborn not available. Install with: pip install matplotlib seaborn")
-    MATPLOTLIB_AVAILABLE = False
-
-try:
-    import plotly.graph_objs as go
-    PLOTLY_AVAILABLE = True
-except ImportError:
-    logger.warning("plotly not available. Install with: pip install plotly")
-    PLOTLY_AVAILABLE = False
+    logger.error("scipy is required.  Install with: pip install scipy")
+    exit(1)
 
 
-def load_sparse_matrix(matrix_path: Path) -> Tuple[Optional[scipy.sparse.csr_matrix], Dict[str, Any]]:
-    """Load sparse term-context matrix from NPZ format"""
-    if not SCIPY_AVAILABLE:
-        raise RuntimeError("scipy not available for sparse matrix loading")
+# ---------------------------------------------------------------------------
+# Data Loading
+# ---------------------------------------------------------------------------
 
-    logger.info(f"Loading sparse matrix from: {matrix_path}")
+def load_metadata(metadata_path: Path) -> Dict[str, Any]:
+    """
+    Load the term-context matrix metadata JSON produced by an upstream step.
 
-    # Load the NPZ file
+    The metadata file is expected to be a flat JSON object.  The following
+    keys are required by this script:
+
+    * ``"num_contexts"`` — total number of context columns in the matrix.
+    * ``"num_phrases"``  — total number of phrase rows in the matrix.
+    * ``"context_ids"``  — ordered list of context identifier strings.  The
+      position of each string in the list must correspond to the column index
+      of that context in the sparse matrix.
+
+    Additional keys (e.g. ``"created_at"``, ``"source_corpus"``) are allowed
+    and are ignored.
+
+    Parameters
+    ----------
+    metadata_path:
+        Absolute or relative path to ``term_context_matrix.json``.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The full parsed metadata dictionary.
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``metadata_path`` does not exist.
+    json.JSONDecodeError
+        If the file is not valid JSON.
+    KeyError
+        If any of the three required keys is absent.
+    """
+    logger.info(f"Loading metadata from: {metadata_path}")
+
+    with open(metadata_path, "r", encoding="utf-8") as fh:
+        metadata = json.load(fh)
+
+    logger.success(
+        f"Loaded metadata: {metadata['num_contexts']} contexts, "
+        f"{metadata['num_phrases']} phrases"
+    )
+    return metadata
+
+
+def load_sparse_matrix(matrix_path: Path) -> csr_matrix:
+    """
+    Load the sparse term-context matrix from a compressed NumPy archive.
+
+    The ``.npz`` file must have been saved in CSR (Compressed Sparse Row)
+    format and must contain the four arrays that define a CSR matrix:
+
+    * ``"data"``    — non-zero values.
+    * ``"indices"`` — column indices for each value in ``data``.
+    * ``"indptr"``  — row pointer array.
+    * ``"shape"``   — tuple ``(num_phrases, num_contexts)``.
+
+    The matrix is oriented as **phrases × contexts** (rows are phrases,
+    columns are contexts).  The transposition to **contexts × phrases** is
+    performed in :func:`prepare_context_vectors`.
+
+    Parameters
+    ----------
+    matrix_path:
+        Absolute or relative path to ``term_context_matrix.npz``.
+
+    Returns
+    -------
+    scipy.sparse.csr_matrix
+        Sparse matrix of shape ``(num_phrases, num_contexts)``.
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``matrix_path`` does not exist.
+    KeyError
+        If any of the four required arrays is missing from the archive.
+    """
+    logger.info(f"Loading matrix from: {matrix_path}")
+
     npz_data = np.load(matrix_path)
-    matrix = scipy.sparse.csr_matrix(
-        (npz_data['data'], npz_data['indices'], npz_data['indptr']),
-        shape=npz_data['shape']
+    matrix = csr_matrix(
+        (npz_data["data"], npz_data["indices"], npz_data["indptr"]),
+        shape=tuple(npz_data["shape"]),
     )
 
-    # Load metadata
-    metadata_path = matrix_path.with_suffix('.json')
-    with open(metadata_path, 'r') as f:
-        metadata = json.load(f)
+    density = matrix.nnz / (matrix.shape[0] * matrix.shape[1]) * 100
+    logger.success(
+        f"Matrix shape: {matrix.shape} (phrases x contexts), "
+        f"density: {density:.4f}%, nnz: {matrix.nnz}"
+    )
+    return matrix
 
-    logger.success(f"Loaded matrix: {matrix.shape}, {matrix.nnz} non-zero entries")
-    return matrix, metadata
+
+# ---------------------------------------------------------------------------
+# Vector Preparation
+# ---------------------------------------------------------------------------
+
+def prepare_context_vectors(
+    matrix: csr_matrix,
+    normalize: bool = True,
+    keep_sparse: bool = False,
+):
+    """
+    Prepare context feature vectors from the phrase-context matrix.
+
+    Transposes the input matrix from ``(num_phrases, num_contexts)`` to
+    ``(num_contexts, num_phrases)`` so that each *row* becomes the feature
+    vector of one context expressed in phrase-space.  Optionally applies L2
+    normalisation and optionally converts to a dense NumPy array.
+
+    Parameters
+    ----------
+    matrix:
+        Sparse matrix of shape ``(num_phrases, num_contexts)`` as returned by
+        :func:`load_sparse_matrix`.
+    normalize:
+        If ``True`` (default), each context vector is scaled to unit L2 norm
+        using ``sklearn.preprocessing.normalize``.  This ensures cosine
+        similarity is equivalent to dot-product similarity, which is
+        appropriate for UMAP with ``metric='cosine'`` and for t-SNE.
+    keep_sparse:
+        If ``True``, the matrix is kept in sparse format after normalisation.
+        Useful when ``--use-sparse`` is passed and the method supports sparse
+        input (UMAP, TruncatedSVD).  If ``False`` (default) the matrix is
+        converted to a dense ``numpy.ndarray``.  A warning is emitted if the
+        estimated dense size exceeds 1 GB.
+
+    Returns
+    -------
+    numpy.ndarray or scipy.sparse.csr_matrix
+        Context vectors of shape ``(num_contexts, num_phrases)``.
+        Type is ``numpy.ndarray`` when ``keep_sparse=False``, or
+        ``csr_matrix`` when ``keep_sparse=True``.
+
+    Notes
+    -----
+    The dense memory estimate uses 8 bytes per element (float64).  If the
+    actual dtype is float32 the true cost is half that, but the warning is
+    intentionally conservative.
+    """
+    logger.info("Transposing matrix to get context vectors (contexts x phrases)...")
+    context_matrix = matrix.T.tocsr()
+
+    if normalize:
+        from sklearn.preprocessing import normalize as sk_normalize
+
+        logger.info("Normalizing context vectors (L2)...")
+        context_matrix = sk_normalize(context_matrix, norm="l2", axis=1)
+
+    if not keep_sparse:
+        dense_gb = (
+            context_matrix.shape[0] * context_matrix.shape[1] * 8
+        ) / (1024 ** 3)
+        if dense_gb > 1.0:
+            logger.warning(
+                f"Dense matrix would be ~{dense_gb:.1f} GB. "
+                f"Consider passing --use-sparse for UMAP or PCA."
+            )
+        context_matrix = context_matrix.toarray()
+
+    logger.success(
+        f"Context vectors ready: "
+        f"{context_matrix.shape[0]} contexts x {context_matrix.shape[1]} phrases"
+    )
+    return context_matrix
 
 
-def load_dense_matrix(matrix_path: Path) -> Tuple[Dict[str, List[int]], Dict[str, Any]]:
-    """Load dense term-context matrix from CSV format (fallback)"""
-    logger.info(f"Loading dense matrix from: {matrix_path}")
+# ---------------------------------------------------------------------------
+# Dimensionality Reduction
+# ---------------------------------------------------------------------------
 
-    matrix = {}
-    phrases = []
+def reduce_dimensions_tsne(
+    vectors: np.ndarray,
+    perplexity: int = 30,
+    n_iter: int = 1000,
+    n_jobs: int = 1,
+    random_state: int = 42,
+) -> np.ndarray:
+    """
+    Reduce context vectors to 2-D continuous coordinates using t-SNE.
 
-    with open(matrix_path, 'r', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        header = next(reader)
-        phrases = header[1:]  # Skip "Context ID" column
+    t-SNE (t-distributed Stochastic Neighbour Embedding) is the default
+    reduction method.  It excels at revealing local cluster structure but
+    does not preserve global distances.  For small corpora (< 500 contexts)
+    t-SNE typically produces the most visually interpretable layouts.
 
-        for row in reader:
-            context_id = row[0]
-            values = [int(x) for x in row[1:]]
-            matrix[context_id] = values
+    The ``perplexity`` parameter is automatically clamped to
+    ``min(perplexity, max(5, n_samples // 3))`` to prevent sklearn from
+    raising an error when the number of samples is small.
 
-    metadata = {
-        'num_contexts': len(matrix),
-        'num_phrases': len(phrases),
-        'phrases': phrases
-    }
+    Parameters
+    ----------
+    vectors:
+        Dense float array of shape ``(num_contexts, num_phrases)``.
+    perplexity:
+        t-SNE perplexity, loosely interpretable as the number of effective
+        nearest neighbours.  Typical range: 5–50.  Clamped automatically.
+    n_iter:
+        Maximum number of optimisation iterations.
+    n_jobs:
+        Number of parallel threads for nearest-neighbour search.
+        ``-1`` uses all available cores.
+    random_state:
+        Random seed for reproducibility.
 
-    logger.success(f"Loaded dense matrix: {len(matrix)} contexts × {len(phrases)} phrases")
-    return matrix, metadata
+    Returns
+    -------
+    numpy.ndarray
+        Float64 array of shape ``(num_contexts, 2)`` containing the 2-D
+        continuous coordinates.
 
-def build_semantic_graph(matrix: scipy.sparse.csr_matrix,
-                        metadata: Dict[str, Any],
-                        contexts :  Dict[str, str],
-                        edge_threshold: float = 0.1,
-                        max_edges: int = 50000) -> nx.Graph:
-    """Build semantic graph from term-context matrix"""
-    if not NETWORKX_AVAILABLE:
-        raise RuntimeError("networkx not available for graph construction")
+    Notes
+    -----
+    ``sklearn.manifold.TSNE`` is used internally.  The KL divergence of the
+    final embedding is logged at ``SUCCESS`` level as a quality indicator —
+    lower values indicate a better-fitting embedding.
+    """
+    from sklearn.manifold import TSNE
 
-    logger.info("Building semantic graph from term-context matrix")
+    n_samples = vectors.shape[0]
+    perplexity = min(perplexity, max(5, n_samples // 3))
+    logger.info(
+        f"Running t-SNE: n_samples={n_samples}, "
+        f"perplexity={perplexity}, n_iter={n_iter}"
+    )
 
-    num_contexts = metadata['num_contexts']
+    if issparse(vectors):
+        vectors = vectors.toarray()
 
-    # For sparse matrix, we need to compute context-context similarities
-    # This is expensive for large matrices, so we'll sample or use approximation
-    if num_contexts > 1000:
-        logger.warning(f"Large matrix ({num_contexts} contexts). Using sampled graph construction.")
-        # Sample a subset of contexts for graph building
-        sample_size = min(1000, num_contexts)
-        indices = np.random.choice(num_contexts, sample_size, replace=False)
-        submatrix = matrix[indices]
-        context_ids = [f"context_{i}" for i in indices]
+    tsne = TSNE(
+        n_components=2,
+        perplexity=perplexity,
+        max_iter=n_iter,       
+        n_jobs=n_jobs,
+        random_state=random_state,
+        verbose=1,
+    )
+    coordinates = tsne.fit_transform(vectors)
+    logger.success(f"t-SNE done.  KL divergence: {tsne.kl_divergence_:.4f}")
+    return coordinates
+
+
+def reduce_dimensions_umap(
+    vectors: np.ndarray,
+    n_neighbors: int = 15,
+    min_dist: float = 0.1,
+    metric: str = "cosine",
+    n_jobs: int = 1,
+    random_state: int = 42,
+) -> np.ndarray:
+    """
+    Reduce context vectors to 2-D continuous coordinates using UMAP.
+
+    UMAP (Uniform Manifold Approximation and Projection) is faster than t-SNE
+    for large corpora and better preserves global structure.  It is
+    recommended when the number of contexts exceeds ~2 000.
+
+    The ``n_neighbors`` parameter is automatically clamped to
+    ``min(n_neighbors, max(2, n_samples // 2))`` to avoid errors when the
+    dataset is small.
+
+    Parameters
+    ----------
+    vectors:
+        Dense or sparse float array of shape ``(num_contexts, num_phrases)``.
+        Sparse input is supported when ``metric='cosine'`` and the ``umap``
+        package version supports it.
+    n_neighbors:
+        Number of neighbours considered for manifold approximation.  Higher
+        values emphasise global structure; lower values emphasise local
+        clusters.  Clamped automatically.
+    min_dist:
+        Minimum distance between embedded points.  Smaller values allow
+        tighter clusters; larger values produce a more uniform spread.
+    metric:
+        Distance metric for the high-dimensional neighbour graph.  Defaults
+        to ``'cosine'``, which pairs well with L2-normalised vectors.
+    n_jobs:
+        Number of parallel threads.  ``-1`` uses all available cores.
+    random_state:
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    numpy.ndarray
+        Float32 array of shape ``(num_contexts, 2)`` containing the 2-D
+        continuous coordinates.
+
+    Raises
+    ------
+    ImportError
+        If the ``umap-learn`` package is not installed.
+    """
+    import umap
+
+    n_samples = vectors.shape[0]
+    n_neighbors = min(n_neighbors, max(2, n_samples // 2))
+    logger.info(
+        f"Running UMAP: n_samples={n_samples}, n_neighbors={n_neighbors}, "
+        f"min_dist={min_dist}, metric={metric}"
+    )
+
+    reducer = umap.UMAP(
+        n_components=2,
+        n_neighbors=n_neighbors,
+        min_dist=min_dist,
+        metric=metric,
+        n_jobs=n_jobs,
+        random_state=random_state,
+        verbose=True,
+    )
+    coordinates = reducer.fit_transform(vectors)
+    logger.success("UMAP completed.")
+    return coordinates
+
+
+def reduce_dimensions_pca(vectors: np.ndarray) -> np.ndarray:
+    """
+    Reduce context vectors to 2-D continuous coordinates using PCA.
+
+    PCA (Principal Component Analysis) is the fastest of the three supported
+    methods and is fully deterministic, making it suitable for debugging and
+    for corpora where interpretable global variance is more important than
+    local cluster separation.
+
+    When ``vectors`` is a sparse matrix, ``sklearn.decomposition.TruncatedSVD``
+    is used instead of full PCA because it avoids materialising the dense
+    centred matrix.  The result is mathematically equivalent to PCA on
+    non-centred data.
+
+    Parameters
+    ----------
+    vectors:
+        Dense or sparse float array of shape ``(num_contexts, num_phrases)``.
+
+    Returns
+    -------
+    numpy.ndarray
+        Float64 array of shape ``(num_contexts, 2)`` containing the 2-D
+        continuous coordinates along the top two principal components.
+
+    Notes
+    -----
+    The fraction of variance explained by each principal component is logged
+    at ``SUCCESS`` level.  Very low values (e.g. < 5 %) indicate that the
+    two-dimensional projection captures little of the true variance and that
+    t-SNE or UMAP may produce a more meaningful layout.
+    """
+    from sklearn.decomposition import PCA, TruncatedSVD
+
+    logger.info(f"Running PCA: n_samples={vectors.shape[0]}")
+
+    if issparse(vectors):
+        pca = TruncatedSVD(n_components=2, random_state=42)
     else:
-        submatrix = matrix
-        context_ids = [f"context_{i}" for i in range(num_contexts)]
+        pca = PCA(n_components=2, random_state=42)
 
-    logger.info(f"Computing similarities for {len(context_ids)} contexts")
+    coordinates = pca.fit_transform(vectors)
+    explained = pca.explained_variance_ratio_
+    logger.success(
+        f"PCA done.  Variance explained: "
+        f"PC1={explained[0]:.2%}, PC2={explained[1]:.2%}"
+    )
+    return coordinates
 
-    G = nx.Graph()
 
-    # Add nodes
-    for i, context_id in enumerate(context_ids):
-        G.add_node(context_id)
+# ---------------------------------------------------------------------------
+# Grid Mapping
+# ---------------------------------------------------------------------------
 
-    # Compute pairwise similarities (dot product of context vectors)
-    logger.info("Computing context-context similarities...")
+def resolve_collisions(
+    grid_coords: np.ndarray,
+    grid_size: int,
+    max_radius: int = 10,
+) -> np.ndarray:
+    """
+    Displace contexts that share a grid cell by outward spiral search.
 
-    # For efficiency, only compute upper triangle and threshold
-    edge_count = 0
-    for i in tqdm(range(len(context_ids)), desc="Building graph"):
-        for j in range(i + 1, len(context_ids)):
-            vector_i = matrix[i].toarray().flatten()
-            vector_j = matrix[j].toarray().flatten()
-            dot_product = np.dot(vector_i, vector_j)
-            magnitude_i = np.linalg.norm(vector_i)
-            magnitude_j = np.linalg.norm(vector_j)
-            similarity = dot_product / (magnitude_i * magnitude_j)
-            if similarity > edge_threshold:
-                logger.info(f"Similarity of Context_{i} and Context_{j} : {similarity}")
-                time.sleep(0.3)
-                G.add_edge(context_ids[i], context_ids[j], weight=similarity)
-                edge_count += 1
-                # Limit edges to prevent memory issues
-                if edge_count >= max_edges:
-                    logger.warning(f"Reached maximum edges limit ({max_edges}). Stopping graph construction.")
+    After quantisation, multiple contexts may map to the same integer cell.
+    This function iterates through all contexts in their original order and,
+    for each context whose target cell is already occupied, searches outward
+    in expanding square shells until it finds the nearest free cell within
+    ``max_radius`` steps.
+
+    Algorithm
+    ~~~~~~~~~
+    For each context ``idx`` at quantised position ``(x, y)``:
+
+    * If ``(x, y)`` is unoccupied, claim it and continue.
+    * Otherwise, iterate shells ``radius = 1, 2, …, max_radius``.  For each
+      shell, visit every cell ``(x + dx, y + dy)`` where
+      ``max(|dx|, |dy|) == radius`` (the Chebyshev-distance boundary).
+    * Claim the first free in-bounds cell found and break.
+    * If no free cell exists within ``max_radius``, emit a ``WARNING`` and
+      leave the context at its original (shared) position.
+
+    The traversal order within each shell is deterministic (row-major over
+    ``dx`` then ``dy``) so results are reproducible for identical inputs.
+
+    Parameters
+    ----------
+    grid_coords:
+        Integer array of shape ``(num_contexts, 2)`` containing the
+        quantised ``(x, y)`` positions produced by :func:`scale_to_grid`
+        before collision handling.
+    grid_size:
+        Side length of the square grid.  Candidate cells are rejected if
+        either coordinate falls outside ``[0, grid_size - 1]``.
+    max_radius:
+        Maximum Chebyshev radius of the spiral search.  Contexts that cannot
+        be placed within this radius share a cell with another context.
+        Increase ``--grid-size`` or ``--collision-radius`` to reduce this.
+
+    Returns
+    -------
+    numpy.ndarray
+        Integer array of shape ``(num_contexts, 2)`` with collision-resolved
+        positions.  The input array is not modified in place; a copy is
+        returned.
+
+    Notes
+    -----
+    This function is intentionally **not** named ``resolve_collisions`` in the
+    parameter list of :func:`scale_to_grid` — the parameter there is called
+    ``fix_collisions`` to avoid shadowing this function's name within the same
+    module scope.
+    """
+    occupied: Dict[Tuple[int, int], int] = {}
+    resolved = grid_coords.copy()
+    displaced = 0
+
+    for idx in range(len(grid_coords)):
+        x, y = int(grid_coords[idx, 0]), int(grid_coords[idx, 1])
+        pos = (x, y)
+
+        if pos not in occupied:
+            occupied[pos] = idx
+            continue
+
+        found = False
+        for radius in range(1, max_radius + 1):
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    if max(abs(dx), abs(dy)) != radius:
+                        continue
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < grid_size and 0 <= ny < grid_size:
+                        new_pos = (nx, ny)
+                        if new_pos not in occupied:
+                            occupied[new_pos] = idx
+                            resolved[idx] = [nx, ny]
+                            found = True
+                            displaced += 1
+                            break
+                if found:
                     break
-        if edge_count >= max_edges:
-            break
+            if found:
+                break
 
-    logger.success(f"Created graph with {len(G.nodes)} nodes and {len(G.edges)} edges")
-    return G
+        if not found:
+            logger.warning(
+                f"Context index {idx} could not be placed within radius "
+                f"{max_radius}.  It will share a cell — increase "
+                f"--grid-size or --collision-radius."
+            )
+
+    if displaced:
+        logger.info(f"Displaced {displaced} contexts to resolve collisions.")
+
+    return resolved
 
 
-def compute_force_layout(G: nx.Graph, grid_size: int) -> Dict[str, Tuple[float, float]]:
-    """Compute force-directed layout for semantic positioning"""
-    logger.info(f"Computing force-directed layout with grid size {grid_size}")
+def scale_to_grid(
+    coordinates: np.ndarray,
+    grid_size: int,
+    padding: int = 0,
+    fix_collisions: bool = True,
+    collision_radius: int = 10,
+) -> np.ndarray:
+    """
+    Map continuous 2-D coordinates onto a discrete ``grid_size x grid_size``
+    integer grid.
 
-    # Use spring layout with optimized parameters
-    pos = nx.spring_layout(
-        G,
-        seed=42,  # For reproducibility
-        k=grid_size / 5,  # Optimal distance between nodes
-        iterations=50,  # Balance speed vs quality
-        weight='weight'
+    The mapping preserves the relative spatial layout produced by the
+    dimensionality reducer while fitting all contexts into a bounded integer
+    grid suitable for fingerprint construction.
+
+    Steps
+    ~~~~~
+    1.  **Normalise** continuous coordinates to the unit square ``[0, 1]²``
+        by subtracting the per-axis minimum and dividing by the range.  A
+        small epsilon (``1e-10``) is added to the denominator to prevent
+        division by zero when all contexts share the same value on an axis.
+
+    2.  **Scale** to the effective grid region
+        ``[padding, grid_size - padding - 1]`` and round to the nearest
+        integer.  The result is clipped to ``[0, grid_size - 1]`` to handle
+        floating-point rounding at the boundaries.
+
+    3.  **Report** the pre-resolution collision rate for diagnostic purposes.
+
+    4.  **Resolve collisions** (optional) by calling :func:`resolve_collisions`
+        with a spiral search of radius up to ``collision_radius``.
+
+    The collision rate logged in step 3 reflects the state *before* resolution
+    so it can be compared with the post-resolution unique-position count that
+    is written to ``coordinate_statistics.json``.
+
+    Parameters
+    ----------
+    coordinates:
+        Float array of shape ``(num_contexts, 2)`` containing the continuous
+        2-D positions from the dimensionality reduction step.
+    grid_size:
+        Side length of the square grid.  The output will contain integer
+        values in ``[0, grid_size - 1]``.
+    padding:
+        Number of cells to reserve as a border margin on each side.  With
+        ``padding=2`` on a 64-cell grid the contexts are mapped into
+        ``[2, 61]²`` rather than ``[0, 63]²``.
+    fix_collisions:
+        If ``True`` (default), call :func:`resolve_collisions` to displace
+        contexts that share a cell.  If ``False``, the quantised positions are
+        returned as-is and multiple contexts may occupy the same cell.
+
+        .. note::
+            This parameter is named ``fix_collisions`` (not
+            ``resolve_collisions``) to avoid shadowing the module-level
+            function of the same name.
+
+    collision_radius:
+        Maximum spiral search radius passed to :func:`resolve_collisions`.
+        Ignored when ``fix_collisions=False``.
+
+    Returns
+    -------
+    numpy.ndarray
+        Integer array of shape ``(num_contexts, 2)`` with values in
+        ``[0, grid_size - 1]``.
+    """
+    logger.info(
+        f"Scaling to {grid_size}x{grid_size} grid (padding={padding})..."
     )
 
-    logger.success("Force-directed layout computed")
-    return pos
+    # Step 1 — normalise to [0, 1]
+    min_vals = coordinates.min(axis=0)
+    max_vals = coordinates.max(axis=0)
+    normalized = (coordinates - min_vals) / (max_vals - min_vals + 1e-10)
 
+    # Step 2 — scale to effective grid region and quantise
+    effective_size = grid_size - 2 * padding
+    scaled = normalized * (effective_size - 1) + padding
+    grid_coords = np.clip(np.round(scaled).astype(int), 0, grid_size - 1)
 
-def map_to_grid(positions: Dict[str, Tuple[float, float]],
-                grid_size: int) -> Dict[str, Tuple[int, int]]:
-    """Map continuous positions to discrete grid coordinates"""
-    logger.info(f"Mapping positions to {grid_size}×{grid_size} grid")
+    # Step 3 — report pre-resolution collision rate
+    unique_before = len(set(map(tuple, grid_coords.tolist())))
+    collision_rate = 1.0 - (unique_before / len(grid_coords))
+    logger.info(
+        f"Before resolution: {unique_before}/{len(grid_coords)} unique positions "
+        f"(collision rate: {collision_rate:.2%})"
+    )
 
-    grid_coords = {}
+    # Step 4 — optionally resolve collisions
+    if fix_collisions and collision_rate > 0:
+        grid_coords = resolve_collisions(
+            grid_coords, grid_size, collision_radius
+        )
+        unique_after = len(set(map(tuple, grid_coords.tolist())))
+        logger.info(
+            f"After resolution: {unique_after}/{len(grid_coords)} unique positions"
+        )
 
-    for node_id, (x, y) in positions.items():
-        # Normalize positions from spring layout (-1 to 1 range) to grid coordinates
-        # Add 1 to shift from (-1,1) to (0,2), then scale to grid
-        grid_x = int(((x + 1) / 2) * grid_size)
-        grid_y = int(((y + 1) / 2) * grid_size)
-
-        # Clamp to grid boundaries
-        grid_x = max(0, min(grid_size - 1, grid_x))
-        grid_y = max(0, min(grid_size - 1, grid_y))
-
-        grid_coords[node_id] = (grid_x, grid_y)
-
-    logger.success(f"Mapped {len(grid_coords)} nodes to grid coordinates")
     return grid_coords
 
 
-def save_coordinates(coordinates: Dict[str, Tuple[int, int]], output_path: Path) -> None:
-    """Save grid coordinates to CSV file"""
-    logger.info(f"Saving coordinates to: {output_path}")
+# ---------------------------------------------------------------------------
+# Output Writers
+# ---------------------------------------------------------------------------
 
-    with open(output_path, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['Context ID', 'Grid Coordinates'])
+def save_coordinates_csv(
+    coordinates: np.ndarray,
+    context_ids: List[str],
+    output_path: Path,
+    continuous: bool = False,
+) -> None:
+    """
+    Persist coordinates to a human-readable CSV file.
 
-        for context_id, (x, y) in coordinates.items():
-            writer.writerow([context_id, f"{x},{y}"])
+    Writes a three-column CSV with a header row:
 
-    logger.success(f"Saved coordinates for {len(coordinates)} contexts")
+    * Column 1 — ``context_id``
+    * Column 2 — ``x``  (float with 6 decimal places if ``continuous=True``,
+      otherwise integer)
+    * Column 3 — ``y``  (same format as ``x``)
+
+    This file is intended for debugging and manual inspection **only**.
+    Downstream pipeline steps must read ``context_coordinates.json`` instead.
+
+    Parameters
+    ----------
+    coordinates:
+        Array of shape ``(num_contexts, 2)``.  May be float (continuous) or
+        int (grid).
+    context_ids:
+        Ordered list of context identifier strings matching the row order of
+        ``coordinates``.
+    output_path:
+        Destination path including filename.  Parent directories are created
+        if they do not exist.
+    continuous:
+        If ``True``, format each coordinate value as a float with 6 decimal
+        places.  If ``False`` (default), format as an integer.
+
+    Raises
+    ------
+    OSError
+        If the file cannot be written.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w", encoding="utf-8") as fh:
+        fh.write("context_id,x,y\n")
+        for cid, (x, y) in zip(context_ids, coordinates):
+            if continuous:
+                fh.write(f"{cid},{x:.6f},{y:.6f}\n")
+            else:
+                fh.write(f"{cid},{x},{y}\n")
+
+    logger.success(
+        f"Saved CSV coordinates ({len(coordinates)} rows): {output_path}"
+    )
 
 
-def create_visualizations(G: nx.Graph,
-                         positions: Dict[str, Tuple[float, float]],
-                         grid_coords: Dict[str, Tuple[int, int]],
-                         context_texts: Dict[str, str],
-                         grid_size: int,
-                         output_dir: Path) -> None:
-    """Create comprehensive visualizations of the semantic space"""
-    if not MATPLOTLIB_AVAILABLE:
-        logger.warning("Skipping matplotlib visualizations (not available)")
-        return
+def save_coordinates_json(
+    grid_coords: np.ndarray,
+    context_ids: List[str],
+    output_path: Path,
+) -> None:
+    """
+    Persist finalised grid coordinates to the primary JSON lookup map.
 
-    logger.info("Creating semantic space visualizations")
+    This is the **authoritative** output consumed by ``phrase_fingerprints.py``
+    and any other downstream automation.  It maps every ``context_id`` string
+    to a dict with integer ``"x"`` and ``"y"`` keys so that callers can
+    retrieve a context's position in ``O(1)`` without scanning a CSV file.
 
-    # Set style
-    sns.set_style("whitegrid")
+    Output format::
 
-    # 1. Network graph visualization
-    if len(G.nodes) <= 500:  # Only visualize small graphs
-        logger.info("Creating network graph visualization")
-        plt.figure(figsize=(12, 10))
+        {
+            "context_0": {"x": 5,  "y": 12},
+            "context_1": {"x": 14, "y": 3},
+            ...
+        }
 
-        # Draw the graph
-        nx.draw(G, positions,
-                node_color='skyblue',
-                node_size=100,
-                edge_color='gray',
-                alpha=0.7,
-                with_labels=False)
+    The coordinates stored here reflect the **final** positions after
+    spiral-search collision resolution (when enabled), not the raw quantised
+    positions.
 
-        plt.title(f'Semantic Space Network Graph\n{len(G.nodes)} nodes, {len(G.edges)} edges')
-        plt.axis('equal')
+    Parameters
+    ----------
+    grid_coords:
+        Integer array of shape ``(num_contexts, 2)`` with values in
+        ``[0, grid_size - 1]``, as returned by :func:`scale_to_grid`.
+    context_ids:
+        Ordered list of context identifier strings matching the row order of
+        ``grid_coords``.
+    output_path:
+        Destination path.  Conventionally ``<output_dir>/context_coordinates.json``.
+        Parent directories are created if they do not exist.
 
-        network_path = output_dir / "semantic_network.png"
-        plt.savefig(network_path, dpi=300, bbox_inches='tight')
+    Raises
+    ------
+    OSError
+        If the file cannot be written.
+    """
+    coord_map = {
+        cid: {"x": int(xy[0]), "y": int(xy[1])}
+        for cid, xy in zip(context_ids, grid_coords)
+    }
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w", encoding="utf-8") as fh:
+        json.dump(coord_map, fh, indent=2)
+
+    logger.success(
+        f"Saved JSON coordinate map ({len(coord_map)} contexts): {output_path}"
+    )
+
+
+def save_statistics(stats: Dict[str, Any], output_path: Path) -> None:
+    """
+    Persist run-level summary statistics to a JSON file.
+
+    The statistics dict written here is constructed in :func:`main` **after**
+    all grid processing (including collision resolution) is complete.  This
+    guarantees that reported values such as ``collision_rate`` and
+    ``unique_positions`` describe the actual outputs rather than any
+    intermediate state.
+
+    Parameters
+    ----------
+    stats:
+        Arbitrary JSON-serialisable dict.  Expected top-level keys:
+
+        ``"num_contexts"``
+            Total number of contexts processed.
+        ``"method"``
+            Dimensionality reduction method used (``"tsne"``, ``"umap"``,
+            or ``"pca"``).
+        ``"continuous"``
+            Sub-dict with ``"x_range"`` and ``"y_range"`` from the
+            continuous embedding.
+        ``"grid"`` *(optional)*
+            Sub-dict with ``"size"``, ``"total_contexts"``,
+            ``"unique_positions"``, and ``"collision_rate"`` — present only
+            when ``--no-grid`` is not set.
+
+    output_path:
+        Destination path.  Conventionally
+        ``<output_dir>/coordinate_statistics.json``.  Parent directories are
+        created if they do not exist.
+
+    Raises
+    ------
+    OSError
+        If the file cannot be written.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w", encoding="utf-8") as fh:
+        json.dump(stats, fh, indent=2)
+
+    logger.success(f"Saved statistics: {output_path}")
+
+
+# ---------------------------------------------------------------------------
+# Optional Visualisation
+# ---------------------------------------------------------------------------
+
+def create_visualization(
+    coordinates: np.ndarray,
+    output_path: Path,
+    title: str,
+    show_density: bool = False,
+) -> None:
+    """
+    Produce a 2-D scatter plot of the semantic space and save it as a PNG.
+
+    The function is a best-effort visualisation helper.  If ``matplotlib`` is
+    not installed, or if any plotting operation raises an exception, a
+    ``WARNING`` is logged and the function returns silently without aborting
+    the pipeline.
+
+    When ``show_density=True`` the scatter points are coloured by a kernel
+    density estimate so dense clusters are visually distinguishable from
+    sparse regions.  If ``scipy.stats.gaussian_kde`` fails (e.g. singular
+    covariance matrix for very small datasets), the function falls back to
+    the plain coloured-by-index scatter.
+
+    Parameters
+    ----------
+    coordinates:
+        Float array of shape ``(num_contexts, 2)``.  May be continuous
+        embedding coordinates or float-cast integer grid positions.
+    output_path:
+        Destination path for the PNG file.  Parent directories are created
+        if they do not exist.
+    title:
+        Title string rendered at the top of the figure.
+    show_density:
+        If ``True``, colour points by Gaussian KDE density.  If ``False``
+        (default for grid plots), colour points by their index in the array
+        (effectively by the order contexts were processed).
+
+    Notes
+    -----
+    The figure is always closed after saving (``plt.close()``) to prevent
+    memory accumulation when the function is called multiple times in a
+    single run.
+    """
+    try:
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(12, 10))
+
+        if show_density:
+            try:
+                from scipy.stats import gaussian_kde
+
+                xy = coordinates.T
+                z = gaussian_kde(xy)(xy)
+                idx = z.argsort()
+                scatter = ax.scatter(
+                    coordinates[idx, 0],
+                    coordinates[idx, 1],
+                    c=z[idx],
+                    s=20,
+                    alpha=0.6,
+                    cmap="viridis",
+                )
+                plt.colorbar(scatter, label="Density")
+            except Exception:
+                show_density = False
+
+        if not show_density:
+            ax.scatter(
+                coordinates[:, 0],
+                coordinates[:, 1],
+                alpha=0.6,
+                s=20,
+                c=range(len(coordinates)),
+                cmap="viridis",
+            )
+
+        ax.set_title(title, fontsize=14)
+        ax.set_xlabel("Dimension 1")
+        ax.set_ylabel("Dimension 2")
+        ax.grid(True, alpha=0.3)
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close()
-        logger.success(f"Created network visualization: {network_path}")
+        logger.success(f"Saved visualisation: {output_path}")
 
-    # 2. Grid heatmap visualization
-    logger.info("Creating grid heatmap visualization")
-    grid_matrix = np.zeros((grid_size, grid_size), dtype=int)
-
-    for coords in grid_coords.values():
-        x, y = coords
-        grid_matrix[y, x] += 1  # Note: matrix indexing
-
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(grid_matrix,
-                annot=True if grid_size <= 20 else False,
-                fmt='d',
-                cmap='YlGnBu',
-                cbar=True)
-
-    plt.title(f'Semantic Space Grid Distribution\n{grid_size}×{grid_size} grid')
-    plt.xlabel('Grid X')
-    plt.ylabel('Grid Y')
-
-    grid_path = output_dir / "semantic_grid_heatmap.png"
-    plt.savefig(grid_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    logger.success(f"Created grid heatmap: {grid_path}")
-
-    # 3. Interactive Plotly visualization (if available)
-    if PLOTLY_AVAILABLE and len(grid_coords) <= 1000:
-        logger.info("Creating interactive visualization")
-
-        # Prepare data for Plotly
-        x_coords = [coord[0] for coord in grid_coords.values()]
-        y_coords = [coord[1] for coord in grid_coords.values()]
-        context_ids = list(grid_coords.keys())
-
-        # Create hover text with context previews
-        hover_texts = []
-        for context_id in context_ids:
-            text = context_texts.get(context_id, "")
-            # Truncate long texts for hover
-            preview = text[:200] + "..." if len(text) > 200 else text
-            hover_texts.append(f"ID: {context_id}<br>Text: {preview}")
-
-        trace = go.Scatter(
-            x=x_coords,
-            y=y_coords,
-            mode='markers',
-            marker=dict(
-                size=8,
-                color='skyblue',
-                opacity=0.7
-            ),
-            text=hover_texts,
-            hoverinfo='text'
-        )
-
-        layout = go.Layout(
-            title=f'Semantic Space Grid Visualization ({grid_size}×{grid_size})',
-            xaxis=dict(title='Grid X', range=[-0.5, grid_size - 0.5]),
-            yaxis=dict(title='Grid Y', range=[-0.5, grid_size - 0.5]),
-            hovermode='closest'
-        )
-
-        fig = go.Figure(data=[trace], layout=layout)
-
-        plotly_path = output_dir / "semantic_grid_interactive.html"
-        fig.write_html(str(plotly_path))
-        logger.success(f"Created interactive visualization: {plotly_path}")
+    except ImportError:
+        logger.warning("matplotlib not available — skipping visualisation.")
+    except Exception as exc:
+        logger.warning(f"Visualisation failed: {exc}")
 
 
-def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(description="Build semantic space from term-context matrix")
-    parser.add_argument("--matrix_path", required=True, help="Path to term_context_matrix.npz or .csv file")
-    parser.add_argument("--corpus_path", required=True, help="Path to corpus.txt file")
-    parser.add_argument("--output_dir", required=True, help="Output directory")
-    parser.add_argument("--grid_size", type=int, default=16, help="Grid size (default: 16)")
-    parser.add_argument("--edge_threshold", type=float, default=0.1, help="Minimum edge weight threshold")
-    parser.add_argument("--max_edges", type=int, default=50000, help="Maximum edges in graph")
-    parser.add_argument("--no_visualization", action="store_true", help="Skip visualization generation")
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main() -> int:
+    """
+    Entry point for the ``semantic-space`` pipeline step.
+
+    Parses command-line arguments, orchestrates the full embedding and grid-
+    placement workflow, and returns an integer exit code.
+
+    Workflow
+    ~~~~~~~~
+    1.  Parse CLI arguments via ``argparse``.
+    2.  Load the sparse term-context matrix and metadata JSON.
+    3.  Validate that the number of context IDs in the metadata matches the
+        number of columns in the matrix.
+    4.  Prepare context feature vectors (transpose + optional L2 normalise).
+    5.  Reduce to 2-D continuous coordinates (t-SNE / UMAP / PCA).
+    6.  Save continuous coordinates to ``context_coordinates_continuous.csv``.
+    7.  Unless ``--no-grid`` is set:
+
+        a.  Call :func:`scale_to_grid` to quantise continuous coords.
+        b.  Optionally resolve collisions via spiral search.
+        c.  Save discrete grid coordinates to ``context_coordinates.csv``
+            (human inspection).
+        d.  Save discrete grid coordinates to ``context_coordinates.json``
+            (machine consumption — primary output for ``phrase_fingerprints.py``).
+
+    8.  Compute and save summary statistics to ``coordinate_statistics.json``.
+        **Statistics are computed after all grid processing is complete** so
+        the reported collision rate and unique-position count accurately
+        describe the final outputs.
+    9.  Optionally generate visualisation PNG files.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` on a recoverable input error (logged before
+        returning).
+
+    Notes
+    -----
+    Output filenames are fixed strings and never embed the reduction method
+    name or any runtime parameter.  Method-labelled names are used only for
+    the optional visualisation PNGs so that successive runs with different
+    methods do not clobber each other's diagnostic images.
+    """
+    parser = argparse.ArgumentParser(
+        description=(
+            "Semantic Space Generation: embed contexts in a 2-D grid so that "
+            "semantically adjacent contexts occupy neighbouring cells."
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # Required arguments
+    parser.add_argument(
+        "--matrix",
+        required=True,
+        help="Path to term_context_matrix.npz (phrases x contexts, CSR format).",
+    )
+    parser.add_argument(
+        "--metadata",
+        required=True,
+        help="Path to term_context_matrix.json (must contain 'context_ids').",
+    )
+    parser.add_argument(
+        "--output",
+        required=True,
+        help="Output directory.  Created if it does not exist.",
+    )
+
+    # Reduction method
+    parser.add_argument(
+        "--method",
+        choices=["tsne", "umap", "pca"],
+        default="tsne",
+        help="Dimensionality reduction method.",
+    )
+
+    # Grid parameters
+    parser.add_argument(
+        "--grid-size",
+        type=int,
+        default=16,
+        dest="grid_size",
+        help="Side length N of the N x N output grid.",
+    )
+    parser.add_argument(
+        "--grid-padding",
+        type=int,
+        default=0,
+        dest="grid_padding",
+        help="Border margin in cells reserved on each side of the grid.",
+    )
+    parser.add_argument(
+        "--no-grid",
+        action="store_true",
+        help="Skip grid quantisation — save continuous coordinates only.",
+    )
+    parser.add_argument(
+        "--no-collision-resolution",
+        action="store_true",
+        help="Skip the spiral-search collision resolution step.",
+    )
+    parser.add_argument(
+        "--collision-radius",
+        type=int,
+        default=10,
+        dest="collision_radius",
+        help="Maximum spiral search radius for collision resolution.",
+    )
+
+    # t-SNE parameters
+    parser.add_argument(
+        "--perplexity",
+        type=int,
+        default=30,
+        help="t-SNE perplexity (effective nearest-neighbour count).",
+    )
+    parser.add_argument(
+        "--tsne-iter",
+        type=int,
+        default=1000,
+        dest="tsne_iter",
+        help="Maximum t-SNE optimisation iterations.",
+    )
+
+    # UMAP parameters
+    parser.add_argument(
+        "--n-neighbors",
+        type=int,
+        default=15,
+        dest="n_neighbors",
+        help="UMAP number of neighbours for manifold approximation.",
+    )
+    parser.add_argument(
+        "--min-dist",
+        type=float,
+        default=0.1,
+        dest="min_dist",
+        help="UMAP minimum distance between embedded points.",
+    )
+    parser.add_argument(
+        "--metric",
+        type=str,
+        default="cosine",
+        help="Distance metric for UMAP neighbour graph.",
+    )
+
+    # General parameters
+    parser.add_argument(
+        "--no-normalize",
+        action="store_true",
+        help="Skip L2 normalisation of context vectors before reduction.",
+    )
+    parser.add_argument(
+        "--use-sparse",
+        action="store_true",
+        dest="use_sparse",
+        help=(
+            "Keep the context matrix sparse when passing it to UMAP or PCA. "
+            "Reduces peak RAM usage for large corpora."
+        ),
+    )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=1,
+        dest="n_jobs",
+        help="Parallel threads for t-SNE / UMAP.  -1 = all cores.",
+    )
+    parser.add_argument(
+        "--random-seed",
+        type=int,
+        default=42,
+        dest="random_seed",
+        help="Random seed for reproducibility.",
+    )
+
+    # Visualisation
+    parser.add_argument(
+        "--visualize",
+        action="store_true",
+        help="Produce PNG scatter plots of the continuous and grid embeddings.",
+    )
+    parser.add_argument(
+        "--show-density",
+        action="store_true",
+        dest="show_density",
+        help="Colour scatter points by KDE density in the continuous plot.",
+    )
 
     args = parser.parse_args()
 
-    logger.info("Starting semantic space construction...")
-    logger.info(f"Matrix: {args.matrix_path}")
-    logger.info(f"Corpus: {args.corpus_path}")
-    logger.info(f"Output: {args.output_dir}")
-    logger.info(f"Grid size: {args.grid_size}x{args.grid_size}")
+    logger.info("=" * 60)
+    logger.info("Semantic Space Generation")
+    logger.info(f"Method: {args.method.upper()} | Grid: {args.grid_size}x{args.grid_size}")
+    logger.info("=" * 60)
 
-    # Load term-context matrix
-    matrix_path = Path(args.matrix_path)
-    if matrix_path.suffix == '.npz':
-        matrix, metadata = load_sparse_matrix(matrix_path)
-    elif matrix_path.suffix == '.csv':
-        matrix, metadata = load_dense_matrix(matrix_path)
+    # ------------------------------------------------------------------
+    # 1. Load inputs
+    # ------------------------------------------------------------------
+    metadata    = load_metadata(Path(args.metadata))
+    matrix      = load_sparse_matrix(Path(args.matrix))
+    context_ids: List[str] = metadata["context_ids"]
+
+    if len(context_ids) != matrix.shape[1]:
+        logger.error(
+            f"Mismatch: metadata has {len(context_ids)} context IDs "
+            f"but matrix has {matrix.shape[1]} columns."
+        )
+        return 1
+
+    # ------------------------------------------------------------------
+    # 2. Prepare context vectors
+    # ------------------------------------------------------------------
+    keep_sparse = args.use_sparse and args.method in ["umap", "pca"]
+    vectors = prepare_context_vectors(
+        matrix,
+        normalize=not args.no_normalize,
+        keep_sparse=keep_sparse,
+    )
+
+    # ------------------------------------------------------------------
+    # 3. Dimensionality reduction → continuous 2-D coordinates
+    # ------------------------------------------------------------------
+    if args.method == "tsne":
+        coords = reduce_dimensions_tsne(
+            vectors,
+            args.perplexity,
+            args.tsne_iter,
+            args.n_jobs,
+            args.random_seed,
+        )
+    elif args.method == "umap":
+        coords = reduce_dimensions_umap(
+            vectors,
+            args.n_neighbors,
+            args.min_dist,
+            args.metric,
+            args.n_jobs,
+            args.random_seed,
+        )
     else:
-        raise ValueError("Matrix file must be .npz (sparse) or .csv (dense)")
+        coords = reduce_dimensions_pca(vectors)
 
-    # Load context texts
-    corpus_path = Path(args.corpus_path)
-    context_texts = load_contexts_dict(corpus_path)
-    # from pprint import pformat
-    # logger.info(pformat(context_texts))
-    # time.sleep(30)
-
-    # Build semantic graph
-    G = build_semantic_graph(matrix, metadata, context_texts, args.edge_threshold, args.max_edges)
-
-    # Compute force-directed layout
-    positions = compute_force_layout(G, args.grid_size)
-
-    # Map to grid coordinates
-    grid_coords = map_to_grid(positions, args.grid_size)
-
-    # Save coordinates
-    output_dir = Path(args.output_dir)
+    # ------------------------------------------------------------------
+    # 4. Save continuous coordinates (fixed filename, no method suffix)
+    # ------------------------------------------------------------------
+    output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
-    coords_path = output_dir / "context_coordinates.csv"
-    save_coordinates(grid_coords, coords_path)
 
-    # Create visualizations
-    if not args.no_visualization:
-        create_visualizations(G, positions, grid_coords, context_texts,
-                            args.grid_size, output_dir)
+    save_coordinates_csv(
+        coords,
+        context_ids,
+        output_dir / "context_coordinates_continuous.csv",
+        continuous=True,
+    )
 
-    # Log final statistics
-    logger.info("Semantic Space Construction Summary:")
-    logger.info(f"  Grid size: {args.grid_size}×{args.grid_size}")
-    logger.info(f"  Contexts mapped: {len(grid_coords)}")
-    logger.info(f"  Graph nodes: {len(G.nodes)}")
-    logger.info(f"  Graph edges: {len(G.edges)}")
+    # ------------------------------------------------------------------
+    # 5. Grid quantisation + collision resolution
+    # ------------------------------------------------------------------
+    grid_coords: Optional[np.ndarray] = None
 
-    # Compute grid utilization
-    total_cells = args.grid_size * args.grid_size
-    occupied_cells = len(set(grid_coords.values()))
-    utilization = occupied_cells / total_cells * 100
+    if not args.no_grid:
+        grid_coords = scale_to_grid(
+            coords,
+            args.grid_size,
+            args.grid_padding,
+            fix_collisions=not args.no_collision_resolution,
+            collision_radius=args.collision_radius,
+        )
 
-    logger.info(f"  Grid utilization: {occupied_cells}/{total_cells} cells ({utilization:.1f}%)")
+        # CSV — human inspection only
+        save_coordinates_csv(
+            grid_coords,
+            context_ids,
+            output_dir / "context_coordinates.csv",
+        )
 
-    logger.success("Semantic space construction completed")
+        # JSON — primary machine-readable output for phrase_fingerprints.py
+        save_coordinates_json(
+            grid_coords,
+            context_ids,
+            output_dir / "context_coordinates.json",
+        )
+
+    # ------------------------------------------------------------------
+    # 6. Statistics — computed AFTER all grid processing is finalised
+    # ------------------------------------------------------------------
+    stats: Dict[str, Any] = {
+        "num_contexts": len(context_ids),
+        "method":       args.method,
+        "continuous": {
+            "x_range": [float(coords[:, 0].min()), float(coords[:, 0].max())],
+            "y_range": [float(coords[:, 1].min()), float(coords[:, 1].max())],
+        },
+    }
+
+    if grid_coords is not None:
+        unique_final = len(set(map(tuple, grid_coords.tolist())))
+        stats["grid"] = {
+            "size":             args.grid_size,
+            "total_contexts":   len(context_ids),
+            "unique_positions": unique_final,
+            "collision_rate":   float(
+                1.0 - unique_final / len(context_ids)
+            ),
+        }
+
+    save_statistics(stats, output_dir / "coordinate_statistics.json")
+
+    # ------------------------------------------------------------------
+    # 7. Optional visualisations
+    # ------------------------------------------------------------------
+    if args.visualize:
+        create_visualization(
+            coords,
+            output_dir / f"semantic_space_{args.method}_continuous.png",
+            f"Semantic Space — {args.method.upper()} (continuous)",
+            args.show_density,
+        )
+        if grid_coords is not None:
+            create_visualization(
+                grid_coords.astype(float),
+                output_dir / f"semantic_space_{args.method}_grid.png",
+                f"Semantic Space — {args.grid_size}x{args.grid_size} Grid",
+                show_density=False,
+            )
+
+    logger.info("=" * 60)
+    logger.success(f"Done.  Outputs written to: {output_dir}")
+    logger.info("=" * 60)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())

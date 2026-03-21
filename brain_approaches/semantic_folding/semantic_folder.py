@@ -1,945 +1,831 @@
 #!/usr/bin/env python3
 """
-Semantic Folding Pipeline - Interactive TUI
-
-Command-line Text User Interface for running the Semantic Folding pipeline
-with configuration management, phase selection, and error checking.
+Semantic Folding Pipeline Runner
+Interactive TUI for executing the semantic folding pipeline with state management.
 """
 
-import argparse
-import json
 import os
-import shutil
 import sys
-import time
+import yaml
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-import subprocess
-import threading
-from concurrent.futures import ThreadPoolExecutor
-
-import loguru
 from loguru import logger
 
-try:
-    import yaml
-    YAML_AVAILABLE = True
-except ImportError:
-    logger.warning("PyYAML not available. Install with: uv add pyyaml")
-    YAML_AVAILABLE = False
 
-try:
-    import questionary
-    QUESTIONARY_AVAILABLE = True
-except ImportError:
-    logger.warning("questionary not available. Install with: uv add questionary")
-    QUESTIONARY_AVAILABLE = False
+# Configure loguru
+logger.remove()
+logger.add(
+    sys.stderr,
+    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
+    level="INFO"
+)
+logger.add(
+    "logs/semantic_runner.log",
+    rotation="10 MB",
+    retention="7 days",
+    level="DEBUG",
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {message}"
+)
 
 
-class SemanticFoldingTUI:
-    """Text User Interface for Semantic Folding Pipeline"""
+class Colors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
-    def __init__(self, config_file: Optional[str] = None):
-        self.config_file = config_file or "config/semantic_folding.yml"
-        self.config = self.load_config()
-        self.output_base = Path(self.config.get('output_base', 'outputs'))
-        self.resume_file = Path.home() / ".semantic_folding_resume.json"
 
-        # Pipeline phases
-        self.phases = {
-            1: {"name": "Corpus Loading & Preprocessing", "script": "scratchpad.py", "completed": False},
-            2: {"name": "Phrase Extraction", "script": "phrase_extractor.py", "completed": False},
-            3: {"name": "Term-Context Matrix", "script": "term_context.py", "completed": False},
-            4: {"name": "Semantic Space Construction", "script": "semantic_space.py", "completed": False},
-            5: {"name": "Fingerprints Generation", "script": "phrase_fingerprints.py", "completed": False},
-            6: {"name": "LanceDB Integration", "script": "lance_storage.py", "completed": False},
+class SemanticRunner:
+    """Interactive runner for semantic folding pipeline"""
+    # Fall back to config values for non-path parameters
+    CONFIG_PATH_IN_YAML = {
+            # Global
+            "grid_size":            ["grid_size"],                          # ← top-level, single key
+
+            # Phase 1
+            "min_freq":             ["phrase_extraction", "min_freq"],
+            "min_word_length":      ["phrase_extraction", "min_word_length"],
+            "use_spacy":            ["phrase_extraction", "use_spacy"],
+            "max_ngram":            ["phrase_extraction", "max_ngram"],
+            "filter_generic":       ["phrase_extraction", "filter_generic"],
+            "stats":                ["phrase_extraction", "stats"],
+
+            # Phase 2
+            "use_tfidf":            ["term_context_matrix", "use_tfidf"],
+            "min_phrase_freq":      ["term_context_matrix", "min_phrase_freq"],
+            "use_word_boundaries":  ["term_context_matrix", "use_word_boundaries"],
+            "keep_verbs":           ["term_context_matrix", "keep_verbs"],
+
+            # Phase 3
+            "method":               ["semantic_space", "method"],
+            "visualize":            ["semantic_space", "visualize"],
+            "show_density":         ["semantic_space", "show_density"],
+            "enable_grid":          ["semantic_space", "enable_grid"],
+            "grid_padding":         ["semantic_space", "grid_padding"],
+            "collision_resolution": ["semantic_space", "collision_resolution"],
+            "n_jobs":               ["semantic_space", "n_jobs"],
+            "use_sparse":           ["semantic_space", "use_sparse"],
+
+            # Phase 5
+            "top_percent":          ["document_fingerprints", "top_percent"],
+            "min_freq":             ["document_fingerprints", "min_freq"],
+            "normalize":            ["document_fingerprints", "normalize"],
+            "normalize_method":     ["document_fingerprints", "normalize_method"],
+
+            # Query
+            "weighting":            ["query_processing", "weighting"],
+            "spreading_radius":     ["query_processing", "spreading", "radius"],
+            "spreading_decay":      ["query_processing", "spreading", "decay"],
+            "top_k":                ["query_processing", "top_k"],
         }
+
+    PIPELINE_STEPS = [
+    {
+        "id": 1,
+        "name": "phrase_extraction",
+        "script": "brain_approaches/semantic_folding/phrase_extractor.py",
+        "required_params": ["corpus", "output"],
+        "optional_params": ["min_freq", "min_word_length", "use_spacy", "filter_generic", "stats"],
+        "default_output": "phrases.txt",
+        "depends_on": []
+    },
+        {
+            "id": 2,
+            "name": "Term-Context Matrix",
+            "script": "brain_approaches/semantic_folding/term_context.py",
+            "required_params": ["corpus", "phrases", "output"],
+            "optional_params": ["use_tfidf", "min_phrase_freq", "use_word_boundaries", "keep_verbs"],
+            "default_output": "term_context_matrix.npz",
+            "extra_outputs": {
+                  "metadata": lambda output: str(Path(output).with_suffix('.json'))
+            },
+            "depends_on": [1]
+        },
+        {
+            "id": 3,
+            "name": "Semantic Space",
+            "script": "brain_approaches/semantic_folding/semantic_space.py",
+            "required_params": ["matrix", "metadata", "output"],
+            "optional_params": ["method", "grid_size", "visualize", "show_density"],
+            "default_output": "semantic_space",
+            "depends_on": [2]
+        },
+        {
+            "id": 4,
+            "name": "Phrase Fingerprints",
+            "script": "brain_approaches/semantic_folding/phrase_fingerprints.py",
+            "required_params": ["coordinates","metadata", "output"],
+            "optional_params": ["grid_size"],
+            "default_output": "phrase_fingerprints",
+            "depends_on": [3]
+        },
+        {
+            "id": 5,
+            "name": "Document Fingerprints",
+            "script": "brain_approaches/semantic_folding/doc_fingerprints.py",
+            "required_params": ["corpus", "phrases", "fingerprints", "output"],
+            "optional_params": ["top_percent", "min_freq", "normalize", "normalize_method"],
+            "default_output": "doc_fingerprints",
+            "depends_on": [4]
+        },
+        {
+            "id": 6,
+            "name": "Query Processing",
+            "script": "brain_approaches/semantic_folding/query_processing.py",
+            "required_params": ["query", "phrases", "fingerprints", "doc_fps"],
+            "optional_params": ["corpus", "weighting", "spreading_radius", "spreading_decay", "top_k", "output_json"],
+            "default_output": "query_results.json",
+            "depends_on": [5]
+        }
+    ]
+
+    def __init__(self):
+        self.config_dir = Path("config")
+        self.exec_state_path = self.config_dir / "exec_state.yml"
+        self.config_path = self.config_dir / "semantic_folding.yml"
+
+        self.config_dir.mkdir(exist_ok=True)
+        Path("logs").mkdir(exist_ok=True)
+
+        logger.info("Initializing SemanticRunner")
+        self.config = self.load_config()
+        self.exec_state = self.load_exec_state()
+        logger.debug(f"Config loaded from: {self.config_path}")
+        logger.debug(f"Exec state loaded from: {self.exec_state_path}")
 
     def load_config(self) -> Dict[str, Any]:
-        """Load configuration from YAML file"""
-        config_path = Path(self.config_file)
+        if not self.config_path.exists():
+            logger.warning(f"Config file not found at {self.config_path}, using empty config")
+            return {}
 
-        # Default configuration
-        default_config = {
-            'corpus_path': 'data/HippoRAG2/dataset/musique_corpus.json',
-            'queries_path': 'data/HippoRAG2/dataset/musique.json',
-            'output_base': 'outputs',
-            'grid_size': 16,
-            'log_level': 'INFO',
-            'debug': False,
-            'max_phrases': None,
-            'max_docs': None,
-        }
+        with open(self.config_path, 'r') as f:
+            config = yaml.safe_load(f) or {}
+        logger.info(f"Loaded config with {len(config)} top-level keys")
+        return config
 
-        if config_path.exists() and YAML_AVAILABLE:
-            try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    yaml_config = yaml.safe_load(f) or {}
-                default_config.update(yaml_config)
-                logger.success(f"Loaded configuration from {config_path}")
-            except Exception as e:
-                logger.warning(f"Failed to load config file: {e}")
+    def load_exec_state(self) -> Dict[str, Any]:
+        if not self.exec_state_path.exists():
+            logger.info("No existing exec state found, starting fresh")
+            return {"last_run_id": None, "last_step": None, "runs": {}}
+
+        with open(self.exec_state_path, 'r') as f:
+            state = yaml.safe_load(f) or {"last_run_id": None, "last_step": None, "runs": {}}
+
+        run_count = len(state.get("runs", {}))
+        logger.info(f"Loaded exec state: {run_count} previous run(s) found")
+        return state
+
+    def save_exec_state(self):
+        with open(self.exec_state_path, 'w') as f:
+            yaml.dump(self.exec_state, f, default_flow_style=False, sort_keys=False)
+        logger.debug(f"Exec state saved to {self.exec_state_path}")
+
+    def print_header(self, text: str):
+        print(f"\n{Colors.BOLD}{Colors.CYAN}{'=' * 70}{Colors.ENDC}")
+        print(f"{Colors.BOLD}{Colors.CYAN}{text.center(70)}{Colors.ENDC}")
+        print(f"{Colors.BOLD}{Colors.CYAN}{'=' * 70}{Colors.ENDC}\n")
+
+    def print_success(self, text: str):
+        print(f"{Colors.GREEN}✓ {text}{Colors.ENDC}")
+
+    def print_error(self, text: str):
+        print(f"{Colors.RED}✗ {text}{Colors.ENDC}")
+
+    def print_warning(self, text: str):
+        print(f"{Colors.YELLOW}⚠ {text}{Colors.ENDC}")
+
+    def get_input(self, prompt: str, default: Optional[str] = None) -> str:
+        if default is not None:                          # ← was: if default:
+            prompt = f"{prompt} [{Colors.YELLOW}{default}{Colors.ENDC}]: "
         else:
-            logger.info(f"Config file {config_path} not found, using defaults")
+            prompt = f"{prompt}: "
+        value = input(prompt).strip()
+        return value if value else (default if default is not None else "")  # ← was: (default or "")
 
-        return default_config
 
-    def save_config(self) -> None:
-        """Save current configuration to YAML file"""
-        if not YAML_AVAILABLE:
-            logger.warning("PyYAML not available, cannot save config")
-            return
-
-        config_path = Path(self.config_file)
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-
-        try:
-            with open(config_path, 'w', encoding='utf-8') as f:
-                yaml.dump(self.config, f, default_flow_style=False, sort_keys=False)
-            logger.success(f"Saved configuration to {config_path}")
-        except Exception as e:
-            logger.error(f"Failed to save config: {e}")
-
-    def save_resume_state(self, last_output_dir: str, last_phase: int) -> None:
-        """Save resume state to file"""
-        resume_data = {
-            'last_output_dir': last_output_dir,
-            'last_phase': last_phase,
-            'timestamp': str(datetime.now())
-        }
-
-        try:
-            with open(self.resume_file, 'w', encoding='utf-8') as f:
-                json.dump(resume_data, f, indent=2)
-            logger.info(f"Saved resume state to {self.resume_file}")
-        except Exception as e:
-            logger.warning(f"Failed to save resume state: {e}")
-
-    def load_resume_state(self) -> Optional[Dict[str, Any]]:
-        """Load resume state from file"""
-        if not self.resume_file.exists():
-            return None
-
-        try:
-            with open(self.resume_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
-            logger.warning(f"Failed to load resume state: {e}")
-            return None
-
-    def clear_resume_state(self) -> None:
-        """Clear resume state file"""
-        if self.resume_file.exists():
-            try:
-                self.resume_file.unlink()
-                logger.info("Cleared resume state")
-            except Exception as e:
-                logger.warning(f"Failed to clear resume state: {e}")
-
-    def show_progress_indicator(self, phase_name: str, duration_estimate: int = 30) -> None:
-        """Show a progress indicator for long-running phases"""
-        progress_chars = ["|", "/", "-", "\\"]
-        start_time = time.time()
-
-        def progress_loop():
-            i = 0
-            while getattr(threading.current_thread(), "do_run", True):
-                elapsed = time.time() - start_time
-                progress_char = progress_chars[i % len(progress_chars)]
-                logger.info(f"\r{progress_char} {phase_name}... ({elapsed:.1f}s elapsed)", end="", flush=True)
-                time.sleep(0.5)
-                i += 1
-
-        # Start progress thread
-        progress_thread = threading.Thread(target=progress_loop, daemon=True)
-        progress_thread.do_run = True
-        progress_thread.start()
-
-        return progress_thread
-
-    def stop_progress_indicator(self, progress_thread: threading.Thread) -> None:
-        """Stop the progress indicator"""
-        if progress_thread and progress_thread.is_alive():
-            progress_thread.do_run = False
-            progress_thread.join(timeout=1.0)
-            logger.info("\r" + " " * 50 + "\r", end="", flush=True)  # Clear the line
-
-    def show_phase_completion_stats(self, phase_num: int, output_dir: str) -> None:
-        """Show statistics about what was created in the phase"""
-        output_path = Path(output_dir)
-
-        try:
-            if phase_num == 1:
-                corpus_file = output_path / "corpus.txt"
-                if corpus_file.exists():
-                    with open(corpus_file, 'r', encoding='utf-8') as f:
-                        lines = sum(1 for _ in f)
-                    logger.success(f"   Documents processed: {lines}")
-
-            elif phase_num == 2:
-                phrases_file = output_path / "phrases.txt"
-                if phrases_file.exists():
-                    with open(phrases_file, 'r', encoding='utf-8') as f:
-                        lines = sum(1 for _ in f)
-                    logger.success(f"   Phrases extracted: {lines}")
-
-            elif phase_num == 3:
-                matrix_file = output_path / "term_context_matrix.npz"
-                if matrix_file.exists():
-                    # Try to get matrix stats from the json file
-                    stats_file = output_path / "term_context_matrix.json"
-                    if stats_file.exists():
-                        with open(stats_file, 'r', encoding='utf-8') as f:
-                            stats = json.load(f)
-                        logger.success(f"   Matrix created: {stats.get('num_contexts', '?')} × {stats.get('num_phrases', '?')}")
-                        logger.success(f"   Sparsity: {stats.get('density', 0):.4f} ({stats.get('entries', 0)} entries)")
-                    else:
-                        logger.success(f"   Matrix file created: {matrix_file.stat().st_size / (1024*1024):.1f} MB")
-
-            elif phase_num == 4:
-                coords_file = output_path / "context_coordinates.csv"
-                if coords_file.exists():
-                    with open(coords_file, 'r', encoding='utf-8') as f:
-                        lines = sum(1 for _ in f) - 1  # Subtract header
-                    logger.success(f"   Semantic space: {lines} contexts mapped to {self.config['grid_size']}×{self.config['grid_size']} grid")
-
-            elif phase_num == 5:
-                fp_dir = output_path / "fingerprints"
-                doc_fp_dir = output_path / "doc_fingerprints"
-
-                fp_count = len(list(fp_dir.glob("*.txt"))) if fp_dir.exists() else 0
-                doc_fp_count = len(list(doc_fp_dir.glob("*_fingerlogger.info.txt"))) if doc_fp_dir.exists() else 0
-
-                logger.success(f"   Phrase fingerprints: {fp_count}")
-                logger.success(f"   Document fingerprints: {doc_fp_count}")
-
-            elif phase_num == 6:
-                lance_dir = output_path / "lance_db"
-                if lance_dir.exists():
-                    # Count files in lance directory
-                    total_files = sum(1 for _ in lance_dir.rglob("*") if _.is_file())
-                    logger.success(f"   LanceDB created: {total_files} database files")
-
-        except Exception as e:
-            # Don't fail if we can't read stats, just skip
-            logger.debug(f"Could not read completion stats: {e}")
-            pass
-
-    def show_final_pipeline_stats(self) -> None:
-        """Show final statistics for the completed pipeline"""
-        last_run = self.check_last_run_status()
-        if not last_run:
-            return
-
-        try:
-            stats = {}
-
-            # Corpus stats
-            corpus_file = last_run / "corpus.txt"
-            if corpus_file.exists():
-                with open(corpus_file, 'r', encoding='utf-8') as f:
-                    stats['documents'] = sum(1 for _ in f)
-
-            # Phrase stats
-            phrases_file = last_run / "phrases.txt"
-            if phrases_file.exists():
-                with open(phrases_file, 'r', encoding='utf-8') as f:
-                    stats['phrases'] = sum(1 for _ in f)
-
-            # Matrix stats
-            matrix_stats_file = last_run / "term_context_matrix.json"
-            if matrix_stats_file.exists():
-                with open(matrix_stats_file, 'r', encoding='utf-8') as f:
-                    matrix_data = json.load(f)
-                    stats['matrix_entries'] = matrix_data.get('entries', 0)
-                    stats['matrix_density'] = matrix_data.get('density', 0)
-
-            # Fingerlogger.info stats
-            fp_dir = last_run / "fingerprints"
-            doc_fp_dir = last_run / "doc_fingerprints"
-
-            stats['phrase_fingerprints'] = len(list(fp_dir.glob("*.txt"))) if fp_dir.exists() else 0
-            stats['doc_fingerprints'] = len(list(doc_fp_dir.glob("*_fingerlogger.info.txt"))) if doc_fp_dir.exists() else 0
-
-            # Output directory size
-            total_size = sum(f.stat().st_size for f in last_run.rglob('*') if f.is_file())
-            stats['total_size_mb'] = total_size / (1024 * 1024)
-
-            # Display stats
-            logger.success(f"   Documents processed: {stats.get('documents', '?')}")
-            logger.success(f"   Phrases extracted: {stats.get('phrases', '?')}")
-            logger.success(f"   Matrix entries: {stats.get('matrix_entries', '?'):,}")
-            logger.success(f"   Matrix density: {stats.get('matrix_density', 0):.4f}")
-            logger.success(f"   Phrase fingerprints: {stats.get('phrase_fingerprints', '?')}")
-            logger.success(f"   Document fingerprints: {stats.get('doc_fingerprints', '?')}")
-            logger.success(f"   Total output size: {stats.get('total_size_mb', 0):.1f} MB")
-            logger.success(f"   Output directory: {last_run.name}")
-
-        except Exception as e:
-            logger.debug(f"Could not show final stats: {e}")
-            logger.info("   📊 Pipeline completed (detailed stats unavailable)")
-
-    def check_last_run_status(self) -> Optional[Path]:
-        """Check for the most recent output directory and its status"""
-        if not self.output_base.exists():
-            return None
-
-        # Find most recent output directory
-        output_dirs = [d for d in self.output_base.iterdir() if d.is_dir() and d.name.startswith('musique_')]
-        if not output_dirs:
-            return None
-
-        latest_dir = max(output_dirs, key=lambda x: x.stat().st_mtime)
-        logger.success(f"Found latest run: {latest_dir.name}")
-        return latest_dir
-
-    def check_phase_completion(self, output_dir: Path) -> None:
-        """Check which phases have been completed in the given output directory"""
-        # Reset completion status
-        for phase in self.phases.values():
-            phase["completed"] = False
-
-        # Check for key output files
-        checks = {
-            1: output_dir / "corpus.txt",
-            2: output_dir / "phrases.txt",
-            3: output_dir / "term_context_matrix.npz",
-            4: output_dir / "context_coordinates.csv",
-            5: [output_dir / "fingerprints", output_dir / "doc_fingerprints"],
-            6: output_dir / "lance_db",
-        }
-
-        for phase_num, check_files in checks.items():
-            if isinstance(check_files, list):
-                # Check if any of the files/directories exist
-                self.phases[phase_num]["completed"] = any(f.exists() for f in check_files)
-            else:
-                self.phases[phase_num]["completed"] = check_files.exists()
-
-    def check_log_errors(self, output_dir: Path) -> List[str]:
-        """Check log files for errors from the last run"""
-        errors = []
-        logs_dir = output_dir / "logs"
-
-        if not logs_dir.exists():
-            return errors
-
-        # Check main pipeline log
-        pipeline_log = logs_dir / f"pipeline_{output_dir.name.split('_', 1)[1]}.log"
-        if pipeline_log.exists():
-            try:
-                with open(pipeline_log, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    if "ERROR" in content or "FAILED" in content:
-                        errors.append(f"Pipeline log contains errors: {pipeline_log}")
-            except Exception as e:
-                errors.append(f"Could not read pipeline log: {e}")
-
-        # Check error log
-        error_log = logs_dir / f"errors_{output_dir.name.split('_', 1)[1]}.log"
-        if error_log.exists() and error_log.stat().st_size > 0:
-            errors.append(f"Error log contains entries: {error_log}")
-
-        return errors
-
-    def show_status(self) -> None:
-        """Display current pipeline status"""
-        logger.success("\n" + "="*60)
-        logger.success("SEMANTIC FOLDING PIPELINE STATUS")
-        logger.success("="*60)
-
-        # Configuration
-        logger.success("\nConfiguration:")
-        logger.success(f"   Corpus: {self.config['corpus_path']}")
-        logger.success(f"   Output: {self.output_base}")
-        logger.success(f"   Grid Size: {self.config['grid_size']}x{self.config['grid_size']}")
-        logger.success(f"   Log Level: {self.config['log_level']}")
-
-        # Check last run
-        last_run = self.check_last_run_status()
-        if last_run:
-            logger.info(f"\nLast Run: {last_run.name}")
-
-            # Check for errors
-            errors = self.check_log_errors(last_run)
-            if errors:
-                logger.info("ERRORS FOUND:")
-                for error in errors:
-                    logger.info(f"   WARNING: {error}")
-            else:
-                logger.info("No errors detected in logs")
-
-            # Check phase completion
-            self.check_phase_completion(last_run)
-            logger.info("\nPhase Completion:")
-            for phase_num, phase_info in self.phases.items():
-                status = "COMPLETED" if phase_info["completed"] else "PENDING"
-                logger.info(f"   {status}: Phase {phase_num} - {phase_info['name']}")
-        else:
-            logger.info("\nNo previous runs found")
-
-        
-
-    def configure_pipeline(self) -> None:
-        """Interactive configuration"""
-        if not QUESTIONARY_AVAILABLE:
-            logger.info("ERROR: questionary not available for interactive configuration")
-            return
-
-        logger.info("\n" + "="*50)
-        logger.info("PIPELINE CONFIGURATION")
-        logger.info("="*50)
-
-        # Corpus path
-        corpus_path = questionary.text(
-            "Corpus path:",
-            default=self.config['corpus_path']
-        ).ask()
-
-        # Grid size
-        grid_size = questionary.select(
-            "Grid size:",
-            choices=["8", "16", "32"],
-            default=str(self.config['grid_size'])
-        ).ask()
-
-        # Log level
-        log_level = questionary.select(
-            "Log level:",
-            choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-            default=self.config['log_level']
-        ).ask()
-
-        # Update config
-        self.config.update({
-            'corpus_path': corpus_path,
-            'grid_size': int(grid_size),
-            'log_level': log_level,
-        })
-
-        # Save config
-        if questionary.confirm("Save configuration to file?").ask():
-            self.save_config()
-
-        logger.info("✅ Configuration updated!")
-
-    def run_pipeline_menu(self) -> None:
-        """Main pipeline execution menu"""
-        if not QUESTIONARY_AVAILABLE:
-            logger.info("ERROR: questionary not available for interactive menu")
-            return
+    def get_choice(self, prompt: str, options: List[str]) -> int:
+        print(f"\n{prompt}")
+        for i, option in enumerate(options, 1):
+            print(f"  {Colors.BOLD}{i}.{Colors.ENDC} {option}")
 
         while True:
-            logger.info("\n" + "="*50)
-            logger.info("SEMANTIC FOLDING PIPELINE")
-            logger.info("="*50)
+            try:
+                choice = int(input(f"\n{Colors.BOLD}Enter choice (1-{len(options)}): {Colors.ENDC}"))
+                if 1 <= choice <= len(options):
+                    return choice
+                print(f"{Colors.RED}Invalid choice. Please enter a number between 1 and {len(options)}.{Colors.ENDC}")
+            except ValueError:
+                print(f"{Colors.RED}Invalid input. Please enter a number.{Colors.ENDC}")
 
-            self.show_status()
+    def generate_run_id(self) -> str:
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        logger.debug(f"Generated new run ID: {run_id}")
+        return run_id
 
-            choices = [
-                "Run All Phases",
-                "Run Specific Phase",
-                "View Output Files",
-                "Configure Pipeline",
-                "Clean Old Outputs",
-                "Exit"
-            ]
+    def get_step_by_id(self, step_id: int) -> Optional[Dict[str, Any]]:
+        for step in self.PIPELINE_STEPS:
+            if step["id"] == step_id:
+                return step
+        logger.warning(f"Step ID {step_id} not found in pipeline definition")
+        return None
 
-            choice = questionary.select(
-                "Select action:",
-                choices=choices
-            ).ask()
+    def get_default_value(self, param: str, step_id: int) -> Optional[str]:
+        """
+        Resolve the default value for a pipeline parameter.
 
-            if choice == "Exit":
-                break
-            elif choice == "Run All Phases":
-                self.run_all_phases()
-            elif choice == "Run Specific Phase":
-                self.run_specific_phase()
-            elif choice == "View Output Files":
-                self.view_output_files()
-            elif choice == "Configure Pipeline":
-                self.configure_pipeline()
-            elif choice == "Clean Old Outputs":
-                self.clean_outputs()
+        Resolution priority (first match wins):
+        1. Output path from a *previous* step in the last run
+            - Checks `step_data["output"]` against known filename patterns
+            - Checks `step_data["extra_outputs"]` by label name
+        2. Parameter value stored from the *current* step in the last run
+            - Looks up `run_data["steps"][step_id]["parameters"][param]`
+        3. Special case: reconstruct `coordinates` path from step 3 output dir
+            - Builds candidate path and verifies it exists on disk
+        4. YAML config fallback via CLASS-LEVEL `CONFIG_PATH_IN_YAML` mapping
+            - Traverses nested keys defined in the mapping
+            - Returns `str(value)` for prompt display
+        5. Returns `None` if no default could be resolved
 
-    def run_all_phases(self) -> None:
-        """Run all pipeline phases"""
-        logger.info("\nSTARTING COMPLETE SEMANTIC FOLDING PIPELINE")
-        logger.info("=" * 60)
+        Args:
+            param:   The parameter name to resolve (e.g. "show_density", "grid_size").
+            step_id: The current step being configured (used to scope previous-step lookup).
 
-        # Check if we should clean old outputs
-        last_run = self.check_last_run_status()
-        if last_run and questionary.confirm("Remove previous output directory first?").ask():
-            logger.info(f"Cleaning up previous run: {last_run.name}")
-            shutil.rmtree(last_run)
-            logger.info(f"Removed old output directory: {last_run}")
+        Returns:
+            The resolved default as a string (for prompt display), or None if unresolved.
 
-        # Show pipeline overview
-        logger.info("Pipeline Overview:")
-        logger.info(f"   Output Base: {self.output_base}")
-        logger.info(f"   Corpus: {self.config['corpus_path']}")
-        logger.info(f"   Grid Size: {self.config['grid_size']}×{self.config['grid_size']}")
-        logger.info(f"   Total Phases: 6")
-        logger.info(f"   Estimated Time: 5-15 minutes (depending on corpus size)")
-        
+        Notes:
+            - Boolean YAML values (false/true) are returned as "False"/"True" strings.
+            - A sentinel object is used internally to distinguish a missing key from
+            a key whose value is legitimately False, 0, or an empty string.
+            - All resolution attempts are logged at DEBUG level for traceability.
+        """
+        _MISSING = object()  # Sentinel: distinguishes "key absent" from False / 0 / "" / None
+        # Temporary diagnostic - remove after fix
+        # ------------------------------------------------------------------ #
+        # Priority 1 & 2 & 3 — Previous run state                            #
+        # ------------------------------------------------------------------ #
+        if self.exec_state.get("last_run_id"):
+            run_id   = self.exec_state["last_run_id"]
+            run_data = self.exec_state["runs"].get(run_id)
 
-        # Run all phases sequentially with progress tracking
-        logger.info("Executing complete pipeline...")
-        
+            if run_data:
+                param_mapping = {
+                    "phrases":    "phrases.txt",
+                    "matrix":     "term_context_matrix.npz",
+                    "coordinates":"context_coordinates.json"
+                }
 
-        # Create a timestamped output directory
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = Path(f"{self.output_base}/pipeline_{timestamp}")
+                # --- Priority 1: Output / extra_outputs from earlier steps --- #
+                for prev_step_id in range(1, step_id):
+                    step_data = run_data["steps"].get(prev_step_id)
+                    if step_data is None:
+                        continue
+
+                    # 1a. Primary output path — match by expected filename
+                    if "output" in step_data and param in param_mapping:
+                        output_path = step_data["output"]
+                        if param_mapping[param] in output_path:
+                            logger.debug(
+                                f"Default for '{param}' resolved from step {prev_step_id} "
+                                f"output: {output_path}"
+                            )
+                            return output_path
+
+                    # 1b. Named extra outputs — match by label == param
+                    extra = step_data.get("extra_outputs", {})
+                    if param in extra:
+                        logger.debug(
+                            f"Default for '{param}' resolved from step {prev_step_id} "
+                            f"extra_outputs['{param}']: {extra[param]}"
+                        )
+                        return extra[param]
+
+                # --- Priority 2: Same-step parameters from the last run --- #
+                step_params = (
+                    run_data["steps"]
+                    .get(step_id, {})
+                    .get("parameters", {})
+                )
+                if param in step_params:
+                    logger.debug(
+                        f"Default for '{param}' resolved from previous run "
+                        f"step {step_id} parameters: {step_params[param]}"
+                    )
+                    return step_params[param]
+
+                # --- Priority 3: Reconstruct coordinates path from step 3 --- #
+                if param == "coordinates":
+                    step3_data = run_data["steps"].get(3, {})
+                    step3_output = step3_data.get("output", "")
+                    if step3_output:
+                        candidate = str(Path(step3_output) / "context_coordinates.json")
+                        if Path(candidate).exists():
+                            logger.debug(
+                                f"Default for 'coordinates' reconstructed from "
+                                f"step 3 output dir: {candidate}"
+                            )
+                            return candidate
+                        else:
+                            logger.debug(
+                                f"Default for 'coordinates': candidate path does not exist "
+                                f"— {candidate}"
+                            )
+
+                # --- Priority 3b: fingerprints directory is Step 4's output dir --- #
+                if param == "fingerprints":
+                    step4_data   = run_data["steps"].get(4, {})
+                    step4_output = step4_data.get("output", "")
+                    if step4_output and Path(step4_output).exists():
+                        logger.debug(
+                            f"Default for 'fingerprints' resolved from step 4 "
+                            f"output dir: {step4_output}"
+                        )
+                        return step4_output
+                    else:
+                        logger.debug(
+                            f"Default for 'fingerprints': step 4 output missing or "
+                            f"does not exist on disk — {step4_output!r}"
+                        )            
+
+                # --- Priority 3c: doc_fps = Step 5 output directory --- #
+                if param == "doc_fingerprints":
+                    step5_data   = run_data["steps"].get(5, {})
+                    step5_output = step5_data.get("output", "")
+                    if step5_output and Path(step5_output).exists():
+                        logger.debug(
+                            f"Default for 'doc_fingerprints' resolved from step 5 "
+                            f"output dir: {step5_output}"
+                        )
+                        return step5_output
+                    else:
+                        logger.debug(
+                            f"Default for 'doc_fingerprints': step 5 output missing or "
+                            f"does not exist on disk — {step5_output!r}"
+                        )            
+        # ------------------------------------------------------------------ #
+        # Priority 4 — YAML config fallback via CONFIG_PATH_IN_YAML           #
+        # ------------------------------------------------------------------ #
+        if param not in self.CONFIG_PATH_IN_YAML:
+            logger.debug(
+                f"Default for '{param}': not in CONFIG_PATH_IN_YAML and "
+                f"no prior run match — returning None"
+            )
+            return None
+
+        if not self.config:
+            logger.debug(
+                f"Default for '{param}': CONFIG_PATH_IN_YAML match found but "
+                f"self.config is not loaded — returning None"
+            )
+            return None
+
+        path  = self.CONFIG_PATH_IN_YAML[param]
+        value = self.config  # Root of the loaded YAML dict
+
+        for key in path:
+            if not isinstance(value, dict):
+                logger.debug(
+                    f"Default for '{param}': YAML traversal failed at key '{key}' — "
+                    f"current node is {type(value).__name__}, not a dict"
+                )
+                return None
+
+            value = value.get(key, _MISSING)
+
+            if value is _MISSING:
+                logger.debug(
+                    f"Default for '{param}': key '{key}' not found in YAML "
+                    f"at path {path}"
+                )
+                return None
+
+        # value is now the resolved leaf — could be False, 0, "", etc.
+        if value is None:
+            logger.debug(
+                f"Default for '{param}': YAML path {path} resolved to explicit None"
+            )
+            return None
+
+        resolved = str(value)
+        logger.debug(f"Default for '{param}' resolved from YAML config: {resolved}")
+        return resolved
+
+    def get_output_path(self, step: Dict[str, Any], run_id: str) -> str:
+        """Generate output path within run_id directory"""
+        output_base = self.config.get("paths", {}).get("output_base", "outputs")
+        output_dir = Path(output_base) / run_id
         output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = str(output_dir / step["default_output"])
+        logger.debug(f"Output path for step {step['id']}: {output_path}")
+        return output_path
 
-        logger.info(f"Output directory: {output_dir}")
-        
+    def collect_parameters(self, step: Dict[str, Any], run_id: str) -> Dict[str, str]:
+        logger.info(f"Collecting parameters for step {step['id']}: {step['name']}")
+        params = {}
 
-        # Run all phases
-        phases = [1, 2, 3, 4, 5, 6]
-        for phase_num in phases:
-            try:
-                self.run_specific_phase_non_interactive(phase_num, str(output_dir))
-            except SystemExit as e:
-                logger.info(f"Pipeline failed at Phase {phase_num}")
-                return
+        print(f"\n{Colors.BOLD}Configure parameters for: {step['name']}{Colors.ENDC}")
+        print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
 
-        logger.success("\nPipeline completed successfully!")
-        
-        logger.success("Final Results:")
+        for param in step["required_params"]:
+            default = self.get_default_value(param, step["id"])
+            if param == "corpus":
+                default = default or self.config.get("paths", {}).get("corpus_path", "data/corpus.txt")
+            elif param == "output":
+                default = self.get_output_path(step, run_id)
 
-        # Show final statistics
-        self.show_final_pipeline_stats()
+            value = self.get_input(f"{Colors.BOLD}{param}{Colors.ENDC} (required)", default)
+            while not value:
+                self.print_error(f"Parameter '{param}' is required")
+                value = self.get_input(f"{Colors.BOLD}{param}{Colors.ENDC} (required)", default)
 
-    def run_phase_1(self, output_dir: str) -> str:
-        """Run Phase 1: Corpus loading and preprocessing"""
-        from pathlib import Path
-        import json
+            params[param] = value
+            logger.debug(f"Required param set — {param}: {value}")
 
-        # Use the provided output directory
-        output_dir_path = Path(output_dir)
-        output_dir_path.mkdir(parents=True, exist_ok=True)
-
-        # Create logs directory
-        logs_dir = output_dir_path / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-
-        # Load and process corpus directly
-        corpus_path = Path(self.config['corpus_path'])
-        if not corpus_path.exists():
-            raise FileNotFoundError(f"Corpus file not found: {corpus_path}")
-
-        with open(corpus_path, 'r', encoding='utf-8') as f:
-            corpus = json.load(f)
-
-        # Convert to corpus.txt format
-        corpus_txt_path = output_dir_path / "corpus.txt"
-        with open(corpus_txt_path, 'w', encoding='utf-8') as f:
-            for i, doc in enumerate(corpus):
-                title = doc.get('title', f'doc_{i}')
-                text = doc.get('text', '')
-                f.write(f"{i},{title}: {text}\n")
-
-            logger.success(f"Processed {len(corpus)} documents")
-        return str(output_dir_path)
-
-    def run_phase_5(self, output_dir: str) -> None:
-        """Run Phase 5: Generate both phrase and document fingerprints"""
-        # First, generate phrase fingerprints
-        cmd1 = ["uv", "run", "python", "brain_approaches/semantic_folding/phrase_fingerprints.py",
-                "--matrix_path", str(Path(output_dir) / "term_context_matrix.npz"),
-                "--coordinates_path", str(Path(output_dir) / "context_coordinates.csv"),
-                "--phrases_path", str(Path(output_dir) / "phrases.txt"),
-                "--output_dir", output_dir]
-
-        # Then, generate document fingerprints
-        cmd2 = ["uv", "run", "python", "brain_approaches/semantic_folding/doc_fingerprints.py",
-                "--corpus_path", str(Path(output_dir) / "corpus.txt"),
-                "--phrases_path", str(Path(output_dir) / "phrases.txt"),
-                "--fingerprints_dir", str(Path(output_dir) / "fingerprints"),
-                "--output_dir", output_dir]
-
-        # Execute both commands
-        import subprocess
-        logger.info("Generating phrase fingerprints...")
-        result1 = subprocess.run(cmd1, cwd=os.getcwd(), capture_output=True, text=True)
-        if result1.returncode != 0:
-            logger.info(f"Phrase fingerprints failed: {result1.stderr}")
-            raise RuntimeError("Phase 5a failed")
-
-        logger.info("Generating document fingerprints...")
-        result2 = subprocess.run(cmd2, cwd=os.getcwd(), capture_output=True, text=True)
-        if result2.returncode != 0:
-            logger.info(f"Document fingerprints failed: {result2.stderr}")
-            raise RuntimeError("Phase 5b failed")
-
-    def run_specific_phase_non_interactive(self, phase_num: int, output_dir: str) -> str:
-        """Run a specific pipeline phase in non-interactive mode"""
-        phase_name = self.phases[phase_num]['name']
-        logger.info(f"\n>>> Phase {phase_num}: {phase_name}")
-        logger.info("=" * 60)
-
-        # Estimate duration for progress indicator
-        duration_estimates = {
-            1: 10,   # Corpus loading
-            2: 120,  # Phrase extraction (can be slow)
-            3: 60,   # Term-context matrix
-            4: 30,   # Semantic space construction
-            5: 180,  # Fingerlogger.info generation (can be slow)
-            6: 60    # LanceDB integration
-        }
-
-        actual_output_dir = output_dir
-
-        # Phase-specific commands
-        if phase_num == 1:
-            actual_output_dir = self.run_phase_1(output_dir)
-            # For Phase 1, we don't need subprocess since we handled it directly
-            logger.success("[SUCCESS] Phase 1 completed successfully!")
-            self.show_phase_completion_stats(phase_num, actual_output_dir)
-            self.phases[phase_num]["completed"] = True
-            return actual_output_dir
-        elif phase_num == 5:
-            # Special handling for Phase 5 (two-step process)
-            actual_output_dir = output_dir
-            self.run_phase_5(actual_output_dir)
-            logger.success("[SUCCESS] Phase 5 completed successfully!")
-            self.show_phase_completion_stats(phase_num, actual_output_dir)
-            self.phases[phase_num]["completed"] = True
-            return actual_output_dir
-        elif phase_num == 2:
-            corpus_path = Path(actual_output_dir) / "corpus.txt"
-            cmd = ["uv", "run", "python", "brain_approaches/semantic_folding/phrase_extractor.py",
-                   "--corpus_path", str(corpus_path), "--output_dir", actual_output_dir]
-        elif phase_num == 3:
-            phrases_path = Path(actual_output_dir) / "phrases.txt"
-            corpus_path = Path(actual_output_dir) / "corpus.txt"
-            cmd = ["uv", "run", "python", "brain_approaches/semantic_folding/term_context.py",
-                   "--phrases_path", str(phrases_path), "--corpus_path", str(corpus_path),
-                   "--output_dir", actual_output_dir]
-
-            if not self.config.get('normalize_matrix', True):
-                cmd.append("--no_normalization")
-        elif phase_num == 4:
-            cmd = ["uv", "run", "python", "brain_approaches/semantic_folding/semantic_space.py",
-                   "--corpus_path", str(Path(actual_output_dir) / "corpus.txt"),
-                   "--matrix_path", str(Path(actual_output_dir) / "term_context_matrix.npz"),
-                   "--output_dir", actual_output_dir,
-                   "--grid_size", str(self.config['grid_size']),
-                   "--max_edges", str(self.config['max_edges']),
-                   "--edge_threshold", str(self.config['edge_threshold'])]
-        elif phase_num == 5:
-            # Phase 5 consists of two steps: phrase fingerprints and document fingerprints
-            # First, generate phrase fingerprints
-            cmd1 = ["uv", "run", "python", "phrase_fingerprints.py",
-                    "--matrix_path", str(Path(actual_output_dir) / "term_context_matrix.npz"),
-                    "--coordinates_path", str(Path(actual_output_dir) / "context_coordinates.csv"),
-                    "--phrases_path", str(Path(actual_output_dir) / "phrases.txt"),
-                    "--output_dir", actual_output_dir]
-
-            # Then, generate document fingerprints
-            cmd2 = ["uv", "run", "python", "doc_fingerprints.py",
-                    "--corpus_path", str(Path(actual_output_dir) / "corpus.txt"),
-                    "--phrases_path", str(Path(actual_output_dir) / "phrases.txt"),
-                    "--fingerprints_dir", str(Path(actual_output_dir) / "fingerprints"),
-                    "--output_dir", actual_output_dir,
-                    "--top_percent", str(self.config.get('doc_top_percent', 0.05))]
-
-            if self.config.get('doc_no_threshold', False):
-                cmd2.append("--no_threshold")
-
-        elif phase_num == 6:
-            cmd = ["uv", "run", "python", "brain_approaches/semantic_folding/lance_storage.py",
-                   "--corpus_path", str(Path(actual_output_dir) / "corpus.txt"),
-                   "--fingerprints_dir", str(Path(actual_output_dir) / "fingerprints"),
-                   "--doc_fingerprints_dir", str(Path(actual_output_dir) / "doc_fingerprints"),
-                   "--output_dir", actual_output_dir]
-        else:
-            logger.info(f"Phase {phase_num} execution not yet implemented")
-            sys.exit(1)
-
-        logger.info(f"Command: {' '.join(cmd)}")
-        logger.info("Starting execution...")
-
-        # Start progress indicator
-        progress_thread = self.show_progress_indicator(phase_name, duration_estimates.get(phase_num, 30))
-
-        try:
-            result = subprocess.run(cmd, cwd=os.getcwd(), capture_output=True, text=True)
-
-            # Stop progress indicator
-            self.stop_progress_indicator(progress_thread)
-
-            if result.returncode == 0:
-                logger.success(f"[SUCCESS] Phase {phase_num} completed successfully!")
-
-                # Show some statistics about what was created
-                self.show_phase_completion_stats(phase_num, output_dir)
-
-                self.phases[phase_num]["completed"] = True
+        print(f"\n{Colors.CYAN}Optional parameters (press Enter to skip):{Colors.ENDC}")
+        for param in step["optional_params"]:
+            if param == "output":
+                default = self.get_output_path(step, run_id)
             else:
-                logger.error(f"[FAILED] Phase {phase_num} failed with exit code {result.returncode}")
-                if result.stdout:
-                    logger.error("STDOUT:")
-                    logger.error(result.stdout[-1000:])  # Last 1000 chars
-                if result.stderr:
-                    logger.error("STDERR:")
-                    logger.error(result.stderr[-1000:])  # Last 1000 chars
-                sys.exit(result.returncode)
-        except Exception as e:
-            self.stop_progress_indicator(progress_thread)
-            logger.error(f"[ERROR] Error running phase {phase_num}: {e}")
-            sys.exit(1)
+                default = self.get_default_value(param, step["id"])
 
-        return actual_output_dir
+            value = self.get_input(f"  {param}", default)
 
-    def resume_pipeline(self, resume_state: Dict[str, Any]) -> None:
-        """Resume pipeline from saved state"""
-        last_output_dir = resume_state['last_output_dir']
-        last_phase = resume_state['last_phase']
+            # Only store if user entered something OR a default exists
+            if value:
+                if isinstance(value, str) and value.lower() in ('true', 'false'):
+                    value = value.lower() == 'true'
+                params[param] = value
+                logger.debug(f"Optional param set — {param}: {value}")
+            elif default is not None and value == default:      # ← user pressed Enter on a default
+                if isinstance(default, str) and default.lower() in ('true', 'false'):
+                    params[param] = default.lower() == 'true'
+                else:
+                    params[param] = default
+                logger.debug(f"Optional param kept from default — {param}: {params[param]}")
 
-        logger.info("RESUMING SEMANTIC FOLDING PIPELINE")
-        logger.info("=" * 60)
-        logger.info(f"Output Directory: {last_output_dir}")
-        logger.info(f"Resuming from: Phase {last_phase + 1}")
-        logger.info(f"Last saved: {resume_state.get('timestamp', 'unknown')}")
+        logger.info(f"Parameter collection complete for step {step['id']}: {len(params)} params collected")
+        return params
+
+    def build_command(self, step: Dict, params: Dict) -> List[str]:
+        cmd = ["E:\\PHD\\GraphRag-Implementations\\YaALI\\knowledge-graph-builder\\.venv\\scripts\\python", step["script"]]
         
-
-        # Check if output directory exists
-        output_path = Path(last_output_dir)
-        if not output_path.exists():
-            logger.info(f"ERROR: Output directory {last_output_dir} does not exist")
-            sys.exit(1)
-
-        # Update phase completion status based on directory contents
-        self.check_phase_completion(output_path)
-
-        # Count remaining phases
-        remaining_phases = [p for p in range(last_phase + 1, 7) if not self.phases[p]["completed"]]
-        total_remaining = len(remaining_phases)
-
-        if total_remaining == 0:
-            logger.info("All phases already completed!")
-            self.clear_resume_state()
-            return
-
-        logger.info(f"Progress: {last_phase}/{6} phases completed, {total_remaining} remaining")
+        # Map positive config names to negative CLI flags
+        negate_renamed_no_values_map = {
+            'use_spacy': 'no-spacy',
+            'filter_generic': 'no-filter-generic',
+            'use_tfidf': 'no-tfidf',
+            'use_word_boundaries': 'no-word-boundaries',
+            'enable_grid' : 'no-grid'
+        }
+        renamed_has_value_parameters_map = {
+            'min_phrase_freq':'min_freq'
+        }
         
+        for key, value in params.items():
+            if isinstance(value, bool):
+                # Check if this is a positive flag that maps to a negative CLI flag
+                if key in negate_renamed_no_values_map:
+                    # Add the negative flag when value is False
+                    if not value:
+                        cmd.append(f"--{negate_renamed_no_values_map[key]}")
+                else:
+                    # Normal flag: add when True
+                    if value:
+                        cmd.append(f"--{key.replace('_', '-')}")
+            else:
+                if key in renamed_has_value_parameters_map :
+                    cmd.extend([f"--{renamed_has_value_parameters_map[key].replace('_', '-')}", str(value)])
+                else:
+                    cmd.extend([f"--{key.replace('_', '-')}", str(value)])
+        
+        logger.debug(f"Built command: {' '.join(cmd)}")
+        return cmd
 
-        # Run remaining phases
-        completed_count = last_phase
-        for i, phase_num in enumerate(remaining_phases, 1):
-            logger.info(f"Phase {i}/{total_remaining}: {self.phases[phase_num]['name']}")
-            try:
-                self.run_specific_phase_non_interactive(phase_num, last_output_dir)
-                # Save progress after each phase
-                self.save_resume_state(last_output_dir, phase_num)
-                completed_count = phase_num
-            except SystemExit:
-                logger.info(f"Pipeline interrupted at Phase {phase_num}. Progress saved for resume.")
-                sys.exit(1)
+    def execute_step(self, step: Dict[str, Any], params: Dict[str, str], run_id: str) -> bool:
+        cmd = self.build_command(step, params)
 
-        # Clear resume state on successful completion
-        self.clear_resume_state()
-        logger.success("\nPipeline completed successfully!")
-        logger.success("All phases have been executed and results are ready.")
+        logger.info(f"Executing step {step['id']}: {step['name']} | run_id={run_id}")
+        logger.debug(f"Full command: {' '.join(cmd)}")
 
-    def run_specific_phase(self) -> None:
-        """Run a specific pipeline phase"""
-        logger.success("\nSelect Phase to Run:")
+        print(f"\n{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
+        print(f"{Colors.BOLD}Executing:{Colors.ENDC} {' '.join(cmd)}")
+        print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}\n")
 
-        phase_choices = []
-        for phase_num, phase_info in self.phases.items():
-            status = "✅ COMPLETED" if phase_info["completed"] else "⏳ PENDING"
-            phase_choices.append(f"{status}: Phase {phase_num} - {phase_info['name']}")
-
-        choice = questionary.select("Select phase:", choices=phase_choices).ask()
-
-        if not choice:
-            return
-
-        # Extract phase number
-        parts = choice.split(": Phase ")
-        if len(parts) < 2:
-            return
-        phase_num = int(parts[1].split()[0])
-
-        # Get output directory
-        last_run = self.check_last_run_status()
-        if not last_run:
-            logger.info("No output directory found. Please run Phase 1 first or specify output directory.")
-            return
-
-        # Run the phase with progress reporting
-        self.run_specific_phase_non_interactive(phase_num, str(last_run))
-
-    def view_output_files(self) -> None:
-        """View and explore output files"""
-        last_run = self.check_last_run_status()
-        if not last_run:
-            logger.info("No output directory found")
-            return
-
-        logger.info(f"\nOutput Directory: {last_run}")
-
-        # Show directory structure
-        logger.info("\nDirectory Structure:")
-        for root, dirs, files in os.walk(last_run):
-            level = root.replace(str(last_run), '').count(os.sep)
-            indent = ' ' * 2 * level
-            logger.info(f"{indent}{os.path.basename(root)}/")
-            subindent = ' ' * 2 * (level + 1)
-            for file in files[:5]:  # Show first 5 files
-                logger.info(f"{subindent}{file}")
-            if len(files) > 5:
-                logger.info(f"{subindent}... and {len(files) - 5} more files")
-
-        # Show key statistics
-        logger.info("\nKey Statistics:")
         try:
-            if (last_run / "corpus.txt").exists():
-                with open(last_run / "corpus.txt", 'r', encoding='utf-8') as f:
-                    corpus_lines = sum(1 for _ in f)
-                logger.info(f"   Corpus passages: {corpus_lines}")
+            result = subprocess.run(cmd, check=True, text=True)
 
-            if (last_run / "phrases.txt").exists():
-                with open(last_run / "phrases.txt", 'r', encoding='utf-8') as f:
-                    phrases_lines = sum(1 for _ in f)
-                logger.info(f"   Phrases extracted: {phrases_lines}")
+            if run_id not in self.exec_state["runs"]:
+                self.exec_state["runs"][run_id] = {
+                    "created_at": datetime.now().isoformat(),
+                    "steps": {}
+                }
 
-            fingerprints_dir = last_run / "fingerprints"
-            if fingerprints_dir.exists():
-                fp_count = len(list(fingerprints_dir.glob("*.txt")))
-                logger.info(f"   Phrase fingerprints: {fp_count}")
+            output_path = params.get("output", self.get_output_path(step, run_id))
 
-            doc_fp_dir = last_run / "doc_fingerprints"
-            if doc_fp_dir.exists():
-                doc_fp_count = len(list(doc_fp_dir.glob("*_fingerlogger.info.txt")))
-                logger.info(f"   Document fingerprints: {doc_fp_count}")
+            # Build extra outputs map if defined
+            extra_outputs = {}
+            for label, path_fn in step.get("extra_outputs", {}).items():
+                extra_outputs[label] = path_fn(output_path)
+                logger.debug(f"Extra output tracked — {label}: {extra_outputs[label]}")
 
+            step_record = {
+                "name": step["name"],
+                "completed_at": datetime.now().isoformat(),
+                "parameters": params,
+                "output": output_path,
+            }
+
+            if extra_outputs:
+                step_record["extra_outputs"] = extra_outputs
+
+            self.exec_state["runs"][run_id]["steps"][step["id"]] = step_record
+
+            self.exec_state["last_run_id"] = run_id
+            self.exec_state["last_step"] = step["id"]
+            self.save_exec_state()
+
+            logger.info(f"Step {step['id']} completed successfully — output: {output_path}")
+            if extra_outputs:
+                for label, path in extra_outputs.items():
+                    logger.info(f"  Extra output — {label}: {path}")
+
+            self.print_success(f"Step {step['id']}: {step['name']} completed successfully")
+            return True
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Step {step['id']} failed with return code {e.returncode}")
+            self.print_error(f"Step {step['id']}: {step['name']} failed with error code {e.returncode}")
+            return False
         except Exception as e:
-            logger.info(f"   ERROR: Error reading statistics: {e}")
+            logger.exception(f"Unexpected error during step {step['id']}: {e}")
+            self.print_error(f"Unexpected error: {str(e)}")
+            return False
 
-    def clean_outputs(self) -> None:
-        """Clean old output directories"""
-        if not QUESTIONARY_AVAILABLE:
-            logger.info("questionary not available")
+
+    def show_last_run_info(self):
+        if not self.exec_state["last_run_id"]:
             return
 
-        if not self.output_base.exists():
-            logger.info("No output directory found")
+        run_id = self.exec_state["last_run_id"]
+        last_step_id = self.exec_state["last_step"]
+
+        if run_id not in self.exec_state["runs"]:
             return
 
-        # List output directories
-        output_dirs = [d for d in self.output_base.iterdir() if d.is_dir() and d.name.startswith('musique_')]
-        if not output_dirs:
-            logger.info("No output directories found")
+        run_data = self.exec_state["runs"][run_id]
+        last_step = self.get_step_by_id(last_step_id)
+
+        if not last_step:
             return
 
-        logger.info(f"\nFound {len(output_dirs)} output directories:")
-        for i, d in enumerate(sorted(output_dirs, reverse=True)):
-            size_mb = sum(f.stat().st_size for f in d.rglob('*') if f.is_file()) / (1024 * 1024)
-            logger.info(f"   {d.name}: {size_mb:.1f} MB")
-        choices = ["All", "None"] + [d.name for d in sorted(output_dirs, reverse=True)]
+        logger.debug(f"Displaying last run info: run_id={run_id}, last_step={last_step_id}")
 
-        to_delete = questionary.checkbox(
-            "Select directories to delete:",
-            choices=[d.name for d in sorted(output_dirs, reverse=True)]
-        ).ask()
+        print(f"\n{Colors.BOLD}Last Run Information:{Colors.ENDC}")
+        print(f"  Run ID: {Colors.YELLOW}{run_id}{Colors.ENDC}")
+        print(f"  Last Step: {Colors.YELLOW}{last_step['name']} (Step {last_step_id}){Colors.ENDC}")
 
-        if to_delete:
-            for dirname in to_delete:
-                dir_path = self.output_base / dirname
-                try:
-                    shutil.rmtree(dir_path)
-                    logger.info(f"Deleted: {dirname}")
-                except Exception as e:
-                    logger.info(f"Failed to delete {dirname}: {e}")
+        if last_step_id in run_data["steps"]:
+            step_data = run_data["steps"][last_step_id]
+            print(f"  Completed: {Colors.GREEN}{step_data['completed_at']}{Colors.ENDC}")
+            print(f"  Output: {Colors.CYAN}{step_data['output']}{Colors.ENDC}")
+
+    def rerun_last_step(self) -> None:
+        """Rerun the last completed step with option to modify parameters"""
+        if not self.exec_state["last_run_id"]:
+            self.print_error("No previous run found")
+            return
+
+        run_id = self.exec_state["last_run_id"]
+        run_data = self.exec_state["runs"][run_id]
+
+        if not run_data["steps"]:
+            self.print_error("No completed steps found in last run")
+            return
+
+        last_step_id = max(run_data["steps"].keys())
+        step_data = run_data["steps"][last_step_id]
+        step_name = step_data["name"]
+
+        # Use PIPELINE_STEPS, not self.config
+        step_def = self.get_step_by_id(last_step_id)
+
+        if step_def is None:
+            self.print_error(f"Step definition for '{step_name}' not found in pipeline")
+            logger.error(f"Could not find step definition for step_id={last_step_id}, name={step_name}")
+            return
+
+        print(f"\n{Colors.HEADER}Rerunning Step {last_step_id}: {step_name}{Colors.ENDC}")
+        print(f"Run ID: {run_id}\n")
+
+        prev_params = step_data.get("parameters", {})
+        print(f"{Colors.CYAN}Previous parameters:{Colors.ENDC}")
+        for key, value in prev_params.items():
+            print(f"  {key}: {value}")
+
+        modify = self.get_input("\nModify parameters? (y/n)", "n").lower()
+
+        if modify == 'y':
+            logger.info("User chose to modify parameters for rerun")
+            params = self.collect_parameters(step_def, run_id)
         else:
-            logger.info("No directories selected for deletion")
+            logger.info("User chose to keep previous parameters for rerun")
+            params = prev_params
+
+        print(f"\n{Colors.CYAN}Parameters for rerun:{Colors.ENDC}")
+        for key, value in params.items():
+            print(f"  {key}: {value}")
+
+        confirm = self.get_input(f"\nProceed with rerun? (y/n)", "y").lower()
+
+        if confirm != 'y':
+            logger.info("Rerun cancelled by user")
+            print(f"{Colors.YELLOW}Rerun cancelled{Colors.ENDC}")
+            return
+
+        logger.info(f"Executing rerun of step {last_step_id} with run_id {run_id}")
+        success = self.execute_step(step_def, params, run_id)
+
+        if not success:
+            print(f"\n{Colors.RED}✗ Step {last_step_id}: {step_name} rerun failed{Colors.ENDC}\n")
+            logger.error(f"Step {last_step_id} rerun failed")
+
+    def continue_run(self):
+        logger.info("User selected: continue pipeline")
+
+        if not self.exec_state["last_run_id"] or not self.exec_state["last_step"]:
+            logger.warning("Continue requested but no previous run found, redirecting to new run")
+            self.print_error("No previous run found. Starting new run instead.")
+            return self.start_new_run()
+
+        run_id = self.exec_state["last_run_id"]
+        last_step_id = self.exec_state["last_step"]
+
+        if last_step_id >= len(self.PIPELINE_STEPS):
+            logger.info("All pipeline steps completed")
+            self.print_success("Pipeline completed! All steps have been executed.")
+            return True
+
+        next_step = self.PIPELINE_STEPS[last_step_id]
+        logger.info(f"Continuing run {run_id} with step {next_step['id']}: {next_step['name']}")
+
+        print(f"\n{Colors.BOLD}Continuing run: {Colors.YELLOW}{run_id}{Colors.ENDC}")
+        print(f"Next step: {Colors.YELLOW}Step {next_step['id']}: {next_step['name']}{Colors.ENDC}")
+
+        params = self.collect_parameters(next_step, run_id)
+        return self.execute_step(next_step, params, run_id)
+
+    def show_run_history(self):
+        logger.info("Displaying run history")
+
+        if not self.exec_state["runs"]:
+            logger.info("No run history available")
+            print(f"\n{Colors.YELLOW}No run history available{Colors.ENDC}")
+            return
+
+        print(f"\n{Colors.BOLD}Run History:{Colors.ENDC}")
+        print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
+
+        for run_id, run_data in sorted(self.exec_state["runs"].items(), reverse=True):
+            print(f"\n{Colors.BOLD}Run ID: {Colors.YELLOW}{run_id}{Colors.ENDC}")
+            print(f"Created: {run_data['created_at']}")
+            print(f"Steps completed: {len(run_data['steps'])}")
+
+            for step_id in sorted(run_data["steps"].keys()):
+                step_data = run_data["steps"][step_id]
+                print(f"  {Colors.GREEN}✓{Colors.ENDC} Step {step_id}: {step_data['name']}")
+                print(f"    Output: {Colors.CYAN}{step_data['output']}{Colors.ENDC}")
+
+        print(f"\n{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
+        input(f"\n{Colors.BOLD}Press Enter to continue...{Colors.ENDC}")
+
+    def start_new_run(self) -> bool:
+        run_id = self.generate_run_id()
+        logger.info(f"Starting new run: {run_id}")
+
+        self.print_header(f"New Run: {run_id}")
+
+        # Let user choose starting step
+        print(f"{Colors.BOLD}Select starting step:{Colors.ENDC}")
+        step_options = [f"Step {s['id']}: {s['name']}" for s in self.PIPELINE_STEPS]
+        start_choice = self.get_choice("Start from which step?", step_options)
+        start_step = self.PIPELINE_STEPS[start_choice - 1]
+
+        logger.info(f"User selected starting step {start_step['id']}: {start_step['name']}")
+
+        # Initialize run in exec_state
+        self.exec_state["runs"][run_id] = {
+            "created_at": datetime.now().isoformat(),
+            "steps": {}
+        }
+        self.save_exec_state()
+
+        # Execute from selected step onward
+        current_index = start_choice - 1
+        while current_index < len(self.PIPELINE_STEPS):
+            step = self.PIPELINE_STEPS[current_index]
+
+            print(f"\n{Colors.BOLD}{Colors.HEADER}Step {step['id']}: {step['name']}{Colors.ENDC}")
+
+            params = self.collect_parameters(step, run_id)
+
+            print(f"\n{Colors.CYAN}Parameters summary:{Colors.ENDC}")
+            for key, value in params.items():
+                print(f"  {key}: {value}")
+
+            confirm = self.get_input(f"\nExecute step {step['id']}? (y/n)", "y").lower()
+            if confirm != 'y':
+                logger.info(f"User skipped step {step['id']}")
+                self.print_warning(f"Step {step['id']} skipped")
+                break
+
+            success = self.execute_step(step, params, run_id)
+
+            if not success:
+                logger.error(f"Step {step['id']} failed, stopping run {run_id}")
+                self.print_error(f"Run stopped at step {step['id']}")
+                return False
+
+            current_index += 1
+
+            # If there are more steps, ask to continue
+            if current_index < len(self.PIPELINE_STEPS):
+                next_step = self.PIPELINE_STEPS[current_index]
+                cont = self.get_input(
+                    f"\nContinue to Step {next_step['id']}: {next_step['name']}? (y/n)",
+                    "y"
+                ).lower()
+                if cont != 'y':
+                    logger.info(f"User chose to stop after step {step['id']}")
+                    self.print_warning("Run paused. You can continue later from the main menu.")
+                    return True
+            else:
+                self.print_success("All pipeline steps completed successfully!")
+                logger.info(f"Run {run_id} completed all steps")
+
+        return True
+
+    def run(self):
+        logger.info("SemanticRunner started")
+        self.print_header("Semantic Folding Pipeline Runner")
+
+        while True:
+            self.show_last_run_info()
+
+            options = []
+            if self.exec_state["last_run_id"]:
+                last_step = self.get_step_by_id(self.exec_state["last_step"])
+                options.append(f"Rerun last step (Step {self.exec_state['last_step']}: {last_step['name']})")
+                if self.exec_state["last_step"] < len(self.PIPELINE_STEPS):
+                    options.append("Continue to next step")
+
+            options.extend(["Start new run", "View run history", "Exit"])
+
+            choice = self.get_choice("What would you like to do?", options)
+            logger.debug(f"User menu choice: {choice}")
+
+            offset = 0
+            if self.exec_state["last_run_id"]:
+                if choice == 1:
+                    self.rerun_last_step()
+                    continue
+                if self.exec_state["last_step"] < len(self.PIPELINE_STEPS):
+                    if choice == 2:
+                        self.continue_run()
+                        continue
+                    offset = 1
+
+            adjusted_choice = choice - offset - (1 if self.exec_state["last_run_id"] else 0)
+
+            if adjusted_choice == 1:
+                self.start_new_run()
+            elif adjusted_choice == 2:
+                self.show_run_history()
+            elif adjusted_choice == 3:
+                logger.info("User exited the runner")
+                print(f"\n{Colors.GREEN}Goodbye!{Colors.ENDC}\n")
+                break
 
 
 def main():
-    """Main entry point"""
-    parser = argparse.ArgumentParser(description="Semantic Folding Pipeline TUI (Optimized Configuration)",
-                                     epilog="Examples:\n"
-                                            "  %(prog)s                                    # Interactive mode\n"
-                                            "  %(prog)s --non-interactive                 # Show status only\n"
-                                            "  %(prog)s --resume                          # Resume interrupted pipeline\n"
-                                            "  %(prog)s --run-phase 2 --output-dir DIR    # Run specific phase\n"
-                                            "\nOptimized Settings:\n"
-                                            "  - Grid Size: 32x32 (better distribution)\n"
-                                            "  - Max Edges: 200 (cleaner layouts)\n"
-                                            "  - Edge Threshold: 0.05 (better connectivity)")
-    parser.add_argument("--config", help="Configuration YAML file")
-    parser.add_argument("--non-interactive", action="store_true", help="Run in non-interactive mode")
-    parser.add_argument("--run-all", action="store_true", help="Run all phases in non-interactive mode")
-    parser.add_argument("--run-phase", type=int, choices=[1, 2, 3, 4, 5, 6],
-                       help="Run specific phase (1-6) in non-interactive mode")
-    parser.add_argument("--output-dir", help="Output directory for phase execution")
-    parser.add_argument("--resume", action="store_true", help="Resume from last saved state")
-
-    args = parser.parse_args()
-
-    # Check dependencies
-    if not QUESTIONARY_AVAILABLE:
-        logger.info("questionary not available. Install with: uv add questionary")
-        logger.info("Falling back to basic configuration...")
-
-        # Basic config mode
-        config_file = args.config or "config/semantic_folding.yml"
-        tui = SemanticFoldingTUI(config_file)
-        tui.show_status()
-        return
-
-    # Create TUI
-    tui = SemanticFoldingTUI(args.config)
-
-    if args.resume:
-        # Resume from saved state
-        resume_state = tui.load_resume_state()
-        if resume_state:
-            logger.info(f"Resuming from: {resume_state['last_output_dir']}")
-            logger.info(f"Last completed phase: {resume_state['last_phase']}")
-            tui.resume_pipeline(resume_state)
-        else:
-            logger.info("No resume state found. Starting fresh...")
-            tui.show_status()
-    elif args.run_all:
-        # Run all phases in non-interactive mode
-        tui.run_all_phases()
-    elif args.run_phase:
-        # Run specific phase in non-interactive mode
-        if not args.output_dir:
-            logger.info("Error: --output-dir is required when using --run-phase")
-            sys.exit(1)
-        result_dir = tui.run_specific_phase_non_interactive(args.run_phase, args.output_dir)
-        logger.info(f"\nOutput directory: {result_dir}")
-    elif args.non_interactive:
-        # Non-interactive mode - just show status
-        tui.show_status()
-    else:
-        # Interactive mode
-        tui.run_pipeline_menu()
-
-def test() -> None :
-    config_file = "config/semantic_folding.yml"
-    tui = SemanticFoldingTUI(config_file)
-    phase  = 5
-    if phase ==1 : 
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = Path(f"{tui.output_base}/pipeline_{timestamp}")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Output directory: {output_dir}")
-    else : 
-        output_dir = "outputs\\pipeline_20260305_182700"
-    tui.run_specific_phase_non_interactive(phase, str(output_dir))
+    try:
+        runner = SemanticRunner()
+        runner.run()
+    except KeyboardInterrupt:
+        logger.warning("Runner interrupted by user (KeyboardInterrupt)")
+        print(f"\n\n{Colors.YELLOW}Interrupted by user{Colors.ENDC}\n")
+        sys.exit(0)
+    except Exception as e:
+        logger.exception(f"Fatal error in SemanticRunner: {e}")
+        print(f"\n{Colors.RED}Fatal error: {str(e)}{Colors.ENDC}\n")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    # main()
-    test()
+    main()

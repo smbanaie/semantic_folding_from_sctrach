@@ -1,41 +1,71 @@
-# Semantic Folding: Knowledge Graph to Semantic Space Embeddings
+# Semantic Folding: Interpretable Semantic Space Embeddings
 
 ## Overview
 
-**Status**: 🔄 Pipeline Implementation (Phase 1-5 Complete) | Ready for Evaluation Phases
+**Status**: 🔄 Core Pipeline Complete | Evaluation & Knowledge Graph Integration Planned
 
-Semantic Folding is a novel approach for constructing semantic space embeddings (fingerprints) from knowledge graphs and textual corpora. Unlike traditional dimensionality reduction techniques (UMAP, t-SNE, PCA), semantic folding creates interpretable, grid-based semantic spaces where:
+Semantic Folding is a novel approach for constructing interpretable, grid-based semantic space embeddings from textual corpora. Unlike black-box embeddings (word2vec, BERT) or traditional dimensionality reduction (UMAP, t-SNE, PCA), semantic folding creates spatially-organized representations where:
 
-- **Phrases** are represented as spatial fingerprints showing their semantic distribution
-- **Documents** are represented as composite fingerprints combining their constituent phrases
+- **Phrases** are represented as sparse spatial fingerprints showing their semantic distribution
+- **Documents** are composite fingerprints aggregating constituent phrase semantics
 - **Semantic relationships** are preserved through graph-based positioning and spatial proximity
+- **Grid structure** enables efficient similarity computation and interpretable visualization
 
-## Modern Implementation
+## Production-Ready Pipeline
 
-### Production-Ready Pipeline
-The semantic folding approach has been modernized into a production-ready pipeline with comprehensive engineering:
+### Core Components (✅ Completed)
 
-#### Core Components (✅ Completed)
-- **`scratchpad.py`**: Main orchestration script with comprehensive logging
-- **`phrase_extractor.py`**: Modern phrase extraction with 1-4 word limits
-- **`term_context.py`**: Sparse matrix term-context construction (95% memory savings)
-- **`semantic_space.py`**: Force-directed graph layout with configurable grids
-- **`phrase_fingerprints.py`**: Efficient fingerprint generation from semantic coordinates
-- **`doc_fingerprints.py`**: Document fingerprint aggregation with metadata
+The semantic folding pipeline has been modernized into a production-ready system with comprehensive engineering and academic documentation:
 
-#### Key Improvements
-- **Scalability**: Handles corpora from 1K to 50K+ documents
+#### Pipeline Modules
+- **`lib.py`**: Shared utility layer providing consistent implementations of core operations (normalization, validation, Morton encoding, sparsification)
+- **`phrase_extractor.py`**: Modern phrase extraction with 1-4 word n-grams, quality filtering, and spaCy integration
+- **`term_context.py`**: Sparse matrix term-context construction with TF-IDF normalization (95% memory savings)
+- **`semantic_space.py`**: Force-directed graph layout with configurable grid sizes and spatial optimization
+- **`phrase_fingerprints.py`**: Efficient fingerprint generation from semantic coordinates with validation and Morton encoding
+- **`doc_fingerprints.py`**: Document fingerprint aggregation with IDF weighting, Z-order thresholding, and comprehensive metadata
+- **`semantic_folder.py`**: Interactive TUI orchestration with progress tracking, resume capability, and error recovery
+- **`scratchpad.py`**: Command-line orchestration with comprehensive logging and batch processing
+
+#### Academic Documentation
+- **`lib.md`**: Comprehensive documentation of shared utility functions with mathematical foundations
+- **`phrase_extractor.md`**: Theoretical foundation and implementation details for phrase extraction
+- **`term_context.md`**: Sparse matrix construction methodology and TF-IDF normalization theory
+- **`sematic_space.md`**: Graph-based semantic space construction with force-directed layout algorithms
+- **`phrase_fingerprints.md`**: Fingerprint generation theory with Morton encoding and sparsification
+- **`doc_fingerprints.md`**: Document-level aggregation theory with Z-order thresholding and weighting schemes
+
+#### Supporting Tools
+- **`analyze_fingerprints.py`**: Statistical analysis and quality metrics for generated fingerprints
+- **`context-similarity.py`**: Context similarity computation and validation
+- **`query-processing.py`**: Query fingerprint generation and similarity search
+- **`lance_storage.py`**: LanceDB integration for efficient vector storage and retrieval
+
+### Key Improvements
+
+- **Scalability**: Handles corpora from 1K to 50K+ documents efficiently
 - **Memory Efficiency**: Sparse matrices reduce memory usage by 95%
-- **Robustness**: Fallback mechanisms for missing dependencies
-- **Optimized Quality**: Tuned parameters for optimal semantic space distribution (32×32 grid, controlled connectivity)
-- **TF-IDF Matrix Normalization**: Reduces high-frequency word dominance in semantic relationships
-- **Document Fingerprint Sparsification**: Keeps only top 5% of activated cells for improved semantic focus
-- **Advanced Phrase Processing**: 1-4 word phrase limits with quality filtering
-- **Interactive TUI**: Command-line interface with progress tracking and error checking
-- **Resume Capability**: Automatic recovery from interruptions
+- **Robustness**: Comprehensive validation, fallback mechanisms, and error handling
+- **Consistency**: Shared `lib.py` ensures uniform behavior across all pipeline stages
+- **Quality Optimization**: Tuned parameters for optimal semantic space distribution
+- **Advanced Processing**: Morton encoding for spatial locality, Z-order thresholding for coherent sparsification
 - **Comprehensive Logging**: Dual console/file output with color coding and debug modes
+- **Resume Capability**: Automatic recovery from interruptions with checkpoint management
 
 ## Advanced Features
+
+### Shared Utility Layer (`lib.py`)
+
+All pipeline stages leverage a consistent set of core functions:
+
+- **`normalize_phrase()`**: Consistent phrase key formatting (lowercase, whitespace normalization)
+- **`is_valid_phrase_structure()`**: Structural validation to filter malformed phrases
+- **`normalize_fingerprint()`**: Unified normalization (L1, L2, binary, raw) for activation maps
+- **`xy_to_morton()`**: Z-order curve encoding for spatial locality preservation
+- **`sparsify_fingerprint()`**: Value-based thresholding with configurable percentiles
+- **`compute_idf_weights()`**: Corpus-level IDF statistics for phrase importance weighting
+- **`compute_fingerprint_diversity()`**: Activation diversity metrics for quality assessment
+- **`export_fingerprints_to_numpy()`**: Efficient serialization to NumPy format
 
 ### TF-IDF Matrix Normalization
 
@@ -43,53 +73,52 @@ Reduces the dominance of high-frequency words in semantic relationships:
 
 - **Problem**: Common words like "it", "that", "the" can overwhelm meaningful semantic connections
 - **Solution**: Applies TF-IDF weighting to term-context matrix entries
-- **Formula**: `TF-IDF = TF × log(N/DF)` where TF is term frequency, DF is document frequency
+- **Formula**: $\text{TF-IDF} = \text{TF} \times \log\frac{N}{\text{DF}}$ where TF is term frequency, DF is document frequency
 - **Benefit**: Balances semantic relationships by down-weighting ubiquitous terms
-- **Configuration**: `normalize_matrix: true` (enabled by default)
+- **Implementation**: `normalize_matrix: true` in configuration (enabled by default)
 
-### Document Fingerprint Thresholding
+### Z-order Curve Thresholding
 
-Creates more focused and interpretable document representations:
+Creates spatially coherent document fingerprints:
 
-- **Problem**: Document fingerprints may contain too much noise from weakly relevant terms
-- **Solution**: Retains only the top N% most activated cells in document fingerprints
-- **Method**: After aggregating phrase fingerprints, keeps only cells above a threshold
+- **Problem**: Value-based thresholding fragments semantically coherent regions
+- **Solution**: Traverses activation map via Z-order curve (Morton encoding) to preserve spatial locality
+- **Method**: `xy_to_morton()` converts 2D coordinates to 1D indices, sorted traversal selects top activations
+- **Benefit**: Maintains semantic coherence by preferentially selecting contiguous high-activation regions
+- **Fallback**: `sparsify_fingerprint()` provides value-based thresholding when Z-order is disabled
+
+### Document Fingerprint Sparsification
+
+Creates focused and interpretable document representations:
+
+- **Problem**: Document fingerprints may contain noise from weakly relevant terms
+- **Solution**: Retains only the top N% most activated cells after aggregation
+- **Method**: Z-order traversal or value-based thresholding depending on configuration
 - **Benefit**: Improves semantic specificity and reduces storage requirements
 - **Configuration**: `doc_top_percent: 0.05` (keeps top 5%, configurable)
 
-### Optimized Configuration
+### Phrase Structure Validation
 
-The pipeline uses carefully tuned parameters for optimal quality:
+Ensures quality and consistency across the pipeline:
 
-```yaml
-# Core semantic parameters
-grid_size: 32                    # Larger grid for better distribution
-max_edges: 200                  # Controlled connectivity
-edge_threshold: 0.05           # Balanced similarity threshold
+- **Problem**: Malformed phrases (empty strings, excessive whitespace, invalid characters) can corrupt fingerprints
+- **Solution**: `is_valid_phrase_structure()` validates phrases after normalization
+- **Checks**: Non-empty, reasonable length, valid characters, proper whitespace
+- **Benefit**: Early filtering prevents downstream errors and improves fingerprint quality
+- **Metrics**: Validation rate tracked in pipeline statistics
 
-# Quality enhancements
-normalize_matrix: true         # TF-IDF normalization
-doc_top_percent: 0.05         # Document fingerprint thresholding
+## Quick Start
 
-# Performance settings
-batch_size: 1000               # Efficient processing
-use_spacy: true               # Advanced phrase extraction
-```
-
-### Quick Start
-
-#### Interactive TUI (Recommended)
+### Interactive TUI (Recommended)
 ```bash
 # Install dependencies
 uv sync
-uv add pyyaml questionary
 
 # Launch interactive interface
 uv run python brain_approaches/semantic_folding/semantic_folder.py
-```
 
-#### Command Line (Advanced)
-```bash
+### Command Line (Advanced)
+
 # Run on MuSiQue corpus (default)
 uv run python brain_approaches/semantic_folding/scratchpad.py \
   --corpus_path data/HippoRAG2/dataset/musique_corpus.json
@@ -97,12 +126,11 @@ uv run python brain_approaches/semantic_folding/scratchpad.py \
 # Run on custom corpus
 uv run python brain_approaches/semantic_folding/scratchpad.py \
   --corpus_path /path/to/your/corpus.json \
-  --grid_size 8
+  --grid_size 32
 
 # Check results
 ls outputs/$(date +%Y%m%d)_*/fingerprints/ | wc -l  # 25K+ fingerprint files
 ```
-
 ## Configuration
 
 The semantic folding pipeline is highly configurable through `config/semantic_folding.yml`:
@@ -111,183 +139,152 @@ The semantic folding pipeline is highly configurable through `config/semantic_fo
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `grid_size` | 32 | Semantic space grid size (8, 16, 32) |
+| `grid_size` | 32 | Semantic space grid size (8, 16, 32, 64, 128) |
 | `max_edges` | 200 | Maximum edges in semantic graph |
 | `edge_threshold` | 0.05 | Minimum similarity for graph connections |
-| `normalize_matrix` | true | Apply TF-IDF normalization |
-| `doc_top_percent` | 0.05 | Document fingerprint threshold percentage |
+| `normalize_matrix` | true | Apply TF-IDF normalization to term-context matrix |
+| `doc_top_percent` | 0.05 | Document fingerprint threshold percentage (Z-order or value-based) |
+| `use_z_order` | true | Enable Z-order curve thresholding for spatial coherence |
+| `normalization` | l2 | Fingerprint normalization method (l1, l2, binary, raw) |
 
 ### Quality vs Speed Trade-offs
 
 **Maximum Quality** (Recommended):
-```yaml
-grid_size: 32
+yaml
+grid_size: 64
 max_edges: 500
 edge_threshold: 0.01
 normalize_matrix: true
 doc_top_percent: 0.03
-```
+use_z_order: true
+normalization: l2
 
 **Balanced Performance**:
-```yaml
+yaml
 grid_size: 32
 max_edges: 200
 edge_threshold: 0.05
 normalize_matrix: true
 doc_top_percent: 0.05
-```
+use_z_order: true
+normalization: l2
 
 **Fast Processing**:
-```yaml
+yaml
 grid_size: 16
 max_edges: 100
 edge_threshold: 0.1
 normalize_matrix: false
 doc_top_percent: 0.1
-```
+use_z_order: false
+normalization: binary
 
 ### Output Structure
-```
+
 outputs/YYYYMMDD_HHMMSS/
 ├── corpus.txt                 # Processed corpus
-├── phrases.txt               # 25K+ filtered phrases
+├── phrases.txt               # 25K+ filtered phrases with frequencies
 ├── term_context_matrix.npz   # Sparse matrix (827K entries, 0.28% density)
-├── context_coordinates.csv   # 16×16 grid coordinates
+├── context_coordinates.csv   # Grid coordinates for semantic space
 ├── fingerprints/             # 25K+ phrase fingerprint files
 ├── doc_fingerprints/         # 11K+ document fingerprints + metadata
 ├── logs/pipeline.log         # Comprehensive execution log
 └── visualizations/           # Heatmaps and graphs (if matplotlib available)
-```
-
-## Experimental Framework
-
-The implementation includes comprehensive notebooks demonstrating the algorithm and comparative studies:
-
-### Core Algorithm Notebooks
-- **`Semantic_Space_Construction.ipynb`**: Complete end-to-end pipeline with Google Colab integration
-- **`ground-up.ipynb`**: Foundational phrase extraction and processing
-- **`pre_processing.ipynb`**: Text preprocessing with spaCy lemmatization and cleaning
-
-### Comparative Methods
-- **`Document_representation.ipynb`**: Traditional TF-IDF + SVD approach for baseline comparison
-- **`Document_clustering.ipynb`**: Self-Organizing Maps (SOM) clustering on TF-IDF vectors
-- **`Umap_fingerprint.ipynb`**: UMAP-based dimensionality reduction with grid fingerprinting
-- **`tsne_fingerprint.ipynb`**: t-SNE visualization and fingerprint generation
-- **`ISOMAP.ipynb`**: ISOMAP manifold learning comparison
-- **`SOM_fingerprint.ipynb`**: SOM-based semantic fingerprinting
-- **`UMAP_2.ipynb`, `UMAP_3.ipynb`**: Extended UMAP experiments
 
 ## Core Algorithm
 
 ### Pipeline Overview
 
-The modern semantic folding pipeline consists of 8 phases with comprehensive evaluation:
+The semantic folding pipeline consists of six core stages with comprehensive validation:
 
-#### Core Pipeline (✅ Implemented)
-1. **Corpus Loading** (`scratchpad.py`): Load and preprocess JSON/CSV corpora
-2. **Phrase Extraction** (`phrase_extractor.py`): Extract 1-4 word phrases with quality filtering
-3. **Term-Context Matrix** (`term_context.py`): Sparse matrix construction (95% memory savings)
-4. **Semantic Space Construction** (`semantic_space.py`): 16×16 grid positioning via force-directed layout
-5. **Fingerprint Generation** (`phrase_fingerprints.py`, `doc_fingerprints.py`): Create phrase and document fingerprints
+1. **Phrase Extraction** (`phrase_extractor.py`): Extract 1-4 word n-grams with quality filtering and frequency ranking
+2. **Term-Context Matrix** (`term_context.py`): Sparse matrix construction with optional TF-IDF normalization
+3. **Semantic Space Construction** (`semantic_space.py`): Force-directed graph layout mapping contexts to grid coordinates
+4. **Phrase Fingerprint Generation** (`phrase_fingerprints.py`): Convert phrase occurrences to spatial fingerprints with validation
+5. **Document Fingerprint Aggregation** (`doc_fingerprints.py`): Combine phrase fingerprints with weighting and thresholding
+6. **Storage & Retrieval** (`lance_storage.py`): Efficient vector storage and similarity search via LanceDB
 
-#### Evaluation Pipeline (🔄 Next)
-6. **LanceDB Integration**: Fast vector similarity search for semantic retrieval
-7. **Multi-Method Evaluation**: Compare against TF-IDF, BM25, Dense, Graph-based baselines
-8. **Comprehensive Benchmarking**: Recall@K, MRR, MAP, EM, F1 metrics with statistical testing
-
-#### Legacy Components
-- **Experimental Notebooks**: Original research implementations (see Experimental Framework below)
-
-### Step-by-Step Technical Details
+### Technical Details
 
 #### 1. Phrase Extraction
-**Input**: Text corpus (`corpus.txt`) - format: `context_id,text_content`
-**Output**: Frequency-sorted list of phrases (`phrases.txt`)
+**Input**: Text corpus (JSON/CSV format)
+**Output**: Frequency-sorted phrase list (`phrases.txt`)
 
 **Algorithm**:
 - Uses spaCy NLP pipeline for linguistic analysis
-- Extracts noun phrases (`doc.noun_chunks`)
-- Extracts verb phrases (tokens with `dep_ == "VP"`)
-- Filters single-word phrases to remove stop words
-- Ranks phrases by frequency of occurrence
+- Extracts 1-4 word n-grams with configurable limits
+- Filters by frequency, length, and structural validity
+- Applies `normalize_phrase()` for consistent formatting
+- Validates with `is_valid_phrase_structure()` before output
 
 **Key Parameters**:
-- Minimum phrase length: > 1 character
-- Stop word filtering for single tokens
-- Frequency-based ranking
+- `max_ngram`: Maximum phrase length (default: 4)
+- `min_phrase_freq`: Minimum occurrence threshold
+- `use_spacy`: Enable advanced linguistic processing
 
 #### 2. Term-Context Matrix Construction
 **Input**: Phrases list, corpus text
-**Output**: CSV matrix (`term_context_matrix.csv`)
+**Output**: Sparse matrix (`term_context_matrix.npz`)
 
 **Algorithm**:
-- Creates sparse matrix: contexts × phrases
-- Cell values: count of phrase occurrences in each context
-- Uses exact string matching for phrase detection
+- Creates sparse CSR matrix: contexts × phrases
+- Cell values: phrase occurrence counts in each context
+- Optional TF-IDF normalization via `normalize_matrix` parameter
+- 95% memory savings compared to dense representation
 
 **Matrix Structure**:
-```
+
 Context ID | phrase_1 | phrase_2 | ... | phrase_n
 -----------|----------|----------|-----|----------
-1          | 2        | 0        | ... | 1
-2          | 0        | 3        | ... | 0
+1          | 2.3      | 0        | ... | 1.7
+2          | 0        | 4.1      | ... | 0
 ...
-```
 
 #### 3. Semantic Space Construction
 **Input**: Term-context matrix
-**Output**: Semantic coordinates (`context_coordinates.csv`), visualizations
+**Output**: Semantic coordinates (`context_coordinates.csv`)
 
 **Algorithm**:
 1. **Graph Construction**:
    - Nodes: contexts (documents)
-   - Edges: weighted by phrase overlap (dot product of context vectors)
-   - Weight normalization: `weight / 20` (configurable threshold)
+   - Edges: weighted by cosine similarity of context vectors
+   - Threshold: `edge_threshold` filters weak connections
+   - Max edges: `max_edges` limits connectivity per node
 
 2. **Force-Directed Layout**:
-   - Uses NetworkX `spring_layout` with configurable parameters
-   - `k = NUM_DIMENSIONS / 2` for optimal spacing
-   - `seed=200` for reproducible positioning
+   - NetworkX `spring_layout` with tuned parameters
+   - `k = grid_size / 2` for optimal spacing
+   - Reproducible positioning via fixed seed
 
 3. **Grid Mapping**:
-   - Maps continuous 2D coordinates to discrete grid positions
-   - Grid size: `NUM_DIMENSIONS × NUM_DIMENSIONS` (default: 10×10)
-   - Coordinate transformation: `(row, col) = (y_pos × scale, x_pos × scale)`
-
-4. **Visualization**:
-   - Network graph with edge weights
-   - Context-context similarity heatmap
-   - Interactive Plotly heatmaps with hover information
+   - Maps continuous 2D coordinates to discrete grid
+   - Grid size: `grid_size × grid_size` (configurable)
+   - Coordinate transformation preserves relative positions
 
 **Key Parameters**:
-- `NUM_DIMENSIONS`: Grid resolution (affects granularity)
-- `NUM_CONTEXT`: Number of contexts to process
-- Edge weight threshold: 0.1 (normalized)
+- `grid_size`: Resolution of semantic space (8-128)
+- `max_edges`: Connectivity constraint for graph sparsity
+- `edge_threshold`: Minimum similarity for edge creation
 
 #### 4. Phrase Fingerprint Generation
 **Input**: Context coordinates, term-context matrix
-**Output**: Individual phrase fingerprint matrices (`fingerprints/*.txt`)
+**Output**: Phrase fingerprint matrices (`fingerprints/*.txt`)
 
 **Algorithm**:
 For each phrase:
-1. Find contexts where phrase appears (term_context_matrix[context][phrase] > 0)
-2. Map context IDs to semantic coordinates
-3. Create `NUM_DIMENSIONS × NUM_DIMENSIONS` matrix
-4. Increment cells at semantic positions where phrase occurs
+1. Normalize phrase key via `normalize_phrase()`
+2. Validate structure via `is_valid_phrase_structure()`
+3. Find contexts where phrase appears (matrix lookup)
+4. Map context IDs to semantic coordinates
+5. Create sparse activation map on grid
+6. Apply `normalize_fingerprint()` for consistent representation
+7. Optional: Apply `sparsify_fingerprint()` for multi-level thresholding
 
-**Matrix Structure**:
-```
-Phrase: "machine learning"
-Fingerprint Matrix (8×8 example):
-0 0 0 1 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-1 0 0 0 0 0 0 0
-```
+**Integration with `lib.py`**:
+- Consistent phrase normalization ensures vocabulary matching
+- Early validation prevents malformed fingerprints
+- Morton encoding via `xy_to_morton()` for spatial indexing
+- Unified normalization for downstream compatibility
 
 #### 5. Document Fingerprint Generation
 **Input**: Corpus text, phrase fingerprints
@@ -295,355 +292,228 @@ Fingerprint Matrix (8×8 example):
 
 **Algorithm**:
 For each document:
-1. Extract noun phrases using spaCy
-2. Sum fingerprint matrices of all phrases in the document
-3. Result: composite semantic fingerprint
+1. Extract phrases and normalize via `normalize_phrase()`
+2. Validate phrases via `is_valid_phrase_structure()`
+3. Match against phrase vocabulary
+4. Aggregate phrase fingerprints with optional weighting:
+   - Uniform: $w_i = 1$
+   - Frequency: $w_i = \text{count}(p_i, D)$
+   - IDF: $w_i = \log\frac{N}{df(p_i)}$ via `compute_idf_weights()`
+5. Normalize via `normalize_fingerprint()`
+6. Apply Z-order thresholding via `xy_to_morton()` or value-based via `sparsify_fingerprint()`
+7. Compute diversity metrics via `compute_fingerprint_diversity()`
 
 **Mathematical Foundation**:
-```
-doc_fingerprint[i][j] = Σ phrase_fingerprint[k][i][j] for all k in document_phrases
-```
-
-#### 6. Visualization Tools
-**Single/Multi-Phrase Comparison**: Heatmap visualization of phrase distributions
-**Document Comparison**: Side-by-side fingerprint comparison with text overlays
+$$F_D = \text{threshold}\left(\text{normalize}\left(\sum_{i=1}^{n} w_i \cdot F_{p_i}\right)\right)$$
 
 ## Key Innovations
 
 ### 1. Interpretable Semantic Spaces
-- Unlike black-box embeddings (word2vec, BERT), semantic folding produces spatial representations
-- Each position in the grid has semantic meaning based on context proximity
-- Phrases cluster spatially based on co-occurrence patterns
+- Unlike black-box embeddings (word2vec, BERT), semantic folding produces spatially-organized representations
+- Each grid position has semantic meaning based on context proximity in the learned space
+- Phrases cluster spatially based on co-occurrence patterns and relational semantics
 
-### 2. Knowledge Graph Integration
-- Contexts can represent knowledge graph entities/nodes
-- Phrase fingerprints capture relational semantics
-- Document fingerprints represent composite entity representations
+### 2. Spatial Coherence via Z-order Curves
+- Morton encoding (`xy_to_morton()`) preserves spatial locality during thresholding
+- Contiguous high-activation regions are preferentially selected over scattered peaks
+- Maintains topological structure of the semantic space in sparse representations
 
-### 3. Preservation of Semantic Relationships
-- Graph-based construction maintains relational structure
-- Force-directed layout respects semantic distances
-- Grid mapping enables efficient similarity computations
+### 3. Consistent Pipeline Integration
+- Shared `lib.py` ensures uniform behavior across all stages
+- Phrase normalization and validation prevent downstream errors
+- Unified normalization enables fair comparison and composition of fingerprints
 
-## Applications for Knowledge Graphs
+### 4. Flexible Weighting and Thresholding
+- Multiple weighting schemes (uniform, frequency, IDF) for different use cases
+- Configurable normalization methods (L1, L2, binary, raw) for various similarity metrics
+- Adaptive thresholding (Z-order or value-based) balances quality and sparsity
 
-### Entity Embedding Construction
-1. **Input**: Knowledge graph triples as textual contexts
-2. **Process**: Generate phrase fingerprints for entity mentions
-3. **Output**: Spatial embeddings capturing semantic neighborhoods
+## Quality Metrics
 
-### Semantic Similarity Search
-- Compare entity fingerprints using matrix similarity metrics
-- Spatial proximity indicates semantic relatedness
-- Supports both exact and fuzzy matching
+### Sparsity
+$$\text{Sparsity}(F) = 1 - \frac{|F|}{|G|}$$
+where $|F|$ is active coordinates and $|G|$ is total grid size. Target: 95-99%.
 
-### Knowledge Graph Completion
-- Predict missing relationships based on fingerprint patterns
-- Identify semantically similar entities for link prediction
-- Support ontology alignment and schema matching
+### Coverage
+$$\text{Coverage}(D) = \frac{|\{p \in D : p \in \text{Vocabulary}\}|}{|\text{unique phrases in } D|}$$
+Measures proportion of document phrases matching the learned vocabulary.
 
-## Experimental Methodology
+### Validation Rate
+$$\text{ValidationRate}(D) = \frac{|\{p \in D : \text{is\_valid\_phrase\_structure}(p)\}|}{|\text{normalized phrases in } D|}$$
+Tracks fraction of phrases passing structural validation.
 
-### Data Preprocessing Pipeline
-**Input**: Raw text corpus
-**Processing** (see `pre_processing.ipynb`):
-1. **Lemmatization**: Convert words to base forms using spaCy
-2. **Stop Word Removal**: Filter out common function words
-3. **Punctuation Removal**: Clean non-alphabetic tokens
-4. **Token Filtering**: Preserve only meaningful content words
+### Fingerprint Diversity
+Computed via `compute_fingerprint_diversity()`, measures activation spread across the semantic grid. Low diversity indicates over-concentration; high diversity suggests broad coverage.
 
-**Output**: Cleaned, normalized text corpus ready for semantic analysis
+## Experimental Framework
 
-### Comparative Baselines
+### Comparative Notebooks (Archive)
 
-#### TF-IDF + SVD (`Document_representation.ipynb`)
-```python
-# Traditional approach for comparison
-tfidf_vectorizer = TfidfVectorizer(max_features=1000)
-tfidf_matrix = tfidf_vectorizer.fit_transform(corpus)
-svd = TruncatedSVD(n_components=400)
-document_vectors = svd.fit_transform(tfidf_matrix)
-```
+The `notebooks/` directory contains original research implementations demonstrating the algorithm and comparative studies:
 
-#### Self-Organizing Maps (`Document_clustering.ipynb`)
-```python
-# SOM clustering on TF-IDF vectors
-som = MiniSom(som_x, som_y, n_components, sigma=0.5, learning_rate=0.5)
-som.pca_weights_init(document_vectors)
-som.train_random(document_vectors, 1000)
-```
+- **`Semantic_Space_Construction.ipynb`**: Complete end-to-end pipeline with Google Colab integration
+- **`ground-up.ipynb`**: Foundational phrase extraction and processing experiments
+- **`pre_processing.ipynb`**: Text preprocessing with spaCy lemmatization and cleaning
+- **`Document_representation.ipynb`**: Traditional TF-IDF + SVD baseline
+- **`Document_clustering.ipynb`**: Self-Organizing Maps (SOM) clustering
+- **`Umap_fingerprint.ipynb`**: UMAP-based dimensionality reduction with grid fingerprinting
+- **`tsne_fingerprint.ipynb`**: t-SNE visualization and fingerprint generation
+- **`ISOMAP.ipynb`**: ISOMAP manifold learning comparison
+- **`SOM_fingerprint.ipynb`**: SOM-based semantic fingerprinting
 
-#### UMAP Fingerprints (`Umap_fingerprint.ipynb`)
-```python
-# UMAP-based grid fingerprinting
-umap_model = umap.UMAP(n_components=2, random_state=123)
-document_vectors_umap = umap_model.fit_transform(document_vectors_reduced)
-# Bin into 16x16 grid for fingerprint generation
-```
-
-### Evaluation Metrics
-
-#### Semantic Coherence
-- **Phrase Clustering Quality**: Related phrases should occupy proximate grid regions
-- **Context Preservation**: Semantically similar contexts should have similar coordinate positions
-- **Fingerprint Distinctiveness**: Different concepts should produce distinguishable spatial patterns
-
-#### Comparative Performance
-- **vs. TF-IDF+SVD**: Semantic folding provides spatial interpretability vs. continuous vectors
-- **vs. UMAP/SOM**: Graph-based positioning respects relational structure vs. manifold learning
-- **vs. t-SNE**: Preserves local neighborhoods while maintaining global grid structure
-
-## Comparative Analysis with Traditional Methods
-
-### vs. UMAP/t-SNE (See `notebooks/Umap_fingerprint.ipynb`)
-**Traditional Approach**:
-- Dimensionality reduction on vector embeddings (GloVe, BERT)
-- Preserves local/global structure through manifold learning
-- Output: Continuous 2D coordinates
-
-**Semantic Folding Advantages**:
-- **Interpretability**: Grid positions have semantic meaning
-- **Composability**: Document fingerprints from phrase combinations
-- **Knowledge Integration**: Direct incorporation of relational information
-
-### vs. Self-Organizing Maps (SOM)
-**Similarities**:
-- Both create discrete grid representations
-- Preserve topological relationships
-
-**Differences**:
-- SOM: Unsupervised clustering of vector data
-- Semantic Folding: Graph-based positioning with explicit semantic constraints
+**Note**: These notebooks represent the original research phase. The production pipeline (`lib.py`, `phrase_extractor.py`, etc.) supersedes these implementations with improved engineering, consistency, and scalability.
 
 ## Technical Requirements
 
 ### Dependencies
-```
-spacy>=3.0.0
-networkx>=2.5
-numpy>=1.19.0
-matplotlib>=3.3.0
-seaborn>=0.11.0
-plotly>=4.14.0
-scikit-learn>=0.24.0 (for comparison notebooks)
-umap-learn>=0.5.0 (for comparison notebooks)
-```
-
-### Installation
 ```bash
-pip install spacy networkx numpy matplotlib seaborn plotly
+# Core dependencies
+uv add spacy networkx numpy scipy scikit-learn pyyaml questionary
+
+# Optional visualization
+uv add matplotlib seaborn plotly
+
+# LanceDB integration
+uv add lancedb pyarrow
+
+# Download spaCy model
 python -m spacy download en_core_web_sm
 ```
-
-### Cloud Deployment (Google Colab)
-All notebooks are designed for Google Colab execution:
-
-```python
-# Mount Google Drive for data persistence
-from google.colab import drive
-drive.mount('/content/drive')
-
-# Install dependencies
-!pip install spacy networkx numpy matplotlib seaborn plotly
-!python -m spacy download en_core_web_sm
-```
-
-### Data Formats
-**Input Corpus** (`corpus.txt`):
-```
-1,The machine learning algorithm processes data efficiently.
-2,Neural networks are powerful computational models.
-3,Data science combines statistics and programming.
-```
-
-**Alternative Format** (`Bopenbook.txt`):
-```
-1,Context text here
-2,Another context document
-...
-```
-
 ### Input Format Requirements
-**Corpus File** (`corpus.txt`):
+**Corpus File** (JSON):
+```json
+[
+  {"id": "1", "text": "The machine learning algorithm processes data efficiently."},
+  {"id": "2", "text": "Neural networks are powerful computational models."}
+]
 ```
+**Corpus File** (CSV):
+```csv
+id,text
 1,The machine learning algorithm processes data efficiently.
 2,Neural networks are powerful computational models.
-3,Data science combines statistics and programming.
-...
 ```
-
-**Expected Output Structure**:
-```
-semantic_folding/
-├── phrases.txt                    # Extracted phrases with frequencies
-├── term_context_matrix.csv       # Phrase occurrence matrix
-├── context_coordinates.csv       # Semantic space positions
-├── fingerprints/                 # Individual phrase fingerprints
-├── doc_fingerprints/            # Document-level fingerprints
-└── images/                      # Visualization outputs
-```
-
 ## Performance Characteristics
 
 ### Computational Complexity
-- **Phrase Extraction**: O(N) where N = corpus size
-- **Matrix Construction**: O(C × P) where C = contexts, P = phrases
-- **Graph Construction**: O(C² × P) - quadratic in contexts
-- **Fingerprint Generation**: O(P × C × D²) where D = grid dimensions
+- **Phrase Extraction**: $O(N)$ where $N$ = corpus size
+- **Matrix Construction**: $O(C \times P)$ where $C$ = contexts, $P$ = phrases
+- **Graph Construction**: $O(C^2 \times P)$ - quadratic in contexts (mitigated by `max_edges`)
+- **Fingerprint Generation**: $O(P \times C \times D^2)$ where $D$ = grid dimensions
+- **Document Aggregation**: $O(D_p \times D^2)$ where $D_p$ = phrases per document
 
 ### Scalability Considerations
-- Memory bottleneck: term-context matrix for large corpora
-- Recommended: Pre-filter phrases by frequency/domain relevance
-- Grid resolution trade-off: higher D = more precision but larger matrices
+- **Memory**: Sparse matrices reduce memory by 95% compared to dense representation
+- **Phrase Filtering**: Frequency thresholds and validation reduce vocabulary size
+- **Graph Sparsity**: `max_edges` parameter limits connectivity for large corpora
+- **Grid Resolution**: Higher `grid_size` increases precision but grows quadratically
 
-### Experimental Configurations
+### Optimization Strategies
+- **Batch Processing**: Process documents in batches to manage memory
+- **Cached Fingerprints**: Load phrase fingerprints once and reuse across documents
+- **Sparse Accumulation**: Maintain activation maps as sparse dictionaries during aggregation
+- **Early Validation**: Filter malformed phrases before any fingerprint operations
 
-#### Small-Scale Experiments (`Document_clustering.ipynb`)
-- **Corpus Size**: ~20 documents
-- **TF-IDF Features**: 10
-- **SVD Components**: 10
-- **SOM Grid**: 30×30
-- **Use Case**: Proof-of-concept and visualization
+## Future Work
 
-#### Medium-Scale Experiments (`Semantic_Space_Construction.ipynb`)
-- **Contexts**: 20 documents
-- **Grid Dimensions**: 10×10 (configurable)
-- **Phrase Threshold**: Frequency-based filtering
-- **Use Case**: Full semantic space construction
+### Knowledge Graph and AI Agent Integration
 
-#### Large-Scale Experiments (`Umap_fingerprint.ipynb`)
-- **Documents**: Hundreds to thousands
-- **UMAP Components**: 2D projection
-- **Grid Binning**: 16×16 fingerprint matrix
-- **Use Case**: Scalability testing and comparison
+**Vision**: Transform semantic folding from purely distributional semantics to knowledge-grounded spatial embeddings through AI agent-orchestrated knowledge graph construction and retrieval.
 
-### Error Handling and Debugging
+#### 1. AI Agent-Driven Knowledge Graph Construction
 
-#### Common Issues (`ground-up.ipynb`)
-```python
-# Input validation - ensure string input for spaCy
-try:
-    doc = nlp(text_string)  # Not list of strings
-except ValueError as e:
-    print(f"Input error: {e}")
-    # Process line by line instead
-```
+**Open Information Extraction (OIE) Pipeline**
+- Extract (subject, relation, object) triples using LLM-based OIE (GPT-4o-mini, Llama-3.3-70B, or Phi-3-mini)
+- Apply schema-constrained prompting with strict output formatting (following LightRAG approach)
+- Normalize entities via embedding similarity (threshold: 0.85-0.95) to merge synonyms
+- Build typed knowledge graphs with ontology-guided relation categories
 
-#### File Path Handling
-```python
-# Colab vs local path compatibility
-import os
-base_path = "/content/drive/MyDrive/semantic_folding/"  # Colab
-# base_path = "./"  # Local
+**Integration with Semantic Folding**
+- Use KG entities as high-quality phrase candidates
+- Incorporate KG triples as relational contexts in term-context matrix
+- Apply entity type constraints to force-directed layout positioning
+- Link phrases to KG entities for semantic grounding
 
-phrases_file = os.path.join(base_path, "phrases.txt")
-```
+#### 2. HippoRAG-Inspired Retrieval Enhancement
 
-#### Memory Optimization
-```python
-# For large corpora, process in batches
-batch_size = 1000
-for i in range(0, len(corpus), batch_size):
-    batch = corpus[i:i+batch_size]
-    # Process batch
-```
+**Graph-Augmented Retrieval**
+- Implement Personalized PageRank (PPR) over knowledge graphs for associative retrieval
+- Combine dense passage embeddings with graph structure traversal
+- Apply LLM-based recognition memory for triple filtering
+- Target ~7% improvement over pure embedding baselines on associative tasks
 
-### Quality Metrics
-- **Semantic Coherence**: Phrases in same grid region should be related
-- **Context Preservation**: Similar contexts should have proximate coordinates
-- **Fingerprint Distinctiveness**: Different phrases should have different spatial patterns
+**Hybrid Architecture**
+- Multi-modal retrieval: semantic folding fingerprints + dense embeddings + graph traversal
+- Agent-orchestrated strategy selection based on query type
+- Feedback-driven semantic space refinement
+- Spatial structure for explainable retrieval results
 
-## Future Research Directions
+#### 3. AI Agent Optimization Framework
 
-### Extensions
-1. **Multi-Modal Integration**: Combine text with structured data
-2. **Temporal Dynamics**: Track semantic space evolution over time
-3. **Hierarchical Spaces**: Multi-resolution grid representations
-4. **Cross-Lingual Alignment**: Project multiple languages into shared space
+**Adaptive Parameter Tuning**
+- Optimize `grid_size`, `max_edges`, `edge_threshold` based on corpus characteristics
+- Learn dynamic phrase weighting schemes from retrieval feedback
+- Validate and iteratively refine semantic coherence
+- Translate natural language queries to optimal fingerprint representations
 
-### Optimization Opportunities
-1. **Approximate Methods**: Faster graph layout algorithms
-2. **Distributed Processing**: Parallel fingerprint generation
-3. **Compression**: Sparse matrix representations for large vocabularies
+#### Implementation Roadmap
 
-## Usage Example
+**Phase 1: OIE Foundation** (Months 1-2)
+- Deploy LLM-based triple extraction with constrained prompting
+- Implement entity normalization and synonym merging
+- Build initial knowledge graph storage (python-igraph)
 
-## Advanced Usage Patterns
+**Phase 2: KG-Semantic Folding Integration** (Months 3-4)
+- Extract KG entities as phrase candidates
+- Enrich term-context matrix with relational contexts
+- Apply entity-aware constraints to spatial layout
 
-### Research Applications
+**Phase 3: HippoRAG Retrieval** (Months 5-6)
+- Implement PPR-based graph traversal
+- Integrate dense embeddings with graph structure
+- Benchmark on associative retrieval tasks
 
-#### Comparative Analysis Pipeline
-```bash
-# Run semantic folding
-python 1-phrase_extractor.py
-python 2-term_context.py
-python 3-semantic_space.py
-python 4-fingerprints_generator.py
+**Phase 4: AI Agent Orchestration** (Months 7-8)
+- Build agent framework for parameter optimization
+- Implement feedback-driven refinement loops
+- Deploy hybrid retrieval strategy selection
 
-# Run comparative baselines (from notebooks)
-# TF-IDF + SVD: Document_representation.ipynb
-# SOM Clustering: Document_clustering.ipynb
-# UMAP Fingerprints: Umap_fingerprint.ipynb
-```
+**Phase 5: Evaluation & Refinement** (Months 9-10)
+- Benchmark on standard datasets (HotpotQA, MuSiQue, 2WikiMultihopQA)
+- Analyze explainability and interpretability
+- Optimize for production deployment
 
-#### Parameter Sensitivity Analysis
-```python
-# Experiment with different grid resolutions
-NUM_DIMENSIONS = [8, 10, 12, 16]  # Test different scales
+#### Research Questions
 
-for dims in NUM_DIMENSIONS:
-    # Modify 3-semantic_space.py parameters
-    # Compare resulting semantic spaces
-    pass
-```
+- Can KG structure inform grid positioning beyond co-occurrence patterns?
+- What triple extraction accuracy is sufficient for meaningful retrieval improvements?
+- How does entity normalization threshold affect downstream semantic space quality?
+- What is the optimal balance between fingerprint sparsity and graph density?
+- Can spatial fingerprints enable more interpretable AI agent reasoning chains?
 
-#### Domain Adaptation
-```python
-# Fine-tune for specific domains
-# Adjust phrase filtering thresholds
-# Modify context similarity weights
-# Customize grid positioning algorithms
-```
+#### Technical Requirements
 
-### Integration with Knowledge Graphs
+**Models & Tools**
+- OIE: GPT-4o-mini (cost-effective, 82.1% accuracy) or Phi-3-mini (3.8B params)
+- Graph: python-igraph for PPR computation
+- Embeddings: sentence-transformers for entity similarity
+- Storage: LanceDB for hybrid vector-graph indexing
 
-#### Triple-to-Context Conversion
-```python
-# Convert KG triples to contexts
-def triple_to_context(subject, predicate, object):
-    return f"{subject} {predicate} {object}"
+**Key Design Principles**
+- Prompt engineering with strict delimiters (e.g., `<|>` tuples, `##` records)
+- Entity normalization before graph construction
+- Minimal, normalized triple schemas
+- Incremental graph updates for streaming corpora
 
-# Generate semantic fingerprints for entities
-contexts = [triple_to_context(s, p, o) for s, p, o in triples]
-```
+### Additional Extensions
 
-#### Entity Similarity Computation
-```python
-# Compare entity fingerprints
-def compute_entity_similarity(entity1_fingerprint, entity2_fingerprint):
-    # Cosine similarity, Jaccard similarity, or spatial proximity
-    return spatial_similarity(entity1_fingerprint, entity2_fingerprint)
-```
-
-## Pipeline Execution
-
-### Basic Workflow
-```bash
-# Sequential execution
-python 1-phrase_extractor.py     # Extract phrases
-python 2-term_context.py         # Build term-context matrix
-python 3-semantic_space.py       # Construct semantic space
-python 4-fingerprints_generator.py  # Generate phrase fingerprints
-python 6-generate_document_fingerprints.py  # Create document fingerprints
-python 7-visualize-docs.py       # Visualize results
-```
-
-### Notebook-Based Execution
-For interactive experimentation and visualization:
-1. **Start with `pre_processing.ipynb`** for data cleaning
-2. **Run `Semantic_Space_Construction.ipynb`** for complete pipeline
-3. **Use domain-specific notebooks** for comparative analysis
-4. **Execute `ground-up.ipynb`** for debugging and development
+**Beyond Knowledge Graphs**
+- **Multi-Modal Integration**: Combine text with structured data and images
+- **Temporal Dynamics**: Track semantic space evolution over time
+- **Hierarchical Spaces**: Multi-resolution grids for different granularities
+- **Cross-Lingual Alignment**: Project multiple languages into shared semantic space
+- **Distributed Processing**: Parallel fingerprint generation for massive corpora
+- **Advanced Compression**: Ultra-sparse representations for billion-scale vocabularies
 
 ## References and Related Work
 
@@ -652,28 +522,30 @@ For interactive experimentation and visualization:
 - **Vector Space Models**: Salton et al. (1975)
 - **Graph-based Methods**: Sahlgren (2006) random indexing
 - **Manifold Learning**: Roweis & Saul (2000) locally linear embedding
+- **Sparse Distributed Representations**: Kanerva (2009) hyperdimensional computing
+
+### Knowledge Graph & Retrieval
+- **GraphRAG**: Microsoft Research (2024) - Graph-augmented retrieval
+- **LightRAG**: Schema-constrained OIE with LLMs
+- **CLARE**: Constrained prompting for triple extraction (82.1% accuracy with GPT-4o-mini)
+- **HippoRAG**: PPR-based associative retrieval with 7% improvement over baselines
 
 ### Implementation References
-- **spaCy Documentation**: Linguistic processing and NLP pipelines
+- **spaCy**: Linguistic processing and NLP pipelines
 - **NetworkX**: Graph algorithms and force-directed layouts
-- **UMAP**: McInnes et al. (2018) - Uniform Manifold Approximation
-- **MiniSom**: Self-Organizing Map implementation for Python
+- **SciPy Sparse**: Efficient sparse matrix operations
+- **LanceDB**: Vector database for similarity search
+- **python-igraph**: High-performance graph computations
 
-### Experimental Notebooks
-- **`Semantic_Space_Construction.ipynb`**: Complete algorithm implementation with Colab integration
-- **`Umap_fingerprint.ipynb`**: Comparative UMAP-based fingerprinting methodology
-- **`Document_clustering.ipynb`**: SOM clustering baseline implementation
-- **`Document_representation.ipynb`**: TF-IDF + SVD traditional approach
-- **`pre_processing.ipynb`**: Text preprocessing and cleaning pipeline
-- **`ground-up.ipynb`**: Foundational phrase extraction experiments
-
-### Key Technical Insights from Notebooks
+### Key Technical Insights
 1. **Preprocessing Importance**: Lemmatization and stop-word removal significantly impact phrase quality
-2. **Parameter Sensitivity**: Grid dimensions (8×8 vs 16×16) affect fingerprint resolution vs. sparsity
-3. **Scalability Trade-offs**: UMAP scales better than force-directed layouts for large corpora
-4. **Evaluation Challenges**: Semantic coherence metrics need domain-specific validation
-5. **Integration Patterns**: Google Colab provides accessible experimentation environment
+2. **Parameter Sensitivity**: Grid dimensions affect fingerprint resolution vs. sparsity trade-off
+3. **Spatial Coherence**: Z-order thresholding preserves semantic structure better than value-based methods
+4. **Validation Benefits**: Early phrase validation prevents downstream errors
+5. **Prompt Design**: Constrained prompting yields cleaner triples regardless of model size
+6. **Entity Normalization**: Embedding similarity (0.85-0.95) effectively merges synonyms
+7. **Small Models Suffice**: GPT-4o-mini achieves near-GPT-4o quality at lower cost
 
 ---
 
-**Note**: This implementation provides a foundation for semantic folding research. Parameters should be tuned for specific domains and corpus characteristics. The notebooks demonstrate both the algorithm's capabilities and its comparison with traditional methods. The approach is particularly valuable for applications requiring interpretable, spatially-organized semantic representations.
+**Note**: This implementation provides a foundation for semantic folding research and applications. The knowledge graph integration roadmap represents a significant enhancement that transforms distributional semantics into knowledge-grounded spatial embeddings. Parameters should be tuned for specific domains and corpus characteristics. The production pipeline supersedes experimental notebooks with improved engineering, consistency, and scalability.

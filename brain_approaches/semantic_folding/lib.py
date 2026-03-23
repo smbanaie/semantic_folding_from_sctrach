@@ -282,46 +282,6 @@ def normalize_phrase(text: str, remove_verbs: bool = True) -> Optional[str]:
     return ' '.join(processed)
 
 
-def remove_edge_stop_words(text: str) -> str:
-    """
-    Remove stop words only at the beginning and end of phrases.
-    
-    Unlike full stop word removal, this function preserves stop words
-    in the middle of phrases, which can be semantically important
-    (e.g., 'state of the art' → 'state of the art', not 'state art').
-    
-    Args:
-        text: Input phrase
-    
-    Returns:
-        Phrase with edge stop words trimmed
-    
-    Examples:
-        >>> remove_edge_stop_words('the machine learning algorithm')
-        'machine learning algorithm'
-        >>> remove_edge_stop_words('state of the art')
-        'state of the art'  # middle stop words preserved
-        >>> remove_edge_stop_words('in the beginning')
-        'beginning'
-    """
-    tokens = word_tokenize(text.lower())
-    if not tokens:
-        return text
-    
-    # Trim stopwords from start
-    start_idx = 0
-    while start_idx < len(tokens) and tokens[start_idx] in en_stop_words:
-        start_idx += 1
-    
-    # Trim stopwords from end
-    end_idx = len(tokens)
-    while end_idx > start_idx and tokens[end_idx - 1] in en_stop_words:
-        end_idx -= 1
-    
-    trimmed_tokens = tokens[start_idx:end_idx]
-    return ' '.join(trimmed_tokens) if trimmed_tokens else text
-
-
 # ============================================================================
 # PHRASE EXPANSION
 # ============================================================================
@@ -455,10 +415,10 @@ def load_phrases(phrases_path: Path, min_freq: int = 0) -> List[Tuple[str, int]]
                     if freq >= min_freq and phrase:
                         phrases.append((phrase, freq))
                 except ValueError:
-                    logger.warning(f"Invalid frequency for phrase: {line}")
+                    logger.warning(f"Invalid frequency for phrase: '{line}'")
                     continue
     
-    logger.success(f"Loaded {len(phrases)} phrases")
+    logger.success(f"Loaded {len(phrases)} phrases from: {phrases_path}")
     return phrases
 
 
@@ -542,7 +502,7 @@ def load_contexts(corpus_path: Path) -> List[Tuple[str, str]]:
             if normalized_text:
                 contexts.append((context_id, normalized_text))
     
-    logger.success(f"Loaded {len(contexts)} contexts")
+    logger.success(f"Loaded {len(contexts)} contexts from: {corpus_path}")
     return contexts
 
 
@@ -575,13 +535,265 @@ def load_contexts_dict(corpus_path: Path) -> Dict[str, str]:
             context_id, context_text = line.split(',', 1)
             contexts[context_id.strip()] = context_text.strip()
     
-    logger.success(f"Loaded {len(contexts)} context texts")
+    logger.success(f"Loaded {len(contexts)} context texts from: {corpus_path}")
     return contexts
 
 
 # ============================================================================
 # FINGERPRINT LOADING UTILITIES
 # ============================================================================
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Fingerprint Loaders
+#  Used by: query_processing.py (Step 6)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def _load_fingerprint_matrix(
+    npz_path    : Path,
+    index_path  : Path,
+    npz_key     : str,
+    label       : str,                    # "phrase" or "document" — for log messages
+    grid_size   : Optional[int] = None,   # if given, column count is validated
+) -> Tuple[np.ndarray, Dict[str, int]]:
+    """
+    Shared low-level loader for any fingerprint .npz + index-map pair.
+
+    Parameters
+    ----------
+    npz_path:
+        Path to the .npz file containing the dense float32 matrix.
+    index_path:
+        Path to the JSON file containing {entity_string: row_index}.
+    npz_key:
+        Key inside the .npz archive that holds the matrix (e.g. "fingerprints").
+    label:
+        Human-readable entity type used in log/error messages.
+    grid_size:
+        If provided, validates that matrix columns == grid_size².
+
+    Returns
+    -------
+    matrix     : np.ndarray  — shape (n_entities, vector_size)
+    index_map  : Dict[str, int]
+
+    Raises
+    ------
+    FileNotFoundError  — if either file is missing.
+    KeyError           — if npz_key is absent from the archive.
+    ValueError         — if grid_size is given and column count mismatches.
+    """
+    # ── Validate files exist ─────────────────────────────────────────────────
+    for p in (npz_path, index_path):
+        if not p.exists():
+            raise FileNotFoundError(
+                f"Expected {label} fingerprint file not found: {p}"
+            )
+
+    # ── Load matrix ──────────────────────────────────────────────────────────
+    logger.info(f"Loading {label} fingerprint matrix from: {npz_path}")
+    archive = np.load(str(npz_path))
+
+    if npz_key not in archive:
+        raise KeyError(
+            f"Key '{npz_key}' not found in {npz_path.name}. "
+            f"Available keys: {list(archive.keys())}"
+        )
+
+    matrix: np.ndarray = archive[npz_key]          # (n_entities, vector_size)
+    n_entities, vector_size = matrix.shape
+    logger.info(
+        f"{label.capitalize()} matrix shape: {matrix.shape} "
+        f"(n={n_entities}, vec={vector_size})"
+    )
+
+    # ── Optional column-count validation ─────────────────────────────────────
+    if grid_size is not None:
+        expected = grid_size * grid_size
+        if vector_size != expected:
+            raise ValueError(
+                f"{label.capitalize()} matrix has {vector_size} columns but "
+                f"grid_size={grid_size} implies {expected} columns. "
+                f"Did you pass the correct --grid-size?"
+            )
+
+    # ── Load entity → row-index map ──────────────────────────────────────────
+    logger.info(f"Loading {label} index map from: {index_path}")
+    with open(index_path, "r", encoding="utf-8") as fh:
+        index_map: Dict[str, int] = json.load(fh)
+
+    # ── Row-count sanity check ────────────────────────────────────────────────
+    if len(index_map) != n_entities:
+        logger.warning(
+            f"{label.capitalize()} index map has {len(index_map)} entries "
+            f"but matrix has {n_entities} rows — possible misalignment."
+        )
+
+    return matrix, index_map
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+def load_phrase_fingerprints_sparse(
+    fingerprints_dir : Path,
+    grid_size        : int,
+) -> Dict[str, np.ndarray]:
+    """
+    Load phrase fingerprints produced by Step 4 (phrase_fingerprints.py).
+
+    Expected files in fingerprints_dir:
+        phrase_fingerprints.npz        — dense float32 matrix,
+                                         key "fingerprints",
+                                         shape (n_phrases, grid_size²)
+        phrase_fingerprints_meta.json  — {phrase_string: row_index}
+
+    Parameters
+    ----------
+    fingerprints_dir:
+        Step 4 output directory (e.g. outputs/run/phrase_fingerprints/).
+    grid_size:
+        Grid side-length; used to validate matrix column count.
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        phrase_string  →  float32 vector of length grid_size².
+
+    Raises
+    ------
+    FileNotFoundError  — if either expected file is missing.
+    ValueError         — if column count != grid_size²,
+                         or if index_map references out-of-bound rows.
+    """
+    fingerprints_dir = Path(fingerprints_dir)
+
+    matrix, index_map = _load_fingerprint_matrix(
+        npz_path   = fingerprints_dir / "phrase_fingerprints.npz",
+        index_path = fingerprints_dir / "phrase_fingerprints_meta.json",
+        npz_key    = "fingerprints",
+        label      = "phrase",
+        grid_size  = grid_size,
+    )
+
+    n_rows = matrix.shape[0]
+    n_keys = len(index_map)
+
+    # ── alignment audit ──────────────────────────────────────────────────────
+    if n_keys != n_rows:
+        logger.warning(
+            f"index_map has {n_keys} entries but matrix has {n_rows} rows "
+            f"— index map and matrix may be misaligned. "
+            f"Only mapped entries will be used."
+        )
+
+    # ── out-of-bound row check ────────────────────────────────────────────────
+    bad_phrases = {
+        phrase: idx
+        for phrase, idx in index_map.items()
+        if idx < 0 or idx >= n_rows
+    }
+    if bad_phrases:
+        raise ValueError(
+            f"index_map contains {len(bad_phrases)} out-of-bound row "
+            f"reference(s) for matrix with {n_rows} rows. "
+            f"Examples: { {k: v for k, v in list(bad_phrases.items())[:5]} }"
+        )
+
+    # ── build output dict — only rows that are mapped ─────────────────────────
+    phrase_fps: Dict[str, np.ndarray] = {
+        phrase: matrix[idx].astype(np.float32)
+        for phrase, idx in index_map.items()
+    }
+
+    # ── report unmapped rows (matrix rows with no phrase key) ─────────────────
+    mapped_row_indices = set(index_map.values())
+    unmapped_rows = [i for i in range(n_rows) if i not in mapped_row_indices]
+    if unmapped_rows:
+        logger.warning(
+            f"{len(unmapped_rows)} matrix row(s) have no corresponding phrase "
+            f"key in the index map and will be ignored. "
+            f"First few unmapped row indices: {unmapped_rows[:10]}"
+        )
+
+    logger.success(
+        f"Loaded {len(phrase_fps)} phrase fingerprints "
+        f"(grid_size={grid_size}, vector_size={grid_size**2}, "
+        f"matrix_rows={n_rows}, mapped={len(phrase_fps)}, "
+        f"unmapped_rows={len(unmapped_rows)})."
+    )
+    return phrase_fps
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+def load_document_fingerprints(
+    doc_fp_dir : Path,
+) -> Tuple[Dict[str, "csr_matrix"], Dict]:
+    """
+    Load document fingerprints produced by Step 5 (doc_fingerprints.py).
+
+    Expected files in doc_fp_dir:
+        doc_fingerprints.npz         — dense float32 matrix,
+                                       key "fingerprints",
+                                       shape (n_docs, grid_size²)
+        doc_fingerprints_meta.json   — {doc_id: row_index}
+        doc_fingerprints_stats.json  — run statistics including grid_size
+
+    Parameters
+    ----------
+    doc_fp_dir:
+        Step 5 output directory (e.g. outputs/run/doc_fingerprints/).
+
+    Returns
+    -------
+    doc_fingerprints : Dict[str, csr_matrix]
+        doc_id  →  sparse row-vector of length grid_size².
+    combined_metadata : Dict
+        All fields from stats.json plus "grid_size" and "num_docs".
+
+    Raises
+    ------
+    FileNotFoundError  — if any of the three expected files is missing.
+    """
+    from scipy.sparse import csr_matrix          # local import — scipy optional
+
+    doc_fp_dir = Path(doc_fp_dir)
+
+    stats_path = doc_fp_dir / "doc_fingerprints_stats.json"
+    if not stats_path.exists():
+        raise FileNotFoundError(
+            f"Stats file not found: {stats_path}\n"
+            f"Make sure Step 5 completed successfully."
+        )
+
+    # ── Read grid_size from stats so _load_fingerprint_matrix can validate ───
+    with open(stats_path, "r", encoding="utf-8") as fh:
+        stats: Dict = json.load(fh)
+    grid_size: int = int(stats.get("grid_size", 16))
+
+    matrix, index_map = _load_fingerprint_matrix(
+        npz_path   = doc_fp_dir / "doc_fingerprints.npz",
+        index_path = doc_fp_dir / "doc_fingerprints_meta.json",
+        npz_key    = "fingerprints",
+        label      = "document",
+        grid_size  = grid_size,
+    )
+
+    # ── Build doc_id → sparse row-vector ─────────────────────────────────────
+    doc_fingerprints: Dict[str, "csr_matrix"] = {
+        doc_id: csr_matrix(matrix[row_idx].reshape(1, -1))
+        for doc_id, row_idx in index_map.items()
+    }
+
+    combined_metadata = {
+        **stats,
+        "grid_size" : grid_size,
+        "num_docs"  : len(doc_fingerprints),
+    }
+
+    logger.success(
+        f"Loaded {len(doc_fingerprints)} document fingerprints "
+        f"(grid_size={grid_size})."
+    )
+    return doc_fingerprints, combined_metadata
+
 
 def load_phrase_fingerprints_sparse(
     fingerprints_dir : Path,
@@ -631,7 +843,7 @@ def load_phrase_fingerprints_sparse(
         )
 
     # ── Load matrix ──────────────────────────────────────────────────────────
-    logger.info("Loading fingerprint matrix from: %s", npz_path)
+    logger.info(f"Loading fingerprint matrix from: {npz_path}")
     data   = np.load(str(npz_path))
     matrix = data["fingerprints"]                    # shape (n_phrases, grid_size²)
 
@@ -644,20 +856,19 @@ def load_phrase_fingerprints_sparse(
         )
 
     logger.info(
-        "  Matrix shape : %s  (n_phrases=%d, vector_size=%d)",
-        matrix.shape, matrix.shape[0], matrix.shape[1],
+        f"Matrix shape: {matrix.shape} "
+        f"(n_phrases={matrix.shape[0]}, vector_size={matrix.shape[1]})"
     )
 
     # ── Load phrase → row-index map ──────────────────────────────────────────
-    logger.info("Loading phrase index map from: %s", meta_path)
+    logger.info(f"Loading phrase index map from: {meta_path}")
     with open(meta_path, "r", encoding="utf-8") as fh:
         token_map: Dict[str, int] = json.load(fh)
 
     if len(token_map) != matrix.shape[0]:
         logger.warning(
-            "token_map has %d entries but matrix has %d rows — "
-            "index map and matrix may be misaligned.",
-            len(token_map), matrix.shape[0],
+            f"token_map has {len(token_map)} entries but matrix has "
+            f"{matrix.shape[0]} rows — index map and matrix may be misaligned."
         )
 
     # ── Build phrase → vector dict ───────────────────────────────────────────
@@ -666,7 +877,7 @@ def load_phrase_fingerprints_sparse(
         for phrase, idx in token_map.items()
     }
 
-    logger.info("  Loaded %d phrase fingerprints.", len(phrase_fps))
+    logger.success(f"Loaded {len(phrase_fps)} phrase fingerprints.")
     return phrase_fps
 
 
@@ -723,7 +934,7 @@ def load_fingerprint_cache(
         values = fp_data.get('values', [])
         
         if not coords:
-            logger.warning(f"Empty fingerprint for document: {doc_id}")
+            logger.warning(f"Empty fingerprint for document: '{doc_id}'")
             continue
         
         # Convert 2D coordinates to 1D indices
@@ -738,7 +949,7 @@ def load_fingerprint_cache(
         sparse_fp = csr_matrix((data, (row, col)), shape=(1, total_dims))
         fingerprints[doc_id] = sparse_fp
     
-    logger.success(f"Loaded {len(fingerprints)} document fingerprints")
+    logger.success(f"Loaded {len(fingerprints)} document fingerprints from: {cache_path}")
     return fingerprints
 
 
@@ -792,7 +1003,7 @@ def save_fingerprint_cache(
     with open(cache_path, 'w', encoding='utf-8') as f:
         json.dump(cache_data, f, indent=2)
     
-    logger.success(f"Saved {len(cache_data)} fingerprints to cache")
+    logger.success(f"Saved {len(cache_data)} fingerprints to: {cache_path}")
 
 
 # ============================================================================
@@ -841,7 +1052,7 @@ def load_context_coordinates(coords_path: Path) -> Dict[str, Tuple[int, int]]:
             
             parts = line.split(',')
             if len(parts) != 3:
-                logger.warning(f"Invalid line format: {line}")
+                logger.warning(f"Invalid coordinate line format: '{line}'")
                 continue
             
             context_id, x_str, y_str = parts
@@ -852,10 +1063,13 @@ def load_context_coordinates(coords_path: Path) -> Dict[str, Tuple[int, int]]:
                 y = int(y_str.strip())
                 coordinates[context_id] = (x, y)
             except ValueError:
-                logger.warning(f"Invalid coordinates for {context_id}: {x_str}, {y_str}")
+                logger.warning(
+                    f"Invalid coordinates for '{context_id}': "
+                    f"x='{x_str.strip()}', y='{y_str.strip()}'"
+                )
                 continue
     
-    logger.success(f"Loaded coordinates for {len(coordinates)} contexts")
+    logger.success(f"Loaded coordinates for {len(coordinates)} contexts from: {coords_path}")
     return coordinates
 
 # ============================================================================
@@ -896,7 +1110,7 @@ def compute_idf_weights(
         IDF weights are used in doc_fingerprints.py and query_processing.py
         to emphasize discriminative phrases in document representations.
     """
-    logger.info(f"Computing IDF weights for {len(phrases)} phrases")
+    logger.info(f"Computing IDF weights for {len(phrases)} phrases across {len(contexts)} contexts")
     
     # Count document frequency for each phrase
     df = defaultdict(int)
@@ -1034,7 +1248,6 @@ def compute_jaccard_similarity(
         return 0.0
     
     return intersection / union
-
 
 # ============================================================================
 # Z-ORDER CURVE UTILITIES
@@ -1239,7 +1452,7 @@ def normalize_fingerprint(
         return fp_copy
     
     else:
-        raise ValueError(f"Unknown normalization method: {method}")
+        raise ValueError(f"Unknown normalization method: '{method}'")
 
 
 def merge_fingerprints(
@@ -1293,7 +1506,9 @@ def merge_fingerprints(
         weights = [1.0] * len(fingerprints)
     
     if len(weights) != len(fingerprints):
-        raise ValueError(f"Weights length {len(weights)} != fingerprints length {len(fingerprints)}")
+        raise ValueError(
+            f"Weights length {len(weights)} != fingerprints length {len(fingerprints)}"
+        )
     
     # Weighted sum
     merged = weights[0] * fingerprints[0]
@@ -1306,77 +1521,68 @@ def merge_fingerprints(
 def sparsify_fingerprint(
     fingerprint: csr_matrix,
     top_k: int,
-    use_zorder: bool = True,
-    grid_size: Optional[int] = None
+    use_zorder: bool = False,
+    grid_size: Optional[int] = None,
 ) -> csr_matrix:
     """
-    Sparsify a fingerprint by keeping only top-k values.
+    Sparsify a fingerprint by keeping only the top-k active bits.
     
-    Two sparsification strategies:
-    1. Z-order thresholding: Select top-k values along Z-order curve,
-       preserving spatial structure
-    2. Value thresholding: Select top-k values by magnitude, ignoring
-       spatial structure
+    Reduces fingerprint density by retaining only the highest-value
+    entries, which corresponds to the most strongly activated semantic
+    regions. Two selection strategies are supported:
+    
+    - Standard: Select top-k by value (highest activation first)
+    - Z-order:  Select top-k by Morton code order (spatially coherent)
     
     Args:
-        fingerprint: Dense or sparse fingerprint matrix (shape: 1 × D)
-        top_k: Number of values to keep
-        use_zorder: If True, use Z-order curve thresholding (default: True)
-        grid_size: Grid size (required if use_zorder=True)
+        fingerprint: Input sparse fingerprint matrix (shape: 1 × D)
+        top_k: Number of bits to retain
+        use_zorder: If True, use Z-order curve ordering (default: False)
+        grid_size: Required when use_zorder=True for coordinate conversion
     
     Returns:
-        Sparsified fingerprint matrix
+        Sparsified fingerprint with at most top_k non-zero entries
     
     Examples:
-        >>> fp = csr_matrix([[0.1, 0.5, 0.3, 0.8, 0.2]])
-        >>> sparsify_fingerprint(fp, top_k=2, use_zorder=False)
-        # Returns [[0, 0.5, 0, 0.8, 0]] (top 2 by value)
+        >>> fp = csr_matrix([[0.1, 0.9, 0.0, 0.5, 0.3]])
+        >>> sparsify_fingerprint(fp, top_k=2).toarray()
+        array([[0. , 0.9, 0. , 0.5, 0. ]])
     
     Raises:
-        ValueError: If use_zorder=True but grid_size not provided
+        ValueError: If use_zorder=True but grid_size is not provided
     
     Note:
-        Z-order thresholding is recommended for semantic fingerprints
-        as it preserves spatial locality in the semantic space.
+        Z-order sparsification preserves spatial coherence in the
+        semantic grid, which can improve retrieval quality.
     """
     if use_zorder and grid_size is None:
-        raise ValueError("grid_size required for Z-order thresholding")
-    
-    # Convert to dense for processing
-    if hasattr(fingerprint, 'toarray'):
-        dense_fp = fingerprint.toarray().flatten()
-    else:
-        dense_fp = fingerprint.flatten()
-    
-    if use_zorder:
-        # Z-order thresholding
-        # Convert 1D indices to 2D coordinates
-        coords_values = []
-        for idx, val in enumerate(dense_fp):
-            if val > 0:
-                x = idx // grid_size
-                y = idx % grid_size
-                morton = xy_to_morton(x, y)
-                coords_values.append((morton, idx, val))
-        
-        # Sort by Morton code
-        coords_values.sort(key=lambda x: x[0])
-        
-        # Select top-k by value within Z-order
-        coords_values.sort(key=lambda x: x[2], reverse=True)
-        top_indices = [idx for _, idx, _ in coords_values[:top_k]]
-        
-    else:
-        # Simple value thresholding
-        top_indices = np.argsort(dense_fp)[-top_k:]
-    
-    # Create sparse result
-    sparse_result = lil_matrix((1, len(dense_fp)))
-    for idx in top_indices:
-        sparse_result[0, idx] = dense_fp[idx]
-    
-    return sparse_result.tocsr()
+        raise ValueError("grid_size is required when use_zorder=True")
 
+    # Convert to dense for processing
+    dense = fingerprint.toarray().flatten()
+    nonzero_indices = np.nonzero(dense)[0]
+
+    if len(nonzero_indices) <= top_k:
+        return fingerprint  # Already sparse enough
+
+    if use_zorder:
+        # Sort nonzero indices by Morton code (Z-order)
+        morton_codes = [
+            (xy_to_morton(int(idx // grid_size), int(idx % grid_size)), idx)
+            for idx in nonzero_indices
+        ]
+        morton_codes.sort(key=lambda x: x[0])
+        selected_indices = [idx for _, idx in morton_codes[:top_k]]
+    else:
+        # Sort by activation value (descending), keep top_k
+        sorted_indices = nonzero_indices[np.argsort(dense[nonzero_indices])[::-1]]
+        selected_indices = sorted_indices[:top_k]
+
+    # Build new sparse matrix with only selected indices
+    new_dense = np.zeros_like(dense)
+    new_dense[selected_indices] = dense[selected_indices]
+
+    return csr_matrix(new_dense.reshape(1, -1))
 
 # ============================================================================
 # VALIDATION UTILITIES
@@ -1509,78 +1715,43 @@ def _ensure_nltk_data():
 # Initialize on module import
 # _ensure_nltk_data()
 
-
-
-# Add these functions to lib.py
-
-def load_document_fingerprints_sparse(doc_fps_path: Path) -> Dict[str, csr_matrix]:
-    """
-    Load document fingerprints from sparse JSON cache.
-    
-    Args:
-        doc_fps_path: Path to document fingerprints JSON file
-        
-    Returns:
-        Dictionary mapping document IDs to sparse fingerprint matrices
-    """
-    logger.info(f"Loading document fingerprints from {doc_fps_path}")
-    
-    with open(doc_fps_path, 'r') as f:
-        data = json.load(f)
-    
-    grid_size = data['metadata']['grid_size']
-    grid_size_sq = grid_size * grid_size
-    
-    doc_fingerprints = {}
-    for doc_id, fp_data in data['fingerprints'].items():
-        indices = fp_data['indices']
-        values = fp_data['values']
-        
-        # Reconstruct sparse matrix
-        fp = lil_matrix((1, grid_size_sq))
-        for idx, val in zip(indices, values):
-            fp[0, idx] = val
-        
-        doc_fingerprints[doc_id] = fp.tocsr()
-    
-    logger.success(f"Loaded {len(doc_fingerprints)} document fingerprints")
-    return doc_fingerprints
-
-
 def batch_compute_similarities(
     query_fp: csr_matrix,
-    doc_fingerprints: Dict[str, csr_matrix],
-    batch_size: int = 100
-) -> Dict[str, float]:
+    doc_fps: List[csr_matrix]
+) -> np.ndarray:
     """
-    Compute similarities in batches for memory efficiency.
+    Compute cosine similarities between query and multiple documents efficiently.
     
     Args:
-        query_fp: Query fingerprint (1 x N sparse matrix)
-        doc_fingerprints: Dictionary of document fingerprints
-        batch_size: Number of documents to process at once
+        query_fp: Query fingerprint (1 × N sparse matrix)
+        doc_fps: List of document fingerprints (each 1 × N sparse matrix)
         
     Returns:
-        Dictionary mapping document IDs to similarity scores
+        Array of similarity scores, one per document
     """
     from scipy.sparse import vstack
     
-    doc_ids = list(doc_fingerprints.keys())
-    similarities = {}
+    # Stack documents into (num_docs, N) matrix
+    doc_matrix = vstack(doc_fps)
     
-    for i in range(0, len(doc_ids), batch_size):
-        batch_ids = doc_ids[i:i + batch_size]
-        batch_fps = [doc_fingerprints[doc_id] for doc_id in batch_ids]
-        
-        # Stack into matrix for batch computation
-        batch_matrix = vstack(batch_fps)
-        
-        # Compute similarities
-        batch_sims = compute_cosine_similarity(query_fp, batch_matrix)
-        
-        # Map back to document IDs
-        for doc_id, sim in zip(batch_ids, batch_sims):
-            similarities[doc_id] = sim
+    # Convert query to dense for computation
+    query_dense = query_fp.toarray().flatten()
+    query_norm = np.linalg.norm(query_dense)
+    
+    if query_norm == 0:
+        return np.zeros(len(doc_fps))
+    
+    # Compute dot products: (num_docs, N) @ (N,) → (num_docs,)
+    dot_products = doc_matrix.dot(query_dense)
+    
+    # Compute document norms: sqrt of sum of squares per row
+    doc_norms = np.sqrt(np.array(doc_matrix.multiply(doc_matrix).sum(axis=1)).flatten())
+    
+    # Avoid division by zero
+    doc_norms[doc_norms == 0] = 1e-10
+    
+    # Cosine similarity: dot / (norm_q * norm_d)
+    similarities = dot_products / (query_norm * doc_norms)
     
     return similarities
 
@@ -1620,7 +1791,7 @@ def visualize_fingerprint(
     Create heatmap visualization of fingerprint.
     
     Args:
-        fingerprint: Sparse fingerprint matrix (1 x N)
+        fingerprint: Sparse fingerprint matrix (1 × N)
         grid_size: Grid dimension
         title: Plot title
         output_path: Optional path to save figure

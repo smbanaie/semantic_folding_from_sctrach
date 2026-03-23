@@ -837,7 +837,6 @@ def validate_grid_bounds(
             logger.error(f"  {cid}: x={x}, y={y}")
         sys.exit(3)
 
-
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -902,6 +901,25 @@ def main(argv: Optional[List[str]] = None) -> None:
         logger.error(f"Malformed or unexpected JSON in metadata file: {exc}")
         sys.exit(2)
 
+    # Load phrase-context mappings from metadata
+    try:
+        with open(args.metadata, encoding="utf-8") as fh:
+            metadata = json.load(fh)
+        phrase_contexts = metadata.get("phrase_contexts", {})
+        
+        if not phrase_contexts:
+            logger.error(
+                "Metadata missing 'phrase_contexts' field. "
+                "Please re-run Step 2 (term_context.py) to generate this field."
+            )
+            sys.exit(2)
+            
+        logger.info(f"Loaded phrase-context mappings for {len(phrase_contexts):,} phrases")
+        
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        logger.error(f"Failed to load phrase_contexts from metadata: {exc}")
+        sys.exit(2)
+
     # ------------------------------------------------------------------
     # 2. Validate grid bounds
     # ------------------------------------------------------------------
@@ -922,8 +940,26 @@ def main(argv: Optional[List[str]] = None) -> None:
         phrase_id = str(row_idx)
         freq      = frequencies[row_idx]
 
+        # Get context indices where this phrase appears
+        context_indices = phrase_contexts.get(phrase_text, [])
+        
+        if not context_indices:
+            logger.warning(
+                f"Phrase '{phrase_text}' (id={phrase_id}): "
+                f"no contexts found — skipping."
+            )
+            skipped += 1
+            continue
+
+        # Filter coordinates to only include this phrase's contexts
+        phrase_coords = {
+            ctx_id: coord 
+            for ctx_id, coord in coordinates.items()
+            if int(ctx_id.replace("context_", "")) in context_indices
+        }
+
         try:
-            fp = build_fingerprint(phrase_text, freq, coordinates, args.grid_size, args.use_morton)
+            fp = build_fingerprint(phrase_text, freq, phrase_coords, args.grid_size, args.use_morton)
         except ValueError as exc:
             logger.warning(
                 f"Phrase '{phrase_text}' (id={phrase_id}): "

@@ -160,6 +160,7 @@ def is_subphrase(sub_words: list, full_words: list) -> bool:
 
 def process_corpus_with_expansion(corpus_path: Path,
                                   use_spacy: bool = True,
+                                  keep_verbs: bool = True,
                                   min_freq: int = 2,
                                   filter_generic: bool = True,
                                   min_word_length: int = 3) -> Counter:
@@ -197,7 +198,7 @@ def process_corpus_with_expansion(corpus_path: Path,
             phrases = extract_and_normalize_phrases(
                 context_text,
                 use_spacy=use_spacy,
-                remove_verbs=True
+                remove_verbs=not keep_verbs
             )
 
             for phrase in phrases:
@@ -324,6 +325,8 @@ def main():
                         help='Path to corpus file (format: context_id,context_text)')
     parser.add_argument('--output', type=Path, required=True,
                         help='Path to output phrases file')
+    parser.add_argument('--keep-verbs', action='store_true',
+                        help='Force fallback extraction', default=True, dest="keep_verbs")
     parser.add_argument('--no-spacy', action='store_true',
                         help='Force fallback extraction')
     parser.add_argument('--no-filter-generic', action='store_true',
@@ -354,7 +357,8 @@ def main():
         use_spacy=not args.no_spacy,
         min_freq=args.min_freq,
         filter_generic=not args.no_filter_generic,
-        min_word_length=args.min_word_length
+        min_word_length=args.min_word_length,
+        keep_verbs=args.keep_verbs
     )
 
     logger.info(f"args.output: {args.output}")

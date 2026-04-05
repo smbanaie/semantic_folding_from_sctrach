@@ -64,8 +64,6 @@ class SemanticRunner:
 
         # Phase 2
         "use_tfidf":            ["term_context_matrix", "use_tfidf"],
-        "min_phrase_freq":      ["term_context_matrix", "min_phrase_freq"],
-        "use_word_boundaries":  ["term_context_matrix", "use_word_boundaries"],
 
         # Phase 3
         "method":               ["semantic_space", "method"],
@@ -82,7 +80,7 @@ class SemanticRunner:
         "normalize":            ["document_fingerprints", "normalize"],
         "normalize_method":     ["document_fingerprints", "normalize_method"],
 
-        # Phase 6  ← updated to match new query_processing.py CLI
+        # Phase 6
         "idf":                  ["query_processing", "idf"],
         "top_k":                ["query_processing", "top_k"],
         "spreading_steps":      ["query_processing", "spreading_steps"],
@@ -101,19 +99,20 @@ class SemanticRunner:
                 "min_freq", "min_word_length", "use_spacy",
                 "filter_generic", "keep_verbs", "stats"
             ],
-            "default_output": "phrases.txt",
+            "default_output": "extracted_phrases", # NOW A DIRECTORY
+            "extra_outputs": {
+                "vocab":   lambda output: str(Path(output) / "vocabulary.csv"),
+                "mapping": lambda output: str(Path(output) / "phrase_to_contexts.json"),
+            },
             "depends_on": []
         },
         {
             "id": 2,
             "name": "Term-Context Matrix",
             "script": "brain_approaches/semantic_folding/term_context.py",
-            "required_params": ["corpus", "phrases", "output"],
-            "optional_params": [
-                "use_tfidf", "min_freq",
-                "use_word_boundaries", "keep_verbs"
-            ],
-            "default_output": "term_context_matrix",          # directory, not a .npz file
+            "required_params": ["corpus", "vocab", "mapping", "output"], # UPDATED PARAMS
+            "optional_params": ["use_tfidf"], # REMOVED text-processing args
+            "default_output": "term_context_matrix",
             "extra_outputs": {
                 "matrix_npz" : lambda output: str(Path(output) / "term_context_matrix.npz"),
                 "metadata"   : lambda output: str(Path(output) / "term_context_matrix.json"),
@@ -158,11 +157,11 @@ class SemanticRunner:
             "script": "brain_approaches/semantic_folding/query_processing.py",
             "required_params": [
                 "query",
-                "phrase_fp_dir",   # Step 4 output directory
-                "doc_fp_dir",      # Step 5 output directory
+                "phrase_fp_dir",
+                "doc_fp_dir",
             ],
             "optional_params": [
-                "idf",             # IDF weights JSON from Step 3
+                "idf",
                 "top_k",
                 "spreading_steps",
                 "keep_verbs",
@@ -176,8 +175,7 @@ class SemanticRunner:
     ]
 
     # ------------------------------------------------------------------
-    # CLI flag renaming: param name in runner → actual CLI flag name
-    # Handles cases where the Python param name differs from the CLI arg.
+    # CLI flag renaming
     # ------------------------------------------------------------------
     CLI_RENAME_MAP = {
         "phrase_fp_dir":   "phrase-fp-dir",
@@ -297,31 +295,6 @@ class SemanticRunner:
     # ------------------------------------------------------------------
 
     def get_default_value(self, param: str, step_id: int) -> Optional[str]:
-        """
-        Resolve the default value for a pipeline parameter.
-
-        Resolution priority (first match wins):
-
-        1. Output path from a previous step in the last run
-           - Checks known filename patterns via param_mapping
-           - Checks extra_outputs by label name
-        2. Same-step parameters from the last run
-        3. Reconstructed paths from specific step outputs:
-           - coordinates  → Step 3 output dir / context_coordinates.json
-           - fingerprints → Step 4 output dir   (phrase_fp_dir for Step 6)
-           - phrase_fp_dir → Step 4 output dir
-           - doc_fp_dir   → Step 5 output dir
-           - config       → Step 4 output dir / config.json
-           - idf          → Step 3 output dir / idf_weights.json
-        4. YAML config fallback via CONFIG_PATH_IN_YAML
-
-        Args:
-            param:   Parameter name to resolve.
-            step_id: Current step being configured.
-
-        Returns:
-            Resolved default as string, or None.
-        """
         _MISSING = object()
 
         # ── Priority 1, 2, 3: previous run state ──────────────────────────
@@ -330,11 +303,15 @@ class SemanticRunner:
             run_data = self.exec_state["runs"].get(run_id)
 
             if run_data:
+                # UPDATED mapping to support new artefacts
                 param_mapping = {
-                    "phrases":    "phrases.txt",
-                    "matrix":     "term_context_matrix.npz",
+                    "vocab":       "vocabulary.csv",
+                    "mapping":     "phrase_to_contexts.json",
+                    "phrases":     "vocabulary.csv", # Fallback for step 5
+                    "matrix":      "term_context_matrix.npz",
+                    "metadata":    "term_context_matrix.json",
                     "coordinates": "context_coordinates.json",
-                    "idf":"idf_weights.json"
+                    "idf":         "idf_weights.json"
                 }
 
                 # Priority 1a & 1b loop (already reversed)
@@ -350,15 +327,12 @@ class SemanticRunner:
 
                     if "output" in step_data and param in param_mapping:
                         output_path = step_data["output"]
-                        # ← if the output IS the file itself (not a dir), return directly
                         if Path(output_path).is_file() and param_mapping[param] in output_path:
                             return output_path
                         candidate = str(Path(output_path) / param_mapping[param])
                         if Path(candidate).exists():
                             logger.debug(f"Default '{param}' from step {prev_step_id} output dir")
                             return candidate
-
-
 
                 # Priority 2: same-step parameters
                 step_params = (
@@ -447,16 +421,6 @@ class SemanticRunner:
     def collect_parameters(
         self, step: Dict[str, Any], run_id: str
     ) -> Dict[str, str]:
-        """
-        Interactively collect required and optional parameters for a step.
-
-        For Step 6 specifically:
-        - query       : free-text input from user (no default)
-        - phrase_fp_dir: auto-resolved from Step 4 output
-        - doc_fp_dir  : auto-resolved from Step 5 output
-        - config      : auto-resolved from Step 4 output dir / config.json
-        - idf         : auto-resolved from Step 3 output dir
-        """
         logger.info(f"Collecting parameters for step {step['id']}: {step['name']}")
         params = {}
 
@@ -521,14 +485,7 @@ class SemanticRunner:
     # ------------------------------------------------------------------
 
     def build_command(self, step: Dict, params: Dict) -> List[str]:
-        """
-        Build the subprocess command list from collected parameters.
-
-        Applies three transformations:
-        1. Boolean params in NEGATE_FLAG_MAP  → --no-X when False
-        2. Boolean params (normal)            → --flag when True, omit when False
-        3. CLI_RENAME_MAP                     → remaps param name to correct CLI arg
-        """
+        # Keeps your original python path
         cmd = [
             "E:\\PHD\\GraphRag-Implementations\\YaALI\\"
             "knowledge-graph-builder\\.venv\\scripts\\python",
@@ -545,8 +502,12 @@ class SemanticRunner:
                         cli_key = self.CLI_RENAME_MAP.get(key, key.replace("_", "-"))
                         cmd.append(f"--{cli_key}")
             else:
-                cli_key = self.CLI_RENAME_MAP.get(key, key.replace("_", "-"))
-                cmd.extend([f"--{cli_key}", str(value)])
+                # SPECIAL HANDLING FOR STEP 1 & 2 DIRECTORY FLAGS
+                if key == "output" and step["id"] in [1, 2]:
+                    cmd.extend(["--output-dir", str(value)])
+                else:
+                    cli_key = self.CLI_RENAME_MAP.get(key, key.replace("_", "-"))
+                    cmd.extend([f"--{cli_key}", str(value)])
 
         logger.debug(f"Built command: {' '.join(cmd)}")
         return cmd

@@ -151,6 +151,7 @@ Exit Codes
 
 import argparse
 import json
+from sklearn.decomposition import TruncatedSVD
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -395,6 +396,7 @@ def reduce_dimensions_tsne(
     """
     from sklearn.manifold import TSNE
 
+
     n_samples = vectors.shape[0]
     perplexity = min(perplexity, max(5, n_samples // 3))
     logger.info(
@@ -402,7 +404,11 @@ def reduce_dimensions_tsne(
         f"perplexity={perplexity}, n_iter={n_iter}"
     )
 
-    if issparse(vectors):
+    if vectors.shape[1] > 100:
+        logger.info("High dimensionality detected. Applying TruncatedSVD pre-reduction...")
+        svd = TruncatedSVD(n_components=100, random_state=random_state)
+        vectors = svd.fit_transform(vectors)
+    elif issparse(vectors):
         vectors = vectors.toarray()
 
     tsne = TSNE(
@@ -603,153 +609,140 @@ def resolve_collisions(
     ``fix_collisions`` to avoid shadowing this function's name within the same
     module scope.
     """
-    occupied: Dict[Tuple[int, int], int] = {}
+    logger.info("Resolving collisions on the grid...")
+
+    num_contexts = grid_coords.shape[0]
+    occupied = set()
     resolved = grid_coords.copy()
-    displaced = 0
 
-    for idx in range(len(grid_coords)):
-        x, y = int(grid_coords[idx, 0]), int(grid_coords[idx, 1])
-        pos = (x, y)
+    for idx in range(num_contexts):
+        x, y = resolved[idx]
+        original = (int(x), int(y))
 
-        if pos not in occupied:
-            occupied[pos] = idx
+        # Because we used np.clip in scale_to_grid, x and y are guaranteed 
+        # to be within [0, grid_size - 1], but we check anyway.
+        if original not in occupied and 0 <= x < grid_size and 0 <= y < grid_size:
+            occupied.add(original)
             continue
 
-        found = False
+        # Search outward in Chebyshev shells
+        placed = False
         for radius in range(1, max_radius + 1):
             for dx in range(-radius, radius + 1):
                 for dy in range(-radius, radius + 1):
+                    # Only check the boundary of the current shell
                     if max(abs(dx), abs(dy)) != radius:
                         continue
+
                     nx, ny = x + dx, y + dy
-                    if 0 <= nx < grid_size and 0 <= ny < grid_size:
-                        new_pos = (nx, ny)
-                        if new_pos not in occupied:
-                            occupied[new_pos] = idx
-                            resolved[idx] = [nx, ny]
-                            found = True
-                            displaced += 1
-                            break
-                if found:
+                    candidate = (int(nx), int(ny))
+
+                    if (
+                        0 <= nx < grid_size
+                        and 0 <= ny < grid_size
+                        and candidate not in occupied
+                    ):
+                        resolved[idx] = [nx, ny]
+                        occupied.add(candidate)
+                        placed = True
+                        break
+
+                if placed:
                     break
-            if found:
+
+            if placed:
                 break
 
-        if not found:
+        if not placed:
             logger.warning(
-                f"Context index {idx} could not be placed within radius "
-                f"{max_radius}.  It will share a cell — increase "
-                f"--grid-size or --collision-radius."
+                f"Context {idx} could not be uniquely placed within radius "
+                f"{max_radius}. Leaving at original position {original}."
             )
+            # We still add it to occupied. Future elements hitting this spot 
+            # will spiral around the exact same origin.
+            occupied.add(original)
 
-    if displaced:
-        logger.info(f"Displaced {displaced} contexts to resolve collisions.")
-
+    logger.success("Collision resolution completed.")
     return resolved
 
 
 def scale_to_grid(
     coordinates: np.ndarray,
     grid_size: int,
-    padding: int = 0,
-    fix_collisions: bool = True,
+    padding: int = 2,
     collision_radius: int = 10,
+    resolve: bool = True,
 ) -> np.ndarray:
     """
-    Map continuous 2-D coordinates onto a discrete ``grid_size x grid_size``
-    integer grid.
-
-    The mapping preserves the relative spatial layout produced by the
-    dimensionality reducer while fitting all contexts into a bounded integer
-    grid suitable for fingerprint construction.
-
-    Steps
-    ~~~~~
-    1.  **Normalise** continuous coordinates to the unit square ``[0, 1]²``
-        by subtracting the per-axis minimum and dividing by the range.  A
-        small epsilon (``1e-10``) is added to the denominator to prevent
-        division by zero when all contexts share the same value on an axis.
-
-    2.  **Scale** to the effective grid region
-        ``[padding, grid_size - padding - 1]`` and round to the nearest
-        integer.  The result is clipped to ``[0, grid_size - 1]`` to handle
-        floating-point rounding at the boundaries.
-
-    3.  **Report** the pre-resolution collision rate for diagnostic purposes.
-
-    4.  **Resolve collisions** (optional) by calling :func:`resolve_collisions`
-        with a spiral search of radius up to ``collision_radius``.
-
-    The collision rate logged in step 3 reflects the state *before* resolution
-    so it can be compared with the post-resolution unique-position count that
-    is written to ``coordinate_statistics.json``.
-
-    Parameters
-    ----------
-    coordinates:
-        Float array of shape ``(num_contexts, 2)`` containing the continuous
-        2-D positions from the dimensionality reduction step.
-    grid_size:
-        Side length of the square grid.  The output will contain integer
-        values in ``[0, grid_size - 1]``.
-    padding:
-        Number of cells to reserve as a border margin on each side.  With
-        ``padding=2`` on a 64-cell grid the contexts are mapped into
-        ``[2, 61]²`` rather than ``[0, 63]²``.
-    fix_collisions:
-        If ``True`` (default), call :func:`resolve_collisions` to displace
-        contexts that share a cell.  If ``False``, the quantised positions are
-        returned as-is and multiple contexts may occupy the same cell.
-
-        .. note::
-            This parameter is named ``fix_collisions`` (not
-            ``resolve_collisions``) to avoid shadowing the module-level
-            function of the same name.
-
-    collision_radius:
-        Maximum spiral search radius passed to :func:`resolve_collisions`.
-        Ignored when ``fix_collisions=False``.
-
-    Returns
-    -------
-    numpy.ndarray
-        Integer array of shape ``(num_contexts, 2)`` with values in
-        ``[0, grid_size - 1]``.
+    Scale continuous 2-D coordinates to an integer grid with optional
+    collision resolution. Uses robust scaling to prevent outliers from
+    collapsing the coordinate space.
     """
+    # 1. Zero-Division Bug Fix
+    if grid_size <= 2 * padding:
+        raise ValueError(
+            f"grid_size ({grid_size}) must be strictly greater than "
+            f"2 * padding ({2 * padding}) to calculate cell expansion."
+        )
+
     logger.info(
-        f"Scaling to {grid_size}x{grid_size} grid (padding={padding})..."
+        f"Scaling continuous coordinates to a {grid_size}x{grid_size} grid "
+        f"with padding={padding} using robust percentile bounds."
     )
 
-    # Step 1 — normalise to [0, 1]
-    min_vals = coordinates.min(axis=0)
-    max_vals = coordinates.max(axis=0)
-    normalized = (coordinates - min_vals) / (max_vals - min_vals + 1e-10)
+    x = coordinates[:, 0]
+    y = coordinates[:, 1]
 
-    # Step 2 — scale to effective grid region and quantise
-    effective_size = grid_size - 2 * padding
-    scaled = normalized * (effective_size - 1) + padding
-    grid_coords = np.clip(np.round(scaled).astype(int), 0, grid_size - 1)
+    # 2. Outlier Issue Fix: Use 1st and 99th percentiles instead of absolute min/max
+    x_min, x_max = np.percentile(x, 1), np.percentile(x, 99)
+    y_min, y_max = np.percentile(y, 1), np.percentile(y, 99)
 
-    # Step 3 — report pre-resolution collision rate
-    unique_before = len(set(map(tuple, grid_coords.tolist())))
-    collision_rate = 1.0 - (unique_before / len(grid_coords))
-    logger.info(
-        f"Before resolution: {unique_before}/{len(grid_coords)} unique positions "
-        f"(collision rate: {collision_rate:.2%})"
-    )
+    # Fallback in case of highly degenerate data where percentiles match
+    if x_max == x_min:
+        x_min, x_max = x.min(), x.max()
+    if y_max == y_min:
+        y_min, y_max = y.min(), y.max()
 
-    # Step 4 — optionally resolve collisions
-    if fix_collisions and collision_rate > 0:
+    logger.debug(f"Robust x range (1st-99th percentile): [{x_min:.4f}, {x_max:.4f}]")
+    logger.debug(f"Robust y range (1st-99th percentile): [{y_min:.4f}, {y_max:.4f}]")
+
+    # Expand ranges symmetrically by padding cells on each side
+    x_range = x_max - x_min
+    y_range = y_max - y_min
+
+    # Denominator is guaranteed to be > 0 due to the validation check above
+    x_min -= padding * x_range / (grid_size - 2 * padding)
+    x_max += padding * x_range / (grid_size - 2 * padding)
+    y_min -= padding * y_range / (grid_size - 2 * padding)
+    y_max += padding * y_range / (grid_size - 2 * padding)
+
+    # Avoid division by zero if all points are virtually identical
+    if x_max == x_min:
+        x_max = x_min + 1e-6
+    if y_max == y_min:
+        y_max = y_min + 1e-6
+
+    # Scale to [0, grid_size - 1]
+    x_scaled = (x - x_min) / (x_max - x_min) * (grid_size - 1)
+    y_scaled = (y - y_min) / (y_max - y_min) * (grid_size - 1)
+
+    # 3. Clip the outliers so they stay within the grid boundaries
+    x_scaled = np.clip(x_scaled, 0, grid_size - 1)
+    y_scaled = np.clip(y_scaled, 0, grid_size - 1)
+
+    grid_coords = np.stack([np.round(x_scaled), np.round(y_scaled)], axis=1).astype(int)
+
+    logger.info("Initial quantisation to grid completed.")
+
+    if resolve:
         grid_coords = resolve_collisions(
-            grid_coords, grid_size, collision_radius
-        )
-        unique_after = len(set(map(tuple, grid_coords.tolist())))
-        logger.info(
-            f"After resolution: {unique_after}/{len(grid_coords)} unique positions"
+            grid_coords=grid_coords,
+            grid_size=grid_size,
+            max_radius=collision_radius,
         )
 
+    logger.success("Grid mapping completed.")
     return grid_coords
-
 
 # ---------------------------------------------------------------------------
 # Output Writers
@@ -1147,7 +1140,7 @@ def main() -> int:
     parser.add_argument(
         "--min-dist",
         type=float,
-        default=0.1,
+        default=0.25,
         dest="min_dist",
         help="UMAP minimum distance between embedded points.",
     )
@@ -1275,10 +1268,10 @@ def main() -> int:
 
     if not args.no_grid:
         grid_coords = scale_to_grid(
-            coords,
-            args.grid_size,
-            args.grid_padding,
-            fix_collisions=not args.no_collision_resolution,
+            coordinates=coords,  # Using keywords for clarity
+            grid_size=args.grid_size,
+            padding=args.grid_padding,
+            resolve=not args.no_collision_resolution, # Use 'resolve' instead of 'fix_collisions'
             collision_radius=args.collision_radius,
         )
 

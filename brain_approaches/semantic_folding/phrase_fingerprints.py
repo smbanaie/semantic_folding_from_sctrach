@@ -1,3 +1,18 @@
+
+from __future__ import annotations
+
+from scipy.ndimage import gaussian_filter
+import argparse
+import json
+import math
+import sys
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+from loguru import logger
+from scipy.ndimage import gaussian_filter1d
+
 """
 phrase_fingerprints.py
 ======================
@@ -113,19 +128,6 @@ Exit Codes
 4   Unexpected runtime error.
 """
 
-from __future__ import annotations
-
-import argparse
-import json
-import math
-import sys
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-import numpy as np
-from loguru import logger
-from scipy.ndimage import gaussian_filter1d
-
 
 # ---------------------------------------------------------------------------
 # Morton (Z-order) encoding helpers
@@ -221,7 +223,7 @@ def xy_to_morton(x: int, y: int, grid_size: int) -> int:
 # I/O helpers
 # ---------------------------------------------------------------------------
 
-def load_context_coordinates(coordinates_path: Path) -> Dict[str, Tuple[int, int]]:
+def load_context_coordinates(coordinates_path: Path) -> Dict[int, Tuple[int, int]]:
     """
     Load finalised context coordinates from the JSON map produced by
     ``semantic_space.py``.
@@ -233,8 +235,8 @@ def load_context_coordinates(coordinates_path: Path) -> Dict[str, Tuple[int, int
     Expected file format::
 
         {
-            "context_0": {"x": 5,  "y": 12},
-            "context_1": {"x": 14, "y": 3},
+            "0": {"x": 5,  "y": 12},
+            "1": {"x": 14, "y": 3},
             ...
         }
 
@@ -249,8 +251,8 @@ def load_context_coordinates(coordinates_path: Path) -> Dict[str, Tuple[int, int
 
     Returns
     -------
-    Dict[str, Tuple[int, int]]
-        Mapping from ``context_id`` strings to ``(x, y)`` integer tuples.
+    Dict[int, Tuple[int, int]]
+        Mapping from ``context_id`` integers to ``(x, y)`` integer tuples.
 
     Raises
     ------
@@ -258,25 +260,19 @@ def load_context_coordinates(coordinates_path: Path) -> Dict[str, Tuple[int, int
         If ``coordinates_path`` does not exist.
     json.JSONDecodeError
         If the file is not valid JSON.
-
-    Notes
-    -----
-    This function intentionally does **not** accept ``context_coordinates.csv``
-    even though that file is also produced by ``semantic_space.py``.  The CSV
-    is generated for human inspection only.  All downstream automation must use
-    the JSON file because it provides ``O(1)`` dictionary access rather than
-    ``O(N)`` line scanning.
     """
     logger.info(f"Loading context coordinates from: {coordinates_path}")
 
     with open(coordinates_path, "r", encoding="utf-8") as fh:
         raw: dict = json.load(fh)
 
-    coordinates: Dict[str, Tuple[int, int]] = {}
+    # FIX: Changed dictionary key type hint from str to int
+    coordinates: Dict[int, Tuple[int, int]] = {}
 
     for context_id, xy in raw.items():
         try:
-            coordinates[context_id] = (int(xy["x"]), int(xy["y"]))
+            # FIX: Cast the string context_id (e.g., "0") to an integer (0)
+            coordinates[int(context_id)] = (int(xy["x"]), int(xy["y"]))
         except (KeyError, ValueError, TypeError) as exc:
             logger.warning(
                 f"Skipping malformed coordinate entry '{context_id}': {exc}"
@@ -287,6 +283,7 @@ def load_context_coordinates(coordinates_path: Path) -> Dict[str, Tuple[int, int
         f"({len(raw) - len(coordinates):,} entries skipped)."
     )
     return coordinates
+
 
 def load_phrase_metadata(path: str):
     """
@@ -344,136 +341,93 @@ def load_phrase_metadata(path: str):
 # ---------------------------------------------------------------------------
 # Fingerprint construction
 # ---------------------------------------------------------------------------
-def build_fingerprint(
-    phrase_text : str,
-    freq        : int,
-    coordinates : Dict[str, Tuple[int, int]],
-    grid_size   : int,
-    use_morton  : bool,
+
+
+
+def build_and_smooth_fingerprint(
+    phrase_text: str,
+    context_coords_list: List[Tuple[int, int]],
+    grid_size: int,
+    use_morton: bool,
+    apply_smooth: bool,
+    sigma: float
 ) -> np.ndarray:
     """
-    Build a single raw binary fingerprint vector for one phrase.
+    Constructs a topological Semantic Fingerprint for a given phrase.
 
-    The phrase does not belong to a single context — it has a co-occurrence
-    frequency across ALL contexts.  The grid position is therefore computed as
-    the frequency-weighted centroid of all context coordinates, then snapped to
-    the nearest integer grid cell.
+    This function builds a sparse, multi-hot 2D representation of a phrase based 
+    on the semantic contexts it appears in. It avoids the "centroid fallacy" by 
+    activating all corresponding context coordinates on a 2D grid rather than 
+    averaging them. It optionally applies true 2D spatial smoothing to capture 
+    semantic overlap before flattening the grid into a 1D vector (using either 
+    linear or Morton Z-order encoding). Finally, the vector is min-max 
+    normalized to the [0.0, 1.0] range.
 
-    Parameters
-    ----------
-    phrase_text:
-        The phrase string (used only for error messages).
-    freq:
-        Total corpus frequency of this phrase (scalar integer from
-        ``phrase_frequencies`` in ``term_context_matrix.json``).
-        Currently unused in the centroid calculation but kept for future
-        frequency-weighted context expansion.
-    coordinates:
-        Full context-id → (x, y) mapping loaded from
-        ``context_coordinates.json``.
-    grid_size:
-        Side length of the square semantic grid.
-    use_morton:
-        ``True``  → Morton (Z-order) linearisation.
-        ``False`` → row-major linearisation.
+    Args:
+        phrase_text (str): 
+            The textual representation of the phrase (used primarily for error 
+            logging/tracking).
+        context_coords_list (List[Tuple[int, int]]): 
+            A list of (x, y) integer tuples representing the 2D grid coordinates 
+            of the contexts in which this phrase appears.
+        grid_size (int): 
+            The width and height of the square semantic grid (e.g., 64 implies 
+            a 64x64 grid).
+        use_morton (bool): 
+            If True, flattens the 2D grid into a 1D array using Morton (Z-order) 
+            encoding, which better preserves 2D spatial locality in 1D space. 
+            If False, uses standard row-major (y * grid_size + x) flattening.
+        apply_smooth (bool): 
+            If True, applies a 2D Gaussian blur to the grid to create overlapping 
+            semantic topologies.
+        sigma (float): 
+            The standard deviation for the Gaussian filter. Higher values create 
+            a wider "blur" or semantic generalization. Ignored if apply_smooth 
+            is False.
 
-    Returns
-    -------
-    np.ndarray
-        Float32 array of shape ``(grid_size * grid_size,)`` with exactly one
-        element equal to ``1.0`` and all others ``0.0``.
+    Returns:
+        np.ndarray: 
+            A 1D numpy array of shape (grid_size * grid_size,) with dtype 
+            float32, containing the normalized semantic fingerprint.
 
-    Raises
-    ------
-    ValueError
-        If ``coordinates`` is empty or the computed centroid is out of bounds.
+    Raises:
+        ValueError: 
+            If `context_coords_list` is empty, indicating the phrase has no 
+            valid contexts to map.
     """
-    if not coordinates:
-        raise ValueError(
-            f"Phrase '{phrase_text}': coordinates dict is empty — "
-            f"cannot compute centroid."
-        )
+    if not context_coords_list:
+        raise ValueError(f"Phrase '{phrase_text}': no coordinates provided.")
 
-    # ── Compute unweighted centroid of all context positions ────────────────
-    # All contexts contribute equally; the phrase is assumed to be distributed
-    # across the entire semantic space.  Frequency-weighted variant can be
-    # added here once per-context frequency rows are available.
-    xs = [x for x, y in coordinates.values()]
-    ys = [y for x, y in coordinates.values()]
+    # 1. Create the 2D grid
+    grid_2d = np.zeros((grid_size, grid_size), dtype=np.float32)
 
-    cx = int(round(sum(xs) / len(xs)))
-    cy = int(round(sum(ys) / len(ys)))
+    # 2. Activate ALL contexts (multi-hot representation)
+    for x, y in context_coords_list:
+        # Protect against out-of-bounds just in case
+        if 0 <= x < grid_size and 0 <= y < grid_size:
+            grid_2d[y, x] += 1.0  # Accumulate overlapping points
 
-    # Clamp to valid grid range to guard against rounding to grid_size
-    cx = min(cx, grid_size - 1)
-    cy = min(cy, grid_size - 1)
+    # 3. Apply True 2D Semantic Smoothing
+    if apply_smooth and sigma > 0.0:
+        grid_2d = gaussian_filter(grid_2d, sigma=sigma)
 
-    # ── Linearise ───────────────────────────────────────────────────────────
+    # Normalize to [0, 1]
+    max_val = grid_2d.max()
+    if max_val > 0.0:
+        grid_2d /= max_val
+
+    # 4. Linearise to 1D
     vector_size = grid_size * grid_size
     fp = np.zeros(vector_size, dtype=np.float32)
 
-    if use_morton:
-        idx = xy_to_morton(cx, cy, grid_size)
-    else:
-        idx = cy * grid_size + cx
+    for y in range(grid_size):
+        for x in range(grid_size):
+            val = grid_2d[y, x]
+            if val > 0:
+                idx = xy_to_morton(x, y, grid_size) if use_morton else (y * grid_size + x)
+                fp[idx] = val
 
-    fp[idx] = 1.0
     return fp
-
-
-def smooth_fingerprint(
-    fingerprint: np.ndarray,
-    sigma: float,
-) -> np.ndarray:
-    """
-    Apply a 1-D Gaussian blur to a fingerprint vector.
-
-    Smoothing spreads the signal from each hot bit across its neighbours,
-    turning a sparse binary spike into a localised continuous distribution.
-    This makes the fingerprint more robust to small coordinate perturbations
-    and produces softer cosine-similarity scores than raw binary vectors.
-
-    The output is normalised to ``[0, 1]`` by dividing by its maximum value so
-    that all fingerprints remain on a comparable scale regardless of how many
-    contexts contributed to a given phrase.
-
-    Parameters
-    ----------
-    fingerprint:
-        Raw (possibly accumulated) float32 fingerprint vector.
-    sigma:
-        Standard deviation of the Gaussian kernel in index units.  Larger
-        values produce wider, softer peaks.  A value of ``0.0`` disables
-        smoothing without error (the vector is returned as-is normalised).
-
-    Returns
-    -------
-    np.ndarray
-        Float32 array of the same shape as ``fingerprint``, values in
-        ``[0, 1]``.  If the input is all zeros the original zero vector is
-        returned unchanged.
-
-    Notes
-    -----
-    Smoothing is applied to the **accumulated** fingerprint (after all phrases
-    sharing the same context have contributed their signal), not to each phrase
-    individually.  This means the smoothing stage happens outside this function
-    in the main loop; this helper is responsible only for the convolution and
-    normalisation of a single already-accumulated vector.
-    """
-    if fingerprint.max() == 0.0:
-        return fingerprint
-
-    if sigma > 0.0:
-        smoothed = gaussian_filter1d(fingerprint.astype(np.float64), sigma=sigma)
-    else:
-        smoothed = fingerprint.astype(np.float64)
-
-    max_val = smoothed.max()
-    if max_val > 0.0:
-        smoothed /= max_val
-
-    return smoothed.astype(np.float32)
 
 
 # ---------------------------------------------------------------------------
@@ -850,11 +804,11 @@ def main(argv: Optional[List[str]] = None) -> None:
     2.  Load ``context_coordinates.json`` for ``O(1)`` context lookup.
     3.  Load ``term_context_matrix.json`` (phrases + frequencies).
     4.  Validate grid bounds.
-    5.  For each phrase, build a raw binary fingerprint from its context
-        coordinate using Morton or row-major linearisation.
-    6.  Optionally apply per-phrase Gaussian smoothing.
-    7.  Compute summary statistics over the **finalised** matrix.
-    8.  Write ``.npz``, ``_meta.json``, and ``_stats.json`` outputs.
+    5.  For each phrase, build a 2D multi-hot fingerprint from its context
+        coordinates, optionally apply 2D Gaussian smoothing, and linearise
+        using Morton or row-major encoding.
+    6.  Compute summary statistics over the **finalised** matrix.
+    7.  Write ``.npz``, ``_meta.json``, and ``_stats.json`` outputs.
 
     Parameters
     ----------
@@ -870,7 +824,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     Notes
     -----
     Statistics (skip rate, sparsity, mean max activation) are computed in step
-    7 — **after** fingerprint construction and smoothing are complete — so they
+    6 — **after** fingerprint construction and smoothing are complete — so they
     accurately represent the final outputs rather than any intermediate state.
     """
     args = parse_args(argv)
@@ -938,7 +892,6 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     for row_idx, phrase_text in enumerate(phrases):
         phrase_id = str(row_idx)
-        freq      = frequencies[row_idx]
 
         # Get context indices where this phrase appears
         context_indices = phrase_contexts.get(phrase_text, [])
@@ -951,15 +904,33 @@ def main(argv: Optional[List[str]] = None) -> None:
             skipped += 1
             continue
 
-        # Filter coordinates to only include this phrase's contexts
-        phrase_coords = {
-            ctx_id: coord 
-            for ctx_id, coord in coordinates.items()
-            if int(ctx_id.replace("context_", "")) in context_indices
-        }
+        # FAST O(1) LOOKUP: Construct key and map directly to bypass O(N) string manipulation
+        context_coords_list = []
+        for ctx_idx in context_indices:
+            # ctx_idx is already an integer (e.g., 0)
+            # coordinates keys are now integers (e.g., 0)
+            if ctx_idx in coordinates:
+                context_coords_list.append(coordinates[ctx_idx])
+
+
+        if not context_coords_list:
+            logger.warning(
+                f"Phrase '{phrase_text}' (id={phrase_id}): "
+                f"none of its contexts were found in coordinates map — skipping."
+            )
+            skipped += 1
+            continue
 
         try:
-            fp = build_fingerprint(phrase_text, freq, phrase_coords, args.grid_size, args.use_morton)
+            # Combined build, 2D smooth, and flatten process
+            fp = build_and_smooth_fingerprint(
+                phrase_text=phrase_text,
+                context_coords_list=context_coords_list,
+                grid_size=args.grid_size,
+                use_morton=args.use_morton,
+                apply_smooth=args.smooth,
+                sigma=args.sigma
+            )
         except ValueError as exc:
             logger.warning(
                 f"Phrase '{phrase_text}' (id={phrase_id}): "
@@ -967,9 +938,6 @@ def main(argv: Optional[List[str]] = None) -> None:
             )
             skipped += 1
             continue
-
-        if args.smooth:
-            fp = smooth_fingerprint(fp, args.sigma)
 
         fingerprints[row_idx]         = fp
         token_index_map[phrase_text]  = row_idx

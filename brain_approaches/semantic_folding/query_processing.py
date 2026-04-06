@@ -45,13 +45,12 @@ Usage
 """
 
 from __future__ import annotations
-
+from collections import Counter
 import argparse
 import json
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
-
 import numpy as np
 from scipy.sparse import csr_matrix, lil_matrix
 from loguru import logger
@@ -59,6 +58,7 @@ from loguru import logger
 from phrase_extractor import (
     extract_raw_phrases_spacy,
     extract_raw_phrases_fallback,
+    debug_phrase_extraction_pipeline,
     SPACY_AVAILABLE,
 )
 from lib import (
@@ -106,7 +106,6 @@ def _infer_vector_size(phrase_fingerprints: dict) -> int:
 # ─────────────────────────────────────────────────────────────────────────────
 # Phrase extraction
 # ─────────────────────────────────────────────────────────────────────────────
-
 def extract_query_phrases(
     query           : str,
     phrase_vocab    : Set[str],
@@ -219,6 +218,7 @@ def extract_query_phrases(
     # ── Stage 2: sub-phrase expansion ────────────────────────────────────────
     expanded: List[str] = expand_phrases(
         candidates,
+        context_text    = query,            # <-- UPDATED: Pass raw query text for validation
         filter_generic  = filter_generic,
         min_word_length = min_word_length,
     )
@@ -233,12 +233,52 @@ def extract_query_phrases(
     if matched:
         logger.debug(f"Matched phrases: {matched}")
 
-    return matched
+        debug_report = debug_phrase_extraction_pipeline(
+        query,
+        use_spacy=use_spacy,
+        remove_verbs=remove_verbs,
+        filter_generic=filter_generic,
+        min_word_length=min_word_length,
+        vocab=phrase_vocab,
+        )   
+    
+        logger.debug("="*60)
+        logger.debug("PHRASE EXTRACTION PIPELINE TRACE")
+        logger.debug(f"Query: {query}")
+        logger.debug("-"*60)
+        
+        for stage_name, stage_data in debug_report["stages"].items():
+            logger.debug(f"\n{stage_name.upper()}:")
+            logger.debug(f"  Count: {stage_data['count']}")
+            if stage_data['count'] <= 20:  # Only show if reasonable
+                logger.debug(f"  Phrases: {stage_data['phrases']}")
+            
+            if 'dropped' in stage_data and stage_data['dropped'] > 0:
+                logger.debug(f"  ⚠ Dropped: {stage_data['dropped']} phrases")
+            
+            if 'out_of_vocab' in stage_data and stage_data['out_of_vocab']:
+                logger.debug(f"  ⚠ Out-of-vocab: {stage_data['out_of_vocab']}")
+        
+        logger.debug("\nLOSSES BY STAGE:")
+        for stage, losses in debug_report["losses"].items():
+            if losses:
+                logger.debug(f"  {stage}: {len(losses)} phrases")
+                for loss in losses[:5]:  # Show first 5
+                    logger.debug(f"    - {loss}")
+        
+        logger.debug("\nSUMMARY:")
+        for key, val in debug_report["summary"].items():
+            logger.debug(f"  {key}: {val}")
+        logger.debug("="*60)
+    
 
+    return matched
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fingerprint construction
 # ─────────────────────────────────────────────────────────────────────────────
+
+
 def construct_query_fingerprint(
     query_phrases       : List[str],
     phrase_fingerprints : Dict[str, csr_matrix],
@@ -250,8 +290,9 @@ def construct_query_fingerprint(
     Aggregate per-phrase fingerprints into a single query fingerprint vector.
 
     Each phrase in ``query_phrases`` that is found in
-    ``phrase_fingerprints`` is weighted and accumulated into a sparse row
-    vector.  The aggregated vector is optionally normalised before return.
+    ``phrase_fingerprints`` is weighted and accumulated into a dense array 
+    before being converted to a sparse row vector. The aggregated vector 
+    is optionally normalised before return.
 
     The function is intentionally conservative: it returns
     ``(None, metadata)`` in every failure mode rather than raising,
@@ -261,8 +302,7 @@ def construct_query_fingerprint(
     ----------
     query_phrases : List[str]
         Ordered list of normalised phrase strings from
-        :func:`extract_query_phrases`.  Duplicates are meaningful when
-        ``weighting="frequency"``.  An empty list causes an immediate
+        :func:`extract_query_phrases`.  An empty list causes an immediate
         ``(None, {"error": "no_phrases"})`` return.
     phrase_fingerprints : Dict[str, csr_matrix]
         Mapping of ``{phrase: fingerprint_vector}`` from Step 4.  Each
@@ -271,14 +311,14 @@ def construct_query_fingerprint(
         Scalar weight assigned to each phrase contribution:
 
         ``"uniform"``
-            Every phrase contributes weight ``1.0``.
+            Every unique phrase contributes weight ``1.0``, regardless of frequency.
         ``"frequency"``
-            Weight equals the term frequency of the phrase in
+            Weight equals the term frequency (TF) of the phrase in
             ``query_phrases`` (promotes repeated terms).
         ``"idf"``
-            Weight is looked up from ``idf_weights`` (falls back to
-            ``1.0`` for unknown phrases).  Requires ``idf_weights``;
-            degrades to ``"uniform"`` if ``idf_weights`` is ``None``.
+            Weight is the term frequency multiplied by the IDF score from ``idf_weights`` 
+            (falls back to TF * 1.0 for unknown phrases). Requires ``idf_weights``;
+            degrades to TF-only if ``idf_weights`` is ``None``.
 
     idf_weights : Dict[str, float] or None, optional
         ``{phrase: idf_score}`` mapping.  Only consulted when
@@ -299,12 +339,12 @@ def construct_query_fingerprint(
 
     Notes
     -----
-    - The sparse accumulator is built as a ``lil_matrix`` for efficient
-      incremental addition, then converted to ``csr_matrix`` before
-      normalisation and return.
-    - When ``weighting="frequency"`` the weight is computed via
-      ``list.count()``, which is O(n) per phrase.  For very long query
-      lists consider pre-computing a ``Counter`` before calling.
+    - *Refactored:* Accumulation is performed on a dense `np.zeros` float32 array 
+      for O(1) additions, completely bypassing the `lil_matrix` bottleneck. 
+      It is converted to `csr_matrix` only at the end.
+    - *Refactored:* Uses `collections.Counter` to group unique phrases. This fixes an O(N²) 
+      performance bottleneck from `list.count()` and resolves a logical bug where iterating 
+      over duplicate phrases effectively squared the term frequency contributions.
     - When using IDF weighting, the weighted values are preserved as floats
       rather than binarized, allowing rare terms to contribute more strongly
       to similarity scores.
@@ -318,32 +358,48 @@ def construct_query_fingerprint(
         return None, {"error": "empty_phrase_vocabulary"}
 
     grid_size_sq = _infer_vector_size(phrase_fingerprints)
-    acc = lil_matrix((1, grid_size_sq), dtype=np.float32)
+    
+    # 1. Accumulate into a dense array instead of lil_matrix for massive speedup
+    acc = np.zeros(grid_size_sq, dtype=np.float32)
+    
     phrase_weights_used: Dict[str, float] = {}
     missing_phrases:     List[str]        = []
+    
+    # 2. Pre-compute Term Frequency using Counter (Fixes O(N^2) and squaring bug)
+    phrase_counts = Counter(query_phrases)
 
-    for phrase in query_phrases:
+    for phrase, tf in phrase_counts.items():
         if phrase not in phrase_fingerprints:
             logger.warning(f"Phrase not in fingerprints vocabulary: '{phrase}'")
+            # Store missing phrase but avoid appending duplicates
             missing_phrases.append(phrase)
             continue
 
         phrase_fp = phrase_fingerprints[phrase]
 
+        # 3. Apply exact mathematical weights once per unique phrase
         if weighting == "idf" and idf_weights:
-            weight = float(idf_weights.get(phrase, 1.0))
+            base_weight = float(idf_weights.get(phrase, 1.0))
+            weight = base_weight * float(tf)
         elif weighting == "frequency":
-            weight = float(query_phrases.count(phrase))
-        else:
+            weight = float(tf)
+        else: # "uniform"
             weight = 1.0
 
-        acc += weight * phrase_fp
+        # High-speed dense accumulation
+        if hasattr(phrase_fp, "toarray"):
+            fp_array = phrase_fp.toarray().ravel()
+        else:
+            fp_array = np.asarray(phrase_fp).ravel()
+            
+        acc += weight * fp_array
         phrase_weights_used[phrase] = weight
 
-    if acc.nnz == 0:
+    # Check if accumulator is empty (all values are 0.0)
+    if not np.any(acc):
         if missing_phrases:
             logger.error(
-                f"All {len(missing_phrases)} query phrase(s) are "
+                f"All {len(missing_phrases)} unique query phrase(s) are "
                 f"out-of-vocabulary: {missing_phrases}"
             )
         else:
@@ -353,15 +409,16 @@ def construct_query_fingerprint(
             "missing_phrases": missing_phrases,
         }
 
-    acc = acc.tocsr()
-    pre_norm_nnz = acc.nnz
+    # Convert dense accumulator to CSR matrix
+    acc_csr = csr_matrix(acc.reshape(1, -1))
+    pre_norm_nnz = acc_csr.nnz
 
     # Apply normalization but keep as float values (don't binarize)
     if normalization and normalization != "none":
-        acc = normalize_fingerprint(acc, method=normalization)
+        acc_csr = normalize_fingerprint(acc_csr, method=normalization)
 
     # Calculate sparsity based on non-zero elements
-    post_norm_nnz = acc.nnz
+    post_norm_nnz = acc_csr.nnz
 
     metadata = {
         "num_phrases":          len(query_phrases),
@@ -380,7 +437,7 @@ def construct_query_fingerprint(
         f"Query fingerprint: {post_norm_nnz} active elements from "
         f"{len(phrase_weights_used)} phrases (weighted)"
     )
-    return acc, metadata
+    return acc_csr, metadata
 
 
 # ─────────────────────────────────────────────────────────────────────────────

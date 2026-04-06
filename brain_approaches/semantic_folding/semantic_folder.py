@@ -79,8 +79,11 @@ class SemanticRunner:
         "top_percent":          ["document_fingerprints", "top_percent"],
         "normalize":            ["document_fingerprints", "normalize"],
         "normalize_method":     ["document_fingerprints", "normalize_method"],
+        "compute_diversity":    ["document_fingerprints", "compute_diversity"],
+        "diversity_sample":     ["document_fingerprints", "diversity_sample"],
 
         # Phase 6
+        "weighting":            ["query_processing", "weighting"],
         "idf":                  ["query_processing", "idf"],
         "top_k":                ["query_processing", "top_k"],
         "spreading_steps":      ["query_processing", "spreading_steps"],
@@ -144,12 +147,14 @@ class SemanticRunner:
             "id": 5,
             "name": "Document Fingerprints",
             "script": "brain_approaches/semantic_folding/doc_fingerprints.py",
-            "required_params": ["corpus", "phrases", "fingerprints", "output"],
+            "required_params": ["corpus", "fingerprints", "output"], 
             "optional_params": [
-                "top_percent", "min_freq", "normalize", "normalize_method"
+                "idf_weights", "grid_size", "top_percent", "normalize", 
+                "normalize_method", "use_spacy", "keep_verbs", "filter_generic", 
+                "min_word_length"
             ],
             "default_output": "doc_fingerprints",
-            "depends_on": [4]
+            "depends_on": [3, 4]
         },
         {
             "id": 6,
@@ -159,6 +164,7 @@ class SemanticRunner:
                 "query",
                 "phrase_fp_dir",
                 "doc_fp_dir",
+                "weighting",
             ],
             "optional_params": [
                 "idf",
@@ -181,7 +187,7 @@ class SemanticRunner:
         "phrase_fp_dir":   "phrase-fp-dir",
         "doc_fp_dir":      "doc-fp-dir",
         "spreading_steps": "spreading-steps",
-        "min_phrase_freq": "min-freq",
+        "min_phrase_freq": "min-freq"
     }
 
     # Flags that are boolean and use --no-X negation pattern
@@ -191,6 +197,8 @@ class SemanticRunner:
         "use_tfidf":           "no-tfidf",
         "use_word_boundaries": "no-word-boundaries",
         "enable_grid":         "no-grid",
+        "keep_verbs":          "no-verbs",       # ADDED for Step 1 & 5
+        "normalize":           "no-normalize",   # ADDED for Step 5
     }
 
     def __init__(self):
@@ -311,7 +319,9 @@ class SemanticRunner:
                     "matrix":      "term_context_matrix.npz",
                     "metadata":    "term_context_matrix.json",
                     "coordinates": "context_coordinates.json",
-                    "idf":         "idf_weights.json"
+                    "idf":         "idf_weights.json",
+                    "idf_weights": "idf_weights.json", # ADDED for Step 5
+                    "som":         "som_model.pkl"     # ADDED for Step 5
                 }
 
                 # Priority 1a & 1b loop (already reversed)
@@ -370,14 +380,15 @@ class SemanticRunner:
                         )
                         return step5_out
 
-                # Priority 3d: idf → Step 3 output dir / idf_weights.json
-                if param == "idf":
-                    step3_out = run_data["steps"].get(3, {}).get("output", "")
-                    if step3_out:
-                        candidate = str(Path(step3_out) / "idf_weights.json")
+                # Priority 3d: idf / idf_weights → Step 2 output dir / idf_weights.json
+                if param in ("idf", "idf_weights"):
+                    # FIXED: Step 2 generates the IDF weights in your pipeline, not Step 3
+                    step2_out = run_data["steps"].get(2, {}).get("output", "")
+                    if step2_out:
+                        candidate = str(Path(step2_out) / "idf_weights.json")
                         if Path(candidate).exists():
                             logger.debug(
-                                f"Default 'idf' resolved from Step 3 dir: {candidate}"
+                                f"Default '{param}' resolved from Step 2 dir: {candidate}"
                             )
                             return candidate
 
@@ -502,8 +513,8 @@ class SemanticRunner:
                         cli_key = self.CLI_RENAME_MAP.get(key, key.replace("_", "-"))
                         cmd.append(f"--{cli_key}")
             else:
-                # SPECIAL HANDLING FOR STEP 1 & 2 DIRECTORY FLAGS
-                if key == "output" and step["id"] in [1, 2]:
+                # SPECIAL HANDLING FOR STEP 1, 2, & 5 DIRECTORY FLAGS
+                if key == "output" and step["id"] in [1, 2, 5]:
                     cmd.extend(["--output-dir", str(value)])
                 else:
                     cli_key = self.CLI_RENAME_MAP.get(key, key.replace("_", "-"))

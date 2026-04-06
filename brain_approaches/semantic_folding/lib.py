@@ -253,7 +253,10 @@ def normalize_phrase(text: str, remove_verbs: bool = True) -> Optional[str]:
     tagged_tokens = pos_tag(tokens)
     
     # Filter and lemmatize
+    # Filter and lemmatize
     processed = []
+    valid_tagged_tokens = [] # ADD THIS to safely track the tags of kept words
+    
     for word, tag in tagged_tokens:
         # Skip stop words
         if word in en_stop_words:
@@ -270,106 +273,113 @@ def normalize_phrase(text: str, remove_verbs: bool = True) -> Optional[str]:
         # Lemmatize
         lemma = lemmatize_token(word, tag)
         processed.append(lemma)
+        valid_tagged_tokens.append((lemma, tag)) # Track the lemma and its tag
     
     if not processed:
         return None
     
-    # Validate structure
-    processed_tagged = [(w, t) for w, t in tagged_tokens if w in processed]
-    if not is_valid_phrase_structure(processed_tagged):
+    # Validate structure using our safely tracked list
+    if not is_valid_phrase_structure(valid_tagged_tokens):
         return None
     
     return ' '.join(processed)
 
 
+
 # ============================================================================
 # PHRASE EXPANSION
 # ============================================================================
+from typing import List, Optional, Set
+# Assuming these helpers are in the same lib.py file
+# from .utils import normalize_phrase, is_generic_word 
 
 def expand_phrases(phrases: List[str], 
-                  filter_generic: bool = True,
-                  min_word_length: int = 3) -> List[str]:
+                   context_text: str,
+                   filter_generic: bool = True,
+                   min_word_length: int = 3) -> List[str]:
     """
-    Expand multi-word phrases into sub-phrases with intelligent filtering.
+    Expand multi-word phrases and validate them against the source context.
     
-    Phrase expansion generates all meaningful sub-phrases from longer phrases,
-    enabling hierarchical semantic representation. This supports the principle
-    that longer phrases contain semantic information from their constituents.
+    This function generates all meaningful sub-phrases from a list of longer 
+    phrases and, crucially, verifies that each sub-phrase actually exists as a 
+    substring within the provided `context_text`. This prevents the creation of 
+    "phantom phrases"—combinations that are syntactically possible but do not 
+    empirically appear in the source document.
+
+    This validation step is critical for building a high-quality, grounded
+    vocabulary for the semantic folding pipeline.
     
-    Expansion rules by phrase length:
-    - 2-word phrases → add individual words (if not generic)
-    - 3-word phrases → add all 2-word combinations + individual words
-    - 4+ word phrases → add all 3-word, 2-word, and 1-word combinations
-    
-    Each generated sub-phrase is normalized using normalize_phrase() to
-    ensure consistency.
+    Expansion rules by phrase length (applied after normalization):
+    - 2-word phrases → add individual words (if valid)
+    - 3-word phrases → add all 2-word combinations + individual words (if valid)
+    - 4+ word phrases → add all 3-word, 2-word, and 1-word combinations (if valid)
     
     Args:
-        phrases: List of input phrases to expand
-        filter_generic: If True, remove generic single words (default: True)
-        min_word_length: Minimum character length for single words (default: 3)
+        phrases: List of input phrases to expand, extracted from a single context.
+        context_text: The raw source text of the context from which `phrases` 
+                      were extracted. Used to validate sub-phrase existence.
+        filter_generic: If True, remove generic single words (default: True).
+        min_word_length: Minimum character length for single words (default: 3).
     
     Returns:
-        Sorted list of expanded and normalized phrases (duplicates removed)
+        A sorted list of unique, normalized, and validated phrases that exist
+        within the source context_text.
     
     Examples:
-        >>> expand_phrases(['deep neural network'])
-        ['deep', 'neural', 'network', 'deep neural', 'neural network', 
-         'deep neural network']
-        
-        >>> expand_phrases(['machine learning algorithm'])
-        ['machine', 'learning', 'algorithm', 'machine learning', 
-         'learning algorithm', 'machine learning algorithm']
-    
-    Note:
-        Generic words like 'the', 'a', 'is' are filtered when filter_generic=True
-        to maintain semantic quality of the expanded phrase set.
+        >>> context = "The field of machine learning includes deep neural networks."
+        >>> expand_phrases(['deep neural networks'], context)
+        ['deep neural', 'deep neural network', 'neural network'] 
+        # Note: 'deep', 'neural', 'networks' might be filtered or not present
+        # depending on normalization and other rules.
+
+        >>> context = "We must change negative thought patterns."
+        >>> expand_phrases(['change negative thought patterns'], context)
+        ['change negative', 'change negative thought', 'negative thought', 
+         'negative thought pattern', 'thought pattern']
+         # Assumes 'patterns' lemmatizes to 'pattern'.
     """
-    expanded = set()
+    expanded_and_validated = set()
+    lower_context = context_text.lower()
     
     for phrase in phrases:
         # Normalize the full phrase first
         normalized = normalize_phrase(phrase, remove_verbs=True)
-        if normalized:
-            expanded.add(normalized)
-            words = normalized.split()
-            n = len(words)
+        if not normalized:
+            continue
+        
+        # A temporary set to hold all combinatorial candidates for this one phrase
+        candidates = set()
+        candidates.add(normalized) # The full phrase is always a candidate
+        
+        words = normalized.split()
+        n = len(words)
+        
+        # Generate all possible n-gram candidates combinatorially
+        if n == 2:
+            candidates.update(words)
+        elif n == 3:
+            for i in range(n - 1): candidates.add(' '.join(words[i:i+2])) # Bigrams
+            candidates.update(words) # Unigrams
+        elif n >= 4:
+            for i in range(n - 2): candidates.add(' '.join(words[i:i+3])) # Trigrams
+            for i in range(n - 1): candidates.add(' '.join(words[i:i+2])) # Bigrams
+            candidates.update(words) # Unigrams
             
-            # Generate sub-phrases based on length
-            if n == 2:
-                # Add individual words
-                for word in words:
-                    if not filter_generic or not is_generic_word(word, min_word_length):
-                        expanded.add(word)
+        # --- Validation Step ---
+        # Only add candidates that pass all filters and exist in the source text
+        for candidate in candidates:
+            # Filter 1: Is it a generic single word?
+            if ' ' not in candidate: # It's a unigram
+                if filter_generic and is_generic_word(candidate, min_word_length):
+                    continue
             
-            elif n == 3:
-                # Add all bigrams
-                for i in range(n - 1):
-                    bigram = ' '.join(words[i:i+2])
-                    expanded.add(bigram)
+            # Filter 2 (Crucial): Does it actually exist in the raw context?
+            if candidate in lower_context:
+                expanded_and_validated.add(candidate)
                 
-                # Add individual words
-                for word in words:
-                    if not filter_generic or not is_generic_word(word, min_word_length):
-                        expanded.add(word)
-            
-            elif n >= 4:
-                # Add all trigrams
-                for i in range(n - 2):
-                    trigram = ' '.join(words[i:i+3])
-                    expanded.add(trigram)
-                
-                # Add all bigrams
-                for i in range(n - 1):
-                    bigram = ' '.join(words[i:i+2])
-                    expanded.add(bigram)
-                
-                # Add individual words
-                for word in words:
-                    if not filter_generic or not is_generic_word(word, min_word_length):
-                        expanded.add(word)
-    
-    return sorted(expanded)
+    return sorted(list(expanded_and_validated))
+
+
 # ============================================================================
 # FILE I/O UTILITIES
 # ============================================================================

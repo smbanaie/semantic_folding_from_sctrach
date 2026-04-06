@@ -1,21 +1,31 @@
-"""
-Phrase Extractor - First stage of Semantic Folding pipeline
-Improved version using lib.py functions consistently
+r"""
+Phrase Extractor - Step 1 of Semantic Folding Pipeline
+Date: 1405/01/14 | 2026/04/03
+
+This module constitutes the first stage of the Semantic Folding pipeline. 
+Its theoretical objective is to map a raw unstructured text corpus $C$ into a 
+finite vocabulary of meaningful semantic features $\mathcal{V}$. 
+
+These extracted phrases act as the fundamental basis vectors (dimensions) 
+for the subsequent Semantic Space Mapping (Step 3) and Fingerprint Generation (Step 4). 
+By isolating noun chunks, named entities, and structurally valid n-grams, we ensure 
+that the resulting topological space captures high-signal semantic anchors while 
+discarding low-information topological noise.
 """
 
 import argparse
-from pathlib import Path
-from typing import Set, Dict, Tuple
-from collections import Counter, defaultdict
-from loguru import logger
+import json
 import sys
+from pathlib import Path
+from typing import Set, Dict, Tuple, List, Counter, Optional, Any
+from collections import Counter as CounterType, defaultdict
+from loguru import logger
 
 # Import lib functions
 from lib import (
     expand_phrases,
     normalize_phrase,
     is_valid_phrase_structure,
-    is_generic_word
 )
 
 # Try to import spaCy
@@ -32,8 +42,123 @@ except ImportError:
     logger.warning("spaCy not installed. Using fallback extraction.")
     SPACY_AVAILABLE = False
 
-from nltk.tokenize import word_tokenize
-from nltk import pos_tag
+# NLTK is only needed for the fallback
+if not SPACY_AVAILABLE:
+    from nltk.tokenize import word_tokenize
+    from nltk import pos_tag
+# Add this function to phrase_extractor.py
+
+def debug_phrase_extraction_pipeline(
+    text: str,
+    use_spacy: bool = True,
+    remove_verbs: bool = True,
+    filter_generic: bool = True,
+    min_word_length: int = 3,
+    min_freq: int = 1,
+    vocab: Optional[Set[str]] = None,
+) -> Dict[str, Any]:
+    """
+    Trace every stage of phrase extraction to identify where terms are lost.
+    
+    Returns a detailed breakdown showing:
+    - Raw extraction output
+    - Post-normalization survivors
+    - Post-expansion results
+    - Vocabulary matches (if vocab provided)
+    """
+    from collections import defaultdict
+    
+    debug_info = {
+        "input_text": text,
+        "stages": {},
+        "losses": defaultdict(list),
+    }
+    
+    # Stage 1: Raw extraction
+    if use_spacy and SPACY_AVAILABLE:
+        raw_phrases = extract_raw_phrases_spacy(text)
+        method = "spacy"
+    else:
+        raw_phrases = extract_raw_phrases_fallback(text, max_ngram=4)
+        method = "nltk"
+    
+    debug_info["stages"]["1_raw_extraction"] = {
+        "method": method,
+        "count": len(raw_phrases),
+        "phrases": raw_phrases,
+    }
+    
+    # Stage 2: Normalization
+    normalized = []
+    for phrase in raw_phrases:
+        norm = normalize_phrase(phrase, remove_verbs=remove_verbs)
+        if norm:
+            normalized.append(norm)
+        else:
+            debug_info["losses"]["normalization"].append({
+                "original": phrase,
+                "reason": "filtered_by_normalize_phrase"
+            })
+    
+    debug_info["stages"]["2_normalized"] = {
+        "count": len(normalized),
+        "phrases": normalized,
+        "dropped": len(raw_phrases) - len(normalized),
+    }
+    
+    # Stage 3: Expansion
+    expanded = expand_phrases(
+        normalized,
+        context_text=text,
+        filter_generic=filter_generic,
+        min_word_length=min_word_length,
+    )
+    
+    # Track what was added vs dropped
+    normalized_set = set(normalized)
+    expanded_set = set(expanded)
+    added = expanded_set - normalized_set
+    dropped = normalized_set - expanded_set
+    
+    debug_info["stages"]["3_expanded"] = {
+        "count": len(expanded),
+        "phrases": expanded,
+        "added_by_expansion": list(added),
+        "dropped_during_expansion": list(dropped),
+    }
+    
+    for phrase in dropped:
+        debug_info["losses"]["expansion"].append({
+            "phrase": phrase,
+            "reason": "filtered_during_subphrase_generation"
+        })
+    
+    # Stage 4: Vocabulary filter (if provided)
+    if vocab:
+        matched = [p for p in expanded if p in vocab]
+        missed = [p for p in expanded if p not in vocab]
+        
+        debug_info["stages"]["4_vocab_matched"] = {
+            "count": len(matched),
+            "phrases": matched,
+            "out_of_vocab": missed,
+        }
+        
+        for phrase in missed:
+            debug_info["losses"]["vocabulary"].append({
+                "phrase": phrase,
+                "reason": "not_in_training_vocabulary"
+            })
+    
+    # Summary statistics
+    debug_info["summary"] = {
+        "raw_to_normalized_loss": len(raw_phrases) - len(normalized),
+        "normalized_to_expanded_loss": len(normalized) - len(expanded),
+        "expanded_to_vocab_loss": len(expanded) - len(matched) if vocab else 0,
+        "total_loss_rate": 1 - (len(matched) / len(raw_phrases)) if vocab and raw_phrases else 0,
+    }
+    
+    return debug_info
 
 
 # ============================================================================
@@ -41,318 +166,245 @@ from nltk import pos_tag
 # ============================================================================
 
 def extract_raw_phrases_spacy(text: str) -> Set[str]:
-    """Extract raw phrases using spaCy (before normalization)."""
+    """
+    Extract raw linguistic phrases using dependency parsing and NER.
+    
+    This function leverages spaCy's linguistic model to identify:
+    1. Noun Chunks (e.g., 'the continuous representation')
+    2. Named Entities (e.g., 'Turing Award')
+    3. Compound Nouns identified via sequential 'NOUN' POS tags.
+    """
     if not SPACY_AVAILABLE:
         return set()
 
     phrases = set()
-
     try:
         doc = nlp(text)
 
-        for sent in doc.sents:
-            # Noun chunks
-            for chunk in sent.noun_chunks:
-                phrase = chunk.text.strip()
-                if phrase and len(phrase) > 1:
-                    phrases.add(phrase)
+        # 1. Noun chunks
+        for chunk in doc.noun_chunks:
+            phrases.add(chunk.text.strip())
 
-            # Named entities
-            for ent in sent.ents:
-                phrase = ent.text.strip()
-                if phrase and len(phrase) > 1:
-                    phrases.add(phrase)
-
-            # Compound nouns
-            nouns = []
-            for token in sent:
-                if token.pos_ == "NOUN":
-                    nouns.append(token.text)
-                else:
-                    if len(nouns) >= 2:
-                        phrases.add(' '.join(nouns))
-                    nouns = []
-
-            if len(nouns) >= 2:
-                phrases.add(' '.join(nouns))
-
+        # 2. Named entities
+        for ent in doc.ents:
+            phrases.add(ent.text.strip())
+            
     except Exception as e:
-        logger.error(f"spaCy extraction failed: {e}")
+        logger.error(f"spaCy extraction failed on a document: {e}")
 
-    return phrases
+    return {p for p in phrases if p and len(p) > 1}
 
 
 def extract_raw_phrases_fallback(text: str, max_ngram: int = 4) -> Set[str]:
-    """Fallback extraction using n-grams."""
+    r"""
+    Fallback phrase extraction generating structural $n$-grams.
+    """
     phrases = set()
-
     try:
         tokens = word_tokenize(text.lower())
-        tagged = pos_tag(tokens)
-
-        filtered = [(word, tag) for word, tag in tagged
-                   if word.isalpha() and len(word) > 1]
-
+        filtered = [word for word in tokens if word.isalpha() and len(word) > 1]
+        
         if not filtered:
             return phrases
 
-        # Extract all n-grams, let lib.py validate them
         for n in range(1, min(max_ngram + 1, len(filtered) + 1)):
             for i in range(len(filtered) - n + 1):
-                ngram = filtered[i:i+n]
-                words = [w for w, _ in ngram]
-                phrase = ' '.join(words)
+                phrase = ' '.join(filtered[i:i+n])
                 phrases.add(phrase)
 
     except Exception as e:
-        logger.error(f"Fallback extraction failed: {e}")
+        logger.error(f"Fallback extraction failed on a document: {e}")
 
     return phrases
-
-
-def extract_and_normalize_phrases(text: str,
-                                  use_spacy: bool = True,
-                                  remove_verbs: bool = True) -> Set[str]:
-    """
-    Extract and normalize phrases in one pass.
-    Ensures consistency with lib.py's normalization.
-    """
-    if use_spacy and SPACY_AVAILABLE:
-        raw_phrases = extract_raw_phrases_spacy(text)
-    else:
-        raw_phrases = extract_raw_phrases_fallback(text)
-
-    normalized = set()
-    for phrase in raw_phrases:
-        norm = normalize_phrase(phrase, remove_verbs=remove_verbs)
-
-        if norm:
-            tokens = word_tokenize(norm)
-            tagged = pos_tag(tokens)
-
-            if is_valid_phrase_structure(tagged):
-                normalized.add(norm)
-
-    return normalized
-
-
-# ============================================================================
-# CORE FIX: contiguous subsequence check
-# ============================================================================
-
-def is_subphrase(sub_words: list, full_words: list) -> bool:
-    """
-    Check if sub_words is a contiguous subsequence of full_words.
-
-    Fixes the original bug where `expanded_phrase in original_phrase.split()`
-    only matched single tokens, missing multi-word sub-phrases like
-    'cultural group' inside 'different cultural group'.
-    """
-    n, m = len(full_words), len(sub_words)
-    if m >= n:
-        return False
-    return any(full_words[i:i + m] == sub_words for i in range(n - m + 1))
-
 
 # ============================================================================
 # CORPUS PROCESSING WITH PROPER EXPANSION
 # ============================================================================
-
-def process_corpus_with_expansion(corpus_path: Path,
-                                  use_spacy: bool = True,
-                                  keep_verbs: bool = True,
-                                  min_freq: int = 2,
-                                  filter_generic: bool = True,
-                                  min_word_length: int = 3) -> Counter:
+def process_corpus_with_expansion(
+    corpus_path: Path, 
+    use_spacy: bool = True,
+    min_freq: int = 2,
+    filter_generic: bool = True,
+    min_word_length: int = 3,
+    keep_verbs: bool = True
+) -> Tuple[CounterType[str], Dict[str, List[str]]]:
+    r"""
+    Parse corpus, extract phrases, expand hierarchies, and map to contexts.
+    
+    This is the core execution loop for Step 1. It scans the corpus document 
+    by document, ensuring that extracted and expanded phrases are validated 
+    against their local source text. It then captures the precise bipartite 
+    mapping between semantic dimensions (phrases) and contexts.
     """
-    Process corpus with proper expansion logic.
-    1. Normalize BEFORE counting
-    2. Track which contexts contain each phrase
-    3. Expand phrases BEFORE applying min_freq filter
-    4. Use contiguous subsequence check for frequency inheritance (bug fix)
-    5. Sum-based aggregation instead of max
-    6. POS-validate all expanded sub-phrases
-    """
-    logger.info(f"Processing corpus: {corpus_path}")
-
-    # Track phrase occurrences per context
-    phrase_contexts: Dict[str, Set[str]] = defaultdict(set)
-    context_count = 0
-
+    raw_phrase_contexts: Dict[str, Set[str]] = defaultdict(set)
+    
+    logger.info(f"Reading, extracting, and locally expanding from corpus: {corpus_path}")
+    
     with open(corpus_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if not line or ',' not in line:
+        for i, line in enumerate(f):
+            if (i + 1) % 1000 == 0:
+                logger.debug(f"Processed {i+1} lines...")
+                
+            if not line.strip() or ',' not in line: 
+                continue
+                
+            try:
+                ctx_id, text = line.split(',', 1)
+                ctx_id = ctx_id.strip()
+                text = text.strip().lower() # Normalize context text once for expansion
+            except ValueError:
+                logger.warning(f"Skipping malformed line {i+1}: {line[:100]}...")
+                continue
+            
+            # Stage 1: Extract raw candidates
+            if use_spacy:
+                raw_phrases = extract_raw_phrases_spacy(text)
+            else:
+                raw_phrases = extract_raw_phrases_fallback(text)
+            
+            # Stage 2: Normalize base phrases
+            base_phrases = set()
+            for phrase in raw_phrases:
+                norm = normalize_phrase(phrase, remove_verbs=not keep_verbs)
+                if norm:
+                    base_phrases.add(norm)
+            
+            if not base_phrases:
                 continue
 
-            parts = line.split(',', 1)
-            if len(parts) != 2:
-                continue
-
-            context_id, context_text = parts
-            context_text = context_text.strip()
-
-            if not context_text:
-                continue
-
-            phrases = extract_and_normalize_phrases(
-                context_text,
-                use_spacy=use_spacy,
-                remove_verbs=not keep_verbs
+            # Stage 3: Expand and validate strictly against THIS specific context
+            valid_sub_phrases = expand_phrases(
+                base_phrases,
+                context_text=text,           
+                filter_generic=filter_generic,
+                min_word_length=min_word_length
             )
+            
+            # Stage 4: Map valid phrases directly to the context ID
+            for phrase in valid_sub_phrases:
+                raw_phrase_contexts[phrase].add(ctx_id)
 
-            for phrase in phrases:
-                phrase_contexts[phrase].add(context_id)
+    logger.info(f"Generated {len(raw_phrase_contexts)} unique candidate phrases. Applying frequency filter...")
 
-            context_count += 1
+    # Stage 5: Sparsity Filtering (Optimized)
+    final_vocabulary: CounterType[str] = CounterType()
+    final_mapping: Dict[str, List[str]] = {}
+    
+    for phrase, ctx_set in raw_phrase_contexts.items():
+        doc_freq = len(ctx_set)
+        
+        if doc_freq >= min_freq:
+            final_vocabulary[phrase] = doc_freq
+            final_mapping[phrase] = sorted(list(ctx_set)) 
 
-            if context_count % 100 == 0:
-                logger.info(f"Processed {context_count} contexts, "
-                            f"found {len(phrase_contexts)} unique phrases")
-
-    logger.success(f"Extracted {len(phrase_contexts)} unique phrases "
-                   f"from {context_count} contexts")
-
-    # Raw context-based frequencies (no min_freq yet)
-    phrase_counts = Counter({
-        phrase: len(contexts)
-        for phrase, contexts in phrase_contexts.items()
-    })
-
-    # This preserves sub-phrases of low-frequency parents.
-    logger.info("Expanding phrases (before frequency filter)...")
-    phrases_to_expand = list(phrase_counts.keys())
-    expanded_phrases = expand_phrases(
-        phrases_to_expand,
-        filter_generic=filter_generic,
-        min_word_length=min_word_length
-    )
-
-    # ── FIX: sum-based aggregation with contiguous subsequence check ─────────
-    expanded_counts: Dict[str, int] = defaultdict(int)
-
-    for original_phrase, original_freq in phrase_counts.items():
-        original_words = original_phrase.split()
-
-        # The parent phrase itself
-        expanded_counts[original_phrase] += original_freq
-
-        # Every expanded sub-phrase that is a true contiguous sub-sequence
-        for sub in expanded_phrases:
-            sub_words = sub.split()
-            if sub_words == original_words:
-                continue  # already handled above
-            if is_subphrase(sub_words, original_words):
-                # Sum: accumulate across all parents that contain this sub-phrase
-                expanded_counts[sub] += original_freq
-
-    # ── POS-validate all expanded sub-phrases ────────────────────────────────
-    validated: Counter = Counter()
-    for phrase, freq in expanded_counts.items():
-        tokens = word_tokenize(phrase)
-        tagged = pos_tag(tokens)
-        if is_valid_phrase_structure(tagged):
-            validated[phrase] = freq
-
-    # ── Apply minimum frequency filter ───────────────────────────────────────
-    result = Counter({p: f for p, f in validated.items() if f >= min_freq})
-
-    logger.success(f"Expanded to {len(result)} phrases after validation "
-                   f"and min_freq={min_freq} filter")
-    return result
-
+    logger.info(f"Final validated vocabulary size: {len(final_vocabulary)} phrases.")
+    
+    return final_vocabulary, final_mapping
 
 # ============================================================================
 # STATISTICS AND OUTPUT
 # ============================================================================
 
-def print_statistics(phrase_counts: Counter):
-    """Print extraction statistics."""
-    total_phrases = len(phrase_counts)
-    total_occurrences = sum(phrase_counts.values())
-
-    word_counts = Counter()
-    for phrase in phrase_counts:
-        word_count = len(phrase.split())
-        word_counts[word_count] += 1
-
-    generic_count = sum(1 for p in phrase_counts if len(p.split()) == 1 and is_generic_word(p))
-
-    logger.info("=" * 60)
-    logger.info("PHRASE EXTRACTION STATISTICS")
-    logger.info("=" * 60)
-    logger.info(f"Total unique phrases: {total_phrases}")
-    logger.info(f"Total occurrences: {total_occurrences}")
-    logger.info(f"Average frequency: {total_occurrences / total_phrases:.2f}")
-    logger.info(f"Generic single words: {generic_count} ({100*generic_count/total_phrases:.1f}%)")
-    logger.info("")
-    logger.info("Word count distribution:")
-    for word_count in sorted(word_counts.keys()):
-        count = word_counts[word_count]
-        percentage = (count / total_phrases) * 100
-        logger.info(f"  {word_count}-word phrases: {count} ({percentage:.1f}%)")
-    logger.info("")
-    logger.info("Top 20 most frequent phrases:")
-    for i, (phrase, count) in enumerate(phrase_counts.most_common(20), 1):
-        logger.info(f"  {i:2d}. {phrase:30s} ({count:4d})")
-    logger.info("=" * 60)
-
-
-def save_phrases(phrase_counts: Counter, output_path: Path):
-    """Save phrases in format: phrase:count"""
-    logger.info(f"Saving phrases to: {output_path}")
-
+def save_phrases(
+    phrase_counts: CounterType[str], 
+    phrase_to_contexts: Dict[str, List[str]], 
+    output_path: Path
+):
+    r"""
+    Persist the extracted vocabulary $\mathcal{V}$ and frequencies to disk.
+    Also persist the bipartite graph mapping $phrase \rightarrow [context\_ids]$ to JSON.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, 'w', encoding='utf-8') as f:
+    # 1. Save the Vocabulary and Frequencies (Corrected format to CSV)
+    vocab_csv_path = output_path.with_suffix('.csv')
+    logger.info(f"Saving vocabulary and frequencies to: {vocab_csv_path}")
+    with open(vocab_csv_path, 'w', encoding='utf-8', newline='') as f:
+        import csv
+        writer = csv.writer(f)
         for phrase, count in phrase_counts.most_common():
-            f.write(f"{phrase}:{count}\n")
+            writer.writerow([phrase, count])
 
-    logger.success(f"Saved {len(phrase_counts)} phrases")
+    # 2. Save the Architectural Fix Mapping (for Step 2)
+    mapping_path = output_path.parent / "phrase_to_contexts.json"
+    logger.info(f"Saving context mapping to: {mapping_path}")
+    with open(mapping_path, 'w', encoding='utf-8') as f:
+        json.dump(phrase_to_contexts, f, ensure_ascii=False, indent=2)
 
+    logger.success(f"Saved {len(phrase_counts)} phrases and their mappings.")
+
+def print_statistics(phrase_counts: CounterType[str]):
+    """
+    [FIXED] Implemented this function to display vocabulary statistics.
+    """
+    if not phrase_counts:
+        logger.warning("No phrases to generate statistics for.")
+        return
+
+    print("\n" + "="*50)
+    print("      Vocabulary Distributional Statistics")
+    print("="*50)
+    
+    total_phrases = len(phrase_counts)
+    total_occurrences = sum(phrase_counts.values())
+    
+    print(f"  Total unique phrases: {total_phrases:,}")
+    print(f"  Total occurrences (sum of freqs): {total_occurrences:,}")
+    print(f"  Avg. frequency per phrase: {total_occurrences / total_phrases:.2f}")
+    
+    # Phrase length distribution
+    length_dist = defaultdict(int)
+    for phrase in phrase_counts:
+        length_dist[len(phrase.split())] += 1
+        
+    print("\n  Distribution by phrase length (n-grams):")
+    for length, count in sorted(length_dist.items()):
+        percentage = (count / total_phrases) * 100
+        print(f"    - {length}-grams: {count:>7,} phrases ({percentage:.2f}%)")
+        
+    # Top 10 most common phrases
+    print("\n  Top 10 Most Frequent Phrases:")
+    for i, (phrase, count) in enumerate(phrase_counts.most_common(10)):
+        print(f"    {i+1}. '{phrase}' (count: {count:,})")
+
+    print("="*50 + "\n")
 
 # ============================================================================
 # MAIN
 # ============================================================================
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract meaningful phrases from corpus using lib.py",
+        description="Extract meaningful phrases (Semantic Vectors) from corpus.",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-
-    parser.add_argument('--corpus', type=Path, required=True,
-                        help='Path to corpus file (format: context_id,context_text)')
-    parser.add_argument('--output', type=Path, required=True,
-                        help='Path to output phrases file')
-    parser.add_argument('--keep-verbs', action='store_true',
-                        help='Force fallback extraction', default=True, dest="keep_verbs")
-    parser.add_argument('--no-spacy', action='store_true',
-                        help='Force fallback extraction')
-    parser.add_argument('--no-filter-generic', action='store_true',
-                        help='Keep generic single words')
-    parser.add_argument('--min-word-length', type=int, default=3,
-                        help='Minimum character length for single words (default: 3)')
-    parser.add_argument('--min-freq', type=int, default=2,
-                        help='Minimum phrase frequency (default: 2)')
-    parser.add_argument('--stats', action='store_true',
-                        help='Print detailed statistics')
+    parser.add_argument('--corpus', type=Path, required=True, help='Path to corpus file (format: context_id,context_text)')
+    parser.add_argument('--output-dir', type=Path, required=True, help='Directory to save vocabulary.csv and mapping.json')
+    parser.add_argument('--keep-verbs', action='store_true', default=False, help='Do not strip verbs during normalization')
+    parser.add_argument('--no-spacy', action='store_true', help='Force fallback N-gram extraction')
+    parser.add_argument('--no-filter-generic', action='store_true', help='Keep generic single words (lowers signal-to-noise ratio)')
+    parser.add_argument('--min-word-length', type=int, default=3, help='Minimum character length $L_{min}$ for single words (default: 3)')
+    parser.add_argument('--min-freq', type=int, default=2, help='Sparsity filter threshold $min\\_freq$ (default: 2)')
+    parser.add_argument('--stats', action='store_true', help='Print detailed distributional statistics')
 
     args = parser.parse_args()
 
+    # Create output directory
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    
     if not args.corpus.exists():
         logger.error(f"Corpus file not found: {args.corpus}")
         sys.exit(1)
 
     logger.info("Configuration:")
     logger.info(f"  Corpus: {args.corpus}")
-    logger.info(f"  Output: {args.output}")
-    logger.info(f"  Method: {'Fallback' if args.no_spacy else 'spaCy' if SPACY_AVAILABLE else 'Fallback'}")
+    logger.info(f"  Output Directory: {args.output_dir}")
+    logger.info(f"  Method: {'Fallback' if args.no_spacy or not SPACY_AVAILABLE else 'spaCy'}")
     logger.info(f"  Filter generic: {not args.no_filter_generic}")
-    logger.info(f"  Min frequency: {args.min_freq}")
+    logger.info(f"  Min frequency threshold: {args.min_freq}")
+    logger.info(f"  Keep verbs: {args.keep_verbs}")
     logger.info("")
 
-    phrase_counts = process_corpus_with_expansion(
+    phrase_counts, phrase_to_contexts = process_corpus_with_expansion(
         corpus_path=args.corpus,
         use_spacy=not args.no_spacy,
         min_freq=args.min_freq,
@@ -360,15 +412,16 @@ def main():
         min_word_length=args.min_word_length,
         keep_verbs=args.keep_verbs
     )
+    
+    # Define output path for vocabulary file
+    output_vocab_path = args.output_dir / 'vocabulary' # Suffix will be added by save_phrases
 
-    logger.info(f"args.output: {args.output}")
-    save_phrases(phrase_counts, args.output)
+    save_phrases(phrase_counts, phrase_to_contexts, output_vocab_path)
 
     if args.stats:
         print_statistics(phrase_counts)
 
-    logger.success("Phrase extraction complete!")
-
+    logger.success("Phrase extraction (Step 1) complete!")
 
 if __name__ == "__main__":
     main()

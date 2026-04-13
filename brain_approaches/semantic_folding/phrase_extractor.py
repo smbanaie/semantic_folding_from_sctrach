@@ -15,413 +15,914 @@ discarding low-information topological noise.
 
 import argparse
 import json
-import sys
+import sys, re, os
 from pathlib import Path
-from typing import Set, Dict, Tuple, List, Counter, Optional, Any
+from typing import Set, Dict, Tuple, List, Optional, Any
 from collections import Counter as CounterType, defaultdict
 from loguru import logger
 
-# Import lib functions
-from lib import (
-    expand_phrases,
-    normalize_phrase,
-    is_valid_phrase_structure,
+# ── Logging setup ─────────────────────────────────────────────────────────────
+# Override at runtime via: LOG_LEVEL=DEBUG python phrase_extractor.py
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+logger.remove()
+logger.add(
+    sys.stderr,
+    level=LOG_LEVEL,
+    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}",
+    colorize=True,
 )
 
-# Try to import spaCy
+logger.info(f"Log level set to: {LOG_LEVEL}")
+
+# ── Library imports ────────────────────────────────────────────────────────────
+from lib import expand_phrases
+
+# ── spaCy bootstrap ───────────────────────────────────────────────────────────
 try:
     import spacy
     SPACY_AVAILABLE = True
+    logger.debug("spaCy imported successfully")
     try:
         nlp = spacy.load("en_core_web_sm")
-        logger.success("spaCy model 'en_core_web_sm' loaded successfully")
+        logger.success("spaCy model 'en_core_web_sm' loaded")
     except OSError:
-        logger.warning("spaCy model not found. Run: python -m spacy download en_core_web_sm")
+        logger.warning("spaCy model not found — run: python -m spacy download en_core_web_sm")
         SPACY_AVAILABLE = False
 except ImportError:
-    logger.warning("spaCy not installed. Using fallback extraction.")
+    logger.warning("spaCy not installed — falling back to NLTK extraction")
     SPACY_AVAILABLE = False
 
-# NLTK is only needed for the fallback
+# NLTK only needed when spaCy is unavailable
 if not SPACY_AVAILABLE:
+    logger.debug("Importing NLTK fallback tokenizer and POS tagger")
     from nltk.tokenize import word_tokenize
     from nltk import pos_tag
-# Add this function to phrase_extractor.py
 
-def debug_phrase_extraction_pipeline(
-    text: str,
-    use_spacy: bool = True,
-    remove_verbs: bool = True,
-    filter_generic: bool = True,
-    min_word_length: int = 3,
-    min_freq: int = 1,
-    vocab: Optional[Set[str]] = None,
-) -> Dict[str, Any]:
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fallback extractor (NLTK)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def extract_raw_phrases_fallback(text: str) -> Set[str]:
     """
-    Trace every stage of phrase extraction to identify where terms are lost.
-    
-    Returns a detailed breakdown showing:
-    - Raw extraction output
-    - Post-normalization survivors
-    - Post-expansion results
-    - Vocabulary matches (if vocab provided)
+    NLTK-based bigram/trigram extractor used when spaCy is unavailable.
+
+    Strategy
+    --------
+    POS-tag every token, then slide a 2-token window looking for
+    adjective/noun + noun patterns — a lightweight proxy for noun chunks.
+
+    Supported head POS tags for position-0:  JJ, VBN, NN, NNP
+    Required POS prefix  for position-1:     N* (any noun tag)
+
+    Parameters
+    ----------
+    text : str
+        Lower-cased input sentence.
+
+    Returns
+    -------
+    Set[str]
+        Raw phrase strings (original casing from tokenizer).
     """
-    from collections import defaultdict
-    
-    debug_info = {
-        "input_text": text,
-        "stages": {},
-        "losses": defaultdict(list),
-    }
-    
-    # Stage 1: Raw extraction
-    if use_spacy and SPACY_AVAILABLE:
-        raw_phrases = extract_raw_phrases_spacy(text)
-        method = "spacy"
-    else:
-        raw_phrases = extract_raw_phrases_fallback(text, max_ngram=4)
-        method = "nltk"
-    
-    debug_info["stages"]["1_raw_extraction"] = {
-        "method": method,
-        "count": len(raw_phrases),
-        "phrases": raw_phrases,
-    }
-    
-    # Stage 2: Normalization
-    normalized = []
-    for phrase in raw_phrases:
-        norm = normalize_phrase(phrase, remove_verbs=remove_verbs)
-        if norm:
-            normalized.append(norm)
-        else:
-            debug_info["losses"]["normalization"].append({
-                "original": phrase,
-                "reason": "filtered_by_normalize_phrase"
-            })
-    
-    debug_info["stages"]["2_normalized"] = {
-        "count": len(normalized),
-        "phrases": normalized,
-        "dropped": len(raw_phrases) - len(normalized),
-    }
-    
-    # Stage 3: Expansion
-    expanded = expand_phrases(
-        normalized,
-        context_text=text,
-        filter_generic=filter_generic,
-        min_word_length=min_word_length,
-    )
-    
-    # Track what was added vs dropped
-    normalized_set = set(normalized)
-    expanded_set = set(expanded)
-    added = expanded_set - normalized_set
-    dropped = normalized_set - expanded_set
-    
-    debug_info["stages"]["3_expanded"] = {
-        "count": len(expanded),
-        "phrases": expanded,
-        "added_by_expansion": list(added),
-        "dropped_during_expansion": list(dropped),
-    }
-    
-    for phrase in dropped:
-        debug_info["losses"]["expansion"].append({
-            "phrase": phrase,
-            "reason": "filtered_during_subphrase_generation"
-        })
-    
-    # Stage 4: Vocabulary filter (if provided)
-    if vocab:
-        matched = [p for p in expanded if p in vocab]
-        missed = [p for p in expanded if p not in vocab]
-        
-        debug_info["stages"]["4_vocab_matched"] = {
-            "count": len(matched),
-            "phrases": matched,
-            "out_of_vocab": missed,
-        }
-        
-        for phrase in missed:
-            debug_info["losses"]["vocabulary"].append({
-                "phrase": phrase,
-                "reason": "not_in_training_vocabulary"
-            })
-    
-    # Summary statistics
-    debug_info["summary"] = {
-        "raw_to_normalized_loss": len(raw_phrases) - len(normalized),
-        "normalized_to_expanded_loss": len(normalized) - len(expanded),
-        "expanded_to_vocab_loss": len(expanded) - len(matched) if vocab else 0,
-        "total_loss_rate": 1 - (len(matched) / len(raw_phrases)) if vocab and raw_phrases else 0,
-    }
-    
-    return debug_info
+    logger.debug(f"[FALLBACK] Extracting phrases from text ({len(text)} chars)")
+    phrases: Set[str] = set()
 
+    tokens = word_tokenize(text)
+    tagged = pos_tag(tokens)
+    logger.debug(f"[FALLBACK] Tokenized → {len(tagged)} tokens")
 
-# ============================================================================
-# PHRASE EXTRACTION
-# ============================================================================
+    for i in range(len(tagged) - 1):
+        w1, t1 = tagged[i]
+        w2, t2 = tagged[i + 1]
+        if t1 in ('JJ', 'VBN', 'NN', 'NNP') and t2.startswith('N'):
+            phrase = f"{w1} {w2}"
+            phrases.add(phrase)
+            logger.debug(f"[FALLBACK][ADD] '{phrase}'  ({t1}+{t2})")
 
-def extract_raw_phrases_spacy(text: str) -> Set[str]:
-    """
-    Extract raw linguistic phrases using dependency parsing and NER.
-    
-    This function leverages spaCy's linguistic model to identify:
-    1. Noun Chunks (e.g., 'the continuous representation')
-    2. Named Entities (e.g., 'Turing Award')
-    3. Compound Nouns identified via sequential 'NOUN' POS tags.
-    """
-    if not SPACY_AVAILABLE:
-        return set()
-
-    phrases = set()
-    try:
-        doc = nlp(text)
-
-        # 1. Noun chunks
-        for chunk in doc.noun_chunks:
-            phrases.add(chunk.text.strip())
-
-        # 2. Named entities
-        for ent in doc.ents:
-            phrases.add(ent.text.strip())
-            
-    except Exception as e:
-        logger.error(f"spaCy extraction failed on a document: {e}")
-
-    return {p for p in phrases if p and len(p) > 1}
-
-
-def extract_raw_phrases_fallback(text: str, max_ngram: int = 4) -> Set[str]:
-    r"""
-    Fallback phrase extraction generating structural $n$-grams.
-    """
-    phrases = set()
-    try:
-        tokens = word_tokenize(text.lower())
-        filtered = [word for word in tokens if word.isalpha() and len(word) > 1]
-        
-        if not filtered:
-            return phrases
-
-        for n in range(1, min(max_ngram + 1, len(filtered) + 1)):
-            for i in range(len(filtered) - n + 1):
-                phrase = ' '.join(filtered[i:i+n])
-                phrases.add(phrase)
-
-    except Exception as e:
-        logger.error(f"Fallback extraction failed on a document: {e}")
-
+    logger.info(f"[FALLBACK] Extracted {len(phrases)} raw phrases")
     return phrases
 
-# ============================================================================
-# CORPUS PROCESSING WITH PROPER EXPANSION
-# ============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Left-modifier collector (spaCy)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _collect_left_modifiers(doc) -> list[tuple[str, str]]:
+    """
+    Walk every noun/propn token in the doc and collect left-modifier phrases.
+
+    Algorithm
+    ---------
+    For each token whose dep_ is in the allowed head-dep set, inspect its
+    left children with deps in {amod, compound, nmod, nummod}.  Build a
+    phrase spanning ``doc[child.i : token.i + 1]`` and recurse into the
+    child to capture deeper modifier chains
+    (e.g. 'unique' → 'personal' → 'characteristic').
+
+    Conjunct guard
+    --------------
+    When a token is reached via a ``conj`` edge (e.g. 'counseling' is a
+    conjunct of 'settings'), it must NOT inherit modifiers that belong to
+    the head ('clinical' → 'settings').  The ``is_conjunct`` flag enforces
+    this: if True, only modifiers whose ``.head`` is the conjunct token
+    itself are accepted — anything pointing up to the head noun is skipped,
+    preventing spurious phrases like 'clinical counseling'.
+
+    Top-level loop guard
+    --------------------
+    Tokens with ``dep_ == 'conj'`` are skipped at the top-level loop
+    because they are already reached via the explicit conjunct-recursion
+    block inside ``traverse()``.  Processing them twice would produce
+    duplicate entries.
+
+    Depth cap
+    ---------
+    Recursion is hard-capped at ``MAX_PHRASE_WORDS`` levels to prevent
+    runaway chains on pathological parse trees.
+
+    Parameters
+    ----------
+    doc : spacy.tokens.Doc
+        A fully parsed spaCy document.
+
+    Returns
+    -------
+    list of (phrase_text, head_token_text) tuples
+        ``phrase_text``      — the full modifier+head string
+        ``head_token_text``  — the syntactic head token (for diagnostics)
+    """
+    results: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    # dep_ tags that qualify a token as a valid phrase head
+    HEAD_DEPS = {
+        'nsubj', 'dobj', 'nsubjpass', 'attr',
+        'appos', 'conj', 'ROOT', 'compound', 'amod', 'nmod',
+    }
+    # dep_ tags on children that signal a left modifier
+    MODIFIER_DEPS = {'amod', 'compound', 'nmod', 'nummod'}
+    # POS tags allowed on modifier children
+    MODIFIER_POS  = {'NOUN', 'PROPN', 'ADJ', 'NUM'}
+
+    def traverse(t, depth: int, is_conjunct: bool = False) -> None:
+        logger.debug(
+            f"[MOD] traverse token='{t.text}' dep={t.dep_} pos={t.pos_} "
+            f"depth={depth} is_conjunct={is_conjunct}"
+        )
+
+        # hard cap — avoids runaway recursion on deep modifier chains
+        if depth > MAX_PHRASE_WORDS:
+            logger.debug(f"[MOD][SKIP] depth cap reached at token '{t.text}'")
+            return
+
+        # verbs and auxiliaries are never phrase heads in this context
+        if t.pos_ in ('VERB', 'AUX'):
+            logger.debug(f"[MOD][SKIP] verb/aux token '{t.text}' (pos={t.pos_})")
+            return
+
+        # restrict traversal to syntactically plausible noun-phrase heads;
+        # this prevents the recursion from wandering into prepositional
+        # objects, adverbials, and other non-nominal dependents
+        if t.dep_ not in HEAD_DEPS:
+            logger.debug(
+                f"[MOD][SKIP] dep '{t.dep_}' not in HEAD_DEPS for token '{t.text}'"
+            )
+            return
+
+        left_children = sorted(t.lefts, key=lambda x: x.i)
+        logger.debug(
+            f"[MOD] '{t.text}' has {len(left_children)} left children: "
+            f"{[c.text for c in left_children]}"
+        )
+
+        for child in left_children:
+            if child.dep_ in MODIFIER_DEPS and child.pos_ in MODIFIER_POS:
+
+                # conjunct guard — skip modifiers whose syntactic head is
+                # not the current conjunct token (they belong to the head noun)
+                if is_conjunct and child.head != t:
+                    logger.debug(
+                        f"[MOD][CONJUNCT GUARD] skipping '{child.text}' "
+                        f"(child.head='{child.head.text}' ≠ t='{t.text}')"
+                    )
+                    continue
+
+                phrase_tokens = list(doc[child.i: t.i + 1])
+                phrase = ' '.join(tok.text for tok in phrase_tokens)
+
+                if phrase not in seen:
+                    seen.add(phrase)
+                    results.append((phrase, t.text))
+                    logger.debug(
+                        f"[MOD][ADD] '{phrase}'  (head='{t.text}' "
+                        f"child_dep={child.dep_} child_pos={child.pos_})"
+                    )
+                else:
+                    logger.debug(f"[MOD][DUP] '{phrase}' already seen — skipped")
+
+                # recurse into the modifier to catch deeper chains,
+                # e.g. child='personal' → grandchild='unique' →
+                # final phrase 'unique personal characteristic'
+                traverse(child, depth + 1)
+
+        # explicitly recurse into conjuncts with the guard flag active;
+        # this ensures conjuncts are always processed with modifier-
+        # inheritance protection regardless of tree depth
+        for child in t.children:
+            if child.dep_ == 'conj' and child.pos_ in ('NOUN', 'PROPN'):
+                logger.debug(
+                    f"[MOD][CONJ] recursing into conjunct '{child.text}' "
+                    f"from head '{t.text}'"
+                )
+                traverse(child, depth + 1, is_conjunct=True)
+
+    for token in doc:
+        # skip conjunct tokens at the top level — they are reached via
+        # the explicit conjunct-recursion block above; starting a fresh
+        # traversal from them would process them twice
+        if token.dep_ != 'conj':
+            traverse(token, 1)
+
+    logger.info(f"[MOD] Collected {len(results)} left-modifier phrases")
+    return results
+def expand_conjunctions(doc) -> list[str]:
+    """
+    Expand adjective modifiers across coordinated noun conjunctions.
+
+    Algorithm
+    ---------
+    1. Only process the leftmost noun in each conjunction group to avoid
+       duplicate emissions from every member of the chain.
+    2. Only consider strict adjective modifiers (dep_=amod, pos_=ADJ,
+       left of head) on the HEAD token.
+    3. For each conjunct:
+         - If it already has ANY pre-nominal modifier (amod, compound,
+           nummod, nmod, npadvmod) → emit it standalone; do not inherit
+           the head's adjective (it has its own semantic coloring).
+         - If it has no pre-nominal modifier → propagate the head's
+           adjective to it, producing e.g. 'clinical settings' and
+           'clinical counseling' from 'clinical settings and counseling'.
+
+    Parameters
+    ----------
+    doc : spacy.tokens.Doc
+        A fully parsed spaCy document.
+
+    Returns
+    -------
+    list[str]
+        Expanded phrase strings (surface form, original casing).
+    """
+    # dep_ tags that count as pre-nominal modifiers on a conjunct
+    MODIFIER_DEPS = {"amod", "compound", "nummod", "nmod", "npadvmod"}
+
+    expanded: list[str] = []
+
+    for token in doc:
+        if token.pos_ not in ("NOUN", "PROPN"):
+            continue
+
+        conjuncts = [t for t in token.conjuncts if t.pos_ in ("NOUN", "PROPN")]
+        if not conjuncts:
+            continue
+
+        # only process the leftmost token in the conjunction group;
+        # all other members are reached via the conjuncts list below
+        if any(t.i < token.i for t in conjuncts):
+            logger.debug(
+                f"[CONJ][SKIP] '{token.text}' is not leftmost in its "
+                f"conjunction group — skipping top-level processing"
+            )
+            continue
+
+        # collect strict adjective modifiers on the head noun
+        head_modifiers = [
+            child for child in token.children
+            if child.dep_ == "amod"
+            and child.pos_ == "ADJ"
+            and child.i < token.i
+        ]
+
+        if not head_modifiers:
+            logger.debug(
+                f"[CONJ][SKIP] '{token.text}' has no amod+ADJ left-children "
+                f"— nothing to propagate"
+            )
+            continue
+
+        logger.debug(
+            f"[CONJ] head='{token.text}'  "
+            f"modifiers={[m.text for m in head_modifiers]}  "
+            f"conjuncts={[c.text for c in conjuncts]}"
+        )
+
+        # emit head phrase(s) — one per adjective modifier
+        for mod in head_modifiers:
+            phrase = f"{mod.text} {token.text}"
+            expanded.append(phrase)
+            logger.debug(f"[CONJ][HEAD] '{phrase}'")
+
+        # handle each conjunct
+        for conjunct in conjuncts:
+            conjunct_own_premods = [
+                c for c in conjunct.children
+                if c.dep_ in MODIFIER_DEPS and c.i < conjunct.i
+            ]
+
+            if conjunct_own_premods:
+                # conjunct has its own modifier — emit standalone,
+                # do not inherit the head's adjective
+                expanded.append(conjunct.text)
+                logger.debug(
+                    f"[CONJ][STANDALONE] '{conjunct.text}'  "
+                    f"(own premods: {[c.text for c in conjunct_own_premods]})"
+                )
+            else:
+                # no modifier — propagate head's adjective(s)
+                for mod in head_modifiers:
+                    phrase = f"{mod.text} {conjunct.text}"
+                    expanded.append(phrase)
+                    logger.debug(
+                        f"[CONJ][INHERIT] '{phrase}'  "
+                        f"(inherited from head='{token.text}')"
+                    )
+
+    logger.info(f"[CONJ] Expanded {len(expanded)} conjunction phrases")
+    return expanded
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Corpus processor
+# ─────────────────────────────────────────────────────────────────────────────
+
 def process_corpus_with_expansion(
-    corpus_path: Path, 
+    corpus_path: Path,
     use_spacy: bool = True,
     min_freq: int = 2,
     filter_generic: bool = True,
     min_word_length: int = 3,
-    keep_verbs: bool = True
+    keep_verbs: bool = True,
 ) -> Tuple[CounterType[str], Dict[str, List[str]]]:
-    r"""
-    Parse corpus, extract phrases, expand hierarchies, and map to contexts.
-    
-    This is the core execution loop for Step 1. It scans the corpus document 
-    by document, ensuring that extracted and expanded phrases are validated 
-    against their local source text. It then captures the precise bipartite 
-    mapping between semantic dimensions (phrases) and contexts.
+    """
+    Full pipeline: raw extraction → expansion → normalization → frequency filter.
+
+    Pipeline stages
+    ---------------
+    1. Raw extraction  — spaCy noun chunks / named entities, or NLTK bigrams.
+    2. Expansion       — ``expand_phrases`` validates surface forms and
+                         generates sub-phrase candidates.
+    3. Normalization   — handled inside ``expand_phrases`` before returning.
+    4. Context mapping — each surviving phrase is mapped to its source
+                         context ID (one entry per corpus line).
+    5. Frequency filter — phrases appearing in fewer than ``min_freq``
+                          distinct contexts are discarded.
+
+    Parameters
+    ----------
+    corpus_path : Path
+        CSV-like file where each line is ``context_id,text``.
+    use_spacy : bool
+        Prefer spaCy extraction when available.
+    min_freq : int
+        Minimum number of distinct context IDs a phrase must appear in
+        to be retained in the final vocabulary.
+    filter_generic : bool
+        Passed through to ``expand_phrases`` to drop stopword-heavy phrases.
+    min_word_length : int
+        Minimum character length for individual words inside a phrase.
+    keep_verbs : bool
+        Reserved for future use; passed to downstream expansion logic.
+
+    Returns
+    -------
+    final_vocabulary : CounterType[str]
+        phrase → document frequency count.
+    final_mapping : Dict[str, List[str]]
+        phrase → sorted list of context IDs it appeared in.
     """
     raw_phrase_contexts: Dict[str, Set[str]] = defaultdict(set)
-    
-    logger.info(f"Reading, extracting, and locally expanding from corpus: {corpus_path}")
-    
+
+    logger.info(f"Opening corpus: {corpus_path}")
+
     with open(corpus_path, 'r', encoding='utf-8') as f:
         for i, line in enumerate(f):
-            if (i + 1) % 1000 == 0:
-                logger.debug(f"Processed {i+1} lines...")
-                
-            if not line.strip() or ',' not in line: 
+            if not line.strip() or ',' not in line:
+                logger.debug(f"[CORPUS] Line {i} skipped (empty or no comma)")
                 continue
-                
+
             try:
                 ctx_id, text = line.split(',', 1)
                 ctx_id = ctx_id.strip()
-                text = text.strip().lower() # Normalize context text once for expansion
+                text_original = text.strip()
+                text_lower = text_original.lower()
             except ValueError:
-                logger.warning(f"Skipping malformed line {i+1}: {line[:100]}...")
-                continue
-            
-            # Stage 1: Extract raw candidates
-            if use_spacy:
-                raw_phrases = extract_raw_phrases_spacy(text)
-            else:
-                raw_phrases = extract_raw_phrases_fallback(text)
-            
-            # Stage 2: Normalize base phrases
-            base_phrases = set()
-            for phrase in raw_phrases:
-                norm = normalize_phrase(phrase, remove_verbs=not keep_verbs)
-                if norm:
-                    base_phrases.add(norm)
-            
-            if not base_phrases:
+                logger.debug(f"[CORPUS] Line {i} skipped (split error)")
                 continue
 
-            # Stage 3: Expand and validate strictly against THIS specific context
+            logger.debug(f"[CORPUS] Line {i} | ctx='{ctx_id}' | text='{text_original[:60]}...'")
+
+            # ── Stage 1: raw candidate extraction ────────────────────────────
+            if use_spacy and SPACY_AVAILABLE:
+                doc = nlp(text_original)
+                raw_phrases = extract_raw_phrases_spacy(doc)
+            else:
+                raw_phrases = extract_raw_phrases_fallback(text_lower)
+
+            logger.debug(f"[CORPUS] Line {i} | {len(raw_phrases)} raw phrases extracted")
+
+            if not raw_phrases:
+                logger.debug(f"[CORPUS] Line {i} | no raw phrases — skipping expansion")
+                continue
+
+            # ── Stage 2 & 3: expansion + normalization ────────────────────────
+            # expand_phrases receives raw (un-normalized) phrases and handles
+            # surface validation before normalizing internally
             valid_sub_phrases = expand_phrases(
-                base_phrases,
-                context_text=text,           
+                list(raw_phrases),
+                context_text=text_original,
                 filter_generic=filter_generic,
-                min_word_length=min_word_length
+                min_word_length=min_word_length,
             )
-            
-            # Stage 4: Map valid phrases directly to the context ID
+
+            logger.debug(
+                f"[CORPUS] Line {i} | {len(valid_sub_phrases)} phrases "
+                f"survived expansion/normalization"
+            )
+
+            # ── Stage 4: map to context ID ────────────────────────────────────
             for phrase in valid_sub_phrases:
                 raw_phrase_contexts[phrase].add(ctx_id)
+                logger.debug(f"[CORPUS][MAP] '{phrase}' → ctx '{ctx_id}'")
 
-    logger.info(f"Generated {len(raw_phrase_contexts)} unique candidate phrases. Applying frequency filter...")
+    logger.info(
+        f"[CORPUS] Extraction complete — "
+        f"{len(raw_phrase_contexts)} unique phrases before frequency filter"
+    )
 
-    # Stage 5: Sparsity Filtering (Optimized)
+    # ── Stage 5: frequency filtering ─────────────────────────────────────────
     final_vocabulary: CounterType[str] = CounterType()
     final_mapping: Dict[str, List[str]] = {}
-    
+
+    dropped = 0
     for phrase, ctx_set in raw_phrase_contexts.items():
         doc_freq = len(ctx_set)
-        
         if doc_freq >= min_freq:
             final_vocabulary[phrase] = doc_freq
-            final_mapping[phrase] = sorted(list(ctx_set)) 
+            final_mapping[phrase] = sorted(list(ctx_set))
+            logger.debug(f"[FREQ][KEEP] '{phrase}'  freq={doc_freq}")
+        else:
+            dropped += 1
+            logger.debug(f"[FREQ][DROP] '{phrase}'  freq={doc_freq} < min={min_freq}")
 
-    logger.info(f"Final validated vocabulary size: {len(final_vocabulary)} phrases.")
-    
+    logger.info(
+        f"[FREQ] Kept {len(final_vocabulary)} phrases, "
+        f"dropped {dropped} below min_freq={min_freq}"
+    )
+
     return final_vocabulary, final_mapping
-
-# ============================================================================
-# STATISTICS AND OUTPUT
-# ============================================================================
+# ─────────────────────────────────────────────────────────────────────────────
+# Statistics and output
+# ─────────────────────────────────────────────────────────────────────────────
 
 def save_phrases(
-    phrase_counts: CounterType[str], 
-    phrase_to_contexts: Dict[str, List[str]], 
-    output_path: Path
-):
+    phrase_counts: CounterType[str],
+    phrase_to_contexts: Dict[str, List[str]],
+    output_path: Path,
+) -> None:
     r"""
-    Persist the extracted vocabulary $\mathcal{V}$ and frequencies to disk.
-    Also persist the bipartite graph mapping $phrase \rightarrow [context\_ids]$ to JSON.
+    Persist the extracted vocabulary $\mathcal{V}$ and its context mapping to disk.
+
+    Outputs
+    -------
+    ``<output_path>.csv``
+        Two-column CSV: ``phrase, document_frequency``, sorted by frequency
+        descending (most_common order).
+
+    ``<output_path.parent>/phrase_to_contexts.json``
+        Bipartite adjacency map $phrase \rightarrow [context\_ids]$ used by
+        downstream steps (Step 2 context retrieval, Step 3 space mapping).
+
+    Parameters
+    ----------
+    phrase_counts : CounterType[str]
+        phrase → document frequency, as returned by
+        ``process_corpus_with_expansion``.
+    phrase_to_contexts : Dict[str, List[str]]
+        phrase → sorted list of context IDs.
+    output_path : Path
+        Base path; ``.csv`` suffix is appended automatically.
     """
+    import csv
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Save the Vocabulary and Frequencies (Corrected format to CSV)
+    # ── vocabulary CSV ────────────────────────────────────────────────────────
     vocab_csv_path = output_path.with_suffix('.csv')
-    logger.info(f"Saving vocabulary and frequencies to: {vocab_csv_path}")
+    logger.info(f"Saving vocabulary to: {vocab_csv_path}")
     with open(vocab_csv_path, 'w', encoding='utf-8', newline='') as f:
-        import csv
         writer = csv.writer(f)
         for phrase, count in phrase_counts.most_common():
             writer.writerow([phrase, count])
+            logger.debug(f"[SAVE][VOCAB] '{phrase}' → {count}")
 
-    # 2. Save the Architectural Fix Mapping (for Step 2)
+    logger.info(f"Wrote {len(phrase_counts)} phrases to {vocab_csv_path}")
+
+    # ── context mapping JSON ──────────────────────────────────────────────────
     mapping_path = output_path.parent / "phrase_to_contexts.json"
     logger.info(f"Saving context mapping to: {mapping_path}")
     with open(mapping_path, 'w', encoding='utf-8') as f:
         json.dump(phrase_to_contexts, f, ensure_ascii=False, indent=2)
 
-    logger.success(f"Saved {len(phrase_counts)} phrases and their mappings.")
+    logger.success(f"Saved {len(phrase_counts)} phrases and context mappings.")
 
-def print_statistics(phrase_counts: CounterType[str]):
+
+def print_statistics(phrase_counts: CounterType[str]) -> None:
     """
-    [FIXED] Implemented this function to display vocabulary statistics.
+    Print distributional statistics for the extracted vocabulary to stdout.
+
+    Displays
+    --------
+    - Total unique phrases and total occurrence count.
+    - Average frequency per phrase.
+    - N-gram length distribution (unigrams, bigrams, trigrams, …).
+    - Top-10 most frequent phrases.
+
+    Parameters
+    ----------
+    phrase_counts : CounterType[str]
+        phrase → document frequency counter.
     """
     if not phrase_counts:
-        logger.warning("No phrases to generate statistics for.")
+        logger.warning("No phrases available — skipping statistics.")
         return
 
-    print("\n" + "="*50)
-    print("      Vocabulary Distributional Statistics")
-    print("="*50)
-    
     total_phrases = len(phrase_counts)
     total_occurrences = sum(phrase_counts.values())
-    
-    print(f"  Total unique phrases: {total_phrases:,}")
-    print(f"  Total occurrences (sum of freqs): {total_occurrences:,}")
-    print(f"  Avg. frequency per phrase: {total_occurrences / total_phrases:.2f}")
-    
-    # Phrase length distribution
-    length_dist = defaultdict(int)
+    avg_freq = total_occurrences / total_phrases
+
+    logger.debug(
+        f"[STATS] total_phrases={total_phrases}  "
+        f"total_occurrences={total_occurrences}  "
+        f"avg_freq={avg_freq:.2f}"
+    )
+
+    # n-gram length distribution
+    length_dist: Dict[int, int] = defaultdict(int)
     for phrase in phrase_counts:
         length_dist[len(phrase.split())] += 1
-        
+
+    logger.debug(f"[STATS] length distribution: {dict(sorted(length_dist.items()))}")
+
+    # ── stdout report ─────────────────────────────────────────────────────────
+    print("\n" + "=" * 50)
+    print("      Vocabulary Distributional Statistics")
+    print("=" * 50)
+    print(f"  Total unique phrases:             {total_phrases:>10,}")
+    print(f"  Total occurrences (sum of freqs): {total_occurrences:>10,}")
+    print(f"  Avg. frequency per phrase:        {avg_freq:>10.2f}")
+
     print("\n  Distribution by phrase length (n-grams):")
     for length, count in sorted(length_dist.items()):
-        percentage = (count / total_phrases) * 100
-        print(f"    - {length}-grams: {count:>7,} phrases ({percentage:.2f}%)")
-        
-    # Top 10 most common phrases
+        pct = (count / total_phrases) * 100
+        print(f"    {length}-grams: {count:>7,} phrases ({pct:.2f}%)")
+
     print("\n  Top 10 Most Frequent Phrases:")
-    for i, (phrase, count) in enumerate(phrase_counts.most_common(10)):
-        print(f"    {i+1}. '{phrase}' (count: {count:,})")
+    for i, (phrase, count) in enumerate(phrase_counts.most_common(10), start=1):
+        print(f"    {i:>2}. '{phrase}'  (freq: {count:,})")
 
-    print("="*50 + "\n")
+    print("=" * 50 + "\n")
 
-# ============================================================================
-# MAIN
-# ============================================================================
-def main():
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Entry point
+# ─────────────────────────────────────────────────────────────────────────────
+
+def main() -> None:
+    """
+    CLI entry point for Step 1 of the Semantic Folding pipeline.
+
+    Parses arguments, runs ``process_corpus_with_expansion``, persists
+    outputs via ``save_phrases``, and optionally prints statistics.
+
+    Exit codes
+    ----------
+    0 — success
+    1 — corpus file not found
+    """
     parser = argparse.ArgumentParser(
-        description="Extract meaningful phrases (Semantic Vectors) from corpus.",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        description="Extract meaningful phrases (Semantic Vectors) from a corpus.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('--corpus', type=Path, required=True, help='Path to corpus file (format: context_id,context_text)')
-    parser.add_argument('--output-dir', type=Path, required=True, help='Directory to save vocabulary.csv and mapping.json')
-    parser.add_argument('--keep-verbs', action='store_true', default=False, help='Do not strip verbs during normalization')
-    parser.add_argument('--no-spacy', action='store_true', help='Force fallback N-gram extraction')
-    parser.add_argument('--no-filter-generic', action='store_true', help='Keep generic single words (lowers signal-to-noise ratio)')
-    parser.add_argument('--min-word-length', type=int, default=3, help='Minimum character length $L_{min}$ for single words (default: 3)')
-    parser.add_argument('--min-freq', type=int, default=2, help='Sparsity filter threshold $min\\_freq$ (default: 2)')
-    parser.add_argument('--stats', action='store_true', help='Print detailed distributional statistics')
+    parser.add_argument(
+        '--corpus', type=Path, required=True,
+        help='Path to corpus file (format: context_id,context_text)',
+    )
+    parser.add_argument(
+        '--output-dir', type=Path, required=True,
+        help='Directory to save vocabulary.csv and phrase_to_contexts.json',
+    )
+    parser.add_argument(
+        '--keep-verbs', action='store_true', default=False,
+        help='Do not strip verbs during normalization',
+    )
+    parser.add_argument(
+        '--no-spacy', action='store_true',
+        help='Force fallback NLTK n-gram extraction',
+    )
+    parser.add_argument(
+        '--no-filter-generic', action='store_true',
+        help='Keep generic single words (lowers signal-to-noise ratio)',
+    )
+    parser.add_argument(
+        '--min-word-length', type=int, default=3,
+        help='Minimum character length $L_{min}$ for single words (default: 3)',
+    )
+    parser.add_argument(
+        '--min-freq', type=int, default=2,
+        help='Sparsity filter threshold $min\\_freq$ (default: 2)',
+    )
+    parser.add_argument(
+        '--stats', action='store_true',
+        help='Print detailed distributional statistics after extraction',
+    )
 
     args = parser.parse_args()
 
-    # Create output directory
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     if not args.corpus.exists():
         logger.error(f"Corpus file not found: {args.corpus}")
         sys.exit(1)
 
-    logger.info("Configuration:")
-    logger.info(f"  Corpus: {args.corpus}")
-    logger.info(f"  Output Directory: {args.output_dir}")
-    logger.info(f"  Method: {'Fallback' if args.no_spacy or not SPACY_AVAILABLE else 'spaCy'}")
-    logger.info(f"  Filter generic: {not args.no_filter_generic}")
-    logger.info(f"  Min frequency threshold: {args.min_freq}")
-    logger.info(f"  Keep verbs: {args.keep_verbs}")
-    logger.info("")
+    use_spacy = not args.no_spacy
+    filter_generic = not args.no_filter_generic
+
+    logger.info("── Step 1 Configuration ──────────────────────────────────")
+    logger.info(f"  Corpus:          {args.corpus}")
+    logger.info(f"  Output dir:      {args.output_dir}")
+    logger.info(f"  Extractor:       {'spaCy' if use_spacy and SPACY_AVAILABLE else 'NLTK fallback'}")
+    logger.info(f"  Filter generic:  {filter_generic}")
+    logger.info(f"  Min freq:        {args.min_freq}")
+    logger.info(f"  Min word length: {args.min_word_length}")
+    logger.info(f"  Keep verbs:      {args.keep_verbs}")
+    logger.info("──────────────────────────────────────────────────────────")
 
     phrase_counts, phrase_to_contexts = process_corpus_with_expansion(
         corpus_path=args.corpus,
-        use_spacy=not args.no_spacy,
+        use_spacy=use_spacy,
         min_freq=args.min_freq,
-        filter_generic=not args.no_filter_generic,
+        filter_generic=filter_generic,
         min_word_length=args.min_word_length,
-        keep_verbs=args.keep_verbs
+        keep_verbs=args.keep_verbs,
     )
-    
-    # Define output path for vocabulary file
-    output_vocab_path = args.output_dir / 'vocabulary' # Suffix will be added by save_phrases
 
+    output_vocab_path = args.output_dir / 'vocabulary'
     save_phrases(phrase_counts, phrase_to_contexts, output_vocab_path)
 
     if args.stats:
         print_statistics(phrase_counts)
 
-    logger.success("Phrase extraction (Step 1) complete!")
+    logger.success("Phrase extraction (Step 1) complete.")
+
+
+MAX_PHRASE_WORDS = 4
+VALID_HEAD_DEPS = {'nsubj', 'dobj', 'nsubjpass', 'attr', 'appos', 'conj', 'ROOT'}
+
+
+def _collect_compound_chains(doc) -> list[str]:
+    """
+    Collect compound noun chains (e.g. 'personality traits') by following
+    'compound' dependency edges. Rejects chains containing any VERB token.
+    """
+    results = []
+    seen = set()
+    for token in doc:
+        logger.debug(
+            f"[COMPOUND] token='{token.text}' dep='{token.dep_}' "
+            f"pos='{token.pos_}' head='{token.head.text}' head_dep='{token.head.dep_}'"
+        )
+        if token.dep_ == 'compound':
+            head = token.head
+            if head.pos_ in ('VERB', 'AUX'):
+                logger.debug(f"[COMPOUND SKIP] '{token.text} {head.text}' — head is VERB/AUX")
+                continue
+            if head.dep_ not in VALID_HEAD_DEPS:
+                logger.debug(
+                    f"[COMPOUND SKIP] '{token.text} {head.text}' "
+                    f"— head dep '{head.dep_}' not in VALID_HEAD_DEPS"
+                )
+                continue
+            phrase = f"{token.text} {head.text}"
+            if phrase not in seen:
+                seen.add(phrase)
+                results.append(phrase)
+    return results
+
+
+def extract_raw_phrases_spacy(doc) -> list[str]:
+    """
+    Extract candidate phrases from a spaCy Doc using multiple strategies.
+
+    Strategies (in order):
+      1. Noun chunks        — spaCy NP detector; possessive prefixes stripped.
+      2. Named entities     — multi-word proper nouns / domain terms.
+      2b. Standalone gerunds — VBG tokens acting as nominal heads.
+      3. Left modifiers     — adjective/compound chains from noun heads.
+      3b. Left-anchored sub-spans — sub-phrases from long noun chunks.
+      4. Compound chains    — direct compound-dep pairs.
+      5. Conjunction expansion — shared modifiers across coordinated nouns.
+      6. Bare head nouns    — rightmost word of every multi-word phrase.
+
+    Args:
+        doc: a spaCy Doc (already parsed with a full pipeline model).
+
+    Returns:
+        list of raw (un-normalised) phrase strings, deduplicated.
+    """
+    raw: dict[str, str] = {}  # phrase -> first source that added it
+
+    def add_phrase(phrase: str, source: str):
+        if phrase not in raw:
+            raw[phrase] = source
+            logger.debug(f"[ADD] '{phrase}' from {source}")
+
+    def _strip_possessive_prefix(text: str) -> str:
+        """Remove a leading possessive owner from a noun chunk string."""
+        stripped = re.sub(r"^\w+[\u2019']s?\s+", "", text)
+        return stripped if stripped else text
+
+    # ── constant sets ─────────────────────────────────────────────────────────
+
+    NOMINAL_DEPS = {'nsubj', 'dobj', 'pobj', 'attr', 'ROOT', 'pcomp'}
+
+    _DISCOURSE_MARKER_NOUNS = {
+        'addition', 'contrast', 'conclusion', 'summary', 'consequence',
+        'result', 'fact', 'general', 'particular', 'short', 'brief',
+        'response', 'reply', 'turn', 'return', 'comparison', 'contrast',
+        'sum', 'total', 'whole', 'end', 'spite', 'lieu',
+    }
+
+    _LIGHT_VERB_OBJECTS = {
+        'light', 'place', 'effect', 'impact', 'account', 'part',
+        'advantage', 'note', 'heed', 'care', 'exception', 'issue',
+        'harm', 'shape', 'form', 'action', 'consideration',
+    }
+    _LIGHT_VERBS = {
+        'shed', 'take', 'make', 'give', 'have', 'get', 'pay',
+        'put', 'bring', 'come', 'go', 'do', 'run',
+    }
+
+    # ── step 1: noun chunks ───────────────────────────────────────────────────
+
+    def _is_clausal_gerund_head(chunk) -> bool:
+        """True when chunk root is a VBG with its own object/subject (gerund clause)."""
+        root = chunk.root
+        if root.tag_ != 'VBG':
+            return False
+        return any(
+            c.dep_ in ('dobj', 'nsubjpass', 'nsubj', 'attr', 'oprd')
+            for c in root.children
+        )
+
+    def _is_discourse_marker_chunk(chunk) -> bool:
+        """True for single-token chunks whose root is a discourse-marker noun under ADP."""
+        if len(chunk) > 1:
+            return False
+        root = chunk.root
+        return root.lemma_.lower() in _DISCOURSE_MARKER_NOUNS and root.head.pos_ == 'ADP'
+
+    def _is_light_verb_object(chunk) -> bool:
+        """True for single-token chunks whose root is a light-verb object."""
+        if len(chunk) > 1:
+            return False
+        root = chunk.root
+        return (
+            root.lemma_.lower() in _LIGHT_VERB_OBJECTS
+            and root.head.lemma_.lower() in _LIGHT_VERBS
+            and root.head.pos_ == 'VERB'
+        )
+
+    def is_bad_verb(tok, chunk) -> bool:
+        """True if tok is a finite verb that should disqualify the chunk."""
+        if tok.pos_ not in ('VERB', 'AUX'):
+            return False
+        if tok.tag_ == 'VBG' and tok == chunk.root and tok.dep_ in NOMINAL_DEPS:
+            return False
+        return True
+
+    for chunk in doc.noun_chunks:
+        logger.debug(
+            f"[CHUNK] '{chunk.text}' | root='{chunk.root.text}' "
+            f"dep='{chunk.root.dep_}' tag='{chunk.root.tag_}'"
+        )
+
+        if any(is_bad_verb(tok, chunk) for tok in chunk):
+            logger.debug(f"[CHUNK SKIP] '{chunk.text}' — contains finite verb")
+            continue
+        if all(tok.pos_ == 'PRON' for tok in chunk):
+            logger.debug(f"[CHUNK SKIP] '{chunk.text}' — all pronouns")
+            continue
+        if (chunk.root.dep_ == 'pobj'
+                and chunk.root.pos_ == 'VERB'
+                and chunk.root.tag_ != 'VBG'):
+            logger.debug(f"[CHUNK SKIP] '{chunk.text}' — pobj conjugated verb root")
+            continue
+        if _is_clausal_gerund_head(chunk):
+            logger.debug(f"[CHUNK SKIP] '{chunk.text}' — clausal gerund head")
+            continue
+        if _is_discourse_marker_chunk(chunk):
+            logger.debug(f"[CHUNK SKIP] '{chunk.text}' — discourse marker")
+            continue
+        if _is_light_verb_object(chunk):
+            logger.debug(f"[CHUNK SKIP] '{chunk.text}' — light-verb object")
+            continue
+
+        chunk_text = _strip_possessive_prefix(chunk.text)
+        if len(chunk_text.split()) <= MAX_PHRASE_WORDS:
+            add_phrase(chunk_text, "noun_chunks")
+
+    # ── step 2: named entities ────────────────────────────────────────────────
+    for ent in doc.ents:
+        if len(ent) == 1 and ent[0].pos_ == 'ADJ':
+            logger.debug(f"[NER SKIP] '{ent.text}' — single-token ADJ")
+            continue
+        if len(ent) <= MAX_PHRASE_WORDS:
+            add_phrase(ent.text, "named_entities")
+
+    # ── step 2b: standalone gerunds ───────────────────────────────────────────
+    for token in doc:
+        if token.tag_ != 'VBG' or token.dep_ not in NOMINAL_DEPS:
+            continue
+        if any(chunk.root == token for chunk in doc.noun_chunks):
+            continue
+        if any(c.dep_ in ('nsubj', 'nsubjpass') for c in token.children):
+            continue
+        if any(c.dep_ in ('dobj', 'attr', 'oprd') for c in token.children):
+            continue
+        gov = token.head
+        if gov.pos_ == 'ADP' and gov.head.pos_ in ('VERB', 'ADJ'):
+            logger.debug(f"[GERUND SKIP] '{token.text}' — participial/adverbial gerund")
+            continue
+        add_phrase(token.text, "gerunds")
+
+    # ── step 3: left modifiers ────────────────────────────────────────────────
+    for phrase, _ in _collect_left_modifiers(doc):
+        add_phrase(phrase, "left_modifiers")
+
+    # ── step 3b: left-anchored modifier sub-spans ─────────────────────────────
+    MIN_SUBSPAN_LEN = 2
+    MAX_SUBSPAN_LEN = 4
+    _NOUN_TAGS = {'NN', 'NNS', 'NNP', 'NNPS'}
+
+    for chunk in doc.noun_chunks:
+        tokens = [
+            t for t in chunk
+            if t.dep_ not in ('det', 'preconj') and t.tag_ not in ('DT', 'PDT')
+        ]
+        if len(tokens) < 3:
+            continue
+
+        head = chunk.root
+        modifiers = [t for t in tokens if t.i < head.i]
+        if len(modifiers) < 2:
+            continue
+
+        logger.debug(
+            f"[3b] chunk='{chunk.text}' head='{head.text}' "
+            f"modifiers={[t.text for t in modifiers]}"
+        )
+
+        for end in range(MIN_SUBSPAN_LEN, min(len(modifiers) + 1, MAX_SUBSPAN_LEN + 1)):
+            sub_tokens = modifiers[:end]
+            last_tok = sub_tokens[-1]
+            if last_tok.tag_ not in _NOUN_TAGS:
+                logger.debug(
+                    f"[SUBSPAN SKIP] '{' '.join(t.text for t in sub_tokens)}' "
+                    f"— last token '{last_tok.text}' is {last_tok.tag_}, not noun"
+                )
+                continue
+            sub_text = ' '.join(t.text for t in sub_tokens)
+            logger.debug(f"[MODIFIER SUBSPAN] '{sub_text}' from '{chunk.text}'")
+            add_phrase(sub_text, "modifier_subspan")
+
+    # ── step 4: compound chains ───────────────────────────────────────────────
+    for phrase in _collect_compound_chains(doc):
+        add_phrase(phrase, "compound_chains")
+
+    # ── step 5: conjunction expansion ────────────────────────────────────────
+    for phrase in expand_conjunctions(doc):
+        add_phrase(phrase, "conjunctions")
+
+    # ── step 6: bare head nouns ───────────────────────────────────────────────
+    multi_word = {p for p in raw if len(p.split()) > 1}
+    for phrase in sorted(multi_word):
+        add_phrase(phrase.split()[-1], "bare_heads")
+
+    return list(raw.keys())
+
 
 if __name__ == "__main__":
     main()
+    

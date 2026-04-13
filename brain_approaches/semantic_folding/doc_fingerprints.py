@@ -49,9 +49,32 @@ import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
+from loguru import logger
 
 import numpy as np
 from scipy.sparse import csr_matrix, lil_matrix
+
+# ── spaCy bootstrap ───────────────────────────────────────────────────────────
+try:
+    import spacy
+    SPACY_AVAILABLE = True
+    logger.debug("spaCy imported successfully")
+    try:
+        nlp = spacy.load("en_core_web_sm")
+        logger.success("spaCy model 'en_core_web_sm' loaded")
+    except OSError:
+        logger.warning("spaCy model not found — run: python -m spacy download en_core_web_sm")
+        SPACY_AVAILABLE = False
+except ImportError:
+    logger.warning("spaCy not installed — falling back to NLTK extraction")
+    SPACY_AVAILABLE = False
+
+# NLTK only needed when spaCy is unavailable
+if not SPACY_AVAILABLE:
+    logger.debug("Importing NLTK fallback tokenizer and POS tagger")
+    from nltk.tokenize import word_tokenize
+    from nltk import pos_tag
+
 
 # ---------------------------------------------------------------------------
 # Project-local imports
@@ -174,7 +197,8 @@ def extract_phrases_from_doc(
     # ── Stage 1: extraction + normalisation ──────────────────────────────────
         # ── Stage 1: extraction + normalisation ──────────────────────────────────
     if use_spacy:
-        raw_phrases = extract_raw_phrases_spacy(text)
+        doc = nlp(text)
+        raw_phrases = extract_raw_phrases_spacy(doc)
     else:
         raw_phrases = extract_raw_phrases_fallback(text)
 

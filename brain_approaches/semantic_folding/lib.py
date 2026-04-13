@@ -20,7 +20,8 @@ Key Design Principles:
 Author: [Your Name]
 Date: 2026-03-18
 """
-
+import spacy
+from spacy.tokens import Token
 import pandas as pd
 from collections import defaultdict
 from pathlib import Path
@@ -46,38 +47,56 @@ import json, os
 nltk.data.path.insert(0, 'C:\\nltk_data')
 os.environ['NLTK_DATA'] = r'C:\nltk_data'
 
-# Initialize NLP components
-lemmatizer = WordNetLemmatizer()
-en_stop_words = set(stopwords.words('english'))
+import re
+from typing import List, Set, Tuple, Optional
+from functools import lru_cache
+from nltk.corpus import stopwords, wordnet
+from nltk.stem import WordNetLemmatizer
+from nltk import pos_tag, word_tokenize
+
+# ---------------------------------------------------------
+# Domain-Aware Stopwords
+# ---------------------------------------------------------
+_BASE_STOP_WORDS = set(stopwords.words('english'))
+_STOP_WORD_EXCEPTIONS = {
+    'need', 'use', 'used', 'using', 'without', 'across', 
+    'between', 'multiple', 'single', 'further', 'new', 
+    'own', 'same', 'such', 'most', 'more', 'less'
+}
+_EXTRA_STOP_WORDS = {
+    'also', 'however', 'therefore', 'thus', 'et', 'al', 
+    'eg', 'ie', 'etc', 'would', 'could', 'may', 'might', 
+    'one', 'two', 'three'
+}
+en_stop_words = (_BASE_STOP_WORDS - _STOP_WORD_EXCEPTIONS) | _EXTRA_STOP_WORDS
+
+# ---------------------------------------------------------
+# Acronyms & Semantic Word Filter
+# ---------------------------------------------------------
+_DOMAIN_ACRONYMS = {'ai', 'ml', 'nlp', 'iot', 'api', 'p2p', 'qa', 'ui', 'db', 'id', 'os'}
+
+def is_generic_word(word: str, min_length: int = 3) -> bool:
+    if word.lower() in _DOMAIN_ACRONYMS:
+        return False
+    if len(word) < min_length:
+        return True
+    if word in en_stop_words:
+        return True
+    if word.isdigit() or not word.isalpha():
+        return True
+    return False
 
 # ============================================================================
 # CORE NLP UTILITIES
 # ============================================================================
+# ---------------------------------------------------------
+# WordNet Mapping & Cached Lemmatization
+# ---------------------------------------------------------
+lemmatizer = WordNetLemmatizer()
 
-def get_wordnet_pos(treebank_tag: str) -> str:
-    """
-    Convert Penn Treebank POS tag to WordNet POS tag.
-    
-    WordNet uses a simplified POS tag set (NOUN, VERB, ADJ, ADV) while
-    Penn Treebank uses a more granular set. This mapping enables accurate
-    lemmatization by providing the correct POS context.
-    
-    Args:
-        treebank_tag: Penn Treebank POS tag (e.g., 'NN', 'VBD', 'JJ')
-    
-    Returns:
-        WordNet POS tag (wordnet.NOUN, wordnet.VERB, wordnet.ADJ, wordnet.ADV)
-        Defaults to wordnet.NOUN for unrecognized tags
-    
-    Examples:
-        >>> get_wordnet_pos('NN')
-        'n'  # wordnet.NOUN
-        >>> get_wordnet_pos('VBD')
-        'v'  # wordnet.VERB
-        >>> get_wordnet_pos('JJ')
-        'a'  # wordnet.ADJ
-    """
-    if treebank_tag.startswith('J'):
+def get_wordnet_pos(treebank_tag):
+    """Safely map POS tags, ensuring participles stay adjectival."""
+    if treebank_tag.startswith('J') or treebank_tag in ['VBN', 'VBG']: # Added VBG
         return wordnet.ADJ
     elif treebank_tag.startswith('V'):
         return wordnet.VERB
@@ -86,7 +105,15 @@ def get_wordnet_pos(treebank_tag: str) -> str:
     elif treebank_tag.startswith('R'):
         return wordnet.ADV
     else:
-        return wordnet.NOUN  # Default to noun
+        return wordnet.NOUN
+
+@lru_cache(maxsize=10000)
+def lemmatize_token(word: str, pos_tag_str: str) -> str:
+    pos = get_wordnet_pos(pos_tag_str)
+    return lemmatizer.lemmatize(word.lower(), pos=pos)
+
+def clear_lemma_cache():
+    lemmatize_token.cache_clear()
 
 
 @lru_cache(maxsize=10000)
@@ -156,229 +183,368 @@ def is_generic_word(word: str, min_length: int = 3) -> bool:
         return True
     return False
 
-
 def is_valid_phrase_structure(tagged_tokens: List[Tuple[str, str]]) -> bool:
-    """
-    Validate phrase structure based on POS tag patterns.
-    
-    Valid phrases must contain meaningful content (nouns/adjectives) and
-    avoid degenerate patterns like pure verb phrases or stop word sequences.
-    
-    Valid patterns include:
-    - Noun phrases: 'machine learning', 'neural network'
-    - Adjective phrases: 'deep', 'convolutional'
-    - Mixed noun-adjective: 'artificial intelligence', 'semantic space'
-    
-    Invalid patterns include:
-    - Pure verb phrases: 'is running', 'has been'
-    - Pure stop words: 'the of', 'in a'
-    
-    Args:
-        tagged_tokens: List of (word, POS_tag) tuples from pos_tag()
-    
-    Returns:
-        True if phrase structure is valid, False otherwise
-    
-    Examples:
-        >>> is_valid_phrase_structure([('neural', 'JJ'), ('network', 'NN')])
-        True
-        >>> is_valid_phrase_structure([('is', 'VBZ'), ('running', 'VBG')])
-        False  # pure verb phrase
-    """
     if not tagged_tokens:
         return False
     
     pos_tags = [tag for _, tag in tagged_tokens]
     
-    # Reject pure verb phrases
-    if all(tag.startswith('V') for tag in pos_tags):
+    # Reject pure functional verbs and pure adverbs
+    if all(tag.startswith('V') and tag not in ('VBN', 'VBG') for tag in pos_tags):
+        return False
+    if all(tag.startswith('RB') for tag in pos_tags):
         return False
     
-    # Require at least one noun or adjective
-    has_content = any(tag.startswith(('N', 'J')) for tag in pos_tags)
+    has_content = any(tag.startswith(('N', 'J')) or tag in ('VBN', 'VBG') for tag in pos_tags)
+    
+    if len(tagged_tokens) > 1:
+        # Multi-word phrases must contain a noun
+        has_noun = any(tag.startswith('N') for tag in pos_tags)
+        
+        # STRICT RULE: A multi-word noun phrase should generally end in a noun.
+        # This prevents trailing adjectives or NLTK guessing errors.
+        # Allow 'S' for plurals (NNS) or proper nouns (NNPS)
+        ends_with_noun = pos_tags[-1].startswith('N') 
+        
+        return has_noun and has_content and ends_with_noun
+        
     return has_content
-
 
 # ============================================================================
 # TEXT NORMALIZATION
 # ============================================================================
+def _is_functional_verb(word: str, tag: str, next_tag: Optional[str] = None) -> bool:
+    # Always drop finite verbs regardless of context
+    if tag in ("VBZ", "VBP", "VBD", "MD", "VB"):
+        return True
+    if tag == "VBN" and next_tag in ("NN", "NNS", "NNP", "NNPS"):
+        return False
+    if tag == "VBG" and next_tag in ("NN", "NNS"):
+        return False
+    if tag in ("VBN", "VBG"):
+        return True
+    return False
+def normalize_adjective(tok: Token) -> str:
+    """Return base form for comparative/superlative adjectives."""
+    if tok.tag_ in ('JJR', 'JJS'):  # comparative or superlative
+        return tok.lemma_
+    return tok.text.lower()
 
+@lru_cache(maxsize=2048)
 def normalize_phrase(text: str, remove_verbs: bool = True) -> Optional[str]:
     """
-    Normalize a phrase with consistent lemmatization and filtering.
-    
-    This is the core normalization function used across all pipeline stages
-    to ensure consistent phrase representation. The normalization process:
-    
-    1. Lowercase and clean punctuation (preserving hyphens)
-    2. Tokenize into words
-    3. POS tag for context-aware processing
-    4. Filter stop words and optionally verbs
-    5. Lemmatize remaining tokens
-    6. Validate final phrase structure
-    
+    Normalize a raw phrase string into a canonical form suitable for indexing.
+
+    Processing pipeline (in order):
+      1. Tokenize with NLTK word_tokenize.
+      2. POS-tag the token list.
+      3. Per-token filtering loop:
+         a. Strip determiners (DT) — carry no indexing value.
+         b. Verb handling (VB*):
+            - VBN/VBG in non-final position → participial/gerundive adjective (JJ).
+              e.g. "decentralized approach", "promising aspect"
+            - VBG as sole or final token → nominal gerund head (NN).
+              e.g. "understanding", "deep learning"
+            - All other verb forms (VBZ, VBD, VBP, VB, VBN at end) → reject whole phrase.
+         c. Comparative/superlative adjectives (JJR, JJS, RBR, RBS) → lemmatize as JJ.
+         d. JJ tokens ending in -er/-est that NLTK mis-tags → force JJR/JJS lemmatization.
+         e. Empty, non-alphabetic, or stopword tokens → skip silently.
+         f. Functional verbs (auxiliaries, copulas) → skip if remove_verbs=True.
+         g. All remaining tokens → lemmatize and accumulate.
+      4. Reject if processed list is empty.
+      5. Validate token sequence structure via is_valid_phrase_structure.
+      6. Return joined lemma string.
+
     Args:
-        text: Input phrase or text segment
-        remove_verbs: If True, filter out all verb forms (default: True)
-                     Set to False for context text processing
-    
+        text:         raw phrase string, e.g. "the unique characteristics".
+        remove_verbs: if True, functional verbs are filtered via _is_functional_verb.
+
     Returns:
-        Normalized phrase string, or None if phrase becomes invalid
-        after filtering
-    
+        Normalized phrase string, or None if the phrase is invalid or filtered out.
+
     Examples:
-        >>> normalize_phrase('Machine Learning Algorithms')
-        'machine learning algorithm'
-        >>> normalize_phrase('The cats are running quickly')
-        'cat quickly'  # verbs removed, lemmatized
-        >>> normalize_phrase('is the', remove_verbs=True)
-        None  # becomes empty after filtering
-    
-    Note:
-        This function should be used consistently across:
-        - Phrase extraction (phrase_extractor.py)
-        - Context processing (term_context.py)
-        - Fingerprint generation (phrase_fingerprints.py, doc_fingerprints.py)
-        - Query processing (query_processing.py)
+        >>> normalize_phrase("the unique characteristics")
+        'unique characteristic'
+        >>> normalize_phrase("decentralized approach")
+        'decentralized approach'
+        >>> normalize_phrase("is running")
+        None
+        >>> normalize_phrase("understanding")
+        'understanding'
     """
-    # Clean text
-    text = text.lower()
-    text = re.sub(r'[^\w\s-]', '', text)  # Keep hyphens for compound words
-    
-    # Tokenize and tag
+    logger.debug(f"[NORMALIZE ENTER] text={text!r} remove_verbs={remove_verbs}")
+
+    # ── step 1: tokenize ──────────────────────────────────────────────────────
     tokens = word_tokenize(text)
     if not tokens:
+        logger.debug("[NORMALIZE] empty token list after word_tokenize — returning None")
         return None
-    
+
+    # ── step 2: POS-tag ───────────────────────────────────────────────────────
+    # NLTK's averaged perceptron tagger; context is limited to the phrase itself,
+    # so tags can differ from what a full-sentence tagger would assign.
     tagged_tokens = pos_tag(tokens)
-    
-    # Filter and lemmatize
-    # Filter and lemmatize
-    processed = []
-    valid_tagged_tokens = [] # ADD THIS to safely track the tags of kept words
-    
-    for word, tag in tagged_tokens:
-        # Skip stop words
-        if word in en_stop_words:
+    logger.debug(f"[POS TAGS] {tagged_tokens}")
+
+    processed: list[str] = []           # accumulates final lemmas
+    valid_tagged_tokens: list[tuple] = []  # parallel list for structure validation
+
+    # ── step 3: per-token filtering loop ─────────────────────────────────────
+    for i, (word, tag) in enumerate(tagged_tokens):
+        # Sanitize: lowercase and strip punctuation (keeps hyphens for compound words)
+        word_clean = re.sub(r'[^\w\s-]', '', word.lower())
+
+        # ── 3a: strip determiners ─────────────────────────────────────────────
+        # "the", "a", "an" add no indexing value; drop unconditionally.
+        if tag == 'DT':
+            logger.debug(f"[DT SKIP] '{word}' — determiner dropped")
             continue
-        
-        # Skip verbs if requested
-        if remove_verbs and tag.startswith('V'):
+
+        # ── 3b: verb handling ─────────────────────────────────────────────────
+        if tag.startswith('VB'):
+            is_last = (i == len(tagged_tokens) - 1)
+            is_only = (len(tagged_tokens) == 1)
+            logger.debug(
+                f"[VB TAG] word={word!r} tag={tag!r} "
+                f"is_last={is_last} is_only={is_only}"
+            )
+
+            # Rule 1 — participial / gerundive adjective modifier (non-head position).
+            # VBN: "decentralized" in "decentralized approach"
+            # VBG: "promising"     in "promising aspect"
+            # These modify the head noun; treat as JJ so the phrase is kept.
+            if tag in ('VBN', 'VBG') and not is_last:
+                lemma = lemmatize_token(word_clean, tag)
+                logger.debug(
+                    f"[VB ADJMOD] '{word}' ({tag}) in modifier position "
+                    f"→ treating as JJ, lemma={lemma!r}"
+                )
+                processed.append(lemma)
+                valid_tagged_tokens.append((lemma, 'JJ'))
+                continue
+
+            # Rule 2 — nominal gerund head (sole token or rightmost token).
+            # e.g. "understanding", "tampering", "deep learning"
+            # The gerund functions as a noun; treat as NN so the phrase is kept.
+            if tag == 'VBG' and (is_last or is_only):
+                lemma = lemmatize_token(word_clean, tag)
+                logger.debug(
+                    f"[VBG PASS] '{word}' as nominal gerund head "
+                    f"→ treating as NN, lemma={lemma!r}"
+                )
+                processed.append(lemma)
+                valid_tagged_tokens.append((lemma, 'NN'))
+                continue
+
+            # Rule 3 — all other verb forms invalidate the whole phrase.
+            # Finite verbs (VBZ, VBD, VBP, VB) and VBN in head position
+            # indicate a clausal fragment, not a noun phrase.
+            logger.debug(f"[VB REJECT] '{word}' ({tag}) is a finite/head verb — phrase rejected")
+            return None
+
+        # ── 3c: comparative / superlative adjectives ──────────────────────────
+        # JJR ("better"), JJS ("best"), RBR ("faster"), RBS ("fastest")
+        # Lemmatize to base adjective form and normalize tag to JJ for consistency.
+        if tag in ('JJR', 'JJS', 'RBR', 'RBS'):
+            lemma = lemmatize_token(word_clean, tag)
+            logger.debug(
+                f"[COMPARATIVE/SUPERLATIVE] '{word}' ({tag}) "
+                f"→ lemma={lemma!r}, normalized tag → JJ"
+            )
+            processed.append(lemma)
+            valid_tagged_tokens.append((lemma, 'JJ'))
             continue
-        
-        # Skip non-alphabetic tokens
-        if not word.isalpha():
+
+        # ── 3d: NLTK JJ mis-tags for comparatives ────────────────────────────
+        # NLTK sometimes tags "deeper", "wider" as JJ when context is thin.
+        # Detect by suffix and force the correct comparative/superlative lemmatization.
+        if tag == 'JJ' and word_clean.endswith(('er', 'est')):
+            candidate_tag = 'JJR' if word_clean.endswith('er') else 'JJS'
+            lemma = lemmatize_token(word_clean, candidate_tag)
+            logger.debug(
+                f"[JJ COMPARATIVE FIX] '{word}' mis-tagged as JJ, "
+                f"re-lemmatized as {candidate_tag} → lemma={lemma!r}"
+            )
+            processed.append(lemma)
+            valid_tagged_tokens.append((lemma, 'JJ'))
             continue
-        
-        # Lemmatize
-        lemma = lemmatize_token(word, tag)
+
+        # ── 3e: skip empty, non-alphabetic, and stopword tokens ───────────────
+        if not word_clean or not word_clean.isalpha():
+            logger.debug(f"[NON-ALPHA SKIP] '{word}' — empty or non-alphabetic")
+            continue
+        if word_clean in en_stop_words:
+            logger.debug(f"[STOPWORD SKIP] '{word_clean}' — in stopword list")
+            continue
+
+        # ── 3f: functional verb filter ────────────────────────────────────────
+        # Auxiliaries ("is", "has") and copulas ("be") are dropped when
+        # remove_verbs=True. The next token's tag is passed for context
+        # (e.g. "is" before VBG is auxiliary, not a content verb).
+        next_tag = tagged_tokens[i + 1][1] if i + 1 < len(tagged_tokens) else None
+        if remove_verbs and _is_functional_verb(word, tag, next_tag):
+            logger.debug(
+                f"[FUNCTIONAL VERB SKIP] '{word}' ({tag}) "
+                f"next_tag={next_tag!r} — dropped as auxiliary/copula"
+            )
+            continue
+
+        # ── 3g: lemmatize and accumulate ──────────────────────────────────────
+        lemma = lemmatize_token(word_clean, tag)
+        logger.debug(f"[LEMMATIZE] '{word}' ({tag}) → '{lemma}'")
         processed.append(lemma)
-        valid_tagged_tokens.append((lemma, tag)) # Track the lemma and its tag
-    
+        valid_tagged_tokens.append((lemma, tag))
+
+    # ── step 4: reject empty result ───────────────────────────────────────────
     if not processed:
+        logger.debug(f"[NORMALIZE] no tokens survived filtering for {text!r} — returning None")
         return None
-    
-    # Validate structure using our safely tracked list
+
+    # ── step 5: structural validation ────────────────────────────────────────
+    # Checks POS sequence rules (e.g. no bare adjective phrases, valid head).
     if not is_valid_phrase_structure(valid_tagged_tokens):
+        logger.debug(f"[STRUCT REJECT] {valid_tagged_tokens} failed is_valid_phrase_structure")
         return None
-    
-    return ' '.join(processed)
 
-
+    # ── step 6: return joined lemma string ────────────────────────────────────
+    result = ' '.join(processed)
+    logger.debug(f"[NORMALIZE RESULT] {text!r} → {result!r}")
+    return result
 
 # ============================================================================
 # PHRASE EXPANSION
 # ============================================================================
 from typing import List, Optional, Set
-# Assuming these helpers are in the same lib.py file
-# from .utils import normalize_phrase, is_generic_word 
+# ---------------------------------------------------------
+# Boundary Matching & Safe Expansion
+# ---------------------------------------------------------
+def phrase_exists_in_context(phrase: str, lower_context: str) -> bool:
+    """Word-boundary aware check to prevent 'chain' matching inside 'blockchain'."""
+    pattern = r'\b' + re.escape(phrase) + r'\b'
+    return bool(re.search(pattern, lower_context))
 
-def expand_phrases(phrases: List[str], 
-                   context_text: str,
-                   filter_generic: bool = True,
-                   min_word_length: int = 3) -> List[str]:
+def expand_phrases(
+    phrases: List[str],
+    context_text: str,
+    filter_generic: bool = True,
+    min_word_length: int = 3,
+) -> List[str]:
     """
-    Expand multi-word phrases and validate them against the source context.
-    
-    This function generates all meaningful sub-phrases from a list of longer 
-    phrases and, crucially, verifies that each sub-phrase actually exists as a 
-    substring within the provided `context_text`. This prevents the creation of 
-    "phantom phrases"—combinations that are syntactically possible but do not 
-    empirically appear in the source document.
+    Expand raw phrases into all contiguous sub-spans, validate each against
+    the source context, normalize survivors, and optionally filter generic
+    single words.
 
-    This validation step is critical for building a high-quality, grounded
-    vocabulary for the semantic folding pipeline.
-    
-    Expansion rules by phrase length (applied after normalization):
-    - 2-word phrases → add individual words (if valid)
-    - 3-word phrases → add all 2-word combinations + individual words (if valid)
-    - 4+ word phrases → add all 3-word, 2-word, and 1-word combinations (if valid)
-    
+    Processing pipeline (in order):
+      1. For each raw phrase, generate all contiguous sub-spans up to MAX_NGRAM
+         tokens wide (including the phrase itself).
+         e.g. "machine translation model" →
+              {"machine", "translation", "model",
+               "machine translation", "translation model",
+               "machine translation model"}
+
+      2. Context validation — each candidate surface form must appear verbatim
+         (case-insensitive) in the source text. This prevents hallucinated or
+         reconstructed spans that were never actually written.
+
+      3. Normalization — pass each surviving candidate through normalize_phrase.
+         Candidates that produce None (invalid structure, bare verb, etc.) are
+         dropped here.
+
+      4. Generic-word filter (single-word phrases only, when filter_generic=True):
+         Single-token results that are high-frequency / low-signal (e.g. "use",
+         "new", "system") are dropped via is_generic_word. Multi-word phrases
+         are never filtered here regardless of their tokens.
+
+      5. Accumulate unique normalized forms in a set (automatic deduplication),
+         then return as a sorted list for deterministic downstream processing.
+
     Args:
-        phrases: List of input phrases to expand, extracted from a single context.
-        context_text: The raw source text of the context from which `phrases` 
-                      were extracted. Used to validate sub-phrase existence.
-        filter_generic: If True, remove generic single words (default: True).
-        min_word_length: Minimum character length for single words (default: 3).
-    
+        phrases:          raw (un-normalised) phrases from the extractor.
+        context_text:     original context string to validate surface forms against.
+        filter_generic:   drop single-word results that are generic/low-signal.
+        min_word_length:  minimum character length for single-word phrases.
+
     Returns:
-        A sorted list of unique, normalized, and validated phrases that exist
-        within the source context_text.
-    
-    Examples:
-        >>> context = "The field of machine learning includes deep neural networks."
-        >>> expand_phrases(['deep neural networks'], context)
-        ['deep neural', 'deep neural network', 'neural network'] 
-        # Note: 'deep', 'neural', 'networks' might be filtered or not present
-        # depending on normalization and other rules.
+        Sorted list of normalised, validated phrases.
 
-        >>> context = "We must change negative thought patterns."
-        >>> expand_phrases(['change negative thought patterns'], context)
-        ['change negative', 'change negative thought', 'negative thought', 
-         'negative thought pattern', 'thought pattern']
-         # Assumes 'patterns' lemmatizes to 'pattern'.
+    Notes:
+        - MAX_NGRAM=5 caps sub-span width; longer phrases are kept whole but not
+          further sub-divided beyond 5 tokens.
+        - Deduplication is by normalized form, so "translations" and "translation"
+          both collapse to "translation" if the lemmatizer agrees.
+        - Context validation uses phrase_exists_in_context which handles basic
+          boundary checks; see that function for exact matching semantics.
     """
-    expanded_and_validated = set()
-    lower_context = context_text.lower()
-    
-    for phrase in phrases:
-        # Normalize the full phrase first
-        normalized = normalize_phrase(phrase, remove_verbs=True)
-        if not normalized:
-            continue
-        
-        # A temporary set to hold all combinatorial candidates for this one phrase
-        candidates = set()
-        candidates.add(normalized) # The full phrase is always a candidate
-        
-        words = normalized.split()
-        n = len(words)
-        
-        # Generate all possible n-gram candidates combinatorially
-        if n == 2:
-            candidates.update(words)
-        elif n == 3:
-            for i in range(n - 1): candidates.add(' '.join(words[i:i+2])) # Bigrams
-            candidates.update(words) # Unigrams
-        elif n >= 4:
-            for i in range(n - 2): candidates.add(' '.join(words[i:i+3])) # Trigrams
-            for i in range(n - 1): candidates.add(' '.join(words[i:i+2])) # Bigrams
-            candidates.update(words) # Unigrams
-            
-        # --- Validation Step ---
-        # Only add candidates that pass all filters and exist in the source text
-        for candidate in candidates:
-            # Filter 1: Is it a generic single word?
-            if ' ' not in candidate: # It's a unigram
-                if filter_generic and is_generic_word(candidate, min_word_length):
-                    continue
-            
-            # Filter 2 (Crucial): Does it actually exist in the raw context?
-            if candidate in lower_context:
-                expanded_and_validated.add(candidate)
-                
-    return sorted(list(expanded_and_validated))
+    logger.debug(
+        f"[EXPAND ENTER] {len(phrases)} raw phrases | "
+        f"filter_generic={filter_generic} min_word_length={min_word_length}"
+    )
 
+    expanded_and_validated: set[str] = set()
+    lower_context = context_text.lower()
+    MAX_NGRAM = 5
+
+    # ── step 1: iterate over each raw phrase ─────────────────────────────────
+    for raw_phrase in phrases:
+        words = raw_phrase.split()
+        n = len(words)
+
+        # ── step 1a: generate all contiguous sub-spans ────────────────────────
+        # Always include the full phrase itself, then add all sub-spans up to
+        # MAX_NGRAM tokens wide. Using a set avoids duplicate candidates when
+        # the phrase is shorter than MAX_NGRAM (full phrase == a sub-span).
+        candidates: set[str] = {raw_phrase}
+        for size in range(1, min(n, MAX_NGRAM) + 1):
+            for i in range(n - size + 1):
+                candidates.add(' '.join(words[i:i + size]))
+
+        logger.debug(
+            f"[EXPAND] '{raw_phrase}' ({n} tokens) "
+            f"→ {len(candidates)} candidate sub-spans generated"
+        )
+
+        # ── steps 2–4: validate, normalize, filter each candidate ─────────────
+        for candidate in candidates:
+
+            # ── step 2: context validation ────────────────────────────────────
+            # Reject any span that does not appear verbatim in the source text.
+            # This is the primary guard against spurious sub-spans.
+            if not phrase_exists_in_context(candidate.lower(), lower_context):
+                logger.debug(f"  [CONTEXT MISS] '{candidate}' — not found in source text")
+                continue
+
+            # ── step 3: normalization ─────────────────────────────────────────
+            # normalize_phrase handles POS filtering, lemmatization, and
+            # structural validation. None means the candidate is not a valid
+            # noun phrase (e.g. bare verb, failed structure check).
+            norm = normalize_phrase(candidate, remove_verbs=True)
+            if not norm:
+                logger.debug(f"  [NORM DROP] '{candidate}' — normalize_phrase returned None")
+                continue
+
+            # ── step 4: generic single-word filter ───────────────────────────
+            # Only applied to single-token normalized results. Multi-word phrases
+            # are never dropped here, even if they contain generic tokens.
+            if ' ' not in norm and filter_generic and is_generic_word(norm, min_word_length):
+                logger.debug(
+                    f"  [GENERIC DROP] '{norm}' (from '{candidate}') "
+                    f"— flagged as generic/low-signal single word"
+                )
+                continue
+
+            # ── step 5: accumulate ────────────────────────────────────────────
+            logger.debug(f"  [KEEP] '{candidate}' → normalized='{norm}'")
+            expanded_and_validated.add(norm)
+
+    # ── final: sort and return ────────────────────────────────────────────────
+    # Sorting ensures deterministic output order for downstream deduplication
+    # and CSV/JSON serialization.
+    result = sorted(expanded_and_validated)
+    logger.debug(
+        f"[EXPAND RESULT] {len(result)} unique normalized phrases kept "
+        f"from {len(phrases)} raw inputs"
+    )
+    return result
 
 # ============================================================================
 # FILE I/O UTILITIES
@@ -1901,3 +2067,10 @@ def compute_fingerprint_diversity(
         'diversity_score': float(diversity),
         'num_samples': num_samples
     }
+
+if __name__ == "__main__":
+
+    # Quick sanity check — run this once in a REPL or a test
+    print(lemmatize_token("deeper", "JJR"))   # should print: deep
+    print(lemmatize_token("deepest", "JJS"))  # should print: deep
+    print(lemmatize_token("better", "JJR"))   # should print: good

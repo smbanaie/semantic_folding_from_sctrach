@@ -19,24 +19,15 @@ import sys, re, os
 from pathlib import Path
 from typing import Set, Dict, Tuple, List, Optional, Any
 from collections import Counter as CounterType, defaultdict
-from loguru import logger
+
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
-# Override at runtime via: LOG_LEVEL=DEBUG python phrase_extractor.py
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+from lib import get_logger
+logger = get_logger("phrase_extractor")
 
-logger.remove()
-logger.add(
-    sys.stderr,
-    level=LOG_LEVEL,
-    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}",
-    colorize=True,
-)
-
-logger.info(f"Log level set to: {LOG_LEVEL}")
 
 # ── Library imports ────────────────────────────────────────────────────────────
-from lib import expand_phrases
+from lib import expand_phrases, normalize_hyphens
 
 # ── spaCy bootstrap ───────────────────────────────────────────────────────────
 try:
@@ -423,12 +414,27 @@ def process_corpus_with_expansion(
 
             logger.debug(f"[CORPUS] Line {i} | ctx='{ctx_id}' | text='{text_original[:60]}...'")
 
+            # ── Hyphen normalization ──────────────────────────────────────────
+            # Replace intra-word hyphens (e.g. 'rule-based') with spaces so
+            # that compound terms are tokenized as multi-word phrases rather
+            # than being split into three tokens: word, '-', word.
+            # text_clean is used for ALL downstream processing; text_original
+            # is kept only for logging/diagnostics.
+            text_clean = normalize_hyphens(text_original)
+            text_clean_lower = normalize_hyphens(text_lower)
+
+            if text_clean != text_original:
+                logger.debug(
+                    f"[CORPUS] Line {i} | hyphen normalization applied: "
+                    f"'{text_original[:60]}' → '{text_clean[:60]}'"
+                )
+
             # ── Stage 1: raw candidate extraction ────────────────────────────
             if use_spacy and SPACY_AVAILABLE:
-                doc = nlp(text_original)
+                doc = nlp(text_clean)          # spaCy sees hyphen-free text
                 raw_phrases = extract_raw_phrases_spacy(doc)
             else:
-                raw_phrases = extract_raw_phrases_fallback(text_lower)
+                raw_phrases = extract_raw_phrases_fallback(text_clean_lower)
 
             logger.debug(f"[CORPUS] Line {i} | {len(raw_phrases)} raw phrases extracted")
 
@@ -438,10 +444,12 @@ def process_corpus_with_expansion(
 
             # ── Stage 2 & 3: expansion + normalization ────────────────────────
             # expand_phrases receives raw (un-normalized) phrases and handles
-            # surface validation before normalizing internally
+            # surface validation before normalizing internally.
+            # text_clean is passed so that context validation (substring match)
+            # works against the same hyphen-free surface form that the extractor saw.
             valid_sub_phrases = expand_phrases(
                 list(raw_phrases),
-                context_text=text_original,
+                context_text=text_clean,       # must match what extractor saw
                 filter_generic=filter_generic,
                 min_word_length=min_word_length,
             )
@@ -482,6 +490,8 @@ def process_corpus_with_expansion(
     )
 
     return final_vocabulary, final_mapping
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Statistics and output
 # ─────────────────────────────────────────────────────────────────────────────

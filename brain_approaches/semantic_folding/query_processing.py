@@ -55,7 +55,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
-from loguru import logger
+
 from scipy.sparse import csr_matrix
 
 from phrase_extractor import (
@@ -71,16 +71,12 @@ from lib import (
     normalize_fingerprint,
     normalize_phrase,
 )
-
+SPARCITY_GAURD=0.005
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging — level driven by LOG_LEVEL env var (default: INFO)
 # ─────────────────────────────────────────────────────────────────────────────
-
-_LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG").upper()
-logger.remove()
-logger.add(sys.stderr, level=_LOG_LEVEL)
-logger.debug(f"query_processing: logger active at level '{_LOG_LEVEL}'")
-
+from lib import get_logger
+logger = get_logger("query_processing")
 
 # ── spaCy bootstrap ───────────────────────────────────────────────────────────
 try:
@@ -190,28 +186,58 @@ def build_vocab_fingerprint_index(
     )
     return index
 
-
 def expand_oov_query_terms(
     oov_terms         : List[str],
     vocab_fp_index    : Dict[str, np.ndarray],
     phrase_fp_dir     : str,
     grid_size         : int   = 128,
-    top_k_per_term    : int   = 3,
-    min_similarity    : float = 0.15,
+    top_k_per_term    : int   = 5,
+    min_similarity    : float = 0.2,
     penalize_generic  : bool  = True,
 ) -> Dict[str, List[Tuple[str, float]]]:
     """
     Find the top-k most similar in-vocabulary phrases for each OOV term.
 
     For each term in ``oov_terms`` (phrases extracted from the query that
-    are absent from the phrase fingerprint vocabulary), a lightweight
-    pseudo-fingerprint is generated via character n-gram hashing
-    (:func:`_pseudo_fingerprint`) and compared against every vector in
-    ``vocab_fp_index`` using batch cosine similarity.
+    are absent from the phrase fingerprint vocabulary), an anchor vector is
+    built by summing the fingerprints of any in-vocabulary sub-tokens found
+    in the OOV phrase.
 
-    This provides a best-effort semantic bridge when the user's query
-    contains terminology that was not frequent enough to survive the
-    Step-1 ``min_freq`` filter.
+    Anchor quality is judged by how many of the OOV term's tokens were
+    found in the vocabulary.  Three cases are handled:
+
+    1. **No sub-tokens in vocab** → fall back to a character n-gram
+       pseudo-fingerprint (:func:`_pseudo_fingerprint`).  Carries no
+       semantic information but may still catch morphological neighbours.
+
+    2. **Too few sub-tokens** → skip this OOV term entirely.
+       The minimum required depends on phrase length:
+
+       - Single-token OOV : ``min_required = 1``  (the one token must match)
+       - Multi-token OOV  : ``min_required = max(2, len(tokens) // 2)``
+
+       Requiring at least **2** matched tokens for multi-token OOVs prevents
+       a single-word anchor (e.g. ``brain`` from ``brain facilitate``) from
+       dominating cosine similarity and surfacing wholly unrelated vocabulary
+       phrases — the root cause of the ``sim=1.000`` noise observed in the
+       debug log (Bug #4).
+
+    3. **Enough sub-tokens** → use the summed real fingerprints as a
+       semantically grounded anchor and proceed with batch cosine similarity.
+
+    Before entering the per-term loop, OOV terms are **deduplicated by
+    anchor key** (Bug Fix #3).  Two OOV terms that map to the same
+    frozenset of in-vocabulary sub-tokens would produce identical anchor
+    vectors and therefore identical results.  Only the first such term
+    (the *winner*) is processed; the rest are *aliased* to it and receive
+    the winner's result list after the loop, at zero extra cost.
+
+    Example (from the debug log)::
+
+        'human brain'            → anchor_key = frozenset({'human', 'brain'})
+        'human brain facilitate' → anchor_key = frozenset({'human', 'brain'})
+                                   # 'facilitate' is itself OOV → dropped
+        ⟹  'human brain facilitate' is aliased to 'human brain'
 
     Parameters
     ----------
@@ -220,6 +246,8 @@ def expand_oov_query_terms(
         phrase fingerprint vocabulary.
     vocab_fp_index : Dict[str, np.ndarray]
         Dense vector index built by :func:`build_vocab_fingerprint_index`.
+        Keys are vocabulary phrases; values are flat ``float32`` SDR
+        vectors of length ``grid_size ** 2``.
         An empty dict causes an immediate early return.
     phrase_fp_dir : str
         Fingerprint directory (passed through for potential future use;
@@ -229,38 +257,60 @@ def expand_oov_query_terms(
         pipeline (default: ``128``).
     top_k_per_term : int, optional
         Maximum number of vocabulary matches to return per OOV term
-        (default: ``3``).
+        (default: ``5``).
     min_similarity : float, optional
         Cosine similarity threshold below which matches are discarded
-        (default: ``0.15``).
+        (default: ``0.2``).
     penalize_generic : bool, optional
-        When ``True``, halve the similarity score for single-word terms
-        that appear in the built-in ``GENERIC_TERMS`` set, reducing
-        noise from high-frequency function-like words (default: ``True``).
+        When ``True``, halve the similarity score for single-word matches
+        that appear in the built-in ``GENERIC_TERMS`` set, reducing noise
+        from high-frequency function-like words (default: ``True``).
 
     Returns
     -------
     Dict[str, List[Tuple[str, float]]]
         Mapping of ``{oov_term: [(vocab_phrase, similarity), ...]}``
         sorted descending by similarity.  OOV terms with no match above
-        ``min_similarity`` are omitted from the result.
+        ``min_similarity`` are omitted from the result.  Aliased duplicate
+        OOV terms share the winner's result list (same object reference).
 
     Notes
     -----
-    - The pseudo-fingerprint is character-level only and carries no
-      semantic information.  Matches are approximate and should be
-      treated as hints rather than ground truth.
-    - Vocab norms are precomputed once outside the per-term loop for
-      efficiency (O(V) instead of O(V × T)).
+    - Vocab matrix and L2 norms are precomputed **once** before the loop
+      — O(V) instead of O(V × T).
+    - The deduplication pre-pass (Fix #3) runs in O(T) and eliminates
+      redundant cosine-similarity sweeps over the full vocab matrix.
+    - The minimum-2-token anchor guard (Fix #4) eliminates the
+      ``sim=1.000`` sparse-collision noise observed when a single generic
+      token (e.g. ``brain``) was the sole anchor for a multi-token OOV
+      phrase (e.g. ``brain facilitate``).
+    - Single-word OOV terms are **never** expanded to other single-word
+      phrases (mono→mono guard) to suppress generic high-frequency noise.
+    - The redundancy filter (skip phrase == oov_term or phrase ∈ tokens)
+      is applied **before** the ``top_k`` counter is incremented, so
+      filtered-out phrases do not consume result slots.
+    - Generic-term penalty is re-checked against ``min_similarity`` after
+      the score is halved, so borderline generic matches are cleanly
+      dropped rather than kept at a sub-threshold score.
+
+    Raises
+    ------
+    ValueError
+        Not raised explicitly, but a ``grid_size`` inconsistent with the
+        vectors stored in ``vocab_fp_index`` will cause a shape mismatch
+        in the matrix multiply at STEP 3.
     """
-    # Single-word terms that add noise rather than signal when used as
-    # expansion anchors — their fingerprints are too generic to be useful
+    # ── High-frequency words whose fingerprints are too generic to be
+    #    useful as expansion targets.  Matches are kept but score-halved.
     GENERIC_TERMS = {
         "social", "structure", "network", "system", "process",
         "area", "group", "level", "form", "type", "factor",
         "impact", "effect", "result", "change", "increase",
     }
 
+    # ─────────────────────────────────────────────────────────────────────
+    # Guard: nothing to do without a vocab index
+    # ─────────────────────────────────────────────────────────────────────
     if not vocab_fp_index:
         logger.warning("Vocab fingerprint index is empty — skipping OOV expansion")
         return {}
@@ -271,36 +321,213 @@ def expand_oov_query_terms(
         f"(top_k={top_k_per_term}, min_sim={min_similarity})"
     )
 
-    # Stack all vocab vectors once for fast batch matrix multiply
+    # ─────────────────────────────────────────────────────────────────────
+    # Build vocab matrix once — reused for every OOV term
+    #   vocab_matrix : (V, D)  float32
+    #   vocab_norms  : (V, 1)  float32  — precomputed to avoid O(V×T) norm calls
+    # ─────────────────────────────────────────────────────────────────────
     vocab_phrases = list(vocab_fp_index.keys())
     vocab_matrix  = np.stack(
         [vocab_fp_index[p] for p in vocab_phrases], axis=0
-    )  # shape: (V, D)
+    )                                                   # shape: (V, D)
 
-    # Precompute vocab L2 norms once — reused for every OOV term
     vocab_norms = np.linalg.norm(vocab_matrix, axis=1, keepdims=True)
-    vocab_norms = np.where(vocab_norms == 0, 1e-9, vocab_norms)  # guard /0
+    vocab_norms = np.where(vocab_norms == 0, 1e-9, vocab_norms)    # shape: (V, 1)
 
+    dim = grid_size * grid_size
     expansions: Dict[str, List[Tuple[str, float]]] = {}
 
+    # ═════════════════════════════════════════════════════════════════════
+    # FIX #3 — Deduplicate OOV terms that resolve to identical anchor sets
+    # ═════════════════════════════════════════════════════════════════════
+    #
+    # Motivation
+    # ----------
+    # The anchor vector for an OOV term is built by summing the vocab
+    # fingerprints of whichever of its sub-tokens ARE in the vocabulary.
+    # Sub-tokens that are themselves OOV contribute nothing.
+    #
+    # Consequence: two OOV phrases whose in-vocab sub-token sets are
+    # identical produce byte-for-byte identical anchor vectors, and
+    # therefore identical cosine-similarity rankings — processing both
+    # wastes O(V) dot products for zero new information.
+    #
+    # Observed case (debug log)
+    # --------------------------
+    #   'human brain'            → in-vocab sub-tokens = {'human', 'brain'}
+    #   'human brain facilitate' → in-vocab sub-tokens = {'human', 'brain'}
+    #                              (facilitate is OOV → contributes nothing)
+    #   anchor_key for both = frozenset({'human', 'brain'})
+    #   ⟹  second term is a duplicate; alias it to the first (winner).
+    #
+    # Implementation
+    # --------------
+    # unique_anchor_map : frozenset → first OOV term seen for that key (winner)
+    # alias_map         : duplicate OOV term → its winner
+    # deduplicated_terms: ordered list of winners (no duplicates)
+    #
+    # After the main loop the alias resolution block copies the winner's
+    # result list to every duplicate, so the returned dict contains a key
+    # for every originally submitted OOV term.
+    # ═════════════════════════════════════════════════════════════════════
+    unique_anchor_map : Dict[frozenset, str] = {}   # anchor_key  → winner term
+    alias_map         : Dict[str, str]       = {}   # duplicate   → winner term
+    deduplicated_terms: List[str]            = []
+
     for oov_term in oov_terms:
+        # anchor_key: only the sub-tokens that actually exist in the vocab
+        anchor_key = frozenset(
+            t for t in oov_term.split() if t in vocab_fp_index
+        )
+
+        if anchor_key not in unique_anchor_map:
+            # First time we see this anchor set — this term is the winner
+            unique_anchor_map[anchor_key] = oov_term
+            deduplicated_terms.append(oov_term)
+            logger.debug(
+                f"  [OOV DEDUP] '{oov_term}' → new anchor key {set(anchor_key)}"
+            )
+        else:
+            # Same anchor set seen before → alias this term to the winner
+            winner = unique_anchor_map[anchor_key]
+            alias_map[oov_term] = winner
+            logger.debug(
+                f"  [OOV DEDUP SKIP] '{oov_term}' → same anchor as "
+                f"'{winner}' {set(anchor_key)}, will reuse results"
+            )
+
+    logger.debug(
+        f"  [OOV DEDUP] {len(oov_terms)} terms → "
+        f"{len(deduplicated_terms)} unique anchors "
+        f"({len(alias_map)} duplicates suppressed)"
+    )
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Main expansion loop — only over deduplicated (winner) terms
+    # ─────────────────────────────────────────────────────────────────────
+    for oov_term in deduplicated_terms:
         logger.debug(f"  [OOV] Processing term: '{oov_term}'")
 
-        # Build a character n-gram pseudo-fingerprint for the OOV term.
-        # This is NOT semantic — it is only a proxy for approximate
-        # nearest-neighbour lookup in fingerprint space.
-        oov_vec  = _pseudo_fingerprint(oov_term, grid_size=grid_size)
-        oov_norm = np.linalg.norm(oov_vec)
+        # ── STEP 1: Build anchor vector ───────────────────────────────────
+        #
+        # Sum the real fingerprints of every sub-token that exists in the
+        # vocabulary.  This gives the anchor genuine semantic coordinates.
+        tokens         = oov_term.split()
+        anchor_vec     = np.zeros(dim, dtype=np.float32)
+        matched_tokens = 0
 
-        if oov_norm < 1e-9:
-            # All hash buckets were zero — degenerate term (e.g. empty string)
-            logger.debug(f"  [OOV SKIP] '{oov_term}' → zero pseudo-vector")
+        for token in tokens:
+            if token in vocab_fp_index:
+                anchor_vec     += vocab_fp_index[token]
+                matched_tokens += 1
+
+        # ═════════════════════════════════════════════════════════════════
+        # FIX #4 — Raise the minimum anchor quality bar for multi-token OOVs
+        # ═════════════════════════════════════════════════════════════════
+        #
+        # Original rule
+        # -------------
+        #   min_required = max(1, len(tokens) // 2)
+        #
+        # Problem
+        # -------
+        # For a 2-token OOV (e.g. 'brain facilitate'):
+        #   len(tokens) // 2 = 1  →  max(1, 1) = 1
+        # So 'brain' alone (1/2 tokens) was enough to pass Case 2 and build
+        # an anchor.  That anchor was IDENTICAL to the single-word fingerprint
+        # of 'brain', causing cosine similarity to return sim=1.000 for
+        # 'neuroplasticity', 'pain', 'pain management', etc. — i.e. whatever
+        # happens to be closest to 'brain' with no contribution from
+        # 'facilitate' at all.  This is the sparse-collision noise flagged as
+        # Bug #4 in the debug report.
+        #
+        # Fix
+        # ---
+        # Single-token OOV : min_required = 1  (must match that one token)
+        # Multi-token OOV  : min_required = max(2, len(tokens) // 2)
+        #
+        # Effect on observed cases
+        # ------------------------
+        #   'brain facilitate'   (2 tokens, 1 matched) : 1 < 2 → SKIP (was EXPAND)
+        #   'human brain'        (2 tokens, 2 matched) : 2 ≥ 2 → EXPAND (unchanged)
+        #   'recovery function'  (2 tokens, 0 matched) : char n-gram fallback
+        #   'some four word oov' (4 tokens, 2 matched) : 2 ≥ 2 → EXPAND (unchanged)
+        #   'some four word oov' (4 tokens, 1 matched) : 1 < 2 → SKIP (tightened)
+        #
+        # MIN_MULTI_TOKEN_ANCHOR is defined as a named constant for clarity
+        # and to make future tuning a single-line change.
+        # ═════════════════════════════════════════════════════════════════
+        MIN_MULTI_TOKEN_ANCHOR = 2  # minimum in-vocab sub-tokens for multi-word OOV
+
+        if len(tokens) == 1:
+            # Single-word OOV: the one token must be in vocab to form an anchor;
+            # if it were, the phrase would have been IV in the first place —
+            # so in practice this almost always falls through to Case 1.
+            min_required = 1
+        else:
+            # Multi-word OOV: require at least MIN_MULTI_TOKEN_ANCHOR matched
+            # tokens, or half of all tokens if that is larger (e.g. a 6-token
+            # phrase should still need at least 3, not just 2).
+            min_required = max(MIN_MULTI_TOKEN_ANCHOR, len(tokens) // 2)
+
+        logger.debug(
+            f"  [OOV ANCHOR CHECK] '{oov_term}' → "
+            f"{matched_tokens}/{len(tokens)} sub-tokens in vocab "
+            f"(need ≥{min_required})"
+        )
+
+        if matched_tokens == 0:
+            # ── Case 1: no sub-tokens at all → character n-gram fallback ──
+            #
+            # The pseudo-fingerprint carries no semantic information but
+            # may still surface morphologically similar vocab phrases.
+            anchor_vec = _pseudo_fingerprint(oov_term, grid_size=grid_size)
+            logger.debug(
+                f"  [OOV PSEUDO-FP] '{oov_term}' → "
+                f"no sub-tokens in vocab, using char n-gram fallback"
+            )
+
+        elif matched_tokens < min_required:
+            # ── Case 2: too few sub-tokens → anchor is unreliable, skip ──
+            #
+            # With Fix #4 this now catches 2-token OOVs where only 1 token
+            # matched — previously these slipped through and caused
+            # single-word anchor collisions (sim=1.000 noise).
+            logger.debug(
+                f"  [OOV WEAK ANCHOR SKIP] '{oov_term}' → "
+                f"only {matched_tokens}/{len(tokens)} sub-tokens in vocab "
+                f"(need ≥{min_required}), skipping"
+            )
+            continue  # move to next OOV term
+
+        else:
+            # ── Case 3: enough sub-tokens → use summed real fingerprints ──
+            logger.debug(
+                f"  [OOV ANCHOR] '{oov_term}' → "
+                f"built from {matched_tokens}/{len(tokens)} in-vocab sub-tokens"
+            )
+
+        # ── STEP 2: Degenerate-anchor guard ──────────────────────────────
+        #
+        # A zero-norm vector means every contributing fingerprint was also
+        # zero (extremely unlikely but possible with sparse SDRs).
+        # Cosine similarity would be undefined — skip rather than divide by 0.
+        anchor_norm = np.linalg.norm(anchor_vec)
+        if anchor_norm < 1e-9:
+            logger.debug(f"  [OOV SKIP] '{oov_term}' → zero-norm anchor vector")
             continue
 
-        # Batch cosine similarity: dot(vocab_matrix, oov_vec) / (norms * oov_norm)
-        similarities = (vocab_matrix @ oov_vec) / (vocab_norms.squeeze() * oov_norm)
+        # ── STEP 3: Batch cosine similarity against entire vocab ──────────
+        #
+        # dot(vocab_matrix, anchor) / (vocab_norms * anchor_norm)
+        # Shapes: (V,D) @ (D,) → (V,) / ((V,1).squeeze() * scalar) → (V,)
+        #
+        # vocab_norms were precomputed before the loop (O(V) once).
+        similarities = (vocab_matrix @ anchor_vec) / (
+            vocab_norms.squeeze() * anchor_norm
+        )
 
-        # Descending sort — iterate until threshold or top_k reached
+        # Sort indices descending; iterate until threshold or top_k is reached
         top_indices = np.argsort(similarities)[::-1]
 
         matches: List[Tuple[str, float]] = []
@@ -308,14 +535,44 @@ def expand_oov_query_terms(
             phrase = vocab_phrases[idx]
             score  = float(similarities[idx])
 
+            # ── Early exit: sorted descending, nothing below can qualify ──
             if score < min_similarity:
-                # Sorted descending — everything below is also below threshold
                 logger.debug(
-                    f"  [OOV THRESH] '{oov_term}': best remaining score "
+                    f"  [OOV THRESH] '{oov_term}': score dropped to "
                     f"{score:.3f} < {min_similarity} — stopping"
                 )
                 break
 
+            # ── Redundancy filter (applied BEFORE top_k counter) ─────────
+            #
+            # These checks must come before appending to `matches` so that
+            # filtered phrases do NOT consume one of the top_k result slots.
+
+            # Skip the OOV term itself (exact match is trivially unhelpful)
+            if phrase == oov_term:
+                continue
+
+            # Skip constituent tokens — they were already used to build the
+            # anchor and are likely already present in matched_phrases
+            if phrase in tokens:
+                continue
+
+            # Mono→mono guard: expanding a single-word OOV to another
+            # single-word phrase is almost always noisy (high-frequency
+            # generic terms dominate cosine similarity in SDR space).
+            if len(tokens) == 1 and len(phrase.split()) == 1:
+                logger.debug(
+                    f"  [OOV SKIP MONO→MONO] '{oov_term}' → '{phrase}' "
+                    f"(single-word to single-word expansion suppressed)"
+                )
+                continue
+
+            # ── Generic-term score penalty ────────────────────────────────
+            #
+            # High-frequency words like "system" or "process" tend to have
+            # dense, generic fingerprints that score well against almost
+            # anything.  Halving their score reduces their ranking priority
+            # without removing them entirely.
             if penalize_generic and phrase in GENERIC_TERMS:
                 original_score = score
                 score *= 0.5
@@ -323,15 +580,25 @@ def expand_oov_query_terms(
                     f"  [OOV GENERIC] '{phrase}' penalised "
                     f"{original_score:.3f} → {score:.3f}"
                 )
+                # Re-check threshold after penalty
+                if score < min_similarity:
+                    logger.debug(
+                        f"  [OOV GENERIC THRESH] '{phrase}' dropped below "
+                        f"threshold after penalty — skipping"
+                    )
+                    continue
 
+            # ── Accept this match ─────────────────────────────────────────
             matches.append((phrase, score))
             logger.debug(
                 f"  [OOV MATCH] '{oov_term}' → '{phrase}' (sim={score:.3f})"
             )
 
+            # Stop once we have enough matches for this OOV term
             if len(matches) >= top_k_per_term:
                 break
 
+        # ── STEP 4: Record results ────────────────────────────────────────
         if matches:
             expansions[oov_term] = matches
             logger.debug(
@@ -344,9 +611,38 @@ def expand_oov_query_terms(
                 f"above threshold {min_similarity}"
             )
 
+    # ═════════════════════════════════════════════════════════════════════
+    # FIX #3 (cont.) — Propagate winner results to aliased duplicate terms
+    # ═════════════════════════════════════════════════════════════════════
+    #
+    # Every caller that submitted an OOV term expects a key in the returned
+    # dict (or absence means no match — both are valid).  For aliased
+    # duplicates we copy the winner's list reference so the returned dict
+    # is complete without re-running any similarity computation.
+    #
+    # Note: if the winner itself had no matches (empty / skipped), the
+    # alias is simply not added — consistent with the no-match convention.
+    # ═════════════════════════════════════════════════════════════════════
+    for duplicate_term, winner_term in alias_map.items():
+        if winner_term in expansions:
+            expansions[duplicate_term] = expansions[winner_term]
+            logger.debug(
+                f"  [OOV ALIAS] '{duplicate_term}' ← reusing "
+                f"'{winner_term}' results: "
+                + ", ".join(f"'{p}'({s:.3f})" for p, s in expansions[winner_term])
+            )
+        else:
+            # Winner had no matches above threshold — alias also gets nothing
+            logger.debug(
+                f"  [OOV ALIAS] '{duplicate_term}' → winner '{winner_term}' "
+                f"had no results; alias also empty"
+            )
+
     logger.debug(
         f"OOV expansion complete: {len(expansions)}/{len(oov_terms)} "
-        f"terms expanded"
+        f"terms expanded "
+        f"({len(alias_map)} resolved via alias, "
+        f"{len(deduplicated_terms)} unique anchors processed)"
     )
     return expansions
 
@@ -398,7 +694,6 @@ def _pseudo_fingerprint(term: str, grid_size: int = 128) -> np.ndarray:
     )
     return vec
 
-
 def merge_expanded_phrases(
     matched_phrases  : List[str],
     oov_expansions   : Dict[str, List[Tuple[str, float]]],
@@ -415,10 +710,28 @@ def merge_expanded_phrases(
     -----------------------
     - **Direct matches** (phrases already in vocabulary): weight is the
       IDF score from ``idf_weights`` if provided, otherwise ``1.0``.
+
     - **Expanded matches** (OOV proxies): weight is
-      ``idf_score × similarity × expansion_weight``.  The ``expansion_weight``
-      discount (default ``0.6``) reflects the lower confidence of
-      character-level proxy matches vs. exact vocabulary hits.
+      ``idf_score × similarity² × expansion_weight``.
+
+      Similarity is **squared** (vs. the previous linear ``sim × discount``)
+      so that weak neighbors are penalised quadratically rather than
+      linearly.  Concretely:
+
+      +-----------+------------+------------------+
+      | sim       | old weight | new weight (sim²)|
+      +===========+============+==================+
+      | 0.90      | 0.540      | 0.486            |
+      | 0.70      | 0.420      | 0.294            |
+      | 0.55      | 0.330      | 0.182  ← −45 %   |
+      | 0.40      | 0.240      | 0.096  ← −60 %   |
+      +-----------+------------+------------------+
+
+      This directly addresses the observed semantic-drift bug where
+      ``'language'`` (sim=0.541) was injected as a high-weight proxy for
+      ``'human brain'``, incorrectly boosting Context 17 (Semantics) over
+      Context 12 (Bilingualism).
+
     - When the same phrase appears as both a direct match and an
       expansion target, the **maximum** of the two weights is kept.
 
@@ -428,48 +741,81 @@ def merge_expanded_phrases(
         Phrases that passed the vocabulary filter in
         :func:`extract_query_phrases`.
     oov_expansions : Dict[str, List[Tuple[str, float]]]
-        Output of :func:`expand_oov_query_terms`.
+        Output of :func:`expand_oov_query_terms`.  Each key is an OOV
+        anchor term; each value is a list of ``(vocab_phrase, similarity)``
+        pairs sorted by descending similarity.
     idf_weights : Dict[str, float] or None, optional
         ``{phrase: idf_score}`` mapping.  When ``None``, all base
         weights default to ``1.0``.
     expansion_weight : float, optional
         Discount factor applied to expanded phrase weights (default:
-        ``0.6``).  Set to ``1.0`` to treat expansions equally with
-        direct matches.
+        ``0.6``).  Combined with the squared similarity this gives the
+        full formula::
+
+            w = IDF(t) × sim(anchor, t)² × expansion_weight
+
+        Set to ``1.0`` to remove the flat discount and rely solely on
+        the quadratic similarity penalty.
 
     Returns
     -------
     Dict[str, float]
         ``{phrase: weight}`` mapping ready for fingerprint construction.
+
+    Notes
+    -----
+    **Why sim² instead of sim?**
+
+    With the old linear formula a neighbour at sim=0.54 retained
+    ``0.54 × 0.6 = 32 %`` of its IDF weight — enough to meaningfully
+    shift the query fingerprint toward unrelated contexts.  Squaring
+    reduces that retention to ``0.54² × 0.6 = 17 %``, and the effect
+    compounds for every additional weak neighbour that would otherwise
+    accumulate.  High-confidence neighbours (sim ≥ 0.85) lose less than
+    10 % of their effective weight, so true semantic proxies are largely
+    unaffected.
     """
     phrase_weights: Dict[str, float] = {}
 
     logger.debug(
         f"Merging {len(matched_phrases)} direct matches + "
         f"{len(oov_expansions)} OOV expansion groups "
-        f"(expansion_weight={expansion_weight})"
+        f"(expansion_weight={expansion_weight}, sim_power=2)"
     )
 
-    # Direct matches — full IDF weight (or 1.0 if no IDF available)
+    # ------------------------------------------------------------------
+    # Direct matches — full IDF weight (or 1.0 if no IDF table provided)
+    # ------------------------------------------------------------------
     for phrase in matched_phrases:
         base_weight = idf_weights.get(phrase, 1.0) if idf_weights else 1.0
         phrase_weights[phrase] = base_weight
         logger.debug(f"  [DIRECT] '{phrase}' → weight={base_weight:.4f}")
 
-    # Expanded matches — discounted by similarity × expansion_weight
+    # ------------------------------------------------------------------
+    # Expanded matches — quadratically discounted by sim² × expansion_weight
+    #
+    # FIX #4: changed  idf × sim × discount
+    #                → idf × sim² × discount
+    #
+    # Rationale: low-similarity OOV neighbours (sim ≈ 0.54–0.63) were
+    # retaining enough weight under the linear formula to introduce
+    # spurious context signal (e.g. 'language' boosting Context 17).
+    # Squaring sim collapses their contribution without harming
+    # high-confidence neighbours (sim ≥ 0.85).
+    # ------------------------------------------------------------------
     for oov_term, matches in oov_expansions.items():
         for vocab_phrase, sim_score in matches:
             base_weight   = idf_weights.get(vocab_phrase, 1.0) if idf_weights else 1.0
-            merged_weight = base_weight * sim_score * expansion_weight
+            sim_sq        = sim_score * sim_score          # sim²
+            merged_weight = base_weight * sim_sq * expansion_weight
 
             existing = phrase_weights.get(vocab_phrase, 0.0)
             if merged_weight > existing:
-                # New weight wins — log the update
                 phrase_weights[vocab_phrase] = merged_weight
                 logger.debug(
                     f"  [EXPAND] '{oov_term}' → '{vocab_phrase}' "
                     f"weight={merged_weight:.4f} "
-                    f"(idf={base_weight:.3f} × sim={sim_score:.3f} × "
+                    f"(idf={base_weight:.3f} × sim²={sim_sq:.3f} × "
                     f"discount={expansion_weight})"
                 )
             else:
@@ -484,6 +830,7 @@ def merge_expanded_phrases(
         f"→ {len(phrase_weights)} unique weighted phrases"
     )
     return phrase_weights
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -538,7 +885,7 @@ def extract_query_phrases(
     query           : str,
     phrase_vocab    : Set[str],
     use_spacy       : bool = True,
-    remove_verbs    : bool = True,
+    remove_verbs    : bool = False,
     filter_generic  : bool = True,
     min_word_length : int  = 3,
 ) -> List[str]:
@@ -706,7 +1053,7 @@ def extract_query_phrases(
 def construct_query_fingerprint(
     query_phrases       : List[str],
     phrase_fingerprints : Dict[str, csr_matrix],
-    weighting           : str                        = "uniform",
+    weighting           : str                        = "idf",
     idf_weights         : Optional[Dict[str, float]] = None,
     normalization       : str                        = "l2",
 ) -> Tuple[Optional[csr_matrix], Dict]:
@@ -991,10 +1338,10 @@ def apply_spreading(
 
     logger.debug(
         f"  [SPREAD GUARD] sparsity={sparsity:.4f} "
-        f"({fingerprint.nnz} bits / {n_cells} cells), threshold=0.02"
+        f"({fingerprint.nnz} bits / {n_cells} cells), threshold={SPARCITY_GAURD}"
     )
 
-    if sparsity < 0.02:
+    if sparsity < SPARCITY_GAURD:
         logger.warning(
             f"Fingerprint very sparse ({sparsity:.4f}, {fingerprint.nnz} bits "
             f"/ {n_cells} cells) — spreading skipped to avoid score collapse."
@@ -1022,10 +1369,10 @@ def apply_spreading(
             dist = max(abs(nx - x), abs(ny - y))
             contribution = value * (decay ** dist)
             spread_fp[ny, nx] += contribution
-            logger.debug(
-                f"    [SPREAD PROP] ({x},{y})→({nx},{ny}) "
-                f"dist={dist} val={value:.4f} contrib={contribution:.4f}"
-            )
+            # logger.debug(
+            #     f"    [SPREAD PROP] ({x},{y})→({nx},{ny}) "
+            #     f"dist={dist} val={value:.4f} contrib={contribution:.4f}"
+            # )
 
     result = csr_matrix(spread_fp.reshape(1, -1))
     pre_norm_nnz = result.nnz
@@ -1072,21 +1419,21 @@ def rank_documents(
     **kwargs,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     """
-    Rank documents by weighted overlap with the query fingerprint.
+    Rank documents by asymmetric cosine similarity against the query fingerprint.
 
-    Instead of cosine similarity (which loses IDF signal when comparing
-    float query vectors against binary document vectors), this computes
-    a weighted overlap score: for each active bit in a document, sum the
-    corresponding weight from the query vector.
+    Score formula:
+        score(q, d) = dot(q, d) / (||q||₂ × sqrt(doc_nnz))
 
-    This preserves the IDF weighting from the query — rare terms contribute
-    more strongly to the score than common terms.
+    This is a deliberate asymmetric cosine: the query is fully L2-normalised
+    (preserving IDF weighting from phrase scores), while the document side uses
+    sqrt(nnz) — a mild length penalty that avoids over-penalising dense SDRs
+    compared to full L2 normalisation of binary vectors.
 
     Parameters
     ----------
     query_fp : csr_matrix
-        Query fingerprint vector ``(1, grid_size²)``, potentially
-        float-weighted.
+        Query fingerprint vector ``(1, grid_size²)``, float-weighted and
+        ideally L2-normalised upstream (process_query Stage 2).
     doc_fingerprints : Dict[str, csr_matrix]
         Mapping of ``{doc_id: fingerprint_vector}``.
     top_k : int
@@ -1094,8 +1441,7 @@ def rank_documents(
     min_similarity : float, optional
         Minimum score threshold; documents below this are excluded.
     use_batch : bool, optional
-        Accepted for API compatibility; ignored (dot-product path is
-        always used regardless of corpus size).
+        Accepted for API compatibility; batch path used when corpus > 50 docs.
     **kwargs
         Catches any additional legacy keyword arguments without error.
 
@@ -1129,6 +1475,14 @@ def rank_documents(
         logger.warning("No document fingerprints provided — returning no results")
         return [], empty_meta
 
+    # Precompute query L2 norm once — reused for every document
+    query_norm = np.sqrt(query_fp.power(2).sum())
+    if query_norm < 1e-9:
+        logger.warning("Query fingerprint has near-zero norm — returning no results")
+        return [], empty_meta
+
+    logger.debug(f"  [RANK] query_norm={query_norm:.4f}")
+
     all_scores: List[Tuple[str, float]] = []
     skipped_empty = 0
 
@@ -1138,12 +1492,14 @@ def rank_documents(
             logger.debug(f"  [RANK SKIP] '{doc_id}' has zero active bits")
             continue
 
-        score = float(query_fp.dot(doc_fp.T).toarray()[0, 0])
-        score = score / np.sqrt(doc_fp.nnz)
+        raw_dot = float(query_fp.dot(doc_fp.T).toarray()[0, 0])
+        # Asymmetric cosine: full query norm, sqrt(nnz) for doc length penalty
+        score   = raw_dot / (query_norm * np.sqrt(doc_fp.nnz))
 
         logger.debug(
-            f"  [RANK SCORE] '{doc_id}' raw_dot={score * np.sqrt(doc_fp.nnz):.4f}, "
-            f"doc_nnz={doc_fp.nnz}, normalised={score:.4f}"
+            f"  [RANK SCORE] '{doc_id}' raw_dot={raw_dot:.4f}, "
+            f"doc_nnz={doc_fp.nnz}, query_norm={query_norm:.4f}, "
+            f"score={score:.4f}"
         )
         all_scores.append((doc_id, score))
 
@@ -1273,7 +1629,6 @@ def display_results(
 # ─────────────────────────────────────────────────────────────────────────────
 # End-to-end single query processor
 # ─────────────────────────────────────────────────────────────────────────────
-
 def process_query(
     query               : str,
     phrase_fingerprints : Dict[str, csr_matrix],
@@ -1291,11 +1646,22 @@ def process_query(
          ``phrase_vocab`` (the keys of ``phrase_fingerprints``).
        - Re-run the raw extraction pipeline (spaCy or fallback n-gram) to
          collect *all* candidate phrases before the vocabulary filter.
-         Any candidate absent from ``phrase_vocab`` is OOV.
+       - Compute two disjoint sets from ``all_expanded``:
+
+         * ``vocab_hits_from_raw`` — candidates that *are* in
+           ``phrase_vocab`` but were missed by ``extract_query_phrases``
+           (typically multi-word phrases).
+         * ``oov_terms`` — candidates that are *absent* from
+           ``phrase_vocab`` and require fingerprint-similarity expansion.
+
+       - Merge ``matched_phrases`` (from ``extract_query_phrases``) with
+         ``vocab_hits_from_raw`` into ``combined_matched`` so that
+         multi-word vocabulary phrases receive their IDF weight and
+         contribute to the query fingerprint.
        - Build a fingerprint index over the entire phrase vocabulary and
          use it to find, for each OOV term, the most semantically similar
          in-vocabulary phrases (scored by fingerprint cosine similarity).
-       - Merge matched phrases and OOV expansions into a single
+       - Merge ``combined_matched`` and OOV expansions into a single
          ``phrase_weights`` dict.  Matched phrases receive their
          IDF-derived weight (or 1.0 if no IDF table is provided); OOV
          substitutes receive a discounted weight
@@ -1374,6 +1740,12 @@ def process_query(
 
     Notes
     -----
+    * ``extract_query_phrases`` is vocabulary-filtered and typically
+      returns only single-token or very common multi-word matches.
+      Multi-word phrases like "cognitive skills" that exist in the vocab
+      but are not returned by that function are recovered via
+      ``vocab_hits_from_raw`` — the intersection of ``all_expanded``
+      (raw spaCy/n-gram candidates) and ``phrase_vocab``.
     * :func:`construct_query_fingerprint` is called with
       ``weighting="uniform"`` and its output fingerprint is immediately
       overridden by the manual re-accumulation loop.  The call is used
@@ -1388,13 +1760,15 @@ def process_query(
 
     phrase_vocab    = set(phrase_fingerprints.keys())
     use_spacy       = not getattr(args, "no_spacy",        False)
-    remove_verbs    = getattr(args, "remove_verbs",        True)
+    remove_verbs    = getattr(args, "remove_verbs",        False)
     filter_generic  = getattr(args, "filter_generic",      True)
     min_word_length = getattr(args, "min_word_length",     3)
 
-    # ── Stage 1: phrase extraction + OOV expansion ────────────────────────────
+    # ── Stage 1: phrase extraction + OOV expansion ───────────────────────────
     logger.debug("  [STAGE 1] phrase extraction + OOV expansion")
 
+    # Primary extraction: vocabulary-filtered, typically returns single tokens
+    # and the most common short phrases, but often misses multi-word vocab hits.
     matched_phrases = extract_query_phrases(
         query, phrase_vocab,
         use_spacy=use_spacy, remove_verbs=remove_verbs,
@@ -1402,7 +1776,8 @@ def process_query(
     )
     logger.debug(f"  [STAGE 1] matched_phrases={matched_phrases}")
 
-    # Re-run raw extraction to collect every candidate before vocab filter
+    # Re-run raw extraction to collect every candidate before vocab filter.
+    # This is the source of truth for both multi-word vocab hits and OOV terms.
     if use_spacy and SPACY_AVAILABLE:
         doc = nlp(query)
         raw = extract_raw_phrases_spacy(doc)
@@ -1411,6 +1786,7 @@ def process_query(
 
     logger.debug(f"  [STAGE 1] raw candidates={raw}")
 
+    # Normalise and expand every raw candidate into a flat list
     all_expanded = []
     for p in raw:
         norm_p = normalize_phrase(p, remove_verbs=remove_verbs)
@@ -1425,11 +1801,62 @@ def process_query(
     )
     logger.debug(f"  [STAGE 1] expanded candidates={all_expanded}")
 
-    oov_terms = [p for p in all_expanded if p not in phrase_vocab]
+    # ── Partition all_expanded into vocab hits and OOV terms ─────────────────
+    #
+    # vocab_hits_from_raw: candidates that ARE in phrase_vocab but were NOT
+    #   returned by extract_query_phrases (typically multi-word phrases like
+    #   "cognitive skills", "human brain", "new neural connection").
+    #   These carry genuine fingerprint coordinates and must be included so
+    #   that multi-word concepts contribute to the query vector.
+    #
+    # oov_terms: candidates absent from phrase_vocab entirely — handled by
+    #   expand_oov_query_terms via fingerprint cosine similarity.
+    vocab_hits_from_raw = [p for p in all_expanded if p in phrase_vocab]
+    oov_terms           = [p for p in all_expanded if p not in phrase_vocab]
+
+    logger.debug(
+        f"  [STAGE 1] vocab hits from raw extraction "
+        f"({len(vocab_hits_from_raw)}): {vocab_hits_from_raw}"
+    )
     logger.debug(f"  [STAGE 1] OOV terms ({len(oov_terms)}): {oov_terms}")
     logger.info(f"OOV terms identified for expansion: {oov_terms}")
 
-    # Build fingerprint index from memory — avoids redundant disk I/O
+    # ── Build combined_matched: merge both sources of vocabulary hits ─────────
+    #
+    # Priority order (first writer wins for duplicates):
+    #   1. matched_phrases  — from extract_query_phrases (may carry pre-computed
+    #                         weights if returned as a dict)
+    #   2. vocab_hits_from_raw — recovered multi-word hits, base weight 1.0
+    #                            (IDF scaling is applied inside merge_expanded_phrases)
+    combined_matched: Dict[str, float] = {}
+
+    if isinstance(matched_phrases, dict):
+        # extract_query_phrases returned pre-weighted dict — preserve weights
+        combined_matched.update(matched_phrases)
+    else:
+        # extract_query_phrases returned a plain list — assign base weight 1.0
+        combined_matched.update({p: 1.0 for p in matched_phrases})
+
+    for p in vocab_hits_from_raw:
+        if p not in combined_matched:
+            # New multi-word hit not seen by extract_query_phrases
+            combined_matched[p] = 1.0   # IDF will rescale this in merge step
+            logger.debug(f"  [STAGE 1] added raw vocab hit: '{p}'")
+        else:
+            logger.debug(
+                f"  [STAGE 1] raw vocab hit '{p}' already in combined_matched "
+                f"(weight={combined_matched[p]:.4f}) — kept existing weight"
+            )
+
+    logger.debug(
+        f"  [STAGE 1] combined_matched ({len(combined_matched)}): "
+        f"{list(combined_matched.keys())}"
+    )
+
+    # ── Build in-memory fingerprint index for OOV expansion ──────────────────
+    #
+    # Building from phrase_fingerprints avoids redundant disk I/O; the same
+    # csr_matrix objects are already loaded in memory.
     vocab_fp_index = {
         p: (fp.toarray().ravel() if hasattr(fp, "toarray")
             else np.asarray(fp).ravel())
@@ -1445,13 +1872,15 @@ def process_query(
         vocab_fp_index=vocab_fp_index,
         phrase_fp_dir=str(args.phrase_fp_dir),
         grid_size=getattr(args, "grid_size", 128),
-        top_k_per_term=3,
-        min_similarity=0.15,
     )
     logger.debug(f"  [STAGE 1] oov_expansions={oov_expansions}")
 
+    # ── Merge combined_matched + OOV expansions into final phrase_weights ─────
+    #
+    # combined_matched (not the original matched_phrases) is passed here so
+    # that multi-word vocab hits recovered from raw extraction are included.
     phrase_weights = merge_expanded_phrases(
-        matched_phrases=matched_phrases,
+        matched_phrases=combined_matched,   # Bug 3 fix: was matched_phrases
         oov_expansions=oov_expansions,
         idf_weights=idf_weights,
         expansion_weight=0.6,
@@ -1478,16 +1907,20 @@ def process_query(
 
     norm = None if args.normalization == "none" else args.normalization
 
-    # Called for metadata only; fingerprint is overridden by weighted accum
+    # construct_query_fingerprint is called for its metadata side-effect only.
+    # The returned fingerprint uses uniform weights and is immediately replaced
+    # by the manual weighted accumulation below.
+    _effective_weighting = getattr(args, "weighting", "uniform")
     query_fp, query_metadata = construct_query_fingerprint(
         query_phrases=list(phrase_weights.keys()),
         phrase_fingerprints=phrase_fingerprints,
-        weighting="uniform",
-        idf_weights=None,
-        normalization=norm,
+        weighting=_effective_weighting,          # ← respects --weighting
+        idf_weights=idf_weights,                 # ← respects --idf
+        normalization=getattr(args, "normalization", "l2"),
     )
 
-    # Re-accumulate with correct per-phrase weights (IDF + expansion discounts)
+    # Manual re-accumulation: apply per-phrase weights (IDF + expansion discounts)
+    # so the final vector correctly reflects the importance of each phrase.
     if query_fp is not None:
         grid_size_sq = query_fp.shape[1]
         acc = np.zeros(grid_size_sq, dtype=np.float32)
@@ -1557,7 +1990,7 @@ def process_query(
             query_fp, grid_size,
             radius=spreading_steps,
             decay=getattr(args, "spreading_decay", 0.5),
-            normalize_after=getattr(args, "normalize_after_spreading", False),
+            normalize_after=getattr(args, "normalize_after_spreading", True),
         )
     else:
         logger.debug("  [STAGE 3] spreading skipped (spreading_steps=0)")
@@ -1657,12 +2090,8 @@ def parse_args() -> argparse.Namespace:
         help="Force NLTK fallback extraction (use if Step 1 used --no-spacy).",
     )
     parser.add_argument(
-        "--remove-verbs", dest="remove_verbs", action="store_true", default=True,
-        help="Strip verb tokens before lemmatisation (default: on, mirrors Step 1).",
-    )
-    parser.add_argument(
-        "--keep-verbs", dest="remove_verbs", action="store_false",
-        help="Keep verb forms (use only if Step 1 used --keep-verbs).",
+        "--keep-verbs", dest="remove_verbs", action="store_false", default=False,
+        help="Keep verb forms (default: on, mirrors Step 1 --keep-verbs).",
     )
     parser.add_argument(
         "--no-filter-generic", dest="filter_generic", action="store_false",

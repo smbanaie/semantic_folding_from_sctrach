@@ -45,36 +45,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
-from loguru import logger
-
 import numpy as np
 from scipy.sparse import csr_matrix, lil_matrix
-
-# ── spaCy bootstrap ───────────────────────────────────────────────────────────
-try:
-    import spacy
-    SPACY_AVAILABLE = True
-    logger.debug("spaCy imported successfully")
-    try:
-        nlp = spacy.load("en_core_web_sm")
-        logger.success("spaCy model 'en_core_web_sm' loaded")
-    except OSError:
-        logger.warning("spaCy model not found — run: python -m spacy download en_core_web_sm")
-        SPACY_AVAILABLE = False
-except ImportError:
-    logger.warning("spaCy not installed — falling back to NLTK extraction")
-    SPACY_AVAILABLE = False
-
-# NLTK only needed when spaCy is unavailable
-if not SPACY_AVAILABLE:
-    logger.debug("Importing NLTK fallback tokenizer and POS tagger")
-    from nltk.tokenize import word_tokenize
-    from nltk import pos_tag
-
 
 # ---------------------------------------------------------------------------
 # Project-local imports
@@ -85,6 +60,21 @@ from phrase_extractor import (
     SPACY_AVAILABLE
 )
 
+if SPACY_AVAILABLE:
+    from phrase_extractor import nlp 
+    
+from lib import get_logger
+logger = get_logger("doc_fingerprints")
+
+# NLTK only needed when spaCy is unavailable
+if not SPACY_AVAILABLE:
+    logger.debug("Importing NLTK fallback tokenizer and POS tagger")
+    from nltk.tokenize import word_tokenize
+    from nltk import pos_tag
+
+
+
+
 from lib import (
     compute_fingerprint_diversity,
     expand_phrases,
@@ -94,18 +84,6 @@ from lib import (
     sparsify_fingerprint,
     normalize_phrase,  
 )
-
-
-
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +173,6 @@ def extract_phrases_from_doc(
     (Step 5).
     """
     # ── Stage 1: extraction + normalisation ──────────────────────────────────
-        # ── Stage 1: extraction + normalisation ──────────────────────────────────
     if use_spacy:
         doc = nlp(text)
         raw_phrases = extract_raw_phrases_spacy(doc)
@@ -323,7 +300,6 @@ def sparsify_to_sdr(
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
-
 def build_doc_fingerprints(
     corpus_path       : Path,
     fingerprints_path : Path,
@@ -341,35 +317,105 @@ def build_doc_fingerprints(
 ) -> Tuple[np.ndarray, Dict[str, int], dict]:
     """
     Full Step-5 pipeline: build document SDRs from phrase fingerprints.
+
+    Loads phrase fingerprints produced by Step 4 (phrase_fingerprints.py),
+    optionally weights them with IDF scores from Step 2, then builds one
+    sparse SDR per document in the corpus.
+
+    Supports two formats for phrase_fingerprints_meta.json:
+      - Nested  (preferred): {"phrase_to_row": {"phrase": row_idx, ...}}
+      - Flat    (legacy):    {"phrase": row_idx, ...}
+
+    Parameters
+    ----------
+    corpus_path       : Path to the corpus JSON file (doc_id → text).
+    fingerprints_path : Directory containing phrase_fingerprints.npz
+                        and phrase_fingerprints_meta.json (Step 4 outputs).
+    idf_weights_path  : Optional path to idf_weights.json (Step 2 output).
+                        If None or missing, falls back to TF-only accumulation.
+    grid_size         : SDR grid side length; total bits = grid_size².
+    top_percent       : Fraction of bits to activate per document SDR.
+    normalize         : Whether to normalise each document fingerprint.
+    normalize_method  : Normalisation method passed to normalize_fingerprint()
+                        (e.g. "l2", "l1", "max").
+    use_spacy         : Use spaCy for phrase extraction (falls back to NLTK
+                        if spaCy is unavailable at runtime).
+    remove_verbs      : Strip verb tokens during phrase extraction.
+    filter_generic    : Remove generic/stopword-heavy phrases.
+    min_word_length   : Minimum character length for individual tokens.
+    compute_diversity : If True, log pairwise diversity metrics after building.
+    diversity_sample  : Number of documents sampled for diversity computation.
+
+    Returns
+    -------
+    fp_matrix     : np.ndarray of shape (n_docs, grid_size²), dtype float32.
+    doc_index_map : Dict mapping doc_id → row index in fp_matrix.
+    stats         : Dict with summary statistics (counts, skip rate, density).
     """
 
     # ── 1. Load Phrase Fingerprints (Step 4) ──────────────────────────────────
-    npz_path = fingerprints_path / "phrase_fingerprints.npz"
+    npz_path  = fingerprints_path / "phrase_fingerprints.npz"
     meta_path = fingerprints_path / "phrase_fingerprints_meta.json"
-    
+
     if not npz_path.exists() or not meta_path.exists():
-        logger.error(f"Missing Step 4 outputs in directory: {fingerprints_path}")
+        logger.error("Missing Step 4 outputs in directory: %s", fingerprints_path)
         sys.exit(1)
 
     logger.info("Loading phrase fingerprints from %s ...", npz_path)
     data = np.load(str(npz_path))
-    phrase_fingerprints = data["fingerprints"]  # dense array
+    phrase_fingerprints = data["fingerprints"]  # shape: (n_phrases, grid_size²)
 
-    with open(meta_path, 'r', encoding='utf-8') as f:
-        meta_data = json.load(f)
-        # Handle dict wrapping if present
-        phrase_to_row = meta_data.get("phrase_to_row", meta_data)
+    with open(meta_path, "r", encoding="utf-8") as f:
+        meta_data: dict = json.load(f)
 
-    logger.info("  %d phrase fingerprints loaded. Grid size: %d", len(phrase_to_row), phrase_fingerprints.shape[1])
+    # ── Option B: handle both nested {"phrase_to_row": {...}} and flat {phrase: idx} formats ──
+    phrase_to_row: Optional[Dict[str, int]] = meta_data.get("phrase_to_row")
+
+    if phrase_to_row is None:
+        # Step 4 wrote a flat dict directly — detect by checking value types.
+        # A valid flat map has all integer values (row indices).
+        if (
+            isinstance(meta_data, dict)
+            and len(meta_data) > 0
+            and isinstance(next(iter(meta_data.values())), int)
+        ):
+            phrase_to_row = meta_data
+            logger.warning(
+                "phrase_fingerprints_meta.json is in flat format "
+                "(phrase → row_index directly). "
+                "Consider re-running Step 4 to produce the nested format."
+            )
+        else:
+            logger.error(
+                "phrase_fingerprints_meta.json is missing 'phrase_to_row' "
+                "and does not appear to be a valid flat phrase→index map. "
+                "Please re-run Step 4 (phrase_fingerprints.py)."
+            )
+            sys.exit(2)
+
+    if not phrase_to_row:
+        # Nested key existed but was empty, or flat map was empty.
+        logger.error(
+            "phrase_to_row mapping is empty after loading. "
+            "Please check Step 4 output."
+        )
+        sys.exit(2)
+
+    logger.info(
+        "  %d phrase fingerprints loaded. Grid size: %d",
+        len(phrase_to_row), phrase_fingerprints.shape[1],
+    )
 
     # ── 2. Load IDF Weights (Step 2) ──────────────────────────────────────────
-    idf_weights = {}
+    idf_weights: Dict[str, float] = {}
     if idf_weights_path and idf_weights_path.exists():
         logger.info("Loading global IDF weights from %s ...", idf_weights_path)
-        with open(idf_weights_path, 'r', encoding='utf-8') as f:
+        with open(idf_weights_path, "r", encoding="utf-8") as f:
             idf_weights = json.load(f)
     else:
-        logger.warning("No IDF weights provided or found. Defaulting to TF-only accumulation.")
+        logger.warning(
+            "No IDF weights provided or found. Defaulting to TF-only accumulation."
+        )
 
     # ── 3. Corpus ─────────────────────────────────────────────────────────────
     logger.info("Loading corpus from %s ...", corpus_path)
@@ -441,7 +487,7 @@ def build_doc_fingerprints(
         len(sparse_fps), skipped,
     )
 
-    # ── 5. Optional diversity report ─────────────────────────────────────────
+    # ── 5. Optional diversity report ──────────────────────────────────────────
     if compute_diversity and sparse_fps:
         logger.info(
             "Computing fingerprint diversity (sample=%d) ...", diversity_sample

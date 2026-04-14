@@ -1,0 +1,184 @@
+last_run_id: '20260414_233534'
+last_step: 6
+runs:
+  '20260414_204659':
+    created_at: '2026-04-14T20:47:01.573461'
+    steps: {}
+  '20260414_204725':
+    created_at: '2026-04-14T20:47:26.230130'
+    steps:
+      1:
+        name: Phrase Extraction
+        completed_at: '2026-04-14T21:40:28.381749'
+        parameters:
+          corpus: data\corpus_100.txt
+          output: outputs\20260414_204725\extracted_phrases
+          min_freq: '1'
+          min_word_length: '3'
+          use_spacy: true
+          filter_generic: true
+          keep_verbs: true
+          stats: false
+        output: outputs\20260414_204725\extracted_phrases
+        extra_outputs:
+          vocab: outputs\20260414_204725\extracted_phrases\vocabulary.csv
+          mapping: outputs\20260414_204725\extracted_phrases\phrase_to_contexts.json
+      2:
+        name: Term-Context Matrix
+        completed_at: '2026-04-14T21:41:33.971734'
+        parameters:
+          corpus: data\corpus_100.txt
+          vocab: outputs\20260414_204725\extracted_phrases\vocabulary.csv
+          mapping: outputs\20260414_204725\extracted_phrases\phrase_to_contexts.json
+          output: outputs\20260414_204725\term_context_matrix
+          use_tfidf: true
+        output: outputs\20260414_204725\term_context_matrix
+        extra_outputs:
+          matrix_npz: outputs\20260414_204725\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\20260414_204725\term_context_matrix\term_context_matrix.json
+          idf_weights: outputs\20260414_204725\term_context_matrix\idf_weights.json
+      3:
+        name: Semantic Space
+        completed_at: '2026-04-14T21:47:14.754794'
+        parameters:
+          matrix: outputs\20260414_204725\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\20260414_204725\term_context_matrix\term_context_matrix.json
+          output: outputs\20260414_204725\semantic_space
+          method: tsne
+          grid_size: '128'
+          visualize: true
+          show_density: false
+        output: outputs\20260414_204725\semantic_space
+      4:
+        name: Phrase Fingerprints
+        completed_at: '2026-04-14T21:47:27.331151'
+        parameters:
+          coordinates: outputs\20260414_204725\semantic_space\context_coordinates.json
+          metadata: outputs\20260414_204725\term_context_matrix\term_context_matrix.json
+          output: outputs\20260414_204725\phrase_fingerprints
+          grid_size: '128'
+        output: outputs\20260414_204725\phrase_fingerprints
+      5:
+        name: Document Fingerprints
+        completed_at: '2026-04-14T21:59:08.524899'
+        parameters:
+          corpus: data\corpus_100.txt
+          fingerprints: outputs\20260414_204725\phrase_fingerprints
+          output: outputs\20260414_204725\doc_fingerprints
+          idf_weights: outputs\20260414_204725\term_context_matrix\idf_weights.json
+          grid_size: '128'
+          top_percent: '0.1'
+          normalize: true
+          normalize_method: l2
+          use_spacy: true
+          keep_verbs: true
+          filter_generic: true
+          min_word_length: '3'
+        output: outputs\20260414_204725\doc_fingerprints
+      6:
+        name: Query Processing
+        completed_at: '2026-04-14T22:00:27.643619'
+        parameters:
+          query: How do models minimize a cost function using gradients and the chain
+            rule to update synaptic weights?
+          phrase_fp_dir: outputs\20260414_204725\phrase_fingerprints
+          doc_fp_dir: outputs\20260414_204725\doc_fingerprints
+          weighting: idf
+          idf: outputs\20260414_204725\term_context_matrix\idf_weights.json
+          top_k: '5'
+          spreading_steps: '1'
+          keep_verbs: true
+          output: outputs\20260414_204725\query_results.json
+          grid_size: '128'
+        output: outputs\20260414_204725\query_results.json
+  '20260414_231555':
+    created_at: '2026-04-14T23:15:56.411452'
+    steps: {}
+  '20260414_233534':
+    created_at: '2026-04-14T23:35:35.589316'
+    steps:
+      1:
+        name: Phrase Extraction
+        completed_at: '2026-04-14T23:36:50.353591'
+        parameters:
+          corpus: data\corpus_100.txt
+          output: outputs\20260414_233534\extracted_phrases
+          min_freq: '1'
+          min_word_length: '3'
+          use_spacy: true
+          filter_generic: true
+          keep_verbs: true
+          stats: false
+        output: outputs\20260414_233534\extracted_phrases
+        extra_outputs:
+          vocab: outputs\20260414_233534\extracted_phrases\vocabulary.csv
+          mapping: outputs\20260414_233534\extracted_phrases\phrase_to_contexts.json
+      2:
+        name: Term-Context Matrix
+        completed_at: '2026-04-14T23:37:05.100756'
+        parameters:
+          corpus: data\corpus_100.txt
+          vocab: outputs\20260414_233534\extracted_phrases\vocabulary.csv
+          mapping: outputs\20260414_233534\extracted_phrases\phrase_to_contexts.json
+          output: outputs\20260414_233534\term_context_matrix
+          use_tfidf: true
+        output: outputs\20260414_233534\term_context_matrix
+        extra_outputs:
+          matrix_npz: outputs\20260414_233534\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\20260414_233534\term_context_matrix\term_context_matrix.json
+          idf_weights: outputs\20260414_233534\term_context_matrix\idf_weights.json
+      3:
+        name: Semantic Space
+        completed_at: '2026-04-14T23:37:27.981308'
+        parameters:
+          matrix: outputs\20260414_233534\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\20260414_233534\term_context_matrix\term_context_matrix.json
+          output: outputs\20260414_233534\semantic_space
+          method: tsne
+          grid_size: '128'
+          visualize: true
+          show_density: false
+        output: outputs\20260414_233534\semantic_space
+      4:
+        name: Phrase Fingerprints
+        completed_at: '2026-04-14T23:38:14.208005'
+        parameters:
+          coordinates: outputs\20260414_233534\semantic_space\context_coordinates.json
+          metadata: outputs\20260414_233534\term_context_matrix\term_context_matrix.json
+          output: outputs\20260414_233534\phrase_fingerprints
+          grid_size: '128'
+        output: outputs\20260414_233534\phrase_fingerprints
+      5:
+        name: Document Fingerprints
+        completed_at: '2026-04-14T23:39:49.382998'
+        parameters:
+          corpus: data\corpus_100.txt
+          fingerprints: outputs\20260414_233534\phrase_fingerprints
+          output: outputs\20260414_233534\doc_fingerprints
+          idf_weights: outputs\20260414_233534\term_context_matrix\idf_weights.json
+          grid_size: '128'
+          top_percent: '0.1'
+          normalize: true
+          normalize_method: l2
+          use_spacy: true
+          keep_verbs: true
+          filter_generic: true
+          min_word_length: '3'
+        output: outputs\20260414_233534\doc_fingerprints
+      6:
+        name: Query Processing
+        completed_at: '2026-04-14T23:47:09.543213'
+        parameters:
+          query: How do Parallel Distributed Processing (PDP) connectionist models
+            simulate cognitive behavior through the emergent properties of weighted
+            networks?
+          phrase_fp_dir: outputs\20260414_233534\phrase_fingerprints
+          doc_fp_dir: outputs\20260414_233534\doc_fingerprints
+          weighting: idf
+          idf: outputs\20260414_233534\term_context_matrix\idf_weights.json
+          top_k: '5'
+          spreading_steps: '1'
+          keep_verbs: true
+          output: outputs\20260414_233534\query_results.json
+          grid_size: '128'
+        output: outputs\20260414_233534\query_results.json

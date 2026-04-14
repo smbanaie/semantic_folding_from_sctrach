@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-from loguru import logger
 from scipy.ndimage import gaussian_filter1d
+
+from lib import get_logger
+logger = get_logger("phrase_fingerprints")
 
 """
 phrase_fingerprints.py
@@ -222,8 +224,7 @@ def xy_to_morton(x: int, y: int, grid_size: int) -> int:
 # ---------------------------------------------------------------------------
 # I/O helpers
 # ---------------------------------------------------------------------------
-
-def load_context_coordinates(coordinates_path: Path) -> Dict[int, Tuple[int, int]]:
+def load_context_coordinates(coordinates_path: Path) -> Dict[str, Tuple[int, int]]:
     """
     Load finalised context coordinates from the JSON map produced by
     ``semantic_space.py``.
@@ -235,14 +236,20 @@ def load_context_coordinates(coordinates_path: Path) -> Dict[int, Tuple[int, int
     Expected file format::
 
         {
-            "0": {"x": 5,  "y": 12},
-            "1": {"x": 14, "y": 3},
+            "CTX-AI-01": {"x": 5,  "y": 12},
+            "CTX-AI-02": {"x": 14, "y": 3},
             ...
         }
 
-    Entries that are malformed (missing keys, non-integer values, etc.) are
-    skipped with a ``WARNING`` log message so a single bad row does not abort
-    the entire run.
+    Keys are kept as-is from the JSON file (strings such as ``"CTX-AI-01"``).
+    They are **not** converted to integers.  The integer column indices stored
+    in ``phrase_contexts`` must first be resolved to string IDs via the
+    ``context_ids`` lookup table before querying this dict — see
+    :func:`main` for the bridging logic.
+
+    Entries that are malformed (missing keys, non-integer coordinate values,
+    etc.) are skipped with a ``WARNING`` log message so a single bad row does
+    not abort the entire run.
 
     Parameters
     ----------
@@ -251,8 +258,9 @@ def load_context_coordinates(coordinates_path: Path) -> Dict[int, Tuple[int, int
 
     Returns
     -------
-    Dict[int, Tuple[int, int]]
-        Mapping from ``context_id`` integers to ``(x, y)`` integer tuples.
+    Dict[str, Tuple[int, int]]
+        Mapping from string ``context_id`` (e.g. ``"CTX-AI-01"``) to
+        ``(x, y)`` integer tuples.
 
     Raises
     ------
@@ -261,28 +269,18 @@ def load_context_coordinates(coordinates_path: Path) -> Dict[int, Tuple[int, int
     json.JSONDecodeError
         If the file is not valid JSON.
     """
-    logger.info(f"Loading context coordinates from: {coordinates_path}")
-
     with open(coordinates_path, "r", encoding="utf-8") as fh:
         raw: dict = json.load(fh)
 
-    # FIX: Changed dictionary key type hint from str to int
-    coordinates: Dict[int, Tuple[int, int]] = {}
-
+    coordinates: Dict[str, Tuple[int, int]] = {}
     for context_id, xy in raw.items():
         try:
-            # FIX: Cast the string context_id (e.g., "0") to an integer (0)
-            coordinates[int(context_id)] = (int(xy["x"]), int(xy["y"]))
+            coordinates[context_id] = (int(xy["x"]), int(xy["y"]))  # key stays str
         except (KeyError, ValueError, TypeError) as exc:
-            logger.warning(
-                f"Skipping malformed coordinate entry '{context_id}': {exc}"
-            )
+            logger.warning(f"Skipping malformed coordinate entry '{context_id}': {exc}")
 
-    logger.success(
-        f"Loaded coordinates for {len(coordinates):,} contexts "
-        f"({len(raw) - len(coordinates):,} entries skipped)."
-    )
     return coordinates
+ 
 
 
 def load_phrase_metadata(path: str):
@@ -801,14 +799,20 @@ def main(argv: Optional[List[str]] = None) -> None:
     Orchestrates the full fingerprinting workflow:
 
     1.  Parse and validate CLI arguments.
-    2.  Load ``context_coordinates.json`` for ``O(1)`` context lookup.
+    2.  Load ``context_coordinates.json`` — string-keyed ``Dict[str, (x, y)]``.
     3.  Load ``term_context_matrix.json`` (phrases + frequencies).
-    4.  Validate grid bounds.
-    5.  For each phrase, build a 2D multi-hot fingerprint from its context
-        coordinates, optionally apply 2D Gaussian smoothing, and linearise
-        using Morton or row-major encoding.
-    6.  Compute summary statistics over the **finalised** matrix.
-    7.  Write ``.npz``, ``_meta.json``, and ``_stats.json`` outputs.
+    4.  Load ``phrase_contexts`` and ``context_ids`` from metadata.
+        ``phrase_contexts`` maps each phrase to a list of **integer column
+        indices**; ``context_ids`` is the ordered list of string context IDs
+        (e.g. ``["CTX-AI-01", "CTX-AI-02", …]``) that bridges those indices
+        to the string keys used in ``coordinates``.
+    5.  Validate grid bounds.
+    6.  For each phrase, resolve its integer context indices → string IDs →
+        ``(x, y)`` coordinates, build a 2-D multi-hot fingerprint, optionally
+        apply 2-D Gaussian smoothing, and linearise using Morton or row-major
+        encoding.
+    7.  Compute summary statistics over the **finalised** matrix.
+    8.  Write ``.npz``, ``_meta.json``, and ``_stats.json`` outputs.
 
     Parameters
     ----------
@@ -823,9 +827,24 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     Notes
     -----
-    Statistics (skip rate, sparsity, mean max activation) are computed in step
-    6 — **after** fingerprint construction and smoothing are complete — so they
-    accurately represent the final outputs rather than any intermediate state.
+    The integer-to-string ID bridge (step 4) is the critical alignment point
+    between Step 2 and Step 4 of the pipeline:
+
+    * ``phrase_contexts["representation"] = [0, 2, 3]``
+      — integer column indices produced by Step 2.
+    * ``context_ids[0] = "CTX-AI-01"``
+      — the lookup table that maps each index to its string context ID.
+    * ``coordinates["CTX-AI-01"] = (5, 12)``
+      — the string-keyed coordinate map produced by Step 3.
+
+    Without loading ``context_ids`` and using it as the bridge, the lookup
+    ``ctx_idx in coordinates`` would always miss because integer keys never
+    exist in a string-keyed dictionary.
+
+    Statistics (skip rate, sparsity, mean max activation) are computed in
+    step 7 — **after** fingerprint construction and smoothing are complete —
+    so they accurately represent the final outputs rather than any
+    intermediate state.
     """
     args = parse_args(argv)
     validate_inputs(args)
@@ -841,7 +860,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     logger.info("=" * 60)
 
     # ------------------------------------------------------------------
-    # 1. Load inputs
+    # 1. Load context coordinates
+    #    Keys are strings (e.g. "CTX-AI-01") as written by Step 3.
+    #    load_context_coordinates must NOT convert them to int.
     # ------------------------------------------------------------------
     try:
         coordinates = load_context_coordinates(args.coordinates)
@@ -849,38 +870,65 @@ def main(argv: Optional[List[str]] = None) -> None:
         logger.error(f"Malformed JSON in coordinates file: {exc}")
         sys.exit(2)
 
+    # ------------------------------------------------------------------
+    # 2. Load phrases and frequencies from metadata
+    # ------------------------------------------------------------------
     try:
         phrases, frequencies = load_phrase_metadata(args.metadata)
     except (json.JSONDecodeError, TypeError) as exc:
         logger.error(f"Malformed or unexpected JSON in metadata file: {exc}")
         sys.exit(2)
 
-    # Load phrase-context mappings from metadata
+    # ------------------------------------------------------------------
+    # 3. Load phrase_contexts and context_ids from metadata
+    #
+    #    phrase_contexts : Dict[str, List[int]]
+    #        Maps each phrase string to a list of integer column indices
+    #        (e.g. {"representation": [0, 2, 3], …}).  These indices are
+    #        positions into context_ids, NOT keys into coordinates.
+    #
+    #    context_ids : List[str]
+    #        Ordered list of string context IDs produced by Step 2
+    #        (e.g. ["CTX-AI-01", "CTX-AI-02", …]).  Acts as the lookup
+    #        table that converts an integer index → string ID so we can
+    #        then retrieve (x, y) from the coordinates dict.
+    # ------------------------------------------------------------------
     try:
         with open(args.metadata, encoding="utf-8") as fh:
             metadata = json.load(fh)
-        phrase_contexts = metadata.get("phrase_contexts", {})
-        
+
+        phrase_contexts: Dict[str, List[int]] = metadata.get("phrase_contexts", {})
+        context_ids: List[str]                = metadata.get("context_ids", [])
+
         if not phrase_contexts:
             logger.error(
                 "Metadata missing 'phrase_contexts' field. "
                 "Please re-run Step 2 (term_context.py) to generate this field."
             )
             sys.exit(2)
-            
+
+        if not context_ids:
+            logger.error(
+                "Metadata missing 'context_ids' field. "
+                "This list is required to map integer context indices to string "
+                "coordinate keys. Please re-run Step 2 (term_context.py)."
+            )
+            sys.exit(2)
+
         logger.info(f"Loaded phrase-context mappings for {len(phrase_contexts):,} phrases")
-        
+        logger.info(f"Loaded context_ids lookup table  ({len(context_ids):,} entries)")
+
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
-        logger.error(f"Failed to load phrase_contexts from metadata: {exc}")
+        logger.error(f"Failed to load phrase_contexts / context_ids from metadata: {exc}")
         sys.exit(2)
 
     # ------------------------------------------------------------------
-    # 2. Validate grid bounds
+    # 4. Validate grid bounds
     # ------------------------------------------------------------------
     validate_grid_bounds(coordinates, args.grid_size)
 
     # ------------------------------------------------------------------
-    # 3. Build fingerprints
+    # 5. Build fingerprints
     # ------------------------------------------------------------------
     vector_size     = args.grid_size * args.grid_size
     n_phrases       = len(phrases)
@@ -893,9 +941,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     for row_idx, phrase_text in enumerate(phrases):
         phrase_id = str(row_idx)
 
-        # Get context indices where this phrase appears
-        context_indices = phrase_contexts.get(phrase_text, [])
-        
+        # Integer column indices where this phrase appears across contexts.
+        # These are positions into context_ids, not keys into coordinates.
+        context_indices: List[int] = phrase_contexts.get(phrase_text, [])
+
         if not context_indices:
             logger.warning(
                 f"Phrase '{phrase_text}' (id={phrase_id}): "
@@ -904,32 +953,51 @@ def main(argv: Optional[List[str]] = None) -> None:
             skipped += 1
             continue
 
-        # FAST O(1) LOOKUP: Construct key and map directly to bypass O(N) string manipulation
+        # Bridge: int index → string context ID → (x, y) coordinate
+        #
+        #   ctx_idx          : int   — column index from phrase_contexts
+        #   context_ids[idx] : str   — e.g. "CTX-AI-01"
+        #   coordinates[sid] : tuple — (x, y) grid position
+        #
+        # We guard against out-of-range indices (malformed metadata) and
+        # missing coordinate entries (context exists in matrix but was
+        # excluded from the coordinate map for any reason).
         context_coords_list = []
         for ctx_idx in context_indices:
-            # ctx_idx is already an integer (e.g., 0)
-            # coordinates keys are now integers (e.g., 0)
-            if ctx_idx in coordinates:
-                context_coords_list.append(coordinates[ctx_idx])
+            if ctx_idx >= len(context_ids):
+                logger.warning(
+                    f"Phrase '{phrase_text}': ctx_idx {ctx_idx} is out of range "
+                    f"for context_ids (len={len(context_ids)}) — skipping entry."
+                )
+                continue
 
+            str_id = context_ids[ctx_idx]          # int  →  "CTX-AI-01"
+
+            if str_id not in coordinates:
+                logger.warning(
+                    f"Phrase '{phrase_text}': context '{str_id}' not found in "
+                    f"coordinates map — skipping entry."
+                )
+                continue
+
+            context_coords_list.append(coordinates[str_id])   # (x, y)
 
         if not context_coords_list:
             logger.warning(
                 f"Phrase '{phrase_text}' (id={phrase_id}): "
-                f"none of its contexts were found in coordinates map — skipping."
+                f"none of its contexts resolved to coordinates — skipping."
             )
             skipped += 1
             continue
 
         try:
-            # Combined build, 2D smooth, and flatten process
             fp = build_and_smooth_fingerprint(
                 phrase_text=phrase_text,
                 context_coords_list=context_coords_list,
                 grid_size=args.grid_size,
                 use_morton=args.use_morton,
                 apply_smooth=args.smooth,
-                sigma=args.sigma
+                sigma=args.sigma,
             )
         except ValueError as exc:
             logger.warning(
@@ -939,8 +1007,8 @@ def main(argv: Optional[List[str]] = None) -> None:
             skipped += 1
             continue
 
-        fingerprints[row_idx]         = fp
-        token_index_map[phrase_text]  = row_idx
+        fingerprints[row_idx]        = fp
+        token_index_map[phrase_text] = row_idx
 
     logger.info(
         f"Fingerprinting complete: "
@@ -948,7 +1016,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     )
 
     # ------------------------------------------------------------------
-    # 4. Compute statistics AFTER finalisation
+    # 6. Compute statistics AFTER finalisation
     # ------------------------------------------------------------------
     stats = compute_stats(fingerprints, skipped, n_phrases)
 
@@ -957,7 +1025,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         logger.info(f"  {key:<28} {val}")
 
     # ------------------------------------------------------------------
-    # 5. Write outputs
+    # 7. Write outputs
     # ------------------------------------------------------------------
     try:
         write_outputs(fingerprints, token_index_map, stats, args.output)

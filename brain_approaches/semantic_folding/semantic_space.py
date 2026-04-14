@@ -155,7 +155,9 @@ from sklearn.decomposition import TruncatedSVD
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from loguru import logger
+from lib import get_logger
+logger = get_logger("semantic_space")
+
 
 try:
     import numpy as np
@@ -398,7 +400,7 @@ def reduce_dimensions_tsne(
 
 
     n_samples = vectors.shape[0]
-    perplexity = min(perplexity, max(5, n_samples // 3))
+    perplexity = min(perplexity, max(2, n_samples - 1))  # must be < n_samples
     logger.info(
         f"Running t-SNE: n_samples={n_samples}, "
         f"perplexity={perplexity}, n_iter={n_iter}"

@@ -54,6 +54,43 @@ from nltk.corpus import stopwords, wordnet
 from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag, word_tokenize
 
+
+import sys
+import os
+from pathlib import Path
+from loguru import logger as _base_logger
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+def _stderr_formatter(record):
+    record["extra"].setdefault("step", record["name"])
+    return "<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{extra[step]}</cyan> | {message}\n"
+
+def get_logger(name: str):
+    _base_logger.remove()
+
+    _base_logger.add(
+        sys.stderr,
+        level=LOG_LEVEL,
+        format=_stderr_formatter,
+        colorize=True,
+    )
+
+    _base_logger.add(
+        LOG_DIR / f"{name}.log",
+        level=LOG_LEVEL,
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{line} | {message}",
+        rotation="10 MB",
+        retention=7,
+        compression="zip",
+        encoding="utf-8",
+        colorize=False,
+    )
+
+    return _base_logger.bind(step=name)
+
 # ---------------------------------------------------------
 # Domain-Aware Stopwords
 # ---------------------------------------------------------
@@ -422,6 +459,30 @@ def phrase_exists_in_context(phrase: str, lower_context: str) -> bool:
     """Word-boundary aware check to prevent 'chain' matching inside 'blockchain'."""
     pattern = r'\b' + re.escape(phrase) + r'\b'
     return bool(re.search(pattern, lower_context))
+
+# Compiled once at module level
+_HYPHEN_COMPOUND_RE = re.compile(
+    r'\b([a-zA-Z]+)-([a-zA-Z]+)\b'
+)
+
+def normalize_hyphens(text: str) -> str:
+    """
+    Replace intra-word hyphens with spaces so hyphenated compounds
+    are treated as multi-token phrases by downstream extractors.
+
+    Only replaces hyphens that are surrounded by alphabetic characters
+    (word-internal hyphens). Leaves em-dashes, en-dashes, and
+    sentence-level punctuation untouched.
+
+    Examples:
+        'rule-based programming'   → 'rule based programming'
+        'garbage-in, garbage-out'  → 'garbage in, garbage out'
+        'high-dimensional data'    → 'high dimensional data'
+        'non-linear activation'    → 'non linear activation'
+        'state-of-the-art model'   → 'state of the art model'
+    """
+    return _HYPHEN_COMPOUND_RE.sub(r'\1 \2', text)
+
 
 def expand_phrases(
     phrases: List[str],

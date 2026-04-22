@@ -2,7 +2,7 @@
 
 ## Abstract
 
-This document provides a comprehensive technical description of the query processing module within a Semantic Folding pipeline developed for knowledge graph construction over academic corpora. The module transforms natural-language queries into sparse, distributed fingerprint representations over a two-dimensional semantic grid, applies IDF-weighted dot-product scoring against pre-indexed document fingerprints, and returns a ranked list of semantically relevant documents. The design integrates phrase extraction via spaCy, IDF-based term weighting, spatial spreading with exponential decay, query-side semantic expansion for vocabulary gap bridging, and a weighted overlap scoring function. This document covers the theoretical foundations, algorithmic specification, and the critical architectural design decisions required to maintain topological distinctiveness in high-dimensional semantic spaces.
+This document provides a comprehensive technical description of the query processing module within a Semantic Folding pipeline developed for knowledge graph construction over academic corpora. The module transforms natural-language queries into sparse, distributed fingerprint representations over a two-dimensional semantic grid, applies IDF-weighted dot-product scoring against pre-indexed document fingerprints, and returns a ranked list of semantically relevant documents. The design integrates phrase extraction via spaCy, IDF-based term weighting, spatial spreading with exponential decay, query-side semantic expansion for vocabulary gap bridging, and an asymmetric weighted overlap scoring function. This document covers the theoretical foundations, algorithmic specification, and the critical architectural design decisions required to maintain topological distinctiveness in high-dimensional semantic spaces.
 
 ---
 
@@ -15,8 +15,8 @@ The query processing module described herein is the inference-time component of 
 1. Extracts and normalizes constituent phrases.
 2. Applies semantic expansion to bridge vocabulary gaps between query terms and the indexed phrase vocabulary.
 3. Constructs a weighted query fingerprint by superimposing individual phrase fingerprints scaled by their IDF weights.
-4. Applies topological bit spreading to generalize beyond exact grid positions.
-5. Scores each document fingerprint against the query fingerprint using a weighted dot-product formulation.
+4. Applies topological bit spreading to generalize beyond exact grid positions, guarded by a minimum sparsity threshold.
+5. Scores each document fingerprint against the query fingerprint using an asymmetric dot-product formulation.
 6. Returns a ranked list of documents with associated relevance scores.
 
 ---
@@ -72,14 +72,14 @@ This approach exploits the fundamental property of Semantic Folding: phrases wit
 
 #### 3.2.2 Expansion Weight Attenuation
 
-Expanded terms are assigned attenuated weights to preserve the primacy of exact vocabulary matches. If an OOV term $t$ expands to in-vocabulary phrase $p_j$ with similarity $s_j$, the expansion weight is:
+Expanded terms are assigned attenuated weights to preserve the primacy of exact vocabulary matches and aggressively penalize marginal semantic relationships. If an OOV term $t$ expands to in-vocabulary phrase $p_j$ with similarity $s_j$, the expansion weight is computed using a squared similarity penalty:
 
-$$w_j^{\text{exp}} = \alpha \cdot s_j \cdot w_j^{\text{IDF}}$$
+$$w_j^{\text{exp}} = \alpha \cdot s_j^2 \cdot w_j^{\text{IDF}}$$
 
-where $\alpha \in [0,1]$ is an attenuation factor (typically $\alpha = 0.5$) and $w_j^{\text{IDF}}$ is the original IDF weight of $p_j$. This formulation ensures that:
-1. Expanded terms contribute less than direct matches ($\alpha < 1$)
-2. Higher-similarity expansions receive greater weight (proportional to $s_j$)
-3. Rare terms remain emphasized through IDF weighting
+where $\alpha \in [0,1]$ is an attenuation factor (specifically set to $\alpha = 0.6$) and $w_j^{\text{IDF}}$ is the original IDF weight of $p_j$. This formulation ensures that:
+1. Expanded terms contribute less overall than direct matches ($\alpha < 1$).
+2. The non-linear squared penalty ($s_j^2$) sharply reduces the influence of weaker similarity matches while preserving the weight of high-confidence expansions.
+3. Rare terms remain emphasized through the underlying IDF weighting.
 
 This design parallels the *relevance feedback* framework (Rocchio, 1971), where expansion terms are weighted lower than original query terms to prevent semantic drift.
 
@@ -89,7 +89,7 @@ The final query fingerprint integrates both direct matches and semantic expansio
 
 $$\mathbf{q}^{(0)} = \sum_{j=1}^{m} w_j \mathbf{v}_j$$
 
-where $w_j$ is either the direct IDF weight (for $p_j \in P_q^{IV}$) or the attenuated expansion weight (for expanded terms).
+where $w_j$ is either the direct IDF weight (for $p_j \in P_q^{IV}$) or the attenuated expansion weight (for expanded terms). This vector is subsequently $L_2$-normalized to ensure consistent scoring scales.
 
 ---
 
@@ -104,32 +104,30 @@ The spread query matrix $\tilde{\mathbf{Q}}$ is computed as:
 $$\tilde{Q}_{x,y} = \max_{u,v} \left( Q_{u,v} \cdot \gamma^{d((u,v), (x,y))} \right)$$
 where $d$ is a spatial distance metric (e.g., Chebyshev distance) subject to $d \le r$. The resulting matrix is flattened back into the final query vector $\tilde{\mathbf{q}} \in \mathbb{R}^N$.
 
-### 4.2 Synergy Between Expansion and Spreading
+### 4.2 Sparsity Guard
+To ensure the query possesses sufficient semantic substance before initiating expensive retrieval operations, a **Sparsity Guard** is enforced. The system asserts that the sparsity of the constructed query representation satisfies:
+$$S(\mathbf{q}) \ge 0.005$$
+Queries failing to meet this $0.5\%$ activation threshold lack sufficient semantic resolution, either due to extreme brevity or severe vocabulary mismatch, and are flagged to prevent anomalous retrieval results.
+
+### 4.3 Synergy Between Expansion and Spreading
 
 The semantic expansion and topological spreading mechanisms operate at complementary levels of abstraction:
 
-- **Semantic expansion** addresses *lexical gaps* by substituting OOV terms with in-vocabulary synonyms, operating at the phrase level
-- **Topological spreading** addresses *positional variance* by creating spatial halos around active grid cells, operating at the bit level
+- **Semantic expansion** addresses *lexical gaps* by substituting OOV terms with in-vocabulary synonyms, operating at the phrase level.
+- **Topological spreading** addresses *positional variance* by creating spatial halos around active grid cells, operating at the bit level.
 
 Together, these mechanisms implement a two-stage generalization strategy. Expansion ensures that semantically related but lexically distinct terms contribute to the query fingerprint. Spreading then allows these expanded terms to match document fingerprints even when their grid positions differ slightly due to training variance or context-dependent placement.
-
-This dual approach is analogous to combining *query expansion* (Rocchio, 1971) with *soft matching* (Salton & McGill, 1983) in classical IR, but adapted to the spatial topology of the semantic grid.
-
-### 4.3 Practical Benefits of Radius $r=1$ Spreading
-Applying a spreading step of $r=1$ provides optimal retrieval enhancement without violating the sparsity constraints of the $128 \times 128$ grid:
-1. **Inducing Soft Matching:** Spreading forces the halos of related but non-identical phrases (e.g., "behavior" and "conduct") to intersect, yielding a non-zero inner product.
-2. **Controlled Sparsity Expansion:** On an $N=16384$ grid, an $r=1$ spread safely expands the active bit count, typically increasing $S(\mathbf{x})$ from $\sim 10\%$ to $\sim 30\%$. This avoids the saturation threshold while sufficiently generalizing the query to capture semantic nuance.
 
 ---
 
 ## 5. Scoring and Retrieval
 
-Document retrieval is performed by comparing the spread query fingerprint $\tilde{\mathbf{q}}$ against the binary fingerprint $\mathbf{d}_i \in \{0, 1\}^N$ of each document $D_i$ in the corpus.
+Document retrieval is performed by comparing the final continuous query fingerprint $\tilde{\mathbf{q}} \in \mathbb{R}^N$ against the binary fingerprint $\mathbf{d}_i \in \{0, 1\}^N$ of each document $D_i$ in the corpus.
 
-The similarity score is calculated as a weighted dot product, normalized by the square root of the number of active bits (non-zero elements) in the document fingerprint:
-$$\text{score}(Q, D_i) = \frac{\tilde{\mathbf{q}} \cdot \mathbf{d}_i}{\sqrt{\text{nnz}(\mathbf{d}_i)}}$$
+The similarity score is calculated as an asymmetric, weighted dot product, normalized by the $L_2$ norm of the query and the square root of the number of active bits (non-zero elements) in the document fingerprint:
+$$\text{score}(Q, D_i) = \frac{\tilde{\mathbf{q}} \cdot \mathbf{d}_i}{\|\tilde{\mathbf{q}}\|_2 \sqrt{\text{nnz}(\mathbf{d}_i)}}$$
 
-This normalization prevents excessively long documents (which naturally have denser fingerprints) from dominating the retrieval results. The corpus is then sorted by this score in descending order, returning the highest-ranked documents as the most semantically relevant results.
+This dual normalization ensures that (a) baseline query length does not arbitrarily inflate scores, and (b) excessively long documents (which naturally have denser, more saturated fingerprints) are penalized, preventing them from dominating the retrieval results. The corpus is then sorted by this score in descending order, returning the highest-ranked documents above a predefined minimum similarity threshold.
 
 ---
 
@@ -139,18 +137,12 @@ This normalization prevents excessively long documents (which naturally have den
 
 The decision to implement semantic expansion exclusively on the query side (rather than expanding document fingerprints during indexing) reflects several architectural constraints:
 
-1. **Computational Efficiency**: Expanding every document phrase during indexing would require $O(|D| \cdot |P_d|)$ similarity computations, where $|D|$ is corpus size and $|P_d|$ is average phrases per document. Query-side expansion requires only $O(|P_q|)$ computations per query, where $|P_q| \ll |P_d|$.
-
-2. **Index Stability**: Document-side expansion would require re-indexing the entire corpus whenever the expansion parameters ($k$, $\theta$, $\alpha$) are tuned. Query-side expansion allows parameter optimization without touching the document index.
-
-3. **Semantic Drift Control**: Expanding documents risks introducing spurious matches. A document about "urban planning" might expand to include "city management," "municipal governance," etc., creating false positives for unrelated queries. Query-side expansion limits drift to the user's explicit information need.
-
-This asymmetry parallels the design of pseudo-relevance feedback systems (Xu & Croft, 1996), where expansion is applied to queries rather than the entire collection.
+1. **Computational Efficiency**: Expanding every document phrase during indexing would require $O(|D| \cdot |P_d|)$ computations. Query-side expansion requires only $O(|P_q|)$ computations per query.
+2. **Index Stability**: Document-side expansion would require re-indexing the entire corpus whenever expansion parameters are tuned. Query-side expansion isolates parameter optimization from the core index.
+3. **Semantic Drift Control**: Expanding documents risks introducing spurious matches and diluting the document's core semantic signature.
 
 ### 6.2 Asymmetric Scoring: Binary Documents vs. Real-Valued Queries
-The decision to maintain binary document fingerprints while allowing real-valued query fingerprints is a deliberate architectural asymmetry. Regenerating document fingerprints with continuous IDF weights would require re-running indexing stages and significantly inflate storage overhead. By keeping documents as binary vectors $\mathbf{d} \in \{0,1\}^N$ and isolating the continuous IDF weights in the query vector $\tilde{\mathbf{q}} \in \mathbb{R}^N$, the pipeline preserves strict modularity and storage efficiency.
-
-The trade-off is that document-side IDF information is not directly available to the scorer. This is analogous to asymmetric scoring in BM25; the current design is effectively a weighted query vector executing against a binary inverted index.
+The decision to maintain binary document fingerprints while allowing real-valued query fingerprints is a deliberate architectural asymmetry. Regenerating document fingerprints with continuous IDF weights would significantly inflate storage overhead. By keeping documents as binary vectors $\mathbf{d} \in \{0,1\}^N$ and isolating the continuous weights in the query vector $\tilde{\mathbf{q}} \in \mathbb{R}^N$, the pipeline preserves strict modularity and storage efficiency.
 
 ### 6.3 Normalization Strategy
 The normalization denominator $\sqrt{\text{nnz}(\mathbf{d})}$ acts as a soft, cosine-like length penalty. Alternative normalizations evaluated included:
@@ -161,45 +153,35 @@ The normalization denominator $\sqrt{\text{nnz}(\mathbf{d})}$ acts as a soft, co
 The square-root penalty provides a pragmatic, theoretically sound balance, consistent with Okapi BM25's field-length normalization philosophy.
 
 ### 6.4 Spreading Radius Parameterization
-The spreading parameters $r=1$, $\gamma=0.5$ were selected to optimize the signal-to-noise ratio. A radius of 1 (Moore neighborhood: 8 neighbors per cell) provides limited spatial generalization without excessive noise injection. The $50\%$ decay ensures that spread bits contribute at most half the weight of a direct hit, preserving the primacy of exact vocabulary matches. Larger radii ($r \ge 2$) increase recall but risk merging semantically distinct regions of the grid, thereby degrading precision.
+The spreading parameters $r=1$, $\gamma=0.5$ were selected to optimize the signal-to-noise ratio. A radius of 1 provides limited spatial generalization without excessive noise injection. The $50\%$ decay ensures that spread bits contribute at most half the weight of a direct hit.
 
 ### 6.5 Expansion Parameter Selection
 
 The expansion mechanism introduces three tunable parameters:
 
-- **$k$ (expansion breadth)**: Number of nearest neighbors retrieved per OOV term. Higher $k$ increases recall but risks semantic drift. Empirically, $k=3$ provides optimal precision-recall balance.
-
-- **$\theta$ (similarity threshold)**: Minimum cosine similarity for expansion candidates. Setting $\theta=0.3$ filters spurious matches while retaining semantically related terms.
-
-- **$\alpha$ (attenuation factor)**: Weight reduction for expanded terms. $\alpha=0.5$ ensures expanded terms contribute meaningfully without overwhelming direct matches.
-
-These parameters were selected through empirical tuning on development queries, following the methodology of Xu & Croft (1996) for query expansion parameter optimization.
+- **$k$ (expansion breadth)**: Number of nearest neighbors retrieved per OOV term. 
+- **$\theta$ (similarity threshold)**: Minimum cosine similarity for expansion candidates (typically $\theta=0.3$).
+- **$\alpha$ (attenuation factor) and Penalty ($s_j^2$)**: Setting $\alpha=0.6$ combined with the squared similarity penalty mathematically guarantees that only highly-correlated spatial expansions exert meaningful gravitational pull during the ranking phase, mitigating semantic drift.
 
 ---
 
 ## 7. Limitations and Future Work
 
-**Expansion Quality Dependence on Vocabulary Coverage**: The effectiveness of semantic expansion is bounded by the quality and coverage of the in-vocabulary phrase set. If the vocabulary lacks semantically related terms for an OOV query phrase, expansion fails. Future work should explore hybrid approaches combining fingerprint-based expansion with external semantic resources (e.g., WordNet, ConceptNet) to handle extreme OOV cases.
+**Expansion Quality Dependence on Vocabulary Coverage**: The effectiveness of semantic expansion is bounded by the quality and coverage of the in-vocabulary phrase set. If the vocabulary lacks semantically related terms for an OOV query phrase, expansion fails. 
 
-**Computational Cost of Expansion**: Computing cosine similarity between an OOV term and all in-vocabulary phrases scales as $O(|V| \cdot N)$, where $|V|$ is vocabulary size. For large vocabularies ($|V| > 10^5$), this becomes prohibitive. Approximate nearest neighbor search (e.g., LSH, HNSW) could reduce complexity to $O(\log |V|)$ while maintaining expansion quality.
+**Computational Cost of Expansion**: Computing cosine similarity between an OOV term and all in-vocabulary phrases scales linearly with vocabulary size. Approximate nearest neighbor search (e.g., LSH, HNSW) could reduce complexity for massive vocabularies.
 
-**Binary Document Representation**: Document fingerprints currently do not encode term frequency (TF). Documents containing a rare phrase once are indistinguishable from those containing it frequently. Future iterations may explore TF-weighted document fingerprints—transitioning from binary to integer/float storage arrays—to improve ranking fidelity, albeit at the cost of computational speed.
+**Binary Document Representation**: Document fingerprints currently do not encode term frequency (TF). Documents containing a rare phrase once are indistinguishable from those containing it frequently.
 
-**Evaluation Metrics**: As this architecture is currently validated on unannotated academic corpora, no ground-truth relevance judgments are available. Systematic evaluation requires the formal annotation of query-document relevance pairs to compute standard IR metrics (MAP, NDCG@10, P@5) and strictly quantify the precision/recall trade-offs of the spreading and expansion operators.
-
-**Multi-Modal Expansion**: Current expansion operates purely within the fingerprint space. Incorporating external signals (e.g., co-occurrence statistics, embedding similarity) could improve expansion quality, particularly for domain-specific terminology.
+**Evaluation Metrics**: Systematic evaluation requires the formal annotation of query-document relevance pairs to compute standard IR metrics (MAP, NDCG@10, P@5) and strictly quantify the precision/recall trade-offs of the spreading and expansion operators.
 
 ---
 
 ## 8. Conclusion
 
-The query processing module presented here implements a principled, efficient approach to semantic retrieval based on Semantic Folding Theory. By utilizing a high-capacity semantic grid ($128 \times 128$), the architecture successfully avoids the dimensional collapse that plagues smaller SDR implementations, preserving the topological distinctiveness of complex queries.
+The query processing module presented here implements a principled, efficient approach to semantic retrieval based on Semantic Folding Theory. By utilizing a high-capacity semantic grid ($128 \times 128$), the architecture successfully avoids dimensional collapse, preserving the topological distinctiveness of complex queries.
 
-The integration of query-side semantic expansion addresses the critical vocabulary gap problem, enabling the system to bridge lexical mismatches between user queries and indexed documents. This expansion mechanism, combined with IDF-weighted phrase aggregation and controlled topological bit spreading ($r=1$), provides a robust multi-stage generalization strategy that balances precision and recall.
-
-The asymmetric scoring design—confining real-valued logic to the query side while maintaining binary document representations—ensures high storage efficiency without sacrificing the discriminative power of rare terms. The synergy between semantic expansion (phrase-level generalization) and topological spreading (bit-level generalization) creates a flexible retrieval framework capable of handling both lexical variation and positional variance in the semantic space.
-
-Key limitations regarding expansion scalability, TF encoding, and systematic evaluation identify concrete directions for future refinement within the broader knowledge graph construction pipeline. The theoretical foundations established here—grounding the approach in distributional semantics, query expansion theory, and SDR principles—provide a solid basis for continued development and empirical validation.
+The integration of query-side semantic expansion with a squared-similarity penalty ($s_j^2$) addresses the critical vocabulary gap problem, bridging lexical mismatches while mathematically suppressing semantic drift. This expansion mechanism, combined with IDF-weighted phrase aggregation, asymmetric dot-product scoring, and a foundational sparsity guard ($S(\mathbf{x}) \ge 0.005$), provides a robust retrieval framework capable of handling both lexical variation and positional variance in the semantic space.
 
 ---
 

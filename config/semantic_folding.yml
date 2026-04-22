@@ -16,7 +16,7 @@ keep_verbs : true              # Include verbal elements in phrases
 # ============================================================
 paths:
   # Input data files
-  corpus_path: "data\\corpus_100.txt"
+  corpus_path: "data\\corpus.txt"
   queries_path: null             # Optional: path to queries file
 
   # Output directory structure
@@ -135,6 +135,41 @@ query_processing:
   # Set to 0 to disable spreading entirely (exact-match only).
   spreading_steps: 1             # Neighbourhood expansion steps (0 = disabled)
   weighting: "idf"
+
+# ============================================================
+# PHASE 7: PHRASE VISUALIZATION
+# ============================================================
+phrase_visualization:
+  # Enable/disable visualization generation
+  enabled: true                  # Generate phrase pair visualizations
+  
+  # Activation threshold
+  threshold: 0.0                 # Minimum value to consider a cell "activated"
+  
+  # Encoding method
+  encoding: "Morton"             # Grid encoding: "Morton" | "Row-major"
+  
+  # Output formats
+  generate_html: true            # Generate interactive HTML visualization
+  generate_png: true             # Generate static PNG image
+  
+  # Visual styling
+  grid_borders: true             # Show 4×4 block borders
+  border_color: "lightgray"      # Color of 4×4 block borders
+  border_width: 1                # Width of block border lines
+  
+  # Performance
+  max_shapes: 300                # Maximum shapes to render (prevents hanging)
+  
+  # Layout
+  figure_width: 1800             # Width of output figure in pixels
+  figure_height: 1200             # Height of output figure in pixels
+  
+  # Color scheme
+  colorscale: "Blues"            # Plotly colorscale for heatmaps
+  
+  # Metadata
+  save_metadata: true            # Save visualization metadata as JSON
 
 # ============================================================
 # SEMANTIC GRAPH (VISUALIZATION)

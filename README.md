@@ -113,6 +113,7 @@ uv sync
 # Add a new package
 uv add <package-name>
 
+uv pip install --trusted-host https://mirror-pypi.runflare.com -i https://mirror-pypi.runflare.com/simple/ gensim
 # Add dev dependency
 uv add --dev <package-name>
 

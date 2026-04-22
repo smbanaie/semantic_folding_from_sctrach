@@ -1,5 +1,5 @@
-last_run_id: '20260414_233534'
-last_step: 6
+last_run_id: '20260421_215003'
+last_step: 4
 runs:
   '20260414_204659':
     created_at: '2026-04-14T20:47:01.573461'
@@ -182,3 +182,144 @@ runs:
           output: outputs\20260414_233534\query_results.json
           grid_size: '128'
         output: outputs\20260414_233534\query_results.json
+  '20260418_132453':
+    created_at: '2026-04-18T13:25:24.854718'
+    steps:
+      1:
+        name: Phrase Extraction
+        completed_at: '2026-04-18T13:27:34.010479'
+        parameters:
+          corpus: data\corpus.txt
+          output: outputs\20260418_132453\extracted_phrases
+          min_freq: '1'
+          min_word_length: '3'
+          use_spacy: true
+          filter_generic: true
+          keep_verbs: true
+          stats: false
+        output: outputs\20260418_132453\extracted_phrases
+        extra_outputs:
+          vocab: outputs\20260418_132453\extracted_phrases\vocabulary.csv
+          mapping: outputs\20260418_132453\extracted_phrases\phrase_to_contexts.json
+      2:
+        name: Term-Context Matrix
+        completed_at: '2026-04-18T13:30:55.732367'
+        parameters:
+          corpus: data\corpus.txt
+          vocab: outputs\20260418_132453\extracted_phrases\vocabulary.csv
+          mapping: outputs\20260418_132453\extracted_phrases\phrase_to_contexts.json
+          output: outputs\20260418_132453\term_context_matrix
+          use_tfidf: true
+        output: outputs\20260418_132453\term_context_matrix
+        extra_outputs:
+          matrix_npz: outputs\20260418_132453\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\20260418_132453\term_context_matrix\term_context_matrix.json
+          idf_weights: outputs\20260418_132453\term_context_matrix\idf_weights.json
+      3:
+        name: Semantic Space
+        completed_at: '2026-04-18T13:34:31.925748'
+        parameters:
+          matrix: outputs\20260418_132453\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\20260418_132453\term_context_matrix\term_context_matrix.json
+          output: outputs\20260418_132453\semantic_space
+          method: tsne
+          grid_size: '128'
+          visualize: true
+          show_density: false
+        output: outputs\20260418_132453\semantic_space
+      4:
+        name: Phrase Fingerprints
+        completed_at: '2026-04-18T13:35:43.503072'
+        parameters:
+          coordinates: outputs\20260418_132453\semantic_space\context_coordinates.json
+          metadata: outputs\20260418_132453\term_context_matrix\term_context_matrix.json
+          output: outputs\20260418_132453\phrase_fingerprints
+          grid_size: '128'
+        output: outputs\20260418_132453\phrase_fingerprints
+      5:
+        name: Document Fingerprints
+        completed_at: '2026-04-18T13:37:09.745117'
+        parameters:
+          corpus: data\corpus.txt
+          fingerprints: outputs\20260418_132453\phrase_fingerprints
+          output: outputs\20260418_132453\doc_fingerprints
+          idf_weights: outputs\20260418_132453\term_context_matrix\idf_weights.json
+          grid_size: '128'
+          top_percent: '0.1'
+          normalize: true
+          normalize_method: l2
+          use_spacy: true
+          keep_verbs: true
+          filter_generic: true
+          min_word_length: '3'
+        output: outputs\20260418_132453\doc_fingerprints
+      6:
+        name: Query Processing
+        completed_at: '2026-04-18T13:48:39.335720'
+        parameters:
+          query: What are the impacts of dense population centers on social structures,
+            community networks, and resource distribution?
+          phrase_fp_dir: outputs\20260418_132453\phrase_fingerprints
+          doc_fp_dir: outputs\20260418_132453\doc_fingerprints
+          weighting: idf
+          idf: outputs\20260418_132453\term_context_matrix\idf_weights.json
+          top_k: '5'
+          spreading_steps: '1'
+          keep_verbs: true
+          output: outputs\20260418_132453\query_results.json
+          grid_size: '128'
+        output: outputs\20260418_132453\query_results.json
+  '20260421_215003':
+    created_at: '2026-04-21T21:50:08.244635'
+    steps:
+      1:
+        name: Phrase Extraction
+        completed_at: '2026-04-21T21:50:39.223084'
+        parameters:
+          corpus: data\corpus.txt
+          output: outputs\20260421_215003\extracted_phrases
+          min_freq: '1'
+          min_word_length: '3'
+          use_spacy: true
+          filter_generic: true
+          keep_verbs: true
+          stats: false
+        output: outputs\20260421_215003\extracted_phrases
+        extra_outputs:
+          vocab: outputs\20260421_215003\extracted_phrases\vocabulary.csv
+          mapping: outputs\20260421_215003\extracted_phrases\phrase_to_contexts.json
+      2:
+        name: Term-Context Matrix
+        completed_at: '2026-04-21T21:50:49.473753'
+        parameters:
+          corpus: data\corpus.txt
+          vocab: outputs\20260421_215003\extracted_phrases\vocabulary.csv
+          mapping: outputs\20260421_215003\extracted_phrases\phrase_to_contexts.json
+          output: outputs\20260421_215003\term_context_matrix
+          use_tfidf: true
+        output: outputs\20260421_215003\term_context_matrix
+        extra_outputs:
+          matrix_npz: outputs\20260421_215003\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\20260421_215003\term_context_matrix\term_context_matrix.json
+          idf_weights: outputs\20260421_215003\term_context_matrix\idf_weights.json
+      3:
+        name: Semantic Space
+        completed_at: '2026-04-21T21:51:04.167956'
+        parameters:
+          matrix: outputs\20260421_215003\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\20260421_215003\term_context_matrix\term_context_matrix.json
+          output: outputs\20260421_215003\semantic_space
+          method: tsne
+          grid_size: '128'
+          visualize: true
+          show_density: false
+        output: outputs\20260421_215003\semantic_space
+      4:
+        name: Phrase Fingerprints
+        completed_at: '2026-04-21T21:51:16.970026'
+        parameters:
+          coordinates: outputs\20260421_215003\semantic_space\context_coordinates.json
+          metadata: outputs\20260421_215003\term_context_matrix\term_context_matrix.json
+          output: outputs\20260421_215003\phrase_fingerprints
+          grid_size: '128'
+        output: outputs\20260421_215003\phrase_fingerprints

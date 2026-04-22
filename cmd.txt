@@ -1,0 +1,1 @@
+uv add --trusted-host mirror-pypi.runflare.com -i https://mirror-pypi.runflare.com/simple/ umap-learn

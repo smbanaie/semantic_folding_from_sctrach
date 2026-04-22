@@ -375,7 +375,7 @@ def visualize_single_phrase(
     
     Creates a comprehensive three-panel visualization for a single phrase fingerprint:
     1. Spatial Activation Heatmap: Standard continuous heatmap showing activation patterns
-    2. Matrix View: Discrete cell-based view with borders highlighting activated cells
+    2. Matrix View: Discrete cell-based view with 4×4 block borders for structure
     3. Activation Distribution: Histogram of activation values with statistics
     
     The function loads the phrase fingerprint from NPZ format, reconstructs the 2D grid
@@ -390,8 +390,8 @@ def visualize_single_phrase(
         grid_size: Size of the square grid (e.g., 128 for 128x128 grid)
         use_morton: If True, use Morton (Z-order) encoding for spatial reconstruction;
                    if False, use row-major ordering
-        threshold: Activation threshold for determining "activated" cells in matrix view.
-                  Cells with activation > threshold will have black borders drawn.
+        threshold: Activation threshold for determining "activated" cells in metadata.
+                  Cells with activation > threshold will be counted and exported.
                   Default is 0.01.
         grid_borders: If True, draw 4×4 block borders on matrix view. Default is True.
         border_color: Color for 4×4 block borders. Default is "lightgray".
@@ -468,8 +468,7 @@ def visualize_single_phrase(
     top_cells = get_top_active_cells(grid, top_n=20)
     logger.debug(f"Top 20 active cells: {top_cells[:5]}...")
     
-    # Identify all cells exceeding the activation threshold for matrix view
-    # These cells will have black borders drawn around them
+    # Identify all cells exceeding the activation threshold for metadata export
     activated_coords = np.argwhere(grid > threshold)
     activated_values = grid[activated_coords[:, 0], activated_coords[:, 1]]
     logger.info(f"Found {len(activated_coords)} activated cells (threshold={threshold})")
@@ -501,7 +500,7 @@ def visualize_single_phrase(
         rows=1, cols=3,
         subplot_titles=(
             f'Spatial Activation: "{phrase}"',
-            'Matrix View (Activated Cells)',
+            'Matrix View (4×4 Block Grid)',
             'Activation Distribution'
         ),
         specs=[[{"type": "heatmap"}, {"type": "heatmap"}, {"type": "histogram"}]],
@@ -531,7 +530,7 @@ def visualize_single_phrase(
     fig.add_trace(heatmap, row=1, col=1)
     
     # ------------------------------------------------------------------------
-    # Subplot 2: Matrix view with discrete color scaling and cell borders
+    # Subplot 2: Matrix view with discrete color scaling and 4×4 block borders
     # ------------------------------------------------------------------------
     # Uses discrete colorscale from white (inactive) to darkred (highly active)
     # xgap=1, ygap=1 creates visible separation between cells
@@ -558,69 +557,50 @@ def visualize_single_phrase(
     )
     fig.add_trace(matrix_heatmap, row=1, col=2)
     
-    # Draw black borders around all activated cells (activation > threshold)
-    # This visually highlights which cells are considered "active" in the matrix
+    # Draw 4×4 block borders FIRST (if enabled)
+    # This ensures the structural grid is always visible and respects max_shapes limit
     shape_count = 0
-    if len(activated_coords) > 0:
-        for coord in activated_coords:
-            if shape_count >= max_shapes:
-                logger.warning(f"Reached max_shapes limit ({max_shapes}), skipping remaining activated cell borders")
-                break
-            y, x = coord  # Note: numpy uses (row, col) = (y, x)
-            # Draw rectangle border around cell
-            # Cell centers are at integer coordinates, so borders are at ±0.5
-            fig.add_shape(
-                type="rect",
-                x0=x-0.5, y0=y-0.5,
-                x1=x+0.5, y1=y+0.5,
-                line=dict(color="black", width=1),
-                layer="above",  # Draw on top of heatmap
-                xref="x2", yref="y2"  # Reference subplot 2 axes
-            )
-            shape_count += 1
     
-    logger.debug(f"Drew {shape_count} activated cell borders")
-    
-    # Add 4×4 block borders if enabled
     if grid_borders:
         block_size = 4
         num_blocks = grid_size // block_size
         
-        # Calculate total shapes needed for block borders
-        total_border_shapes = (num_blocks + 1) * 2  # vertical + horizontal lines
+        logger.debug(f"Drawing 4×4 block borders ({num_blocks}×{num_blocks} blocks)")
         
-        if shape_count + total_border_shapes > max_shapes:
-            logger.warning(f"Skipping 4×4 block borders: would exceed max_shapes ({max_shapes})")
-        else:
-            logger.debug(f"Drawing 4×4 block borders ({num_blocks}×{num_blocks} blocks)")
+        # Draw vertical block borders
+        for i in range(num_blocks + 1):
+            if shape_count >= max_shapes:
+                logger.warning(f"Reached max_shapes limit ({max_shapes}), skipping remaining borders")
+                break
             
-            # Draw vertical block borders
-            for i in range(num_blocks + 1):
-                x_pos = i * block_size - 0.5
-                fig.add_shape(
-                    type="line",
-                    x0=x_pos, y0=-0.5,
-                    x1=x_pos, y1=grid_size - 0.5,
-                    line=dict(color=border_color, width=border_width),
-                    layer="above",
-                    xref="x2", yref="y2"
-                )
-                shape_count += 1
+            x_pos = i * block_size - 0.5
+            fig.add_shape(
+                type="line",
+                x0=x_pos, y0=-0.5,
+                x1=x_pos, y1=grid_size - 0.5,
+                line=dict(color=border_color, width=border_width),
+                layer="above",
+                xref="x2", yref="y2"
+            )
+            shape_count += 1
+        
+        # Draw horizontal block borders
+        for i in range(num_blocks + 1):
+            if shape_count >= max_shapes:
+                break
             
-            # Draw horizontal block borders
-            for i in range(num_blocks + 1):
-                y_pos = i * block_size - 0.5
-                fig.add_shape(
-                    type="line",
-                    x0=-0.5, y0=y_pos,
-                    x1=grid_size - 0.5, y1=y_pos,
-                    line=dict(color=border_color, width=border_width),
-                    layer="above",
-                    xref="x2", yref="y2"
-                )
-                shape_count += 1
-            
-            logger.debug(f"Total shapes drawn: {shape_count}")
+            y_pos = i * block_size - 0.5
+            fig.add_shape(
+                type="line",
+                x0=-0.5, y0=y_pos,
+                x1=grid_size - 0.5, y1=y_pos,
+                line=dict(color=border_color, width=border_width),
+                layer="above",
+                xref="x2", yref="y2"
+            )
+            shape_count += 1
+        
+        logger.debug(f"Drew {shape_count} block border lines")
     
     # ------------------------------------------------------------------------
     # Subplot 3: Histogram of activation values with statistics annotation

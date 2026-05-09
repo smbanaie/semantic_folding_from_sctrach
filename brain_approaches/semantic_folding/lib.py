@@ -486,14 +486,14 @@ def normalize_hyphens(text: str) -> str:
 
 def expand_phrases(
     phrases: List[str],
-    context_text: str,
+    context_text: Optional[str],
     filter_generic: bool = True,
     min_word_length: int = 3,
 ) -> List[str]:
     """
     Expand raw phrases into all contiguous sub-spans, validate each against
-    the source context, normalize survivors, and optionally filter generic
-    single words.
+    the source context (if provided), normalize survivors, and optionally filter
+    generic single words.
 
     Processing pipeline (in order):
       1. For each raw phrase, generate all contiguous sub-spans up to MAX_NGRAM
@@ -503,9 +503,13 @@ def expand_phrases(
                "machine translation", "translation model",
                "machine translation model"}
 
-      2. Context validation — each candidate surface form must appear verbatim
-         (case-insensitive) in the source text. This prevents hallucinated or
-         reconstructed spans that were never actually written.
+      2. Context validation — **when context_text is not None**,
+         each candidate surface form must appear verbatim (case-insensitive)
+         in the source text. This prevents hallucinated or reconstructed
+         spans that were never actually written.  **When context_text is
+         None, this check is skipped entirely** — the function trusts that
+         all provided candidates are legitimate (e.g. for short query
+         strings where lemmatised forms may differ from surface forms).
 
       3. Normalization — pass each surviving candidate through normalize_phrase.
          Candidates that produce None (invalid structure, bare verb, etc.) are
@@ -521,7 +525,8 @@ def expand_phrases(
 
     Args:
         phrases:          raw (un-normalised) phrases from the extractor.
-        context_text:     original context string to validate surface forms against.
+        context_text:     original context string to validate surface forms
+                          against, or **None** to skip validation.
         filter_generic:   drop single-word results that are generic/low-signal.
         min_word_length:  minimum character length for single-word phrases.
 
@@ -533,8 +538,12 @@ def expand_phrases(
           further sub-divided beyond 5 tokens.
         - Deduplication is by normalized form, so "translations" and "translation"
           both collapse to "translation" if the lemmatizer agrees.
-        - Context validation uses phrase_exists_in_context which handles basic
-          boundary checks; see that function for exact matching semantics.
+        - Context validation (when active) uses phrase_exists_in_context which
+          handles basic boundary checks; see that function for exact matching
+          semantics.
+        - Passing context_text=None is the intended mode for query processing,
+          where the "document" is a short user‑written string and the normalised
+          lemmatised forms carry the semantic intent.
     """
     logger.debug(
         f"[EXPAND ENTER] {len(phrases)} raw phrases | "
@@ -542,7 +551,7 @@ def expand_phrases(
     )
 
     expanded_and_validated: set[str] = set()
-    lower_context = context_text.lower()
+    lower_context = context_text.lower() if context_text is not None else ""
     MAX_NGRAM = 5
 
     # ── step 1: iterate over each raw phrase ─────────────────────────────────
@@ -567,12 +576,22 @@ def expand_phrases(
         # ── steps 2–4: validate, normalize, filter each candidate ─────────────
         for candidate in candidates:
 
-            # ── step 2: context validation ────────────────────────────────────
-            # Reject any span that does not appear verbatim in the source text.
-            # This is the primary guard against spurious sub-spans.
-            if not phrase_exists_in_context(candidate.lower(), lower_context):
-                logger.debug(f"  [CONTEXT MISS] '{candidate}' — not found in source text")
-                continue
+            # ── step 2: context validation (optional) ─────────────────────────
+            # When context_text is None, the surface‑form check is skipped.
+            # This is the intended behaviour for short query strings where
+            # lemmatised forms (e.g. ‘emotion’ from ‘emotions’) may not appear
+            # verbatim.  For document indexing (context_text is a full paragraph)
+            # the check remains active to avoid spurious sub‑spans.
+            if context_text is not None:
+                if not phrase_exists_in_context(candidate.lower(), lower_context):
+                    logger.debug(
+                        f"  [CONTEXT MISS] '{candidate}' — not found in source text"
+                    )
+                    continue
+            else:
+                logger.debug(
+                    f"  [CONTEXT SKIP] context_text=None — keeping '{candidate}'"
+                )
 
             # ── step 3: normalization ─────────────────────────────────────────
             # normalize_phrase handles POS filtering, lemmatization, and
@@ -580,7 +599,9 @@ def expand_phrases(
             # noun phrase (e.g. bare verb, failed structure check).
             norm = normalize_phrase(candidate, remove_verbs=True)
             if not norm:
-                logger.debug(f"  [NORM DROP] '{candidate}' — normalize_phrase returned None")
+                logger.debug(
+                    f"  [NORM DROP] '{candidate}' — normalize_phrase returned None"
+                )
                 continue
 
             # ── step 4: generic single-word filter ───────────────────────────
@@ -606,7 +627,6 @@ def expand_phrases(
         f"from {len(phrases)} raw inputs"
     )
     return result
-
 # ============================================================================
 # FILE I/O UTILITIES
 # ============================================================================
@@ -783,6 +803,80 @@ def load_contexts_dict(corpus_path: Path) -> Dict[str, str]:
 #  Fingerprint Loaders
 #  Used by: query_processing.py (Step 6)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def _load_doc_fingerprint_matrix(
+    npz_path  : Path,
+    meta_path : Path,
+    npz_key   : str = "fingerprints",
+) -> Tuple[np.ndarray, Dict[str, int], bool, int]:
+    """
+    Load document fingerprint matrix and metadata.
+
+    Reads the .npz matrix and the new-style meta JSON that contains:
+        - "doc_to_row" : {doc_id: row_index}
+        - "use_morton" : bool
+        - "grid_size"  : int
+
+    Parameters
+    ----------
+    npz_path : Path
+        Path to the .npz file.
+    meta_path : Path
+        Path to the doc_fingerprints_meta.json file.
+    npz_key : str
+        Key inside the .npz archive holding the matrix.
+
+    Returns
+    -------
+    matrix       : np.ndarray (n_docs, grid_size²)
+    doc_index    : Dict[str, int]  mapping doc_id → row index
+    use_morton   : bool
+    grid_size    : int
+
+    Raises
+    ------
+    FileNotFoundError  if either file missing.
+    KeyError           if npz_key missing or meta missing required keys.
+    ValueError         if row/index mismatch.
+    """
+    for p in (npz_path, meta_path):
+        if not p.exists():
+            raise FileNotFoundError(f"Expected file not found: {p}")
+
+    # Load matrix
+    archive = np.load(str(npz_path))
+    if npz_key not in archive:
+        raise KeyError(f"Key '{npz_key}' not in {npz_path.name}. Available: {list(archive.keys())}")
+    matrix = archive[npz_key]
+    n_docs, vector_size = matrix.shape
+    logger.info(f"Document matrix shape: {matrix.shape} (n_docs={n_docs}, vec={vector_size})")
+
+    # Load metadata
+    with open(meta_path, "r", encoding="utf-8") as fh:
+        meta = json.load(fh)
+
+    # Extract mapping and flags
+    try:
+        doc_to_row = meta["doc_to_row"]
+        use_morton = meta["use_morton"]
+        grid_size  = meta["grid_size"]
+    except KeyError as e:
+        raise KeyError(f"Missing required key in {meta_path.name}: {e}")
+
+    if len(doc_to_row) != n_docs:
+        logger.warning(
+            f"Index map has {len(doc_to_row)} entries but matrix has {n_docs} rows "
+            f"— possible misalignment."
+        )
+
+    # Validate grid_size consistency
+    expected_cols = grid_size * grid_size
+    if vector_size != expected_cols:
+        raise ValueError(
+            f"Matrix has {vector_size} columns but grid_size={grid_size} "
+            f"implies {expected_cols} columns."
+        )
+
+    return matrix, doc_to_row, use_morton, grid_size
 
 def _load_fingerprint_matrix(
     npz_path    : Path,
@@ -964,106 +1058,104 @@ def load_document_fingerprints(
     doc_fp_dir : Path,
 ) -> Tuple[Dict[str, "csr_matrix"], Dict]:
     """
-    Load document fingerprints produced by Step 5 (doc_fingerprints.py).
+    Load document fingerprints produced by Step 5.
 
     Expected files in doc_fp_dir:
-        doc_fingerprints.npz         — dense float32 matrix,
-                                       key "fingerprints",
-                                       shape (n_docs, grid_size²)
-        doc_fingerprints_meta.json   — {doc_id: row_index}
-        doc_fingerprints_stats.json  — run statistics including grid_size
+        doc_fingerprints.npz
+        doc_fingerprints_meta.json  (format: {"doc_to_row": ..., "use_morton": ..., "grid_size": ...})
+        doc_fingerprints_stats.json
 
     Parameters
     ----------
-    doc_fp_dir:
-        Step 5 output directory (e.g. outputs/run/doc_fingerprints/).
+    doc_fp_dir : Path
+        Step 5 output directory.
 
     Returns
     -------
     doc_fingerprints : Dict[str, csr_matrix]
-        doc_id  →  sparse row-vector of length grid_size².
+        doc_id → sparse row-vector of length grid_size².
     combined_metadata : Dict
-        All fields from stats.json plus "grid_size" and "num_docs".
+        All fields from stats.json plus "grid_size", "num_docs", "use_morton".
 
     Raises
     ------
-    FileNotFoundError  — if any of the three expected files is missing.
+    FileNotFoundError  if required files missing.
+    KeyError           if meta/stats structure incorrect.
     """
-    from scipy.sparse import csr_matrix          # local import — scipy optional
+    from scipy.sparse import csr_matrix
 
     doc_fp_dir = Path(doc_fp_dir)
 
     stats_path = doc_fp_dir / "doc_fingerprints_stats.json"
     if not stats_path.exists():
-        raise FileNotFoundError(
-            f"Stats file not found: {stats_path}\n"
-            f"Make sure Step 5 completed successfully."
-        )
+        raise FileNotFoundError(f"Stats file not found: {stats_path}")
 
-    # ── Read grid_size from stats so _load_fingerprint_matrix can validate ───
+    # Load stats to obtain any extra info (optional)
     with open(stats_path, "r", encoding="utf-8") as fh:
-        stats: Dict = json.load(fh)
-    grid_size: int = int(stats.get("grid_size", 16))
+        stats = json.load(fh)
 
-    matrix, index_map = _load_fingerprint_matrix(
-        npz_path   = doc_fp_dir / "doc_fingerprints.npz",
-        index_path = doc_fp_dir / "doc_fingerprints_meta.json",
-        npz_key    = "fingerprints",
-        label      = "document",
-        grid_size  = grid_size,
+    # Use the new document‑specific loader
+    matrix, doc_index, use_morton, grid_size = _load_doc_fingerprint_matrix(
+        npz_path  = doc_fp_dir / "doc_fingerprints.npz",
+        meta_path = doc_fp_dir / "doc_fingerprints_meta.json",
     )
 
-    # ── Build doc_id → sparse row-vector ─────────────────────────────────────
-    doc_fingerprints: Dict[str, "csr_matrix"] = {
+    # Build doc_id → sparse row vector
+    doc_fingerprints = {
         doc_id: csr_matrix(matrix[row_idx].reshape(1, -1))
-        for doc_id, row_idx in index_map.items()
+        for doc_id, row_idx in doc_index.items()
     }
 
     combined_metadata = {
         **stats,
-        "grid_size" : grid_size,
-        "num_docs"  : len(doc_fingerprints),
+        "grid_size"  : grid_size,
+        "num_docs"   : len(doc_fingerprints),
+        "use_morton" : use_morton,
     }
 
     logger.success(
         f"Loaded {len(doc_fingerprints)} document fingerprints "
-        f"(grid_size={grid_size})."
+        f"(grid_size={grid_size}, use_morton={use_morton})."
     )
     return doc_fingerprints, combined_metadata
-
-
 def load_phrase_fingerprints_sparse(
     fingerprints_dir : Path,
     grid_size        : int,
-) -> Dict[str, np.ndarray]:
+) -> Dict[str, "csr_matrix"]:
     """
-    Load phrase fingerprints produced by Step 4 (phrase_fingerprints.py).
+    Load phrase fingerprints (Step 4 output) as sparse CSR matrices.
 
-    Step 4 writes two files into its output directory:
-        phrase_fingerprints.npz        — dense float32 matrix, key "fingerprints",
-                                         shape (n_phrases, grid_size * grid_size)
-        phrase_fingerprints_meta.json  — { phrase_string: row_index, ... }
+    Step 4 writes two files into its output directory:
+        phrase_fingerprints.npz        – dense float32 matrix, key "fingerprints",
+                                          shape (n_phrases, grid_size * grid_size)
+        phrase_fingerprints_meta.json  – metadata, either:
+            * nested (new): { "phrase_to_row": {...}, "use_morton": bool, "grid_size": int }
+            * flat (legacy): { "phrase": row_index, ... }
+
+    The function detects the format automatically and returns a mapping from phrase string
+    to a sparse row vector (csr_matrix of shape (1, grid_size²)).
 
     Parameters
     ----------
-    fingerprints_dir:
-        The Step 4 output DIRECTORY  (e.g. outputs/run/phrase_fingerprints/).
-        Both expected files must exist inside it.
-    grid_size:
-        Grid side length used as a sanity check against the matrix shape.
+    fingerprints_dir : Path
+        Directory containing phrase_fingerprints.npz and phrase_fingerprints_meta.json.
+    grid_size : int
+        Expected grid side length; used to validate the matrix column count.
 
     Returns
     -------
-    Dict[str, np.ndarray]
-        Mapping  phrase_string  →  float32 vector of length grid_size².
+    Dict[str, csr_matrix]
+        Mapping from normalised phrase string to its sparse fingerprint vector.
 
     Raises
     ------
     FileNotFoundError
-        If either expected file is missing.
+        If either the .npz or meta file is missing.
     ValueError
         If the matrix column count does not match grid_size².
     """
+    from scipy.sparse import csr_matrix
+
     npz_path  = fingerprints_dir / "phrase_fingerprints.npz"
     meta_path = fingerprints_dir / "phrase_fingerprints_meta.json"
 
@@ -1071,52 +1163,71 @@ def load_phrase_fingerprints_sparse(
     if not npz_path.exists():
         raise FileNotFoundError(
             f"Fingerprint matrix not found: {npz_path}\n"
-            f"Expected Step 4 output inside: {fingerprints_dir}"
+            f"Expected Step 4 output inside: {fingerprints_dir}"
         )
     if not meta_path.exists():
         raise FileNotFoundError(
             f"Phrase index map not found: {meta_path}\n"
-            f"Expected Step 4 output inside: {fingerprints_dir}"
+            f"Expected Step 4 output inside: {fingerprints_dir}"
         )
 
     # ── Load matrix ──────────────────────────────────────────────────────────
     logger.info(f"Loading fingerprint matrix from: {npz_path}")
     data   = np.load(str(npz_path))
-    matrix = data["fingerprints"]                    # shape (n_phrases, grid_size²)
+    matrix = data["fingerprints"]                    # shape (n_phrases, vector_size)
+    n_phrases, vector_size = matrix.shape
 
     expected_cols = grid_size * grid_size
-    if matrix.shape[1] != expected_cols:
+    if vector_size != expected_cols:
         raise ValueError(
-            f"Matrix has {matrix.shape[1]} columns but "
+            f"Matrix has {vector_size} columns but "
             f"grid_size={grid_size} implies {expected_cols} columns. "
             f"Did you pass the correct --grid-size?"
         )
 
     logger.info(
         f"Matrix shape: {matrix.shape} "
-        f"(n_phrases={matrix.shape[0]}, vector_size={matrix.shape[1]})"
+        f"(n_phrases={n_phrases}, vector_size={vector_size})"
     )
 
     # ── Load phrase → row-index map ──────────────────────────────────────────
     logger.info(f"Loading phrase index map from: {meta_path}")
     with open(meta_path, "r", encoding="utf-8") as fh:
-        token_map: Dict[str, int] = json.load(fh)
+        meta = json.load(fh)
 
-    if len(token_map) != matrix.shape[0]:
+    # Detect format: nested (new) or flat (legacy)
+    if "phrase_to_row" in meta:
+        token_map = meta["phrase_to_row"]                # nested mapping
+        use_morton = meta.get("use_morton", True)
+        meta_grid_size = meta.get("grid_size", None)
+        logger.info(
+            f"Loaded nested metadata: {len(token_map)} phrases, "
+            f"use_morton={use_morton}, grid_size={meta_grid_size}"
+        )
+    else:
+        token_map = meta                                 # flat mapping
+        logger.info(f"Loaded flat metadata: {len(token_map)} phrases")
+
+    # Sanity check
+    if len(token_map) != n_phrases:
         logger.warning(
-            f"token_map has {len(token_map)} entries but matrix has "
-            f"{matrix.shape[0]} rows — index map and matrix may be misaligned."
+            f"Token map has {len(token_map)} entries but matrix has "
+            f"{n_phrases} rows – possible misalignment."
         )
 
-    # ── Build phrase → vector dict ───────────────────────────────────────────
-    phrase_fps: Dict[str, np.ndarray] = {
-        phrase: matrix[idx].astype(np.float32)
-        for phrase, idx in token_map.items()
-    }
+    # ── Build phrase → sparse CSR vector dict ─────────────────────────────────
+    phrase_fps: Dict[str, "csr_matrix"] = {}
+    for phrase, idx in token_map.items():
+        idx = int(idx)
+        if idx >= n_phrases:
+            logger.warning(f"Skipping phrase '{phrase}' with out-of-range index {idx}")
+            continue
+        # Create a sparse row vector (1, vector_size)
+        row_dense = matrix[idx].astype(np.float32)
+        phrase_fps[phrase] = csr_matrix(row_dense.reshape(1, -1))
 
-    logger.success(f"Loaded {len(phrase_fps)} phrase fingerprints.")
+    logger.success(f"Loaded {len(phrase_fps)} phrase fingerprints (sparse format).")
     return phrase_fps
-
 
 
 def load_fingerprint_cache(

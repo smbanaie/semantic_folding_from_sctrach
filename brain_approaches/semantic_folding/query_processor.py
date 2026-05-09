@@ -1009,7 +1009,7 @@ def extract_query_phrases(
     logger.debug("Stage 2: expanding candidates into sub-phrases")
     expanded: List[str] = expand_phrases(
         candidates,
-        context_text    = query,   # raw query text used for context validation
+        context_text    = None,   
         filter_generic  = filter_generic,
         min_word_length = min_word_length,
     )
@@ -1266,6 +1266,57 @@ def construct_query_fingerprint(
 
     return acc_csr, metadata
 
+# Morton encoding helpers (can be moved to lib.py later)
+def _spread_bits(value: int) -> int:
+    value &= 0x0000FFFF
+    value = (value | (value << 8))  & 0x00FF00FF
+    value = (value | (value << 4))  & 0x0F0F0F0F
+    value = (value | (value << 2))  & 0x33333333
+    value = (value | (value << 1))  & 0x55555555
+    return value
+
+def xy_to_morton(x: int, y: int, grid_size: int) -> int:
+    return _spread_bits(x) | (_spread_bits(y) << 1)
+
+def morton_to_xy(index: int, grid_size: int) -> Tuple[int, int]:
+    x = y = 0
+    bit = 0
+    while index > 0 or (1 << bit) < grid_size * grid_size:
+        if index & 1:
+            x |= (1 << (bit // 2))
+        index >>= 1
+        bit += 1
+        if index & 1:
+            y |= (1 << (bit // 2))
+        index >>= 1
+        bit += 1
+    return x, y
+
+def _unflatten_vector(vec: np.ndarray, grid_size: int, use_morton: bool) -> np.ndarray:
+    """Convert flat fingerprint (Morton or row‑major) to 2D grid."""
+    if not use_morton:
+        return vec.reshape(grid_size, grid_size)
+    grid = np.zeros((grid_size, grid_size), dtype=vec.dtype)
+    for idx, val in enumerate(vec):
+        if val != 0:
+            x, y = morton_to_xy(idx, grid_size)
+            if 0 <= x < grid_size and 0 <= y < grid_size:
+                grid[y, x] = val
+    return grid
+
+def _flatten_grid(grid: np.ndarray, use_morton: bool) -> np.ndarray:
+    """Convert 2D grid back to flat fingerprint (Morton or row‑major)."""
+    if not use_morton:
+        return grid.flatten()
+    grid_size = grid.shape[0]
+    flat = np.zeros(grid_size * grid_size, dtype=grid.dtype)
+    for y in range(grid_size):
+        for x in range(grid_size):
+            val = grid[y, x]
+            if val != 0:
+                idx = xy_to_morton(x, y, grid_size)
+                flat[idx] = val
+    return flat
 # ─────────────────────────────────────────────────────────────────────────────
 # Spreading
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1276,6 +1327,7 @@ def apply_spreading(
     radius          : int   = 1,
     decay           : float = 0.5,
     normalize_after : bool  = True,
+    use_morton      : bool  = True,
 ) -> Tuple[csr_matrix, Dict]:
     r"""
     Apply Z-order neighbourhood spreading to a query fingerprint.
@@ -1326,34 +1378,30 @@ def apply_spreading(
     """
     logger.debug(
         f"apply_spreading: radius={radius}, decay={decay}, "
-        f"normalize_after={normalize_after}, input_nnz={fingerprint.nnz}"
+        f"normalize_after={normalize_after}, use_morton={use_morton}, "
+        f"input_nnz={fingerprint.nnz}"
     )
 
     if radius == 0:
-        logger.debug("  [SPREAD SKIP] radius=0 — returning fingerprint unchanged")
         return fingerprint, {"spreading_applied": False}
 
     n_cells  = fingerprint.shape[1]
     sparsity = fingerprint.nnz / n_cells
 
-    logger.debug(
-        f"  [SPREAD GUARD] sparsity={sparsity:.4f} "
-        f"({fingerprint.nnz} bits / {n_cells} cells), threshold={SPARCITY_GAURD}"
-    )
-
     if sparsity < SPARCITY_GAURD:
-        logger.warning(
-            f"Fingerprint very sparse ({sparsity:.4f}, {fingerprint.nnz} bits "
-            f"/ {n_cells} cells) — spreading skipped to avoid score collapse."
-        )
+        logger.warning(...)
         return fingerprint, {
             "spreading_applied": False,
-            "reason":            "sparsity_too_low",
-            "sparsity":          sparsity,
+            "reason": "sparsity_too_low",
+            "sparsity": sparsity,
         }
 
     original_nnz  = fingerprint.nnz
-    dense_fp      = fingerprint.toarray().reshape(grid_size, grid_size)
+
+    # Correctly unflatten according to encoding
+    flat_vec = fingerprint.toarray().ravel()
+    dense_fp = _unflatten_vector(flat_vec, grid_size, use_morton)
+
     spread_fp     = dense_fp.copy()
     active_coords = np.argwhere(dense_fp > 0)
 
@@ -1369,14 +1417,12 @@ def apply_spreading(
             dist = max(abs(nx - x), abs(ny - y))
             contribution = value * (decay ** dist)
             spread_fp[ny, nx] += contribution
-            # logger.debug(
-            #     f"    [SPREAD PROP] ({x},{y})→({nx},{ny}) "
-            #     f"dist={dist} val={value:.4f} contrib={contribution:.4f}"
-            # )
 
-    result = csr_matrix(spread_fp.reshape(1, -1))
+    # Re‑flatten using the same encoding
+    flat_result = _flatten_grid(spread_fp, use_morton)
+    result = csr_matrix(flat_result.reshape(1, -1))
+
     pre_norm_nnz = result.nnz
-
     logger.debug(
         f"  [SPREAD POST] nnz before norm={pre_norm_nnz}, "
         f"bits_added={pre_norm_nnz - original_nnz}"
@@ -1387,8 +1433,6 @@ def apply_spreading(
         logger.debug(
             f"  [SPREAD NORM] l2 applied — nnz: {pre_norm_nnz} → {result.nnz}"
         )
-    else:
-        logger.debug("  [SPREAD NORM] skipped (normalize_after=False)")
 
     metadata = {
         "spreading_applied":  True,
@@ -1635,6 +1679,7 @@ def process_query(
     doc_fingerprints    : Dict[str, csr_matrix],
     args                : argparse.Namespace,
     idf_weights         : Optional[Dict[str, float]] = None,
+     use_morton      : bool  = True
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     r"""
     Process a single query through the full retrieval pipeline.
@@ -1795,7 +1840,7 @@ def process_query(
 
     all_expanded = expand_phrases(
         all_expanded,
-        context_text=query,
+        context_text=None,
         filter_generic=filter_generic,
         min_word_length=min_word_length,
     )
@@ -1981,16 +2026,12 @@ def process_query(
 
     if spreading_steps > 0:
         grid_size = int(np.sqrt(query_fp.shape[1]))
-        logger.debug(
-            f"  [STAGE 3] applying spreading: grid_size={grid_size}, "
-            f"radius={spreading_steps}, "
-            f"decay={getattr(args, 'spreading_decay', 0.5)}"
-        )
         query_fp, spreading_metadata = apply_spreading(
             query_fp, grid_size,
             radius=spreading_steps,
             decay=getattr(args, "spreading_decay", 0.5),
             normalize_after=getattr(args, "normalize_after_spreading", True),
+            use_morton=use_morton,                              # PASSED
         )
     else:
         logger.debug("  [STAGE 3] spreading skipped (spreading_steps=0)")
@@ -2060,17 +2101,17 @@ def parse_args() -> argparse.Namespace:
         help="Query string to process.",
     )
     parser.add_argument(
-        "--phrase-fp-dir", dest="phrase_fp_dir", type=Path, required=True,
+        "--fingerprints", dest="phrase_fp_dir", type=Path, required=True,
         help="Step 4 phrase fingerprint directory.",
     )
     parser.add_argument(
-        "--doc-fp-dir", dest="doc_fp_dir", type=Path, required=True,
+        "--doc-fingerprints", dest="doc_fp_dir", type=Path, required=True,
         help="Step 5 document fingerprint directory.",
     )
 
     # ── Optional inputs ───────────────────────────────────────────────────────
     parser.add_argument(
-        "--idf", dest="idf_weights", type=Path, default=None,
+        "--idf-weights", dest="idf_weights", type=Path, default=None,
         help="IDF weights JSON file (required when --weighting idf).",
     )
     parser.add_argument(
@@ -2139,10 +2180,7 @@ def parse_args() -> argparse.Namespace:
         "--min-similarity", dest="min_similarity", type=float, default=0.0,
         help="Minimum score threshold for results.",
     )
-    parser.add_argument(
-        "--use-batch", dest="use_batch", action="store_true", default=True,
-        help="Accepted for compatibility; dot-product ranking is always used.",
-    )
+
 
     # ── Output ────────────────────────────────────────────────────────────────
     parser.add_argument(
@@ -2267,7 +2305,8 @@ def main() -> None:
             "Document fingerprints dict is empty — check Step 5 output."
         )
         sys.exit(1)
-
+    
+    use_morton = doc_metadata.get("use_morton", True)  # default safe row‑major
     logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints.")
     logger.debug(
         f"  [MAIN LOAD] doc_metadata keys: {list(doc_metadata.keys())[:5]}..."
@@ -2317,6 +2356,7 @@ def main() -> None:
             doc_fingerprints,
             args,
             idf_weights,
+            use_morton=use_morton
         )
 
         if "error" in metadata:

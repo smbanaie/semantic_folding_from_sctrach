@@ -111,7 +111,7 @@ Usage
         --grid-size     64 \\
         --use-morton \\
         --smooth \\
-        --sigma         1.5
+        --sigma         1.0
 
     python phrase_fingerprints.py \\
         --coordinates   runs/run_001/context_coordinates.json \\
@@ -500,10 +500,12 @@ def compute_stats(
 # ---------------------------------------------------------------------------
 
 def write_outputs(
-    fingerprints: np.ndarray,
-    token_index_map: Dict[str, int],
-    stats: dict,
-    output_dir: Path,
+    fingerprints    : np.ndarray,
+    token_index_map : Dict[str, int],
+    stats           : dict,
+    output_dir      : Path,
+    use_morton      : bool,          # NEW: encode whether Morton encoding was used
+    grid_size       : int,           # NEW: store grid size for validation
 ) -> None:
     """
     Persist fingerprint matrix, token-index map, and run statistics to disk.
@@ -516,9 +518,14 @@ def write_outputs(
         ``float32``.
 
     ``phrase_fingerprints_meta.json``
-        JSON object mapping each phrase token string to its row index (integer)
-        in the ``.npz`` matrix.  Downstream code can load this map and the
-        matrix independently and join them on the row index.
+        JSON object containing:
+        - ``"phrase_to_row"`` : mapping from phrase string to row index
+          (the same as the original token‑index map).
+        - ``"use_morton"``    : boolean indicating whether fingerprints are
+          in Morton (Z‑order) encoding (vs row‑major).
+        - ``"grid_size"``     : side length of the square semantic grid.
+        Downstream steps (e.g., Step 5) can use this additional information
+        to correctly back‑project fingerprints onto the 2D grid.
 
     ``phrase_fingerprints_stats.json``
         JSON object containing the summary statistics returned by
@@ -526,15 +533,20 @@ def write_outputs(
 
     Parameters
     ----------
-    fingerprints:
-        2-D float32 array of shape ``(n_phrases, vector_size)``.
-    token_index_map:
-        Dict mapping token strings to row indices in ``fingerprints``.
-    stats:
-        Statistics dict from :func:`compute_stats`.
-    output_dir:
-        Directory into which all three files are written.  Must exist before
-        calling this function.
+    fingerprints : np.ndarray, shape (n_phrases, vector_size), dtype float32
+        The dense fingerprint matrix.
+    token_index_map : Dict[str, int]
+        Mapping from phrase token string to its row in the matrix.
+    stats : dict
+        Statistics produced by :func:`compute_stats`.
+    output_dir : Path
+        Directory in which to write the three output files.
+    use_morton : bool
+        Whether the 1D vectors were linearised via Morton (Z‑order)
+        encoding (True) or row‑major (False).
+    grid_size : int
+        Side length of the square semantic grid; used to calculate
+        vector length = grid_size * grid_size.
 
     Raises
     ------
@@ -551,16 +563,23 @@ def write_outputs(
     np.savez_compressed(str(npz_path), fingerprints=fingerprints)
     logger.success(f"Fingerprint matrix written → {npz_path}  shape={fingerprints.shape}")
 
-    # --- token → row index map ---
+    # --- structured metadata (now includes encoding info) ---
+    meta_dict = {
+        "phrase_to_row": token_index_map,
+        "use_morton": use_morton,
+        "grid_size": grid_size,
+    }
     with open(meta_path, "w", encoding="utf-8") as fh:
-        json.dump(token_index_map, fh, ensure_ascii=False, indent=2)
-    logger.success(f"Token-index map written   → {meta_path}  ({len(token_index_map):,} entries)")
+        json.dump(meta_dict, fh, ensure_ascii=False, indent=2)
+    logger.success(
+        f"Metadata written → {meta_path}  ({len(token_index_map):,} phrases, "
+        f"morton={use_morton}, grid={grid_size})"
+    )
 
     # --- run statistics ---
     with open(stats_path, "w", encoding="utf-8") as fh:
         json.dump(stats, fh, ensure_ascii=False, indent=2)
-    logger.success(f"Run statistics written    → {stats_path}")
-
+    logger.success(f"Run statistics written → {stats_path}")
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -630,7 +649,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--grid-size",
         type=int,
-        default=16,
+        default=128,
         dest="grid_size",
         help=(
             "Side length of the square semantic grid.  Must match the value "
@@ -675,7 +694,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--sigma",
         type=float,
-        default=1.5,
+        default=1.0,
         help=(
             "Standard deviation of the Gaussian smoothing kernel in index "
             "units.  Ignored when --no-smooth is set."
@@ -1028,7 +1047,14 @@ def main(argv: Optional[List[str]] = None) -> None:
     # 7. Write outputs
     # ------------------------------------------------------------------
     try:
-        write_outputs(fingerprints, token_index_map, stats, args.output)
+        write_outputs(
+            fingerprints    = fingerprints,
+            token_index_map = token_index_map,
+            stats           = stats,
+            output_dir      = args.output,
+            use_morton      = args.use_morton,   # from CLI
+            grid_size       = args.grid_size,    # from CLI
+        )
     except OSError as exc:
         logger.error(f"Failed to write outputs: {exc}")
         sys.exit(4)

@@ -1591,7 +1591,7 @@ Examples:
         if args.phrase:
             logger.info("Mode: Single-phrase visualization")
             visualize_single_phrase(
-                phrase=args.phrase,
+                phrase=args.phrase.lower(),
                 fingerprints_dir=args.fingerprints,
                 output_dir=args.output,
                 grid_size=args.grid_size,
@@ -1611,8 +1611,8 @@ Examples:
         else:
             logger.info("Mode: Comparative two-phrase visualization")
             visualize_phrase_pair(
-                phrase1=args.phrase1,
-                phrase2=args.phrase2,
+                phrase1=args.phrase1.lower(),
+                phrase2=args.phrase2.lower(),
                 fingerprints_dir=args.fingerprints,
                 output_dir=args.output,
                 grid_size=args.grid_size,

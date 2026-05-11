@@ -34,7 +34,7 @@ import yaml
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from abc import ABC, abstractmethod
 from lib import get_logger
 logger = get_logger("semantic_folder")
@@ -204,9 +204,37 @@ class PhraseVisualizationHandler(VisualizationHandler):
                 'border_color', 'border_width', 'max_shapes', 'width', 'height',
                 'colorscale', 'generate_html', 'generate_png', 'save_metadata'
             ],
-            'default_output': 'phrase_visualizations'
+            'default_output': 'phrase_viz'
         }
     
+    def handle(self):
+        """Handle phrase visualization workflow."""
+        self.runner.print_header("Phrase Fingerprint Visualization")
+        
+        # Get current run_id
+        run_id = self.runner.exec_state.get("last_run_id", "default")
+        
+        # Collect parameters
+        params = self.collect_parameters(run_id)
+        if not params:
+            return
+        
+        # Build and execute command
+        cmd = self.build_command(params)
+        
+        print(f"\n{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
+        print(f"{Colors.BOLD}Executing:{Colors.ENDC} {' '.join(cmd)}")
+        print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}\n")
+        
+        try:
+            subprocess.run(cmd, check=True, text=True)
+            self.runner.print_success("Visualization completed successfully")
+        except subprocess.CalledProcessError as e:
+            self.runner.print_error(f"Visualization failed (code {e.returncode})")
+        except Exception as e:
+            logger.exception(f"Unexpected error during visualization: {e}")
+            self.runner.print_error(f"Unexpected error: {e}")
+
     def collect_parameters(self, run_id: str) -> Optional[Dict[str, str]]:
         """
         Collect parameters for phrase visualization.
@@ -251,7 +279,7 @@ class PhraseVisualizationHandler(VisualizationHandler):
         logger.debug(f"Fingerprints directory: {fingerprints}")
         
         # 2. Output directory
-        default_out = f'outputs/{run_id}/phrase_visualizations'
+        default_out = f'outputs/{run_id}/phrase_viz'
         output = self.runner.get_input(
             f"{Colors.BOLD}output{Colors.ENDC} (required)",
             default_out
@@ -463,6 +491,204 @@ class PhraseVisualizationHandler(VisualizationHandler):
         logger.info(f"Built visualization command: {' '.join(cmd)}")
         return cmd
 
+class DocumentVisualizationHandler(VisualizationHandler):
+    """Handler for document fingerprint visualization."""
+    def __init__(self, runner):
+        """Initialize with reference to SemanticRunner."""
+        super().__init__(runner)
+
+    def get_step_definition(self) -> Dict[str, Any]:
+        """Return step definition for document visualization."""
+        return {
+            'id': 'doc_viz',
+            'name': 'Document Fingerprint Visualization',
+            'script': 'brain_approaches/semantic_folding/doc_visualizer.py',
+            'required_params': ['run_dir', 'doc_id', 'output'],
+            'optional_params': [
+                'no_grid_borders', 'border_color', 'border_width'
+            ],
+            'default_output': 'doc_viz'
+        }
+    
+    def collect_parameters(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Collect parameters for document visualization.
+        
+        Args:
+            run_id: Current run ID (unused for doc viz, uses run selection)
+            
+        Returns:
+            Dict with all parameters, or None if cancelled
+        """
+        logger.info("Collecting parameters for document visualization")
+        params = {}
+        
+        print(f"\n{Colors.BOLD}Configure: Document Fingerprint Visualization{Colors.ENDC}")
+        print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
+        
+        # 1. Select run directory
+        runs = self._list_available_runs()
+        if not runs:
+            print(f"{Colors.RED}❌ No runs found in outputs/{Colors.ENDC}")
+            input("\nPress Enter to continue...")
+            return None
+        
+        print(f"\n{Colors.BOLD}Available runs:{Colors.ENDC}")
+        for i, run in enumerate(runs, 1):
+            print(f"  {i}. {run.name}")
+        
+        run_choice = input(f"\n{Colors.BOLD}Select run number:{Colors.ENDC} ").strip()
+        try:
+            run_idx = int(run_choice) - 1
+            if 0 <= run_idx < len(runs):
+                params['run_dir'] = str(runs[run_idx])
+                logger.debug(f"Selected run directory: {params['run_dir']}")
+            else:
+                print(f"{Colors.RED}❌ Invalid run selection{Colors.ENDC}")
+                input("\nPress Enter to continue...")
+                return None
+        except ValueError:
+            print(f"{Colors.RED}❌ Invalid input{Colors.ENDC}")
+            input("\nPress Enter to continue...")
+            return None
+        
+        # 2. Get document ID
+        doc_id = self.runner.get_input(
+            f"{Colors.BOLD}Enter document ID{Colors.ENDC} (e.g., doc_001)",
+            None
+        )
+        while not doc_id:
+            self.runner.print_error("'doc_id' is required")
+            doc_id = self.runner.get_input(
+                f"{Colors.BOLD}Enter document ID{Colors.ENDC} (e.g., doc_001)",
+                None
+            )
+        if not doc_id:
+            print(f"{Colors.RED}❌ Document ID is required{Colors.ENDC}")
+            input("\nPress Enter to continue...")
+            return None
+        params['doc_id'] = doc_id
+        logger.debug(f"Document ID: {doc_id}")
+        
+        # 3. Get output directory – default inside the selected run directory
+        default_output = str(Path(params['run_dir']) / 'doc_viz')
+        output = self.runner.get_input(
+            f"{Colors.BOLD}Output directory{Colors.ENDC})",
+            default_output
+        )
+        params['output'] = output if output else default_output
+        logger.debug(f"Output directory: {params['output']}")
+        
+        # 4. Optional: grid borders
+        print(f"\n{Colors.CYAN}Optional parameters (Enter to skip):{Colors.ENDC}")
+        
+        show_borders = self.runner.get_input(
+            f"{Colors.BOLD}\tShow 4×4 grid borders? (y/n){Colors.ENDC}",
+            "y"
+        )
+       
+        params['no_grid_borders'] = (show_borders == 'n')
+        
+        if show_borders != 'n':
+            border_color = self.runner.get_input(
+                f"{Colors.BOLD}\tBorder color{Colors.ENDC})",
+                "lightgray"
+            )
+            params['border_color'] = border_color if border_color else 'lightgray'
+            
+            border_width = self.runner.get_input(
+                f"{Colors.BOLD}\tBorder width{Colors.ENDC})",
+                "1.0"
+            )
+            
+            try:
+                params['border_width'] = float(border_width) if border_width else 1.0
+            except ValueError:
+                print(f"  {Colors.YELLOW}⚠️  Invalid border width, using default 1.0{Colors.ENDC}")
+                params['border_width'] = 1.0
+        
+        # Validate
+        valid, error_msg = self._validate_params(params)
+        if not valid:
+            print(f"{Colors.RED}❌ Validation failed: {error_msg}{Colors.ENDC}")
+            input("\nPress Enter to continue...")
+            return None
+        
+        return params
+    
+    def handle(self):
+        """Handle document visualization workflow."""
+        print(f"\n{Colors.BOLD}Document Fingerprint Visualization{Colors.ENDC}")
+        
+        # Collect parameters (run_id not used for doc viz)
+        params = self.collect_parameters(run_id="")
+        if not params:
+            return
+        
+        # Build and execute command
+        cmd = self.build_command(params)
+        
+        print(f"\n{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
+        print(f"{Colors.BOLD}Executing:{Colors.ENDC} {' '.join(str(c) for c in cmd)}")
+        print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}\n")
+        
+        try:
+            subprocess.run(cmd, check=True, text=True)
+            print(f"\n{Colors.GREEN}✅ Document visualization completed successfully!{Colors.ENDC}")
+        except subprocess.CalledProcessError as e:
+            print(f"\n{Colors.RED}❌ Document visualization failed (code {e.returncode}){Colors.ENDC}")
+        except Exception as e:
+            logger.exception(f"Unexpected error during visualization: {e}")
+            print(f"\n{Colors.RED}❌ Unexpected error: {e}{Colors.ENDC}")
+        
+        input("\nPress Enter to continue...")
+    
+    def build_command(self, params: Dict[str, Any]) -> List[str]:
+        """Build CLI command for doc_visualizer.py."""
+        cmd = [
+            "E:\\PHD\\GraphRag-Implementations\\YaALI\\"
+            "knowledge-graph-builder\\.venv\\scripts\\python",
+            "brain_approaches/semantic_folding/doc_visualizer.py"
+        ]
+        
+        cmd.extend(['--run-dir', str(params['run_dir'])])
+        cmd.extend(['--doc-id', params['doc_id']])
+        cmd.extend(['--output', str(params['output'])])
+        
+        if params.get('no_grid_borders', False):
+            cmd.append('--no-grid-borders')
+        
+        if 'border_color' in params and params['border_color'] != 'lightgray':
+            cmd.extend(['--border-color', params['border_color']])
+        
+        if 'border_width' in params and params['border_width'] != 1.0:
+            cmd.extend(['--border-width', str(params['border_width'])])
+        
+        logger.info(f"Built document visualization command: {' '.join(str(c) for c in cmd)}")
+        return cmd
+    
+    def _validate_params(self, params: Dict[str, Any]) -> Tuple[bool, str]:
+        """Validate collected parameters."""
+        run_dir = Path(params['run_dir'])
+        if not run_dir.exists():
+            return False, f"Run directory not found: {run_dir}"
+        
+        doc_fp_dir = run_dir / 'doc_fingerprints'
+        if not doc_fp_dir.exists():
+            return False, f"Document fingerprints directory not found: {doc_fp_dir}"
+        
+        if not params.get('doc_id'):
+            return False, "Document ID is required"
+        
+        return True, ""
+    
+    def _list_available_runs(self) -> List[Path]:
+        """List available run directories."""
+        outputs_dir = Path('outputs')
+        if not outputs_dir.exists():
+            return []
+        return sorted([d for d in outputs_dir.iterdir() if d.is_dir()], reverse=True)
+
 
 # ============================================================================
 # MAIN PIPELINE RUNNER
@@ -514,22 +740,33 @@ class SemanticRunner:
         "n_jobs":               ["semantic_space", "n_jobs"],
         "use_sparse":           ["semantic_space", "use_sparse"],
 
+        # Phase 4: Phrase Fingerprints
+        "smooth":               ["phrase_fingerprints", "smooth"],
+        "sigma":                ["phrase_fingerprints", "sigma"],
+        "use_morton":           ["phrase_fingerprints", "use_morton"],
+
         # Phase 5: Document Fingerprints
         "top_percent":          ["document_fingerprints", "top_percent"],
         "no_normalize":         ["document_fingerprints", "no_normalize"],
         "normalize_method":     ["document_fingerprints", "normalize_method"],
+        "use_spacy":            ["document_fingerprints", "use_spacy"],
+        "remove_verbs":         ["document_fingerprints", "remove_verbs"],
+        "filter_generic":       ["document_fingerprints", "filter_generic"],
+        "min_word_length":      ["document_fingerprints", "min_word_length"],
         "compute_diversity":    ["document_fingerprints", "compute_diversity"],
         "diversity_sample":     ["document_fingerprints", "diversity_sample"],
+        "min_peak_distance":    ["document_fingerprints", "min_peak_distance"],
+        "smoothing_sigma":      ["document_fingerprints", "smoothing_sigma"],
+        "use_morton":           ["document_fingerprints", "use_morton"],
 
         # Phase 6: Query Processing
         "weighting":            ["query_processing", "weighting"],
-        "idf_weights":            ["query_processing", "idf_weights"],
+        "idf_weights":          ["query_processing", "idf_weights"],
         "top_k":                ["query_processing", "top_k"],
         "spreading_steps":      ["query_processing", "spreading_steps"],
-
         # Phrase Visualization
         "threshold":            ["phrase_visualization", "threshold"],
-        "no_morton":            ["phrase_visualization", "encoding"],
+        "no_morton":            ["phrase_visualization", "no_morton"],
         "grid_borders":         ["phrase_visualization", "grid_borders"],
         "border_color":         ["phrase_visualization", "border_color"],
         "border_width":         ["phrase_visualization", "border_width"],
@@ -606,10 +843,13 @@ class SemanticRunner:
             "script": "brain_approaches/semantic_folding/doc_fingerprints.py",
             "required_params": ["corpus", "fingerprints", "output"],
             "optional_params": [
+                "grid_size", "idf_weights",              
                 "top_percent", "no_normalize", "normalize_method",
+                "min_word_length", "remove_verbs", "filter_generic",
+                "min_peak_distance", "smoothing_sigma", "use_morton",
                 "compute_diversity", "diversity_sample"
             ],
-            "default_output": "document_fingerprints",
+            "default_output": "doc_fingerprints",
             "depends_on": [4]
         },
         {
@@ -634,6 +874,9 @@ class SemanticRunner:
 
     # Maps internal parameter names to CLI flag names
     CLI_RENAME_MAP = {
+        "remove_verbs": "remove-verbs",
+        "filter_generic": "filter-generic",
+        "use_morton": "morton-encoded",
         "matrix_npz":       "matrix",
         "metadata":         "metadata",
         "coordinates":      "coordinates",
@@ -672,7 +915,14 @@ class SemanticRunner:
 
     # Maps boolean parameters to their negation flags
     NEGATE_FLAG_MAP = {
-        "no_morton": "morton",  # If no_morton=false, use --morton
+        # Phrase visualizer booleans (positive param → negation flag)
+        "grid_borders": "no-grid-borders",
+        "generate_html": "no-html",
+        "generate_png": "no-png",
+        "save_metadata": "no-metadata",
+        "remove_verbs": "no-remove-verbs",
+        "filter_generic": "no-filter-generic",
+        "use_morton": "no-morton",
     }
 
     # ========================================================================
@@ -688,7 +938,8 @@ class SemanticRunner:
         
         # Initialize visualization handlers
         self.viz_handlers = {
-            'phrase': PhraseVisualizationHandler(self)
+            'phrase': PhraseVisualizationHandler(self),
+            'document': DocumentVisualizationHandler(self)
         }
         
         logger.info("SemanticRunner initialized")
@@ -1690,6 +1941,7 @@ class SemanticRunner:
         
         options = [
             "Phrase Extraction Visualization",
+            "Doc Fingerprint Visualization",
             "Back to main menu"
         ]
         
@@ -1698,6 +1950,8 @@ class SemanticRunner:
         if choice == 1:
             self.viz_handlers['phrase'].handle()
         elif choice == 2:
+            self.viz_handlers['document'].handle()
+        elif choice == 3:
             return
 
     # ========================================================================
@@ -1716,120 +1970,6 @@ class SemanticRunner:
             logger.exception(f"Unexpected error: {e}")
             self.print_error(f"Unexpected error: {e}")
             sys.exit(1)
-
-
-# ============================================================================
-# VISUALIZATION HANDLERS
-# ============================================================================
-
-class PhraseVisualizationHandler:
-    """Handler for phrase extraction visualization."""
-    
-    def __init__(self, runner: SemanticRunner):
-        self.runner = runner
-    
-    def handle(self):
-        """Handle phrase visualization workflow."""
-        self.runner.print_header("Phrase Extraction Visualization")
-        
-        # Get parameters
-        params = self.collect_parameters()
-        if not params:
-            return
-        
-        # Build and execute command
-        cmd = self.build_command(params)
-        
-        print(f"\n{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
-        print(f"{Colors.BOLD}Executing:{Colors.ENDC} {' '.join(cmd)}")
-        print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}\n")
-        
-        try:
-            subprocess.run(cmd, check=True, text=True)
-            self.runner.print_success("Visualization completed successfully")
-        except subprocess.CalledProcessError as e:
-            self.runner.print_error(f"Visualization failed (code {e.returncode})")
-        except Exception as e:
-            logger.exception(f"Unexpected error during visualization: {e}")
-            self.runner.print_error(f"Unexpected error: {e}")
-    
-    def collect_parameters(self) -> Optional[Dict[str, str]]:
-        """Collect parameters for phrase visualization."""
-        params = {}
-        
-        print(f"\n{Colors.BOLD}Configure: Phrase Visualization{Colors.ENDC}")
-        print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
-        
-        # Required parameters
-        phrases_file = self.runner.get_input(
-            f"{Colors.BOLD}phrases_file{Colors.ENDC} (required)", 
-            None
-        )
-        while not phrases_file or not Path(phrases_file).exists():
-            if not phrases_file:
-                self.runner.print_error("phrases_file is required")
-            else:
-                self.runner.print_error(f"File not found: {phrases_file}")
-            phrases_file = self.runner.get_input(
-                f"{Colors.BOLD}phrases_file{Colors.ENDC} (required)", 
-                None
-            )
-        params["phrases_file"] = phrases_file
-        
-        output = self.runner.get_input(
-            f"{Colors.BOLD}output{Colors.ENDC} (required)", 
-            "outputs/phrase_viz"
-        )
-        while not output:
-            self.runner.print_error("output is required")
-            output = self.runner.get_input(
-                f"{Colors.BOLD}output{Colors.ENDC} (required)", 
-                "outputs/phrase_viz"
-            )
-        params["output"] = output
-        
-        # Optional parameters with config defaults
-        print(f"\n{Colors.CYAN}Optional parameters (Enter to skip):{Colors.ENDC}")
-        
-        optional_params = {
-            "no_morton": "viz.phrase.no_morton",
-            "grid_borders": "viz.phrase.grid_borders",
-            "border_color": "viz.phrase.border_color",
-            "border_width": "viz.phrase.border_width",
-            "max_shapes": "viz.phrase.max_shapes",
-            "generate_html": "viz.phrase.generate_html",
-            "generate_png": "viz.phrase.generate_png",
-            "save_metadata": "viz.phrase.save_metadata"
-        }
-        
-        for param, config_path in optional_params.items():
-            default = self.runner.get_default_value(param, "viz")
-            value = self.runner.get_input(f"  {param}", default)
-            if value:
-                params[param] = value
-        
-        return params
-    
-    def build_command(self, params: Dict[str, str]) -> List[str]:
-        """Build visualization command."""
-        cmd = [
-            "E:\\PHD\\GraphRag-Implementations\\YaALI\\"
-            "knowledge-graph-builder\\.venv\\scripts\\python",
-            "brain_approaches/semantic_folding/visualize_phrases.py"
-        ]
-        
-        for param, value in params.items():
-            flag_name = self.runner.CLI_RENAME_MAP.get(param, param)
-            flag = f"--{flag_name.replace('_', '-')}"
-            
-            # Handle boolean parameters
-            if str(value).lower() in ("true", "false"):
-                if str(value).lower() == "true":
-                    cmd.append(flag)
-            else:
-                cmd.extend([flag, value])
-        
-        return cmd
 
 
 # ============================================================================

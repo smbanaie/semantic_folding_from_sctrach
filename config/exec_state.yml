@@ -1,5 +1,5 @@
 last_run_id: run_20260519_214612
-last_step: 5
+last_step: 6
 runs:
   run_20260519_214612:
     corpus: data\corpus.txt
@@ -74,3 +74,17 @@ runs:
           output: outputs/run_20260519_214612/doc_fingerprints
           smoothing_sigma: '1.5'
           top_percent: '0.1'
+      6:
+        completed_at: '2026-05-19T22:23:47.972246'
+        output: outputs/run_20260519_214612/query_results
+        params:
+          doc_fingerprints: outputs/run_20260519_214612/doc_fingerprints
+          fingerprints: outputs/run_20260519_214612/phrase_fingerprints
+          grid_size: '128'
+          idf_weights: outputs\run_20260519_214612\term_context_matrix\idf_weights.json
+          output: outputs/run_20260519_214612/query_results
+          query: What role do sentence structure and the contextual meaning of words
+            play in the development of natural language processing systems?
+          spreading_steps: '1'
+          top_k: '5'
+          weighting: idf

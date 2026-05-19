@@ -25,7 +25,6 @@ The semantic folding pipeline has been modernized into a production-ready system
 - **`phrase_fingerprints.py`**: Efficient fingerprint generation from semantic coordinates with validation and Morton encoding
 - **`doc_fingerprints.py`**: Document fingerprint aggregation with IDF weighting, Z-order thresholding, and comprehensive metadata
 - **`semantic_folder.py`**: Interactive TUI orchestration with progress tracking, resume capability, and error recovery
-- **`scratchpad.py`**: Command-line orchestration with comprehensive logging and batch processing
 
 #### Academic Documentation
 - **`lib.md`**: Comprehensive documentation of shared utility functions with mathematical foundations
@@ -38,7 +37,7 @@ The semantic folding pipeline has been modernized into a production-ready system
 #### Supporting Tools
 - **`analyze_fingerprints.py`**: Statistical analysis and quality metrics for generated fingerprints
 - **`context-similarity.py`**: Context similarity computation and validation
-- **`query-processing.py`**: Query fingerprint generation and similarity search
+- **`query_processor.py`**: Query fingerprint generation and similarity search
 - **`lance_storage.py`**: LanceDB integration for efficient vector storage and retrieval
 
 ### Key Improvements
@@ -115,21 +114,51 @@ Ensures quality and consistency across the pipeline:
 uv sync
 
 # Launch interactive interface
-uv run python brain_approaches/semantic_folding/semantic_folder.py
+uv run python semantic_folding/semantic_folder.py
 
-### Command Line (Advanced)
+### Command Line (Step by Step)
 
-# Run on MuSiQue corpus (default)
-uv run python brain_approaches/semantic_folding/scratchpad.py \
-  --corpus_path data/HippoRAG2/dataset/musique_corpus.json
+```bash
+# Step 1: Phrase Extraction
+uv run python semantic_folding/phrase_extractor.py \
+  --corpus data/HippoRAG2/dataset/musique_corpus.json \
+  --output outputs/phrases
 
-# Run on custom corpus
-uv run python brain_approaches/semantic_folding/scratchpad.py \
-  --corpus_path /path/to/your/corpus.json \
-  --grid_size 32
+# Step 2: Term-Context Matrix
+uv run python semantic_folding/term_context.py \
+  --vocab outputs/phrases/vocabulary.csv \
+  --mapping outputs/phrases/phrase_to_contexts.json \
+  --corpus data/HippoRAG2/dataset/musique_corpus.json \
+  --output outputs/matrix
 
-# Check results
-ls outputs/$(date +%Y%m%d)_*/fingerprints/ | wc -l  # 25K+ fingerprint files
+# Step 3: Semantic Space
+uv run python semantic_folding/semantic_space.py \
+  --matrix outputs/matrix/term_context_matrix.npz \
+  --metadata outputs/matrix/term_context_matrix.json \
+  --output outputs/coordinates \
+  --grid-size 32
+
+# Step 4: Phrase Fingerprints
+uv run python semantic_folding/phrase_fingerprints.py \
+  --coordinates outputs/coordinates/context_coordinates.json \
+  --metadata outputs/phrases/phrase_metadata.json \
+  --output outputs/fingerprints \
+  --grid-size 32
+
+# Step 5: Document Fingerprints
+uv run python semantic_folding/doc_fingerprints.py \
+  --corpus data/HippoRAG2/dataset/musique_corpus.json \
+  --fingerprints outputs/fingerprints \
+  --output outputs/doc_fingerprints \
+  --grid-size 32
+
+# Step 6: Query Processing
+uv run python semantic_folding/query_processor.py \
+  --query "your search query" \
+  --fingerprints outputs/fingerprints \
+  --doc-fingerprints outputs/doc_fingerprints \
+  --grid-size 32 \
+  --top-k 10
 ```
 ## Configuration
 
@@ -190,6 +219,162 @@ outputs/YYYYMMDD_HHMMSS/
 ├── doc_fingerprints/         # 11K+ document fingerprints + metadata
 ├── logs/pipeline.log         # Comprehensive execution log
 └── visualizations/           # Heatmaps and graphs (if matplotlib available)
+
+## Pipeline Steps (CLI Reference)
+
+Each pipeline step is a standalone script with `argparse` CLI. Run from the project root:
+
+### Phase 1: Phrase Extraction
+**Script:** `semantic_folding/phrase_extractor.py`
+
+Extracts meaningful phrases from raw text using spaCy linguistic analysis (with NLTK n-gram fallback).
+
+Key arguments:
+- `--corpus PATH` — corpus file (context_id,context_text CSV)
+- `--output DIR` — output directory for `vocabulary.csv` and `phrase_to_contexts.json`
+- `--min-freq INT` — minimum phrase frequency (default: 2)
+- `--min-word-length INT` — minimum character length for single words (default: 3)
+- `--no-spacy` — force NLTK n-gram fallback
+- `--no-filter-generic` — keep generic single words
+- `--stats` — print extraction statistics
+
+```bash
+uv run python semantic_folding/phrase_extractor.py \
+  --corpus data/corpus.txt \
+  --output outputs/phrases \
+  --min-freq 2
+```
+
+### Phase 2: Term-Context Matrix
+**Script:** `semantic_folding/term_context.py`
+
+Builds a sparse term-context co-occurrence matrix with optional TF-IDF weighting.
+
+Key arguments:
+- `--vocab PATH` — vocabulary.csv from Phase 1
+- `--mapping PATH` — phrase_to_contexts.json from Phase 1
+- `--corpus PATH` — corpus file (for context ID ordering)
+- `--output DIR` — output directory for `term_context_matrix.npz` + `.json`
+- `--no-tfidf` — disable TF-IDF normalization (raw binary occurrences)
+
+```bash
+uv run python semantic_folding/term_context.py \
+  --vocab outputs/phrases/vocabulary.csv \
+  --mapping outputs/phrases/phrase_to_contexts.json \
+  --corpus data/corpus.txt \
+  --output outputs/matrix
+```
+
+### Phase 3: Semantic Space
+**Script:** `semantic_folding/semantic_space.py`
+
+Reduces the term-context matrix to 2D coordinates using t-SNE/UMAP/PCA, maps to a discrete grid, and resolves collisions.
+
+Key arguments:
+- `--matrix PATH` — term_context_matrix.npz from Phase 2
+- `--metadata PATH` — term_context_matrix.json from Phase 2
+- `--output DIR` — output directory (writes `context_coordinates.json`/`.csv`)
+- `--method {tsne,umap,pca}` — dimensionality reduction method (default: tsne)
+- `--grid-size INT` — grid side length N (default: 16)
+- `--perplexity INT` — t-SNE perplexity (default: 30)
+- `--visualize` — generate PNG scatter plots
+
+```bash
+uv run python semantic_folding/semantic_space.py \
+  --matrix outputs/matrix/term_context_matrix.npz \
+  --metadata outputs/matrix/term_context_matrix.json \
+  --output outputs/coordinates \
+  --grid-size 32 \
+  --method tsne \
+  --perplexity 30
+```
+
+### Phase 4: Phrase Fingerprints
+**Script:** `semantic_folding/phrase_fingerprints.py`
+
+Converts semantic coordinates into fixed-length binary fingerprint vectors for every phrase.
+
+Key arguments:
+- `--coordinates PATH` — context_coordinates.json from Phase 3
+- `--metadata PATH` — phrase_metadata.json from upstream
+- `--output DIR` — output directory
+- `--grid-size INT` — grid side length (must match Phase 3)
+- `--no-morton` — use row-major instead of Morton Z-order encoding
+- `--no-smooth` — emit raw binary without Gaussian smoothing
+
+```bash
+uv run python semantic_folding/phrase_fingerprints.py \
+  --coordinates outputs/coordinates/context_coordinates.json \
+  --metadata outputs/matrix/phrase_metadata.json \
+  --output outputs/fingerprints \
+  --grid-size 32
+```
+
+### Phase 5: Document Fingerprints
+**Script:** `semantic_folding/doc_fingerprints.py`
+
+Aggregates phrase-level fingerprints into document-level SDRs with TF-IDF weighted union and topology-preserving sparsification.
+
+Key arguments:
+- `--corpus PATH` — corpus file (doc_id → text)
+- `--fingerprints DIR` — phrase fingerprint directory from Phase 4
+- `--output DIR` — output directory for document fingerprints
+- `--grid-size INT` — grid side length (must match Phases 3-4)
+- `--top-percent FLOAT` — fraction of bits to keep (default: 0.05)
+- `--normalize-method {l1,l2,max}` — normalization method (default: l2)
+- `--compute-diversity` — compute pairwise fingerprint diversity
+
+```bash
+uv run python semantic_folding/doc_fingerprints.py \
+  --corpus data/corpus.txt \
+  --fingerprints outputs/fingerprints \
+  --output outputs/doc_fingerprints \
+  --grid-size 32 \
+  --top-percent 0.05
+```
+
+### Phase 6: Query Processing
+**Script:** `semantic_folding/query_processor.py`
+
+Processes natural language queries against document fingerprints using semantic folding similarity.
+
+Key arguments:
+- `--query STR` — query string
+- `--fingerprints DIR` — phrase fingerprint directory from Phase 4
+- `--doc-fingerprints DIR` — document fingerprint directory from Phase 5
+- `--grid-size INT` — grid side length (must match Phases 3-5)
+- `--weighting {uniform,frequency,idf}` — phrase weighting strategy (default: uniform)
+- `--spreading-steps INT` — Z-order spreading radius (default: 1, 0 to disable)
+- `--spreading-decay FLOAT` — activation decay per step (default: 0.5)
+- `--top-k INT` — max results (default: 10)
+- `--output PATH` — save results as JSON
+
+```bash
+uv run python semantic_folding/query_processor.py \
+  --query "neural networks for image classification" \
+  --fingerprints outputs/fingerprints \
+  --doc-fingerprints outputs/doc_fingerprints \
+  --grid-size 32 \
+  --weighting uniform \
+  --spreading-steps 1 \
+  --spreading-decay 0.5 \
+  --top-k 10
+```
+
+### Utility Scripts
+
+**Context Similarity** (`semantic_folding/context-similarity.py`): Analyzes cosine similarity between phrase contexts in the term-context matrix.
+```bash
+uv run python semantic_folding/context-similarity.py \
+  --matrix_path outputs/matrix/term_context_matrix.npz \
+  --phrases_path outputs/phrases/phrase_to_contexts.json
+```
+
+**Fingerprint Analysis** (`semantic_folding/analyze_fingerprints.py`): Statistical quality metrics for generated fingerprints.
+
+**Visualization** (`semantic_folding/phrase_visualizer.py`, `semantic_folding/doc_visualizer.py`): Plotly-based dashboards for interactive exploration.
+
+**LanceDB Storage** (`semantic_folding/lance_storage.py`): Optional vector storage with LanceDB for similarity search at scale.
 
 ## Core Algorithm
 
@@ -514,6 +699,39 @@ id,text
 - **Cross-Lingual Alignment**: Project multiple languages into shared semantic space
 - **Distributed Processing**: Parallel fingerprint generation for massive corpora
 - **Advanced Compression**: Ultra-sparse representations for billion-scale vocabularies
+
+## Troubleshooting
+
+**"Phrases extracted: 0"**
+- Check corpus file encoding (must be UTF-8)
+- Lower `--min-freq` threshold
+- Ensure spaCy model is installed: `python -m spacy download en_core_web_sm`
+
+**"Matrix sparsity too high (>0.99)"**
+- Increase `--min-freq` in phrase extraction
+- Reduce corpus size or use more focused domain text
+- Check for data quality issues (excessive boilerplate)
+
+**"t-SNE convergence warning"**
+- Increase `--tsne-iter` (try 2000-5000)
+- Adjust `--perplexity` (try 10-50 range)
+- Switch to UMAP: `--method umap`
+
+**"Query returns no results"**
+- Check if query phrases exist in the learned vocabulary
+- Lower `--min-similarity` (default: 0.0, already permissive)
+- Reduce `--top-percent` in doc fingerprints (less aggressive thresholding)
+- Verify document fingerprints exist and are non-empty
+
+**"Out of memory during semantic space generation"**
+- Reduce `--grid-size` (try 16 instead of 32)
+- Use PCA instead of t-SNE: `--method pca`
+- Pass `--use-sparse` to keep the matrix sparse during reduction
+
+**"Configuration file not loading"**
+- Verify YAML syntax (use online validator)
+- Check file path is correct relative to project root
+- Ensure all required sections are present
 
 ## References and Related Work
 

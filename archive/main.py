@@ -1,281 +1,333 @@
 #!/usr/bin/env python3
 """
-KG-Builder: Knowledge Graph Generation using kg-gen library with OpenRouter
+Knowledge Graph Builder - Main Entry Point
+
+A LangGraph-based multi-agent system for building knowledge graphs from text corpora.
 """
 
-import os
-import sys
 import argparse
+import asyncio
+import json
 from datetime import datetime
-import re
 from pathlib import Path
-from dotenv import load_dotenv
-from loguru import logger
-import yaml
 
-# Configure loguru logging
-logger.remove()  # Remove default handler
-logger.add(
-    sys.stderr,
-    level="DEBUG",
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-    colorize=True
-)
-logger.add(
-    "logs/kg-builder.log",
-    level="DEBUG",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
-    rotation="10 MB",
-    retention="7 days"
-)
-
-# Create logs directory if it doesn't exist
-Path("logs").mkdir(exist_ok=True)
-
-from kg_gen import KGGen
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
+from rich.table import Table
+from rich.progress import Progress, TextColumn, BarColumn
+import sys
+import os
+
+# Fix Windows console encoding
+if sys.platform == "win32":
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+
+from src.config import get_config
+from src.graph import build_graph, visualize_graph
+from src.models.data_models import GraphState
+from src.storage.memgraph_client import MemgraphClient
+from src.utils.io_utils import set_run_id
+
+console = Console()
 
 
-def load_models():
-    """Load available models from YAML file"""
+async def run_pipeline(
+    corpus_text: str,
+    corpus_files: list[Path],
+    clear_graph: bool = False,
+    output_path: str | None = None,
+) -> GraphState:
+    """
+    Run the complete knowledge graph pipeline.
+
+    Args:
+        corpus_text: Combined corpus text
+        corpus_files: List of corpus file paths
+        clear_graph: Whether to clear Memgraph before running
+        output_path: Custom output path for triples JSON
+
+    Returns:
+        Final graph state
+    """
+    # Clear graph if requested
+    if clear_graph:
+        console.print("[yellow]Clearing Memgraph...[/yellow]")
+        config = get_config()
+        try:
+            with MemgraphClient(
+                uri=config.memgraph_uri,
+                user=config.memgraph_user,
+                password=config.memgraph_password,
+            ) as client:
+                client.clear_graph()
+            console.print("[green][OK] Graph cleared[/green]")
+        except Exception as e:
+            console.print(f"[red]Warning: Could not clear graph: {e}[/red]")
+
+    # Build workflow
+    console.print("[cyan]Building workflow...[/cyan]")
+    app = build_graph()
+
+    # Create initial state
+    initial_state: GraphState = {
+        "corpus": corpus_text,
+        "corpus_metadata": {
+            "files": [str(f) for f in corpus_files],
+            "total_length": len(corpus_text),
+            "word_count": len(corpus_text.split()),
+        },
+        "extraction_strategy": "",
+        "extraction_prompts": {},
+        "domain_context": "",
+        "sections": [],
+        "section_metadata": [],
+        "chunks": [],
+        "chunk_mapping": {},
+        "raw_triples": [],
+        "extraction_stats": {},
+        "validated_triples": [],
+        "corrections_made": [],
+        "graph_stats": {},
+        "storage_status": "",
+    }
+
+    # Run pipeline
+    console.print("[bold green]Starting pipeline...[/bold green]")
+    start_time = datetime.now()
+
     try:
-        with open('models.yaml', 'r', encoding='utf-8') as f:
-            models_data = yaml.safe_load(f)
-        return models_data
-    except FileNotFoundError:
-        logger.error("models.yaml file not found")
-        return None
-    except yaml.YAMLError as e:
-        logger.error(f"Error parsing models.yaml: {e}")
-        return None
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            console=console,
+            disable=False,
+        ) as progress:
+            task = progress.add_task("Processing pipeline...", total=None)
 
+            # Invoke the graph
+            final_state = await app.ainvoke(initial_state)
 
-def load_environment():
-    """Load environment variables from .env file"""
-    logger.info("Loading environment variables...")
-    load_dotenv()
-    
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        logger.error("OPENROUTER_API_KEY not found in environment variables.")
-        logger.error("Please create a .env file with your OpenRouter API key.")
-        logger.error("You can copy .env.sample to .env and fill in your key.")
-        sys.exit(1)
-    
-    logger.info("Environment variables loaded successfully")
-    return api_key
+            progress.update(task, completed=True)
 
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
 
-def setup_kg_gen(api_key: str, model: str = "openrouter/google/gemma-2-9b-it:free"):
-    """Initialize KGGen with OpenRouter configuration"""
-    # Normalize model to include provider prefix expected by LiteLLM (OpenRouter)
-    normalized_model = model if model.startswith("openrouter/") else f"openrouter/{model}"
-    if normalized_model != model:
-        logger.debug(f"Normalized model provider: '{model}' -> '{normalized_model}'")
-    logger.info(f"Setting up KGGen with model: {normalized_model}")
-    
-    # Set up environment variables for LiteLLM (used by kg-gen internally)
-    os.environ["OPENROUTER_API_KEY"] = api_key
-    logger.debug("Set OPENROUTER_API_KEY environment variable")
-    
-    try:
-        logger.info("Initializing KGGen...")
-        # Initialize KGGen with OpenRouter model
-        kg = KGGen(
-            model=normalized_model,
-            temperature=0.1,  # Low temperature for consistent output
-            api_key=api_key
-        )
-        logger.success("KGGen initialized successfully")
-        return kg
-    except Exception as e:
-        logger.error(f"Failed to initialize KGGen: {e}")
-        raise
+        console.print(f"[green][OK] Pipeline completed in {duration:.1f} seconds[/green]")
 
-
-def process_text_file(kg: KGGen, input_file: str, output_dir: str, chunk_size: int = 5000, cluster: bool = True):
-    """Process a text file and generate knowledge graph"""
-    logger.info(f"Processing file: {input_file}")
-    
-    try:
-        # Read the input file
-        logger.debug(f"Reading input file: {input_file}")
-        with open(input_file, 'r', encoding='utf-8') as f:
-            text = f.read()
-        
-        logger.info(f"Text length: {len(text)} characters")
-        
-        # Generate knowledge graph
-        logger.info("Generating knowledge graph...")
-        logger.debug(f"Using chunk_size: {chunk_size}, cluster: {cluster}")
-        
-        graph = kg.generate(
-            input_data=text,
-            chunk_size=chunk_size,
-            cluster=cluster
-        )
-        
-        # Log results
-        logger.success("Knowledge graph generated successfully!")
-        logger.info(f"Entities: {len(graph.entities)}")
-        logger.info(f"Relations: {len(graph.relations)}")
-        logger.info(f"Edges: {len(graph.edges)}")
-        
-        if hasattr(graph, 'entity_clusters') and graph.entity_clusters:
-            logger.info(f"Entity clusters: {len(graph.entity_clusters)}")
-        
-        if hasattr(graph, 'edge_clusters') and graph.edge_clusters:
-            logger.info(f"Edge clusters: {len(graph.edge_clusters)}")
-        
         # Save results
-        logger.info(f"Saving results to: {output_dir}")
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        
-        # Save graph data
-        logger.debug("Saving graph.pkl...")
-        import pickle
-        with open(output_path / "graph.pkl", "wb") as f:
-            pickle.dump(graph, f)
-        
-        # Save entities and relations as text files
-        logger.debug("Saving entities.txt...")
-        with open(output_path / "entities.txt", "w", encoding="utf-8") as f:
-            for entity in sorted(graph.entities):
-                f.write(f"{entity}\n")
-        
-        logger.debug("Saving relations.txt...")
-        with open(output_path / "relations.txt", "w", encoding="utf-8") as f:
-            for relation in sorted(graph.relations):
-                f.write(f"{relation[0]} -> {relation[1]} -> {relation[2]}\n")
-        
-        # Generate visualization
-        html_path = output_path / "graph_visualization.html"
-        logger.info(f"Generating visualization: {html_path}")
-        kg.visualize(graph, str(html_path), open_in_browser=False)
-        
-        logger.success(f"Results saved to: {output_path}")
-        logger.success(f"Visualization: {html_path}")
-        
-        return graph
-        
+        if output_path:
+            output_file = Path(output_path)
+        else:
+            config = get_config()
+            output_file = config.get_output_path("triples.json")
+
+        # Also save timestamped copy
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamped_file = output_file.parent / f"triples_{timestamp}.json"
+
+        validated_triples = final_state.get("validated_triples", [])
+        if validated_triples:
+            # Convert triples to JSON-serializable format
+            triples_data = [
+                {
+                    "subject": t.subject,
+                    "predicate": t.predicate,
+                    "object": t.object,
+                    "confidence": t.confidence,
+                    "source_chunk_id": t.source_chunk_id,
+                    "metadata": t.metadata,
+                }
+                for t in validated_triples
+            ]
+
+            # Save to both files
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(triples_data, f, indent=2, ensure_ascii=False)
+
+            with open(timestamped_file, "w", encoding="utf-8") as f:
+                json.dump(triples_data, f, indent=2, ensure_ascii=False)
+
+            console.print(f"[green][OK] Saved {len(validated_triples)} triples to:[/green]")
+            console.print(f"  - {output_file}")
+            console.print(f"  - {timestamped_file}")
+
+        return final_state
+
     except Exception as e:
-        logger.error(f"Error processing file {input_file}: {e}")
+        console.print(f"[red][ERROR] Pipeline failed: {e}[/red]")
         raise
+
+
+def display_statistics(state: GraphState, duration: float):
+    """
+    Display pipeline statistics using Rich.
+
+    Args:
+        state: Final graph state
+        duration: Pipeline duration in seconds
+    """
+    # Create statistics table
+    table = Table(title="Pipeline Statistics", show_header=True, header_style="bold magenta")
+
+    table.add_column("Metric", style="cyan", no_wrap=True)
+    table.add_column("Value", style="green")
+
+    # Corpus info
+    corpus_metadata = state.get("corpus_metadata", {})
+    table.add_row("Corpus Files", str(len(corpus_metadata.get("files", []))))
+    table.add_row("Corpus Length", f"{corpus_metadata.get('total_length', 0):,} characters")
+    table.add_row("Word Count", f"{corpus_metadata.get('word_count', 0):,} words")
+
+    # Sections
+    sections = state.get("sections", [])
+    table.add_row("Sections Created", str(len(sections)))
+
+    # Chunks
+    chunks = state.get("chunks", [])
+    table.add_row("Chunks Created", str(len(chunks)))
+
+    # Extraction
+    extraction_stats = state.get("extraction_stats", {})
+    raw_triples = state.get("raw_triples", [])
+    table.add_row("Raw Triples Extracted", str(len(raw_triples)))
+    table.add_row(
+        "Chunks Processed",
+        f"{extraction_stats.get('chunks_processed', 0)}/{extraction_stats.get('total_chunks', 0)}",
+    )
+    table.add_row("Chunks Failed", str(extraction_stats.get("chunks_failed", 0)))
+
+    # Validation
+    validated_triples = state.get("validated_triples", [])
+    corrections = state.get("corrections_made", [])
+    table.add_row("Validated Triples", str(len(validated_triples)))
+    table.add_row("Corrections Made", str(len(corrections)))
+
+    # Graph stats
+    graph_stats = state.get("graph_stats", {})
+    table.add_row("Graph Nodes", str(graph_stats.get("nodes", 0)))
+    table.add_row("Graph Edges", str(graph_stats.get("edges", 0)))
+
+    # Storage
+    storage_status = state.get("storage_status", "unknown")
+    status_style = "green" if storage_status == "success" else "yellow"
+    table.add_row("Storage Status", f"[{status_style}]{storage_status}[/{status_style}]")
+
+    # Timing
+    table.add_row("Duration", f"{duration:.1f} seconds")
+
+    console.print()
+    console.print(table)
 
 
 def main():
-    logger.info("Starting KG-Builder application")
-    
-    parser = argparse.ArgumentParser(description="KG-Builder: Knowledge Graph Generation using kg-gen")
-    parser.add_argument('--input', '-i', help='Input text file path')
-    parser.add_argument('--output', '-o', default='./output', help='Base output directory (default: ./output)')
-    parser.add_argument('--label', help='Optional label for this run; if omitted, a timestamped label will be generated')
-    parser.add_argument('--model', '-m', default='openai/gpt-oss-20b:free', 
-                       help='OpenRouter model to use (default: openai/gpt-oss-20b:free)')
-    parser.add_argument('--chunk-size', '-c', type=int, default=5000, 
-                       help='Chunk size for large texts (default: 5000)')
-    parser.add_argument('--no-cluster', action='store_true', 
-                       help='Disable entity and relation clustering')
-    parser.add_argument('--list-models', action='store_true', 
-                       help='List available OpenRouter models and exit')
-    
+    """Main entry point for the knowledge graph builder."""
+    parser = argparse.ArgumentParser(
+        description="Build knowledge graphs from text corpora using multi-agent pipeline"
+    )
+    parser.add_argument(
+        "--corpus-dir",
+        type=str,
+        help="Override CORPUS_DIRECTORY from config",
+    )
+    parser.add_argument(
+        "--corpus-files",
+        type=str,
+        help="Specific files to process (comma-separated)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="Custom output path for triples JSON",
+    )
+    parser.add_argument(
+        "--visualize",
+        action="store_true",
+        help="Show graph visualization",
+    )
+    parser.add_argument(
+        "--clear-graph",
+        action="store_true",
+        help="Clear Memgraph before running",
+    )
+
     args = parser.parse_args()
-    logger.debug(f"Command line arguments: {args}")
-    
-    # Validate arguments
-    if not args.list_models and not args.input:
-        logger.error("Input file is required when not listing models")
-        parser.error("Input file is required when not listing models. Use --input or --list-models")
-    
-    # Load environment
-    api_key = load_environment()
-    
-    if args.list_models:
-        logger.info("Loading available OpenRouter models from YAML")
-        models_data = load_models()
-        
-        if not models_data:
-            print("❌ Error: Could not load models.yaml file")
-            return
-        
-        console = Console()
-        console.print(Panel.fit(Text("Available OpenRouter Free Models", style="bold magenta")))
 
-        def render_group(title: str, models: list):
-            if not models:
-                return
-            table = Table(title=title, show_lines=True)
-            table.add_column("Name", style="bold cyan")
-            table.add_column("ID", style="green")
-            table.add_column("Provider", style="yellow")
-            table.add_column("Context", style="blue")
-            table.add_column("Best For", style="white")
-            table.add_column("Reasoning", style="white")
-            table.add_column("Tool Use", style="white")
-            for m in models:
-                table.add_row(
-                    m.get("name", "-"),
-                    m.get("id", "-"),
-                    m.get("provider", "-"),
-                    m.get("context", "-"),
-                    m.get("best_for", "-"),
-                    "✅" if m.get("reasoning") else "❌",
-                    "✅" if m.get("tool_use") else "❌",
-                )
-            console.print(table)
-
-        render_group("RECOMMENDED for Knowledge Graph Generation", models_data.get('models', {}).get('recommended', []))
-        render_group("ALTERNATIVES", models_data.get('models', {}).get('alternatives', []))
-        render_group("SPECIALIZED", models_data.get('models', {}).get('specialized', []))
-
-        console.print(Panel.fit(Text("Usage Examples", style="bold green")))
-        console.print("python main.py --input input/sample-text.txt --model deepseek/deepseek-v3.1:free")
-        console.print("python main.py --input input/sample-text.txt --model z-ai/glm-4.5-air:free")
+    # Show visualization if requested
+    if args.visualize:
+        console.print(Panel(visualize_graph(), title="Workflow Visualization", border_style="blue"))
         return
-    
-    # Initialize KGGen
-    try:
-        logger.info("Initializing KGGen...")
-        kg = setup_kg_gen(api_key, args.model)
-        logger.success(f"Initialized KGGen with model: {args.model}")
-    except Exception as e:
-        logger.error(f"Error initializing KGGen: {e}")
-        if "NotFoundError" in str(e) or "404" in str(e):
-            logger.error("Model not found. Try using --list-models to see available models.")
-            logger.error("Recommended: Use 'openrouter/google/gemma-2-9b-it:free'")
-        sys.exit(1)
-    
-    # Process the input file
-    try:
-        logger.info("Starting knowledge graph generation...")
 
-        # Build a unique run directory under the base output directory
-        if args.label:
-            run_label = args.label
-        else:
-            # Use ISO-like timestamp + sanitized model id, e.g., 2025-10-20T20-31
-            ts = datetime.now().strftime('%Y-%m-%dT%H-%M')
-            sanitized_model = re.sub(r'[^A-Za-z0-9_.-]+', '-', args.model)
-            run_label = f"{ts}_{sanitized_model}"
-        run_output_dir = str(Path(args.output) / run_label)
-        logger.info(f"Run output directory (label='{run_label}'): {run_output_dir}")
-        graph = process_text_file(
-            kg, 
-            args.input, 
-            run_output_dir,
-            chunk_size=args.chunk_size,
-            cluster=not args.no_cluster
+    # Display header
+    console.print(
+        Panel.fit(
+            "[bold blue]Knowledge Graph Builder[/bold blue]\n"
+            "[dim]Multi-agent pipeline for knowledge extraction[/dim]",
+            border_style="blue",
         )
-        
-        logger.success("Knowledge Graph generation completed successfully!")
-        
+    )
+
+    # Load configuration
+    config = get_config()
+
+    # Create a run id for this execution and store outputs under it
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + os.urandom(4).hex()
+    set_run_id(run_id)
+    console.print(f"[dim]Run ID:[/dim] {run_id}")
+
+    # Override corpus directory if provided
+    if args.corpus_dir:
+        config.corpus_directory = args.corpus_dir
+
+    # Override corpus files if provided
+    if args.corpus_files:
+        config.corpus_files = [f.strip() for f in args.corpus_files.split(",")]
+
+    # Load corpus
+    try:
+        console.print("[cyan]Loading corpus...[/cyan]")
+        corpus_text = config.load_corpus()
+        corpus_files = config.get_corpus_files()
+
+        console.print(f"[green][OK] Loaded {len(corpus_files)} file(s)[/green]")
+        console.print(f"  Total length: {len(corpus_text):,} characters")
+
+    except FileNotFoundError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        console.print(
+            "\n[yellow]Tip:[/yellow] Add .txt files to data/corpus/ or configure CORPUS_FILES in .env"
+        )
+        return
     except Exception as e:
-        logger.error(f"Error processing file: {e}")
-        sys.exit(1)
+        console.print(f"[red]Error loading corpus: {e}[/red]")
+        return
+
+    # Run pipeline
+    start_time = datetime.now()
+    try:
+        final_state = asyncio.run(
+            run_pipeline(
+                corpus_text=corpus_text,
+                corpus_files=corpus_files,
+                clear_graph=args.clear_graph,
+                output_path=args.output,
+            )
+        )
+
+        # Calculate duration
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+
+        # Display statistics
+        display_statistics(final_state, duration)
+
+        console.print("\n[bold green][OK] Pipeline completed successfully![/bold green]")
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Pipeline interrupted by user[/yellow]")
+    except Exception as e:
+        console.print(f"\n[red][ERROR] Pipeline failed: {e}[/red]")
+        raise
 
 
 if __name__ == "__main__":

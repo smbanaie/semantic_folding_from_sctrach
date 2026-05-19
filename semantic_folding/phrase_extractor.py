@@ -630,11 +630,11 @@ def main() -> None:
         help='Path to corpus file (format: context_id,context_text)',
     )
     parser.add_argument(
-        '--output-dir', type=Path, required=True,
+        '--output', type=Path, required=True, dest="output_dir",
         help='Directory to save vocabulary.csv and phrase_to_contexts.json',
     )
     parser.add_argument(
-        '--keep-verbs', action='store_true', default=False,
+        '--keep-verbs', action='store_true', default=True,
         help='Do not strip verbs during normalization',
     )
     parser.add_argument(

@@ -941,7 +941,9 @@ def main():
     )
     
     parser.add_argument(
-        "--no-remove-verbs",
+        "--keep-verbs",
+        dest="keep_verbs",
+        default=True,
         action="store_true",
         help="Keep verb tokens during phrase extraction",
     )
@@ -979,14 +981,16 @@ def main():
         help="Gaussian smoothing sigma before peak detection (default: 0.5, set 0 to disable)",
     )
 
-    parser.add_argument(
-        "--morton-encoded",
+    exclusive_group = parser.add_mutually_exclusive_group()
+    exclusive_group.add_argument(
+        "--morton",
+        dest="morton_encoded",
         action="store_true",
         default=True,
         help="Phrase fingerprints are in Morton (Z‑order) encoding (default: True)",
     )
-    parser.add_argument(
-        "--no-morton-encoded",
+    exclusive_group.add_argument(
+        "--no-morton",
         action="store_false",
         dest="morton_encoded",
         help="Use row‑major order for phrase fingerprints",
@@ -1004,7 +1008,7 @@ def main():
         normalize         = not args.no_normalize,
         normalize_method  = args.normalize_method,
         use_spacy         = SPACY_AVAILABLE,
-        remove_verbs      = not args.no_remove_verbs,
+        remove_verbs      = not args.keep_verbs,
         filter_generic    = not args.no_filter_generic,
         min_word_length   = args.min_word_length,
         compute_diversity = args.compute_diversity,

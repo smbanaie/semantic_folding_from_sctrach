@@ -1532,7 +1532,10 @@ Examples:
     
     # Grid configuration
     parser.add_argument('--grid-size', type=int, default=128, help='Grid dimension (default: 128)')
-    parser.add_argument('--no-morton', action='store_true', help='Use row-major encoding instead of Morton')
+    
+    exclusive_group = parser.add_mutually_exclusive_group()
+    exclusive_group.add_argument('--morton', action='store_true', default=True, dest='morton')
+    exclusive_group.add_argument('--no-morton', action='store_false', dest='morton')
     
     # Activation threshold
     parser.add_argument('--threshold', type=float, default=0.0, 
@@ -1579,7 +1582,7 @@ Examples:
     logger.info(f"Fingerprints dir: {args.fingerprints}")
     logger.info(f"Output directory: {args.output}")
     logger.info(f"Grid size: {args.grid_size}")
-    logger.info(f"Encoding: {'Row-major' if args.no_morton else 'Morton (Z-order)'}")
+    logger.info(f"Encoding: {'Row-major' if not args.morton else 'Morton (Z-order)'}")
     logger.info(f"Threshold: {args.threshold}")
     logger.info(f"Grid borders: {'Disabled' if args.no_grid_borders else f'Enabled ({args.border_color}, width={args.border_width})'}")
     logger.info(f"Figure size: {args.width}×{args.height}")
@@ -1595,7 +1598,7 @@ Examples:
                 fingerprints_dir=args.fingerprints,
                 output_dir=args.output,
                 grid_size=args.grid_size,
-                use_morton=not args.no_morton,
+                use_morton=args.morton,
                 threshold=args.threshold,
                 grid_borders=not args.no_grid_borders,
                 border_color=args.border_color,
@@ -1616,7 +1619,7 @@ Examples:
                 fingerprints_dir=args.fingerprints,
                 output_dir=args.output,
                 grid_size=args.grid_size,
-                use_morton=not args.no_morton,
+                use_morton=args.morton,
                 threshold=args.threshold,
                 grid_borders=not args.no_grid_borders,
                 border_color=args.border_color,

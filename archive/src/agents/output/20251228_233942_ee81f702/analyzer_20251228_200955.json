@@ -1,0 +1,56 @@
+{
+  "analysis_result": {
+    "domain": "technical",
+    "topic": "Retrieval-Augmented Generation (RAG) and GraphRAG architectures",
+    "key_entity_types": [
+      "Technology",
+      "Concept",
+      "Organization",
+      "Method",
+      "System"
+    ],
+    "common_relationship_types": [
+      "EXTENDS",
+      "USES",
+      "COMPRISES",
+      "ADVANTAGES_OF",
+      "IMPACTS"
+    ],
+    "extraction_strategy": "This corpus describes technical architectures for AI systems, focusing on RAG and GraphRAG. Extraction should prioritize identifying core technologies (e.g., vector databases), architectural components (e.g., retrieval mechanisms), and conceptual relationships. Use a layered approach: first extract system components and their functions, then identify how they interconnect through relationships like 'USES' or 'EXTENDS'. Pay special attention to comparative language that highlights advantages of one approach over another. Since this is a technical domain, precision in terminology is crucial - ensure extracted entities match the specific technical terms used in the corpus rather than generalized concepts.",
+    "entity_extraction_prompt": "Extract the following entity types from this technical text about AI architectures: Technologies (specific systems like 'Pinecone', 'GraphRAG'), Concepts (architectural patterns like 'semantic search', 'knowledge graphs'), Organizations (companies mentioned like 'Pinecone'), Methods (techniques like 'cosine similarity', 'nearest neighbor search'), and Systems (architectural components like 'retrieval mechanism', 'generation model'). Focus on precise technical terminology and avoid generalizing specific terms.",
+    "relationship_extraction_prompt": "Extract relationships between entities with focus on: EXTENDS (when one technology builds upon another, like GraphRAG extending RAG), USES (when a system employs a specific component or technique), COMPRISES (for architectural components that make up larger systems), ADVANTAGES_OF (when the text describes benefits of one approach over another), and IMPACTS (how quality or performance factors affect system outcomes). Look for verbs and comparative language that indicate these relationships in the technical description.",
+    "domain_context": "This domain covers advanced AI architectures that combine retrieval systems with generative models. The text is highly technical with precise terminology about machine learning systems, database technologies, and knowledge representation methods. It contrasts different architectural approaches and explains their components and advantages in a structured, analytical manner typical of technical documentation."
+  },
+  "extraction_strategy": "This corpus describes technical architectures for AI systems, focusing on RAG and GraphRAG. Extraction should prioritize identifying core technologies (e.g., vector databases), architectural components (e.g., retrieval mechanisms), and conceptual relationships. Use a layered approach: first extract system components and their functions, then identify how they interconnect through relationships like 'USES' or 'EXTENDS'. Pay special attention to comparative language that highlights advantages of one approach over another. Since this is a technical domain, precision in terminology is crucial - ensure extracted entities match the specific technical terms used in the corpus rather than generalized concepts.",
+  "extraction_prompts": {
+    "entity_extraction": "Extract the following entity types from this technical text about AI architectures: Technologies (specific systems like 'Pinecone', 'GraphRAG'), Concepts (architectural patterns like 'semantic search', 'knowledge graphs'), Organizations (companies mentioned like 'Pinecone'), Methods (techniques like 'cosine similarity', 'nearest neighbor search'), and Systems (architectural components like 'retrieval mechanism', 'generation model'). Focus on precise technical terminology and avoid generalizing specific terms.",
+    "relationship_extraction": "Extract relationships between entities with focus on: EXTENDS (when one technology builds upon another, like GraphRAG extending RAG), USES (when a system employs a specific component or technique), COMPRISES (for architectural components that make up larger systems), ADVANTAGES_OF (when the text describes benefits of one approach over another), and IMPACTS (how quality or performance factors affect system outcomes). Look for verbs and comparative language that indicate these relationships in the technical description."
+  },
+  "domain_context": "This domain covers advanced AI architectures that combine retrieval systems with generative models. The text is highly technical with precise terminology about machine learning systems, database technologies, and knowledge representation methods. It contrasts different architectural approaches and explains their components and advantages in a structured, analytical manner typical of technical documentation.",
+  "corpus_metadata": {
+    "files": [
+      "data\\corpus\\graphrag_rag_corpus.txt",
+      "data\\corpus\\sample.txt"
+    ],
+    "total_length": 20199,
+    "word_count": 2704,
+    "analysis": {
+      "domain": "technical",
+      "topic": "Retrieval-Augmented Generation (RAG) and GraphRAG architectures",
+      "key_entity_types": [
+        "Technology",
+        "Concept",
+        "Organization",
+        "Method",
+        "System"
+      ],
+      "common_relationship_types": [
+        "EXTENDS",
+        "USES",
+        "COMPRISES",
+        "ADVANTAGES_OF",
+        "IMPACTS"
+      ]
+    }
+  }
+}

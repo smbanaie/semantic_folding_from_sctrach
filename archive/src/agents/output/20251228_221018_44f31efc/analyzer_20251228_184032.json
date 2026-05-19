@@ -1,0 +1,60 @@
+{
+  "analysis_result": {
+    "domain": "technical",
+    "topic": "Retrieval-Augmented Generation (RAG) systems and their evolution to GraphRAG",
+    "key_entity_types": [
+      "Technology",
+      "Concept",
+      "Organization",
+      "Model",
+      "Algorithm",
+      "Database"
+    ],
+    "common_relationship_types": [
+      "EXTENDS",
+      "USES",
+      "CONSISTS_OF",
+      "ADVANTAGES_OVER",
+      "ENABLES",
+      "INVOLVES"
+    ],
+    "extraction_strategy": "This corpus describes technical architectures and methodologies in AI systems, focusing on RAG and GraphRAG. Extraction should prioritize identifying core technologies (e.g., vector databases), architectural components (e.g., retrieval mechanisms), and conceptual frameworks (e.g., knowledge graphs). Relationships should capture how technologies extend or enhance each other (e.g., GraphRAG extends RAG), component dependencies, and comparative advantages. Pay special attention to technical processes like entity extraction, relationship identification, and system stages. The language is formal and definition-heavy, so extractors should focus on declarative statements that establish taxonomy, functionality, and system interactions.",
+    "entity_extraction_prompt": "Extract entities related to AI technologies, systems, and concepts. Focus on: specific technologies (e.g., RAG, GraphRAG, vector databases); technical components (e.g., retrieval mechanism, generation model); algorithms or techniques (e.g., semantic search, cosine similarity); organizations developing tools (e.g., Pinecone); and abstract concepts (e.g., knowledge representation, multi-hop reasoning). Ignore generic terms unless they are defined as key concepts in the text.",
+    "relationship_extraction_prompt": "Extract relationships that describe technical dependencies, enhancements, and compositions. Look for: how one technology extends another (e.g., GraphRAG extends RAG); what components a system consists of; what advantages one approach has over another; what processes a methodology involves; and what tools enable specific functionalities. Relationships should reflect architectural designs, comparative benefits, and procedural flows described in the technical explanations.",
+    "domain_context": "The domain is artificial intelligence, specifically focusing on advanced language model architectures that integrate external knowledge retrieval. The text is technical, with precise definitions of systems, components, and methodologies. It contrasts traditional approaches with newer paradigms, emphasizing structural and functional improvements. The language is analytical, aimed at explaining architectural principles and technical advantages in AI systems."
+  },
+  "extraction_strategy": "This corpus describes technical architectures and methodologies in AI systems, focusing on RAG and GraphRAG. Extraction should prioritize identifying core technologies (e.g., vector databases), architectural components (e.g., retrieval mechanisms), and conceptual frameworks (e.g., knowledge graphs). Relationships should capture how technologies extend or enhance each other (e.g., GraphRAG extends RAG), component dependencies, and comparative advantages. Pay special attention to technical processes like entity extraction, relationship identification, and system stages. The language is formal and definition-heavy, so extractors should focus on declarative statements that establish taxonomy, functionality, and system interactions.",
+  "extraction_prompts": {
+    "entity_extraction": "Extract entities related to AI technologies, systems, and concepts. Focus on: specific technologies (e.g., RAG, GraphRAG, vector databases); technical components (e.g., retrieval mechanism, generation model); algorithms or techniques (e.g., semantic search, cosine similarity); organizations developing tools (e.g., Pinecone); and abstract concepts (e.g., knowledge representation, multi-hop reasoning). Ignore generic terms unless they are defined as key concepts in the text.",
+    "relationship_extraction": "Extract relationships that describe technical dependencies, enhancements, and compositions. Look for: how one technology extends another (e.g., GraphRAG extends RAG); what components a system consists of; what advantages one approach has over another; what processes a methodology involves; and what tools enable specific functionalities. Relationships should reflect architectural designs, comparative benefits, and procedural flows described in the technical explanations."
+  },
+  "domain_context": "The domain is artificial intelligence, specifically focusing on advanced language model architectures that integrate external knowledge retrieval. The text is technical, with precise definitions of systems, components, and methodologies. It contrasts traditional approaches with newer paradigms, emphasizing structural and functional improvements. The language is analytical, aimed at explaining architectural principles and technical advantages in AI systems.",
+  "corpus_metadata": {
+    "files": [
+      "data\\corpus\\graphrag_rag_corpus.txt",
+      "data\\corpus\\sample.txt"
+    ],
+    "total_length": 20199,
+    "word_count": 2704,
+    "analysis": {
+      "domain": "technical",
+      "topic": "Retrieval-Augmented Generation (RAG) systems and their evolution to GraphRAG",
+      "key_entity_types": [
+        "Technology",
+        "Concept",
+        "Organization",
+        "Model",
+        "Algorithm",
+        "Database"
+      ],
+      "common_relationship_types": [
+        "EXTENDS",
+        "USES",
+        "CONSISTS_OF",
+        "ADVANTAGES_OVER",
+        "ENABLES",
+        "INVOLVES"
+      ]
+    }
+  }
+}

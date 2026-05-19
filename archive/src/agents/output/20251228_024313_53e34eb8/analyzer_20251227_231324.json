@@ -1,0 +1,55 @@
+{
+  "analysis_result": {
+    "domain": "technical",
+    "topic": "Retrieval-Augmented Generation (RAG) and GraphRAG architectures",
+    "key_entity_types": [
+      "Technology",
+      "Concept",
+      "Organization",
+      "Method",
+      "System"
+    ],
+    "common_relationship_types": [
+      "EXTENDS",
+      "USES",
+      "CONSISTS_OF",
+      "ADVANTAGE_OF",
+      "IMPLEMENTS"
+    ],
+    "extraction_strategy": "Focus on extracting technical entities related to RAG systems, including architectural components, technologies, methodologies, and their interrelationships. Pay special attention to the distinction between traditional RAG and GraphRAG, their components, and the advantages of knowledge graphs over vector-based approaches. Extract entities and relationships that illustrate the system architecture and functional relationships.",
+    "entity_extraction_prompt": "Extract all technical entities from the text, focusing on: technologies (RAG, GraphRAG, vector databases), concepts (knowledge graphs, semantic search, embeddings), organizations (Pinecone, Weaviate, Chroma, Milvus), methods (nearest neighbor search, graph traversal), and systems (retrieval mechanisms, generation models). Use full canonical names and be precise with technical terminology.",
+    "relationship_extraction_prompt": "Extract relationships between entities. Common patterns include: GraphRAG EXTENDS RAG, systems CONSIST_OF components (e.g., knowledge base, retrieval mechanism), technologies USE methods (e.g., RAG uses semantic search), knowledge graphs have ADVANTAGE_OF over vector databases, and systems IMPLEMENT specific architectures. Ensure relationships capture technical dependencies and architectural hierarchies.",
+    "domain_context": "This corpus discusses advanced AI architectures, specifically Retrieval-Augmented Generation (RAG) and its extension GraphRAG, focusing on their components, underlying technologies like vector databases and knowledge graphs, and the advantages of structured knowledge representation over traditional methods."
+  },
+  "extraction_strategy": "Focus on extracting technical entities related to RAG systems, including architectural components, technologies, methodologies, and their interrelationships. Pay special attention to the distinction between traditional RAG and GraphRAG, their components, and the advantages of knowledge graphs over vector-based approaches. Extract entities and relationships that illustrate the system architecture and functional relationships.",
+  "extraction_prompts": {
+    "entity_extraction": "Extract all technical entities from the text, focusing on: technologies (RAG, GraphRAG, vector databases), concepts (knowledge graphs, semantic search, embeddings), organizations (Pinecone, Weaviate, Chroma, Milvus), methods (nearest neighbor search, graph traversal), and systems (retrieval mechanisms, generation models). Use full canonical names and be precise with technical terminology.",
+    "relationship_extraction": "Extract relationships between entities. Common patterns include: GraphRAG EXTENDS RAG, systems CONSIST_OF components (e.g., knowledge base, retrieval mechanism), technologies USE methods (e.g., RAG uses semantic search), knowledge graphs have ADVANTAGE_OF over vector databases, and systems IMPLEMENT specific architectures. Ensure relationships capture technical dependencies and architectural hierarchies."
+  },
+  "domain_context": "This corpus discusses advanced AI architectures, specifically Retrieval-Augmented Generation (RAG) and its extension GraphRAG, focusing on their components, underlying technologies like vector databases and knowledge graphs, and the advantages of structured knowledge representation over traditional methods.",
+  "corpus_metadata": {
+    "files": [
+      "data\\corpus\\graphrag_rag_corpus.txt"
+    ],
+    "total_length": 10971,
+    "word_count": 1461,
+    "analysis": {
+      "domain": "technical",
+      "topic": "Retrieval-Augmented Generation (RAG) and GraphRAG architectures",
+      "key_entity_types": [
+        "Technology",
+        "Concept",
+        "Organization",
+        "Method",
+        "System"
+      ],
+      "common_relationship_types": [
+        "EXTENDS",
+        "USES",
+        "CONSISTS_OF",
+        "ADVANTAGE_OF",
+        "IMPLEMENTS"
+      ]
+    }
+  }
+}

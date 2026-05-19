@@ -640,7 +640,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Path to phrase_metadata.json produced by an upstream extraction step.",
     )
     parser.add_argument(
-        "--output-dir",
+        "--output",
         required=True,
         type=Path,
         dest="output",
@@ -660,7 +660,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     morton_group = parser.add_mutually_exclusive_group()
     morton_group.add_argument(
-        "--use-morton",
+        "--morton",
         action="store_true",
         default=True,
         dest="use_morton",
@@ -676,25 +676,19 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Use row-major linearisation instead of Morton encoding.",
     )
 
-    smooth_group = parser.add_mutually_exclusive_group()
-    smooth_group.add_argument(
-        "--smooth",
-        action="store_true",
-        default=True,
-        dest="smooth",
-        help="Apply Gaussian smoothing to the fingerprint vectors (default).",
-    )
-    smooth_group.add_argument(
+    parser.add_argument(
         "--no-smooth",
-        action="store_false",
-        dest="smooth",
+        action="store_true",
+        default=False,
+        dest="no_smooth",
         help="Emit raw binary fingerprint vectors without smoothing.",
     )
 
     parser.add_argument(
-        "--sigma",
+        "--smoothing-sigma",
         type=float,
         default=1.0,
+        dest="sigma",
         help=(
             "Standard deviation of the Gaussian smoothing kernel in index "
             "units.  Ignored when --no-smooth is set."
@@ -875,7 +869,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     logger.info(f"  output_dir  : {args.output}")
     logger.info(f"  grid_size   : {args.grid_size}")
     logger.info(f"  use_morton  : {args.use_morton}")
-    logger.info(f"  smooth      : {args.smooth}  (sigma={args.sigma})")
+    logger.info(f"  smooth      : {not args.no_smooth}  (sigma={args.sigma})")
     logger.info("=" * 60)
 
     # ------------------------------------------------------------------
@@ -1015,7 +1009,7 @@ def main(argv: Optional[List[str]] = None) -> None:
                 context_coords_list=context_coords_list,
                 grid_size=args.grid_size,
                 use_morton=args.use_morton,
-                apply_smooth=args.smooth,
+                apply_smooth=not args.no_smooth,
                 sigma=args.sigma,
             )
         except ValueError as exc:

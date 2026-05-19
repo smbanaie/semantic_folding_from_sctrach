@@ -10,6 +10,7 @@
 grid_size: 128                 # Shared across semantic_space and phrase_fingerprints
 min_freq: 1                    # Minimum phrase frequency to keep 
 keep_verbs : true              # Include verbal elements in phrases
+smoothing_sigma: 1.5           # Gaussian smoothing sigma before peak detection
 
 # ============================================================
 # INPUT/OUTPUT PATHS
@@ -40,8 +41,8 @@ phrase_extraction:
   max_ngram: 3                   # N-gram ceiling (fallback if spaCy unavailable)
 
   # Extraction method
-  use_spacy: true                # Use spaCy (fallback to NLTK if unavailable)
-  filter_generic: true           # Remove generic words (get, do, make, etc.)
+  no_spacy: false
+  no_filter_generic: false
 
   # Output options
   stats: false                   # Print extraction statistics
@@ -51,8 +52,8 @@ phrase_extraction:
 # ============================================================
 term_context_matrix:
   # Matrix construction
-  min_phrase_freq: 0             # Additional frequency filter for matrix
-  use_tfidf: true                # Apply TF-IDF normalization
+  min_phrase_freq: 1             # Additional frequency filter for matrix
+  no_tfidf: false                # Apply TF-IDF normalization
   use_word_boundaries: true      # Use word boundary matching (not substring)
  
 
@@ -64,7 +65,7 @@ semantic_space:
   method: "tsne"                 # Options: tsne, umap, pca
 
   # Grid configuration
-  grid_size: 16                  # Semantic space resolution (8, 16, 32, 64, 128)
+  grid_size: 128                  # Semantic space resolution (8, 16, 32, 64, 128)
   grid_padding: 0                # Padding around grid edges
   enable_grid: true              # Generate discrete grid coordinates
 
@@ -101,21 +102,25 @@ semantic_space:
 # PHASE 4: PHRASE FINGERPRINTS
 # ============================================================
 phrase_fingerprints:
-  grid_size: 128
-
-
+  smooth: true
+  sigma: 1.5
+  morton: true              # Use Morton encoding (default: True)
+  no_smooth: false
 # ============================================================
 # PHASE 5: DOCUMENT FINGERPRINTS
 # ============================================================
 document_fingerprints:
-  # Sparsity control
-  top_percent: 0.10              # Fraction of bits active in final SDR
-                                 # (e.g. 0.10 = 10% of grid cells)
-  # Normalization
-  normalize: true                # Apply vector normalisation per document
-  normalize_method: "l2"         # Method: l1 | l2 | max
-
-
+  top_percent: 0.10
+  no_normalize: true
+  normalize_method: "l2"
+  min_word_length: 3
+  remove_verbs: false           # you already have this, good
+  filter_generic: true
+  min_peak_distance: 2          # added
+  smoothing_sigma: 1.0          # added
+  use_morton: true
+  compute_diversity: false      # if you want it off by default
+  diversity_sample: 100
 # ============================================================
 # PHASE 6: QUERY PROCESSING
 # ============================================================
@@ -147,7 +152,7 @@ phrase_visualization:
   threshold: 0.0                 # Minimum value to consider a cell "activated"
   
   # Encoding method
-  encoding: "Morton"             # Grid encoding: "Morton" | "Row-major"
+  morton: true             # Grid encoding: "Morton" | "Row-major"
   
   # Output formats
   generate_html: true            # Generate interactive HTML visualization
@@ -163,13 +168,19 @@ phrase_visualization:
   
   # Layout
   figure_width: 1800             # Width of output figure in pixels
-  figure_height: 1200             # Height of output figure in pixels
+  figure_height: 1500             # Height of output figure in pixels
   
   # Color scheme
   colorscale: "Blues"            # Plotly colorscale for heatmaps
   
   # Metadata
   save_metadata: true            # Save visualization metadata as JSON
+
+doc_visualization:
+  no_grid_borders: false
+  border_color: "lightgray"
+  border_width: 1.0
+  output: "doc_viz"
 
 # ============================================================
 # SEMANTIC GRAPH (VISUALIZATION)

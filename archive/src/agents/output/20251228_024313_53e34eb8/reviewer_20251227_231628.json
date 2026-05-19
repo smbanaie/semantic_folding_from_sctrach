@@ -1,0 +1,1288 @@
+{
+  "validated_triples": [
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "PERFORM",
+      "object": "More Sophisticated Reasoning",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "COMPARED_TO",
+      "object": "Traditional RAG Approaches",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "TRAVERSE",
+      "object": "Knowledge Graph",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "ANSWER",
+      "object": "Questions That Require Connecting Information From Multiple Sources",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "HAS_CAPABILITY",
+      "object": "Multi-Hop Reasoning",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "ENABLE",
+      "object": "Handling Complex Queries",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "INTEGRATE",
+      "object": "Knowledge Graphs With Language Models",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "CREATE",
+      "object": "Opportunities For Explainable AI",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph",
+      "predicate": "EXPLICITLY_REPRESENT",
+      "object": "Relationships Used To Answer Queries",
+      "confidence": 0.95,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG System",
+      "predicate": "PROVIDE",
+      "object": "Explanations By Showing Graph Paths",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "FACE",
+      "object": "Several Challenges In Implementation And Deployment",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "HAVE_CHALLENGE",
+      "object": "Computational Cost Of Building And Maintaining Knowledge Graphs",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Extraction Process",
+      "predicate": "REQUIRE",
+      "object": "Substantial Computational Resources",
+      "confidence": 0.95,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Quality Of Extracted Knowledge",
+      "predicate": "DEPEND_ON",
+      "object": "Underlying Extraction Models",
+      "confidence": 0.95,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Underlying Extraction Models",
+      "predicate": "MAY_INTRODUCE",
+      "object": "Errors That Propagate Through The System",
+      "confidence": 0.95,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "EXTENDS",
+      "object": "RAG Paradigm",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "INCORPORATES",
+      "object": "Knowledge Graphs",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "SERVE_AS",
+      "object": "Underlying Knowledge Representation Structure",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Traditional RAG Systems",
+      "predicate": "USE",
+      "object": "Flat Vector Embeddings",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "LEVERAGES",
+      "object": "Rich Relational Structure",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "REPRESENT",
+      "object": "Entities As Nodes",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "REPRESENT",
+      "object": "Relationships As Edges",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "CREATE",
+      "object": "Interconnected Network Of Information",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "CAPTURE",
+      "object": "Complex Relationships",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "CAPTURE",
+      "object": "Hierarchies",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "CAPTURE",
+      "object": "Contextual Connections Between Concepts",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "HAVE_ADVANTAGE_OVER",
+      "object": "Traditional Vector-Based Retrieval",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "MODEL",
+      "object": "Relationships Between Entities",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "ENABLE",
+      "object": "System To Traverse Connections",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "ENABLE",
+      "object": "Discovery Of Related Information",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "REPRESENT",
+      "object": "Hierarchical Structures",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "ENABLE",
+      "object": "Reasoning About Categories",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "ENABLE",
+      "object": "Reasoning About Subcategories",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "ENABLE",
+      "object": "Reasoning About Taxonomies",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "SUPPORT",
+      "object": "Multi-Hop Reasoning",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Architecture",
+      "predicate": "INVOLVES",
+      "object": "Knowledge Graph Construction",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Architecture",
+      "predicate": "INVOLVES",
+      "object": "Graph-Enhanced Retrieval",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Architecture",
+      "predicate": "INVOLVES",
+      "object": "Augmented Generation",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "EXTRACTS",
+      "object": "Entities From Source Documents",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "EXTRACTS",
+      "object": "Relationships From Source Documents",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "BUILDS",
+      "object": "Structured Knowledge Graph",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "INVOLVES",
+      "object": "Named Entity Recognition",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "INVOLVES",
+      "object": "Relation Extraction",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "INVOLVES",
+      "object": "Entity Linking",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entity Linking",
+      "predicate": "CONNECTS",
+      "object": "Mentions Of The Same Entity",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Resulting Graph",
+      "predicate": "SERVES_AS",
+      "object": "Retrieval Index",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Resulting Graph",
+      "predicate": "SERVES_AS",
+      "object": "Reasoning Structure",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "HAS_FORM",
+      "object": "Graph-Enhanced Retrieval",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "USES",
+      "object": "Knowledge Graph",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph",
+      "predicate": "EXPANDS",
+      "object": "Queries",
+      "confidence": 0.95,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Query",
+      "predicate": "INCLUDES",
+      "object": "Related Entities",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Query",
+      "predicate": "INCLUDES",
+      "object": "Concepts",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "USES",
+      "object": "Graph Traversal Algorithms",
+      "confidence": 0.95,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Graph Traversal Algorithms",
+      "predicate": "FIND",
+      "object": "Relevant Subgraphs",
+      "confidence": 0.85,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "COMBINES",
+      "object": "Graph-Based Retrieval",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "COMBINES",
+      "object": "Vector Similarity Search",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Graph Structure",
+      "predicate": "FILTERS",
+      "object": "Vector Search Results",
+      "confidence": 0.8,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Graph Structure",
+      "predicate": "RANKS",
+      "object": "Vector Search Results",
+      "confidence": 0.8,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Hybrid Approach",
+      "predicate": "LEVERAGES",
+      "object": "Semantic Similarity",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Hybrid Approach",
+      "predicate": "LEVERAGES",
+      "object": "Explicit Relational Structure",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "HAS_COMPONENT",
+      "object": "Entity Extraction",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "HAS_COMPONENT",
+      "object": "Relationship Identification",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Modern Approaches",
+      "predicate": "USE",
+      "object": "Large Language Models",
+      "confidence": 0.95,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Modern Approaches",
+      "predicate": "PERFORM",
+      "object": "Entity Extraction",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Modern Approaches",
+      "predicate": "PERFORM",
+      "object": "Relationship Identification",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Large Language Models",
+      "predicate": "PERFORM_TASKS_THROUGH",
+      "object": "Prompt Engineering",
+      "confidence": 0.85,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Large Language Models",
+      "predicate": "PERFORM_TASKS_THROUGH",
+      "object": "Fine-Tuning",
+      "confidence": 0.85,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Extraction Process",
+      "predicate": "IDENTIFIES",
+      "object": "Entities",
+      "confidence": 0.95,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entities",
+      "predicate": "INCLUDE",
+      "object": "People",
+      "confidence": 0.95,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entities",
+      "predicate": "INCLUDE",
+      "object": "Organizations",
+      "confidence": 0.95,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entities",
+      "predicate": "INCLUDE",
+      "object": "Locations",
+      "confidence": 0.95,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entities",
+      "predicate": "INCLUDE",
+      "object": "Concepts",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entities",
+      "predicate": "INCLUDE",
+      "object": "Events",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Relationship Extraction",
+      "predicate": "IDENTIFIES",
+      "object": "Entity Relationships",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Relationship Extraction",
+      "predicate": "CREATES",
+      "object": "Triples",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Triples",
+      "predicate": "HAVE_FORM",
+      "object": "Subject-Predicate-Object",
+      "confidence": 0.95,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Triples",
+      "predicate": "FORM",
+      "object": "Knowledge Graph Edges",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Triples",
+      "predicate": "REPRESENT",
+      "object": "Hierarchical Relationships",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Triples",
+      "predicate": "REPRESENT",
+      "object": "Temporal Relationships",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Triples",
+      "predicate": "REPRESENT",
+      "object": "Causal Relationships",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Triples",
+      "predicate": "REPRESENT",
+      "object": "Semantic Associations",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Quality",
+      "predicate": "IMPACTS",
+      "object": "GraphRAG System Performance",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "High-Quality Knowledge Graphs",
+      "predicate": "REQUIRE",
+      "object": "Accurate Entity Recognition",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "High-Quality Knowledge Graphs",
+      "predicate": "REQUIRE",
+      "object": "Correct Relationship Extraction",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "High-Quality Knowledge Graphs",
+      "predicate": "REQUIRE",
+      "object": "Proper Entity Disambiguation",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entity Disambiguation",
+      "predicate": "IS_IMPORTANT_FOR",
+      "object": "Same Name Different Entities",
+      "confidence": 0.85,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entity Disambiguation",
+      "predicate": "IS_IMPORTANT_FOR",
+      "object": "Different Names Same Entity",
+      "confidence": 0.85,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "EMPLOYS",
+      "object": "Entity Linking Techniques",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entity Linking",
+      "predicate": "CONNECTS",
+      "object": "Text Mentions",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entity Linking",
+      "predicate": "CONNECTS",
+      "object": "Canonical Entity Representations",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entity Linking",
+      "predicate": "ENSURES",
+      "object": "Consistency",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entity Linking",
+      "predicate": "REDUCES",
+      "object": "Ambiguity",
+      "confidence": 0.9,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    }
+  ],
+  "corrections_made": [
+    {
+      "original": {
+        "subject": "Graphrag Systems",
+        "predicate": "PERFORM",
+        "object": "More Sophisticated Reasoning"
+      },
+      "corrected": {
+        "subject": "GraphRAG Systems",
+        "predicate": "PERFORM",
+        "object": "More Sophisticated Reasoning"
+      },
+      "correction": "Normalized subject to 'GraphRAG Systems'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag Systems",
+        "predicate": "COMPARED_TO",
+        "object": "Traditional Rag Approaches"
+      },
+      "corrected": {
+        "subject": "GraphRAG Systems",
+        "predicate": "COMPARED_TO",
+        "object": "Traditional RAG Approaches"
+      },
+      "correction": "Normalized subject to 'GraphRAG Systems' and object to 'Traditional RAG Approaches'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag Systems",
+        "predicate": "TRAVERSE",
+        "object": "Knowledge Graph"
+      },
+      "corrected": {
+        "subject": "GraphRAG Systems",
+        "predicate": "TRAVERSE",
+        "object": "Knowledge Graph"
+      },
+      "correction": "Normalized subject to 'GraphRAG Systems'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag Systems",
+        "predicate": "ANSWER",
+        "object": "Questions That Require Connecting Information From Multiple Sources"
+      },
+      "corrected": {
+        "subject": "GraphRAG Systems",
+        "predicate": "ANSWER",
+        "object": "Questions That Require Connecting Information From Multiple Sources"
+      },
+      "correction": "Normalized subject to 'GraphRAG Systems'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "HAS_CAPABILITY",
+        "object": "Multi-Hop Reasoning"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "HAS_CAPABILITY",
+        "object": "Multi-Hop Reasoning"
+      },
+      "correction": "Normalized subject to 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "ENABLE",
+        "object": "Handling Complex Queries"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "ENABLE",
+        "object": "Handling Complex Queries"
+      },
+      "correction": "Normalized subject to 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "INTEGRATE",
+        "object": "Knowledge Graphs With Language Models"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "INTEGRATE",
+        "object": "Knowledge Graphs With Language Models"
+      },
+      "correction": "Normalized subject to 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "CREATE",
+        "object": "Opportunities For Explainable Ai"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "CREATE",
+        "object": "Opportunities For Explainable AI"
+      },
+      "correction": "Normalized subject to 'GraphRAG' and object to 'Explainable AI'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag System",
+        "predicate": "PROVIDE",
+        "object": "Explanations By Showing Graph Paths"
+      },
+      "corrected": {
+        "subject": "GraphRAG System",
+        "predicate": "PROVIDE",
+        "object": "Explanations By Showing Graph Paths"
+      },
+      "correction": "Normalized subject to 'GraphRAG System'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag Systems",
+        "predicate": "FACE",
+        "object": "Several Challenges In Implementation And Deployment"
+      },
+      "corrected": {
+        "subject": "GraphRAG Systems",
+        "predicate": "FACE",
+        "object": "Several Challenges In Implementation And Deployment"
+      },
+      "correction": "Normalized subject to 'GraphRAG Systems'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag Systems",
+        "predicate": "HAVE_CHALLENGE",
+        "object": "Computational Cost Of Building And Maintaining Knowledge Graphs"
+      },
+      "corrected": {
+        "subject": "GraphRAG Systems",
+        "predicate": "HAVE_CHALLENGE",
+        "object": "Computational Cost Of Building And Maintaining Knowledge Graphs"
+      },
+      "correction": "Normalized subject to 'GraphRAG Systems'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "EXTENDS",
+        "object": "Rag Paradigm"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "EXTENDS",
+        "object": "RAG Paradigm"
+      },
+      "correction": "Normalized subject to 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "INCORPORATES",
+        "object": "Knowledge Graphs"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "INCORPORATES",
+        "object": "Knowledge Graphs"
+      },
+      "correction": "Normalized subject to 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Traditional Rag Systems",
+        "predicate": "USE",
+        "object": "Flat Vector Embeddings"
+      },
+      "corrected": {
+        "subject": "Traditional RAG Systems",
+        "predicate": "USE",
+        "object": "Flat Vector Embeddings"
+      },
+      "correction": "Normalized subject to 'Traditional RAG Systems'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "LEVERAGES",
+        "object": "Rich Relational Structure"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "LEVERAGES",
+        "object": "Rich Relational Structure"
+      },
+      "correction": "Normalized subject to 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag Architecture",
+        "predicate": "INVOLVES",
+        "object": "Knowledge Graph Construction"
+      },
+      "corrected": {
+        "subject": "GraphRAG Architecture",
+        "predicate": "INVOLVES",
+        "object": "Knowledge Graph Construction"
+      },
+      "correction": "Normalized subject to 'GraphRAG Architecture'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag Architecture",
+        "predicate": "INVOLVES",
+        "object": "Graph-Enhanced Retrieval"
+      },
+      "corrected": {
+        "subject": "GraphRAG Architecture",
+        "predicate": "INVOLVES",
+        "object": "Graph-Enhanced Retrieval"
+      },
+      "correction": "Normalized subject to 'GraphRAG Architecture'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag Architecture",
+        "predicate": "INVOLVES",
+        "object": "Augmented Generation"
+      },
+      "corrected": {
+        "subject": "GraphRAG Architecture",
+        "predicate": "INVOLVES",
+        "object": "Augmented Generation"
+      },
+      "correction": "Normalized subject to 'GraphRAG Architecture'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "HAS_FORM",
+        "object": "Graph-Enhanced Retrieval"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "HAS_FORM",
+        "object": "Graph-Enhanced Retrieval"
+      },
+      "correction": "Normalized subject to 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "USES",
+        "object": "Knowledge Graph"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "USES",
+        "object": "Knowledge Graph"
+      },
+      "correction": "Normalized subject to 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Queries",
+        "predicate": "INCLUDE",
+        "object": "Related Entities"
+      },
+      "corrected": {
+        "subject": "Query",
+        "predicate": "INCLUDES",
+        "object": "Related Entities"
+      },
+      "correction": "Changed subject from 'Queries' to 'Query' for singular canonical form"
+    },
+    {
+      "original": {
+        "subject": "Queries",
+        "predicate": "INCLUDE",
+        "object": "Concepts"
+      },
+      "corrected": {
+        "subject": "Query",
+        "predicate": "INCLUDES",
+        "object": "Concepts"
+      },
+      "correction": "Changed subject from 'Queries' to 'Query' for singular canonical form"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "USES",
+        "object": "Graph Traversal Algorithms"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "USES",
+        "object": "Graph Traversal Algorithms"
+      },
+      "correction": "Changed subject to proper case 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "COMBINES",
+        "object": "Graph-Based Retrieval"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "COMBINES",
+        "object": "Graph-Based Retrieval"
+      },
+      "correction": "Changed subject to proper case 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "COMBINES",
+        "object": "Vector Similarity Search"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "COMBINES",
+        "object": "Vector Similarity Search"
+      },
+      "correction": "Changed subject to proper case 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graph Structure",
+        "predicate": "FILTERS",
+        "object": "Results From Vector Search"
+      },
+      "corrected": {
+        "subject": "Graph Structure",
+        "predicate": "FILTERS",
+        "object": "Vector Search Results"
+      },
+      "correction": "Changed object to 'Vector Search Results' for clarity"
+    },
+    {
+      "original": {
+        "subject": "Graph Structure",
+        "predicate": "RANKS",
+        "object": "Results From Vector Search"
+      },
+      "corrected": {
+        "subject": "Graph Structure",
+        "predicate": "RANKS",
+        "object": "Vector Search Results"
+      },
+      "correction": "Changed object to 'Vector Search Results' for clarity"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "HAS_COMPONENT",
+        "object": "Entity Extraction"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "HAS_COMPONENT",
+        "object": "Entity Extraction"
+      },
+      "correction": "Changed subject to proper case 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "HAS_COMPONENT",
+        "object": "Relationship Identification"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "HAS_COMPONENT",
+        "object": "Relationship Identification"
+      },
+      "correction": "Changed subject to proper case 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Relationship Extraction",
+        "predicate": "IDENTIFIES",
+        "object": "How Entities Relate"
+      },
+      "corrected": {
+        "subject": "Relationship Extraction",
+        "predicate": "IDENTIFIES",
+        "object": "Entity Relationships"
+      },
+      "correction": "Changed object to 'Entity Relationships' for clarity"
+    },
+    {
+      "original": {
+        "subject": "Triples",
+        "predicate": "FORM",
+        "object": "Edges Of Knowledge Graph"
+      },
+      "corrected": {
+        "subject": "Triples",
+        "predicate": "FORM",
+        "object": "Knowledge Graph Edges"
+      },
+      "correction": "Changed object to 'Knowledge Graph Edges' for specificity"
+    },
+    {
+      "original": {
+        "subject": "Knowledge Graph",
+        "predicate": "IMPACTS",
+        "object": "Performance Of Graphrag Systems"
+      },
+      "corrected": {
+        "subject": "Knowledge Graph Quality",
+        "predicate": "IMPACTS",
+        "object": "GraphRAG System Performance"
+      },
+      "correction": "Changed subject to 'Knowledge Graph Quality' and object to 'GraphRAG System Performance' for accuracy"
+    },
+    {
+      "original": {
+        "subject": "High-Quality Graphs",
+        "predicate": "REQUIRE",
+        "object": "Accurate Entity Recognition"
+      },
+      "corrected": {
+        "subject": "High-Quality Knowledge Graphs",
+        "predicate": "REQUIRE",
+        "object": "Accurate Entity Recognition"
+      },
+      "correction": "Changed subject to 'High-Quality Knowledge Graphs' for specificity"
+    },
+    {
+      "original": {
+        "subject": "High-Quality Graphs",
+        "predicate": "REQUIRE",
+        "object": "Correct Relationship Extraction"
+      },
+      "corrected": {
+        "subject": "High-Quality Knowledge Graphs",
+        "predicate": "REQUIRE",
+        "object": "Correct Relationship Extraction"
+      },
+      "correction": "Changed subject to 'High-Quality Knowledge Graphs' for specificity"
+    },
+    {
+      "original": {
+        "subject": "High-Quality Graphs",
+        "predicate": "REQUIRE",
+        "object": "Proper Entity Disambiguation"
+      },
+      "corrected": {
+        "subject": "High-Quality Knowledge Graphs",
+        "predicate": "REQUIRE",
+        "object": "Proper Entity Disambiguation"
+      },
+      "correction": "Changed subject to 'High-Quality Knowledge Graphs' for specificity"
+    },
+    {
+      "original": {
+        "subject": "Entity Disambiguation",
+        "predicate": "IS_IMPORTANT_FOR",
+        "object": "Same Entity Name Refers To Different Real-World Entities"
+      },
+      "corrected": {
+        "subject": "Entity Disambiguation",
+        "predicate": "IS_IMPORTANT_FOR",
+        "object": "Same Name Different Entities"
+      },
+      "correction": "Changed object to 'Same Name Different Entities' for conciseness"
+    },
+    {
+      "original": {
+        "subject": "Entity Disambiguation",
+        "predicate": "IS_IMPORTANT_FOR",
+        "object": "Different Names Refer To Same Entity"
+      },
+      "corrected": {
+        "subject": "Entity Disambiguation",
+        "predicate": "IS_IMPORTANT_FOR",
+        "object": "Different Names Same Entity"
+      },
+      "correction": "Changed object to 'Different Names Same Entity' for conciseness"
+    },
+    {
+      "original": {
+        "subject": "Graphrag",
+        "predicate": "EMPLOYS",
+        "object": "Entity Linking Techniques"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "EMPLOYS",
+        "object": "Entity Linking Techniques"
+      },
+      "correction": "Changed subject to proper case 'GraphRAG'"
+    },
+    {
+      "original": {
+        "subject": "Entity Linking Techniques",
+        "predicate": "CONNECT",
+        "object": "Text Mentions"
+      },
+      "corrected": {
+        "subject": "Entity Linking",
+        "predicate": "CONNECTS",
+        "object": "Text Mentions"
+      },
+      "correction": "Changed subject to 'Entity Linking' and predicate to 'CONNECTS' for consistency"
+    },
+    {
+      "original": {
+        "subject": "Entity Linking Techniques",
+        "predicate": "CONNECT",
+        "object": "Canonical Entity Representations"
+      },
+      "corrected": {
+        "subject": "Entity Linking",
+        "predicate": "CONNECTS",
+        "object": "Canonical Entity Representations"
+      },
+      "correction": "Changed subject to 'Entity Linking' and predicate to 'CONNECTS' for consistency"
+    },
+    {
+      "original": {
+        "subject": "Entity Linking Techniques",
+        "predicate": "ENSURE",
+        "object": "Consistency"
+      },
+      "corrected": {
+        "subject": "Entity Linking",
+        "predicate": "ENSURES",
+        "object": "Consistency"
+      },
+      "correction": "Changed subject to 'Entity Linking' and predicate to 'ENSURES' for consistency"
+    },
+    {
+      "original": {
+        "subject": "Entity Linking Techniques",
+        "predicate": "REDUCE",
+        "object": "Ambiguity"
+      },
+      "corrected": {
+        "subject": "Entity Linking",
+        "predicate": "REDUCES",
+        "object": "Ambiguity"
+      },
+      "correction": "Changed subject to 'Entity Linking' and predicate to 'REDUCES' for consistency"
+    }
+  ]
+}

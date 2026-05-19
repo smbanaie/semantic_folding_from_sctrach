@@ -555,7 +555,7 @@ def main() -> None:
         help="Path to corpus file (to establish Context ID order/columns)",
     )
     parser.add_argument(
-        "--output-dir", required=True, type=Path,
+        "--output", required=True, type=Path, dest="output_dir",
         help="Output DIRECTORY — all artefacts are written here",
     )
     parser.add_argument(

@@ -1,0 +1,1903 @@
+{
+  "validated_triples": [
+    {
+      "subject": "RAG",
+      "predicate": "KNOWN_AS",
+      "object": "RAG",
+      "confidence": 0.9,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG",
+      "predicate": "REPRESENTS",
+      "object": "paradigm shift",
+      "confidence": 0.8,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG systems",
+      "predicate": "COMBINE",
+      "object": "generative capabilities of LLMs",
+      "confidence": 0.95,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG systems",
+      "predicate": "COMBINE",
+      "object": "external knowledge retrieval mechanisms",
+      "confidence": 0.95,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG architecture",
+      "predicate": "ALLOWS",
+      "object": "access to up-to-date information",
+      "confidence": 0.9,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG architecture",
+      "predicate": "ALLOWS",
+      "object": "access to domain-specific knowledge",
+      "confidence": 0.9,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG architecture",
+      "predicate": "ALLOWS",
+      "object": "access to factual data",
+      "confidence": 0.9,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "fundamental principle behind RAG",
+      "predicate": "IS",
+      "object": "separate knowledge storage from knowledge generation",
+      "confidence": 0.95,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "fundamental principle behind RAG",
+      "predicate": "ENABLES",
+      "object": "more flexible information systems",
+      "confidence": 0.85,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "fundamental principle behind RAG",
+      "predicate": "ENABLES",
+      "object": "more accurate information systems",
+      "confidence": 0.85,
+      "source_chunk_id": "section_0_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "INTEGRATES",
+      "object": "knowledge graphs",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "INTEGRATES",
+      "object": "language models",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "CREATES",
+      "object": "explainable AI opportunities",
+      "confidence": 0.85,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "knowledge graph",
+      "predicate": "EXPLICITLY_REPRESENTS",
+      "object": "relationships used to answer queries",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG system",
+      "predicate": "PROVIDES",
+      "object": "explanations",
+      "confidence": 0.85,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "explanations",
+      "predicate": "SHOW",
+      "object": "graph paths",
+      "confidence": 0.85,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph paths",
+      "predicate": "LEAD_TO",
+      "object": "particular answer",
+      "confidence": 0.8,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "transparency",
+      "predicate": "HELPS",
+      "object": "users understand system conclusions",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "transparency",
+      "predicate": "HELPS",
+      "object": "identify potential errors or biases",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "explainability",
+      "predicate": "IS_IMPORTANT_IN",
+      "object": "applications requiring accuracy verification",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG systems",
+      "predicate": "FACE",
+      "object": "challenges in implementation and deployment",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG systems",
+      "predicate": "FACE",
+      "object": "computational cost of building knowledge graphs",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG systems",
+      "predicate": "FACE",
+      "object": "computational cost of maintaining knowledge graphs",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "knowledge extraction process",
+      "predicate": "REQUIRES",
+      "object": "computational resources",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "knowledge quality",
+      "predicate": "DEPENDS_ON",
+      "object": "extraction models",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "extraction models",
+      "predicate": "MAY_INTRODUCE",
+      "object": "errors",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "errors",
+      "predicate": "PROPAGATE_THROUGH",
+      "object": "system",
+      "confidence": 0.85,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG systems",
+      "predicate": "FACE",
+      "object": "scalability concerns",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "knowledge graphs",
+      "predicate": "CAN_GROW",
+      "object": "very large with millions of entities and relationships",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "efficient graph storage",
+      "predicate": "BECOMES",
+      "object": "critical",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "efficient graph querying",
+      "predicate": "BECOMES",
+      "object": "critical",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph database technologies",
+      "predicate": "PROVIDE",
+      "object": "specialized storage capabilities",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph database technologies",
+      "predicate": "PROVIDE",
+      "object": "specialized query capabilities",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph database technologies",
+      "predicate": "INCLUDE",
+      "object": "Neo4j",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph database technologies",
+      "predicate": "INCLUDE",
+      "object": "Memgraph",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph database technologies",
+      "predicate": "INCLUDE",
+      "object": "Amazon Neptune",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph database systems",
+      "predicate": "USE",
+      "object": "graph query languages",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph query languages",
+      "predicate": "INCLUDE",
+      "object": "Cypher",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph query languages",
+      "predicate": "INCLUDE",
+      "object": "Gremlin",
+      "confidence": 0.95,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph query languages",
+      "predicate": "ENABLE",
+      "object": "efficient graph traversal",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph query languages",
+      "predicate": "ENABLE",
+      "object": "efficient graph querying",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "graph query languages",
+      "predicate": "ENABLE",
+      "object": "fast retrieval for complex multi-hop queries",
+      "confidence": 0.9,
+      "source_chunk_id": "section_1_chunk_1",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "TRANSFORMS",
+      "object": "drug discovery process",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ANALYZES",
+      "object": "vast chemical databases",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "PREDICTS",
+      "object": "molecular properties",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "IDENTIFIES",
+      "object": "potential drug candidates",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "machine learning algorithms",
+      "predicate": "PREDICT",
+      "object": "compound interactions with biological targets",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ENABLES",
+      "object": "personalized medicine",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ANALYZES",
+      "object": "individual patient data",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "pharmacogenomics",
+      "predicate": "BENEFITS_FROM",
+      "object": "AI advancements",
+      "confidence": 0.9,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered clinical decision support systems",
+      "predicate": "PROVIDE",
+      "object": "evidence-based recommendations",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "HELPS_IDENTIFY",
+      "object": "patients at risk of sepsis",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI systems",
+      "predicate": "PREDICT",
+      "object": "patient deterioration in intensive care units",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "ANALYZE",
+      "object": "treatment outcomes",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "RECOMMENDS",
+      "object": "optimal treatment plans",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Natural Language Processing",
+      "predicate": "ENABLES",
+      "object": "understanding of unstructured clinical notes",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "NLP",
+      "predicate": "ANALYZES",
+      "object": "medical literature",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "NLP algorithms",
+      "predicate": "IDENTIFY",
+      "object": "key information from clinical notes",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered systems",
+      "predicate": "ANALYZE",
+      "object": "research papers",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered systems",
+      "predicate": "SUMMARIZE",
+      "object": "research papers",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "ANALYZE",
+      "object": "various data sources",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "PREDICTS",
+      "object": "individual's disease risk",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "HELPS",
+      "object": "population health management",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "IDENTIFIES",
+      "object": "health trends",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "PREDICTS",
+      "object": "disease outbreaks",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "OPTIMIZES",
+      "object": "resource allocation",
+      "confidence": 1.0,
+      "source_chunk_id": "section_3_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered robotic systems",
+      "predicate": "ASSIST",
+      "object": "surgeons",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered robotic systems",
+      "predicate": "REDUCE",
+      "object": "surgical complications",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered robotic systems",
+      "predicate": "MINIMIZE",
+      "object": "recovery time",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered robotic systems",
+      "predicate": "IMPROVE",
+      "object": "surgical outcomes",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Robotic surgery",
+      "predicate": "IS_VALUABLE_IN",
+      "object": "minimally invasive procedures",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-driven robotic systems",
+      "predicate": "USED_IN",
+      "object": "rehabilitation",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-driven robotic systems",
+      "predicate": "HELP",
+      "object": "patients",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-driven robotic systems",
+      "predicate": "ADAPT_TO",
+      "object": "individual patient needs",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-driven robotic systems",
+      "predicate": "PROVIDE",
+      "object": "consistent therapy",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-driven robotic systems",
+      "predicate": "TRACK",
+      "object": "progress",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI in healthcare",
+      "predicate": "INVOLVES",
+      "object": "handling sensitive patient data",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI in healthcare",
+      "predicate": "RAISES_CONCERNS_ABOUT",
+      "object": "privacy and security",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Robust data protection measures",
+      "predicate": "ARE_ESSENTIAL_FOR",
+      "object": "maintaining patient trust",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Compliance with regulations",
+      "predicate": "IS_ESSENTIAL_FOR",
+      "object": "ethical use of AI technologies",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "CAN_PERPETUATE",
+      "object": "existing biases",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "CAN_AMPLIFY",
+      "object": "existing biases",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Ensuring AI systems are fair",
+      "predicate": "REQUIRES",
+      "object": "diverse training data",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Ensuring AI systems are fair",
+      "predicate": "REQUIRES",
+      "object": "ongoing monitoring",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Rapid development of AI in healthcare",
+      "predicate": "PRESENTS_CHALLENGES_FOR",
+      "object": "regulatory bodies",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Establishing guidelines and standards",
+      "predicate": "IS_CRUCIAL_FOR",
+      "object": "patient safety",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Establishing guidelines and standards",
+      "predicate": "IS_CRUCIAL_FOR",
+      "object": "fostering innovation",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI with wearable devices",
+      "predicate": "ENABLES",
+      "object": "continuous health monitoring",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI with wearable devices",
+      "predicate": "ENABLES",
+      "object": "early detection of health issues",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Smartwatches and wearable sensors",
+      "predicate": "CAN_TRACK",
+      "object": "vital signs",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Smartwatches and wearable sensors",
+      "predicate": "CAN_TRACK",
+      "object": "activity levels",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Smartwatches and wearable sensors",
+      "predicate": "CAN_TRACK",
+      "object": "health metrics",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "ANALYZE",
+      "object": "wearable data",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "PROVIDE",
+      "object": "personalized health insights",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ENHANCES",
+      "object": "telemedicine",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ENABLES",
+      "object": "accurate remote diagnoses",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ENABLES",
+      "object": "automated triage systems",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ENABLES",
+      "object": "virtual health assistants",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI technology",
+      "predicate": "CAN_IMPROVE",
+      "object": "access to healthcare",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI technology",
+      "predicate": "CAN_PROVIDE",
+      "object": "efficient care delivery",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "PLAYS_ROLE_IN",
+      "object": "analyzing genomic data",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "HELPS_UNDERSTAND",
+      "object": "genetic basis of diseases",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "HELPS_DEVELOP",
+      "object": "targeted therapies",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Precision medicine",
+      "predicate": "AIMS_TO_PROVIDE",
+      "object": "treatments tailored to genetic makeup",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Artificial Intelligence",
+      "predicate": "IS_TRANSFORMING",
+      "object": "healthcare",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Artificial Intelligence",
+      "predicate": "IMPROVES",
+      "object": "diagnostic accuracy",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Artificial Intelligence",
+      "predicate": "ACCELERATES",
+      "object": "drug discovery",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Artificial Intelligence",
+      "predicate": "ENABLES",
+      "object": "personalized medicine",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Artificial Intelligence",
+      "predicate": "ENHANCES",
+      "object": "patient care",
+      "confidence": 1.0,
+      "source_chunk_id": "section_4_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG architecture",
+      "predicate": "COMPRISES",
+      "object": "knowledge base",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG architecture",
+      "predicate": "COMPRISES",
+      "object": "retrieval mechanism",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "RAG architecture",
+      "predicate": "COMPRISES",
+      "object": "generation model",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "knowledge base",
+      "predicate": "SERVES_AS",
+      "object": "external source of information",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "knowledge base",
+      "predicate": "IMPLEMENTED_AS",
+      "object": "vector database",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "retrieval mechanism",
+      "predicate": "USES",
+      "object": "semantic search",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "retrieval mechanism",
+      "predicate": "EMPLOYS",
+      "object": "cosine similarity",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "generation model",
+      "predicate": "USES",
+      "object": "retrieved context",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "generation model",
+      "predicate": "USES",
+      "object": "original query",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "vector databases",
+      "predicate": "PLAY_ROLE_IN",
+      "object": "RAG systems",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "vector databases",
+      "predicate": "ENABLE",
+      "object": "efficient similarity search",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "vector databases",
+      "predicate": "STORE",
+      "object": "text embeddings",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "text embeddings",
+      "predicate": "ARE",
+      "object": "dense vector representations",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "system",
+      "predicate": "PERFORMS",
+      "object": "nearest neighbor search",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "nearest neighbor search",
+      "predicate": "ALLOWS",
+      "object": "retrieval based on meaning",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Pinecone",
+      "predicate": "IS_TYPE_OF",
+      "object": "vector database solution",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Weaviate",
+      "predicate": "IS_TYPE_OF",
+      "object": "vector database solution",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Chroma",
+      "predicate": "IS_TYPE_OF",
+      "object": "vector database solution",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Milvus",
+      "predicate": "IS_TYPE_OF",
+      "object": "vector database solution",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "EXTENDS",
+      "object": "RAG paradigm",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "INCORPORATES",
+      "object": "Knowledge Graphs",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "REPRESENT",
+      "object": "entities as nodes",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "REPRESENT",
+      "object": "relationships as edges",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "OFFER_ADVANTAGES_OVER",
+      "object": "traditional vector-based retrieval",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "MODEL",
+      "object": "relationships between entities",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "SUPPORT",
+      "object": "Multi-Hop Reasoning",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG architecture",
+      "predicate": "INVOLVES",
+      "object": "Knowledge Graph Construction",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG architecture",
+      "predicate": "INVOLVES",
+      "object": "Graph-Enhanced Retrieval",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG architecture",
+      "predicate": "INVOLVES",
+      "object": "Augmented Generation",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "INVOLVES",
+      "object": "NER",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "INVOLVES",
+      "object": "relation extraction",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graph Construction",
+      "predicate": "INVOLVES",
+      "object": "Entity Linking",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Graph-Enhanced Retrieval",
+      "predicate": "CAN_TAKE",
+      "object": "multiple forms",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Entity Extraction",
+      "predicate": "IS_COMPONENT_OF",
+      "object": "GraphRAG Systems",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Relationship Identification",
+      "predicate": "IS_COMPONENT_OF",
+      "object": "GraphRAG Systems",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "modern approaches",
+      "predicate": "USE",
+      "object": "LLMs",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "extraction process",
+      "predicate": "IDENTIFIES",
+      "object": "entities",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Relation Extraction",
+      "predicate": "IDENTIFIES",
+      "object": "how entities relate",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "quality of knowledge graph",
+      "predicate": "IMPACTS",
+      "object": "performance of GraphRAG systems",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "high-quality graphs",
+      "predicate": "REQUIRE",
+      "object": "Entity Recognition",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "high-quality graphs",
+      "predicate": "REQUIRE",
+      "object": "Relationship Extraction",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "high-quality graphs",
+      "predicate": "REQUIRE",
+      "object": "Entity Disambiguation",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "EMPLOY",
+      "object": "Entity Linking",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "CAN_PERFORM",
+      "object": "Sophisticated Reasoning",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "integration of knowledge graphs with language models",
+      "predicate": "CREATES",
+      "object": "Explainable AI Opportunities",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "FACE",
+      "object": "computational cost challenges",
+      "confidence": 1.0,
+      "source_chunk_id": "section_1_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "EXTENDS",
+      "object": "RAG",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "USES",
+      "object": "Knowledge Graphs",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "HELPS",
+      "object": "researchers",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "CONNECTS",
+      "object": "documents, people, projects, and organizational structures",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "TRACKS",
+      "object": "relationships between regulations, cases, and precedents",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Knowledge Graphs",
+      "predicate": "PROVIDE",
+      "object": "explicit representation of relationships",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "FOCUSES_ON",
+      "object": "improving integration between graph retrieval and language model generation",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "graph neural networks",
+      "predicate": "LEARN",
+      "object": "better representations of entities and relationships",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "graph neural networks",
+      "predicate": "ENABLE",
+      "object": "more sophisticated similarity calculations",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "COMBINE",
+      "object": "multiple retrieval methods",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "hybrid retrieval strategies",
+      "predicate": "USE",
+      "object": "Vector Search",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "hybrid retrieval strategies",
+      "predicate": "USE",
+      "object": "graph traversal",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "hybrid retrieval strategies",
+      "predicate": "USE",
+      "object": "keyword search",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "Vector Search",
+      "predicate": "FINDS",
+      "object": "semantically similar documents",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "graph traversal",
+      "predicate": "FINDS",
+      "object": "Related Entities",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "keyword search",
+      "predicate": "ENSURES",
+      "object": "important terms are not missed",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "evaluation of GraphRAG systems",
+      "predicate": "REQUIRES",
+      "object": "metrics",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "traditional information retrieval metrics",
+      "predicate": "INCLUDE",
+      "object": "precision, recall, and F1 score",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "traditional information retrieval metrics",
+      "predicate": "MEASURE",
+      "object": "retrieval quality",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "generation quality metrics",
+      "predicate": "ASSESS",
+      "object": "accuracy, coherence, and relevance",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "graph-specific metrics",
+      "predicate": "EVALUATE",
+      "object": "quality of knowledge graph",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "graph-specific metrics",
+      "predicate": "INCLUDE",
+      "object": "entity coverage, relationship accuracy, and graph connectivity",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG",
+      "predicate": "REPRESENTS",
+      "object": "evolution toward more structured and interpretable AI systems",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "MOVE_AWAY_FROM",
+      "object": "black-box nature of pure neural approaches",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "GraphRAG Systems",
+      "predicate": "MAINTAIN",
+      "object": "powerful generative capabilities of large language models",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "REVOLUTIONIZES",
+      "object": "healthcare industry",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ENABLES",
+      "object": "more accurate diagnoses",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ENABLES",
+      "object": "personalized treatments",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "ENABLES",
+      "object": "efficient healthcare delivery",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI technologies",
+      "predicate": "TRANSFORM",
+      "object": "patient care",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI technologies",
+      "predicate": "IMPROVE",
+      "object": "clinical outcomes",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI technologies",
+      "predicate": "REDUCE",
+      "object": "healthcare costs",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "ANALYZE",
+      "object": "complex healthcare data",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "IDENTIFY",
+      "object": "patterns",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "MAKE",
+      "object": "predictions",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "SUPPORT",
+      "object": "clinical decision-making",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "deep learning algorithms",
+      "predicate": "ANALYZE",
+      "object": "medical images",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered systems",
+      "predicate": "IDENTIFY",
+      "object": "early signs of lung cancer",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered systems",
+      "predicate": "DETECT",
+      "object": "brain hemorrhages",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI-powered systems",
+      "predicate": "RECOGNIZE",
+      "object": "diabetic retinopathy",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "ASSIST",
+      "object": "analyzing tissue samples",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI algorithms",
+      "predicate": "ASSIST",
+      "object": "identifying cancerous cells",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "digital pathology",
+      "predicate": "COMBINED_WITH",
+      "object": "AI",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "digital pathology with AI",
+      "predicate": "ENABLES",
+      "object": "examination of thousands of cells",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "HELPS",
+      "object": "pathologists",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "QUANTIFIES",
+      "object": "tumor characteristics",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "PREDICTS",
+      "object": "treatment responses",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    },
+    {
+      "subject": "AI",
+      "predicate": "IDENTIFIES",
+      "object": "new biomarkers",
+      "confidence": 1.0,
+      "source_chunk_id": "section_2_chunk_0",
+      "metadata": {}
+    }
+  ],
+  "corrections_made": [
+    {
+      "original": {
+        "subject": "GraphRAG",
+        "predicate": "INTEGRATES",
+        "object": "Knowledge Graphs"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "INTEGRATES",
+        "object": "knowledge graphs"
+      },
+      "correction": "object normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "GraphRAG",
+        "predicate": "CREATES",
+        "object": "Explainable AI Opportunities"
+      },
+      "corrected": {
+        "subject": "GraphRAG",
+        "predicate": "CREATES",
+        "object": "explainable AI opportunities"
+      },
+      "correction": "object normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "system",
+        "predicate": "PROVIDES",
+        "object": "explanations"
+      },
+      "corrected": {
+        "subject": "GraphRAG system",
+        "predicate": "PROVIDES",
+        "object": "explanations"
+      },
+      "correction": "subject corrected for clarity"
+    },
+    {
+      "original": {
+        "subject": "extraction process",
+        "predicate": "REQUIRES",
+        "object": "Computational Resources"
+      },
+      "corrected": {
+        "subject": "knowledge extraction process",
+        "predicate": "REQUIRES",
+        "object": "computational resources"
+      },
+      "correction": "subject and object normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "Knowledge Quality",
+        "predicate": "DEPENDS_ON",
+        "object": "Extraction Models"
+      },
+      "corrected": {
+        "subject": "knowledge quality",
+        "predicate": "DEPENDS_ON",
+        "object": "extraction models"
+      },
+      "correction": "subject and object normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "Extraction Models",
+        "predicate": "MAY_INTRODUCE",
+        "object": "errors"
+      },
+      "corrected": {
+        "subject": "extraction models",
+        "predicate": "MAY_INTRODUCE",
+        "object": "errors"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "GraphRAG Systems",
+        "predicate": "FACE",
+        "object": "scalability concern"
+      },
+      "corrected": {
+        "subject": "GraphRAG systems",
+        "predicate": "FACE",
+        "object": "scalability concerns"
+      },
+      "correction": "object corrected to plural"
+    },
+    {
+      "original": {
+        "subject": "Knowledge Graphs",
+        "predicate": "CAN_GROW",
+        "object": "very large with millions of entities and relationships"
+      },
+      "corrected": {
+        "subject": "knowledge graphs",
+        "predicate": "CAN_GROW",
+        "object": "very large with millions of entities and relationships"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph database technologies",
+        "predicate": "PROVIDE",
+        "object": "specialized storage capabilities"
+      },
+      "corrected": {
+        "subject": "graph database technologies",
+        "predicate": "PROVIDE",
+        "object": "specialized storage capabilities"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph database technologies",
+        "predicate": "PROVIDE",
+        "object": "specialized query capabilities"
+      },
+      "corrected": {
+        "subject": "graph database technologies",
+        "predicate": "PROVIDE",
+        "object": "specialized query capabilities"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph database technologies",
+        "predicate": "INCLUDE",
+        "object": "Neo4j"
+      },
+      "corrected": {
+        "subject": "graph database technologies",
+        "predicate": "INCLUDE",
+        "object": "Neo4j"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph database technologies",
+        "predicate": "INCLUDE",
+        "object": "Memgraph"
+      },
+      "corrected": {
+        "subject": "graph database technologies",
+        "predicate": "INCLUDE",
+        "object": "Memgraph"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph database technologies",
+        "predicate": "INCLUDE",
+        "object": "Amazon Neptune"
+      },
+      "corrected": {
+        "subject": "graph database technologies",
+        "predicate": "INCLUDE",
+        "object": "Amazon Neptune"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "systems",
+        "predicate": "USE",
+        "object": "graph query languages"
+      },
+      "corrected": {
+        "subject": "graph database systems",
+        "predicate": "USE",
+        "object": "graph query languages"
+      },
+      "correction": "subject corrected for specificity"
+    },
+    {
+      "original": {
+        "subject": "graph query languages",
+        "predicate": "INCLUDE",
+        "object": "Cypher"
+      },
+      "corrected": {
+        "subject": "graph query languages",
+        "predicate": "INCLUDE",
+        "object": "Cypher"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph query languages",
+        "predicate": "INCLUDE",
+        "object": "Gremlin"
+      },
+      "corrected": {
+        "subject": "graph query languages",
+        "predicate": "INCLUDE",
+        "object": "Gremlin"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph query languages",
+        "predicate": "ENABLE",
+        "object": "efficient graph traversal"
+      },
+      "corrected": {
+        "subject": "graph query languages",
+        "predicate": "ENABLE",
+        "object": "efficient graph traversal"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph query languages",
+        "predicate": "ENABLE",
+        "object": "efficient graph querying"
+      },
+      "corrected": {
+        "subject": "graph query languages",
+        "predicate": "ENABLE",
+        "object": "efficient graph querying"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "graph query languages",
+        "predicate": "ENABLE",
+        "object": "fast retrieval for complex multi-hop queries"
+      },
+      "corrected": {
+        "subject": "graph query languages",
+        "predicate": "ENABLE",
+        "object": "fast retrieval for complex multi-hop queries"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "Machine learning algorithms",
+        "predicate": "PREDICT",
+        "object": "compound interactions with biological targets"
+      },
+      "corrected": {
+        "subject": "machine learning algorithms",
+        "predicate": "PREDICT",
+        "object": "compound interactions with biological targets"
+      },
+      "correction": "subject normalized to lowercase"
+    },
+    {
+      "original": {
+        "subject": "Pharmacogenomics",
+        "predicate": "BENEFITS_FROM",
+        "object": "AI advancements"
+      },
+      "corrected": {
+        "subject": "pharmacogenomics",
+        "predicate": "BENEFITS_FROM",
+        "object": "AI advancements"
+      },
+      "correction": "subject normalized to lowercase"
+    }
+  ]
+}

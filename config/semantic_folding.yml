@@ -7,7 +7,9 @@
 # ============================================================
 # GLOBAL SETTINGS
 # ============================================================
-grid_size: 128                 # Shared across semantic_space and phrase_fingerprints
+grid_size: 64                  # Shared across semantic_space and phrase_fingerprints
+                                 # Sweep results: 64×64 beats 128×128 for 20-doc corpus
+                                 # (MRR 1.000 vs 0.900, AP 0.869 vs 0.836)
 min_freq: 1                    # Minimum phrase frequency to keep 
 keep_verbs : true              # Include verbal elements in phrases
 smoothing_sigma: 1.5           # Gaussian smoothing sigma before peak detection

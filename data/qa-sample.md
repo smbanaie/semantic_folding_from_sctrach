@@ -6,7 +6,7 @@ Based on the provided documentation of the Semantic Folding query processing uni
 \text{score}(Q, D_i) = \frac{\tilde{\mathbf{q}} \cdot \mathbf{d}_i}{\sqrt{\text{nnz}(\mathbf{d}_i)}}
 \]
 
-Here are 5 analytically designed questions to test the QA system, along with the Top 3 related contexts and the theoretical rationale for their ranking. Ground truth relevance is established by manual content analysis.
+Here are 5 analytically designed questions to test the QA system, along with the manually curated relevant contexts and the theoretical rationale for their ranking. Relevance grades: **primary** (directly addresses the core query), **secondary** (addresses a subset of query dimensions). Ground truth relevance is established by manual content analysis.
 
 ---
 
@@ -15,9 +15,7 @@ Here are 5 analytically designed questions to test the QA system, along with the
 - **Rank 1: Context 2 (Neuroplasticity)**
     - **Why:** This document directly addresses all three aspects of the query. "Brain's remarkable ability to adapt" maps to "adaptive changes." "Recovering from brain injuries" and "hope for individuals recovering from severe brain injuries" directly address "recovery of mental functions." "Enhancing cognitive functions" and "improve mental health outcomes and cognitive performance" match "enhancement of cognitive skills." This is the strongest possible match — the query is essentially a rewording of this document's core thesis.
 - **Rank 2: Context 1 (Cognitive-behavioral therapy)**
-    - **Why:** CBT discusses "mental health challenges," "healthier thinking patterns," and managing psychological conditions. While it focuses on psychotherapy rather than neurobiological adaptation, the "recovery of mental functions" aspect is directly covered. The shared terms "cognitive," "mental," "recovery," and "skills" will produce measurable fingerprint overlap, though the absence of "brain" and "adaptive changes" places it below Neuroplasticity.
-- **Rank 3: Context 12 (Bilingualism)**
-    - **Why:** Bilingualism discusses "enhanced cognitive abilities" and "delayed onset of age-related cognitive decline." The "enhancement of cognitive skills" component of the query weakly matches. Bilingualism does not address "recovery" or "adaptive changes in the brain" directly. Through spreading ($r=1$), "cognitive skills" in the query may overlap with "cognitive abilities" in Context 12, yielding a tertiary match. This is the weakest of the three relevant documents.
+    - **Why:** CBT discusses "mental health challenges," "healthier thinking patterns," and managing psychological conditions. While it focuses on psychotherapy rather than neurobiological adaptation, the "recovery of mental functions" aspect is partially covered. The shared terms "cognitive," "mental," "recovery," and "skills" will produce measurable fingerprint overlap, though the absence of "brain" and "adaptive changes" places it below Neuroplasticity. This is a secondary match — relevant to the mental health recovery dimension but not to neurobiological adaptation.
 
 ---
 
@@ -27,8 +25,6 @@ Here are 5 analytically designed questions to test the QA system, along with the
     - **Why:** Context 16 contains the exact phrase "sentence structure" and the exact phrase "natural language processing systems" — the only document to do so. It explicitly states that syntactic analysis is "important for developing natural language processing systems, such as machine translation and speech recognition technologies." The direct lexical overlap gives it the highest IDF-weighted score.
 - **Rank 2: Context 17 (Semantics)**
     - **Why:** Context 17 explicitly defines "meaning of words, phrases, and sentences" and discusses how "context influences interpretation," directly addressing the "contextual meaning" aspect of the query. It also mentions "artificial intelligence" and "machine interpretations of human communication." While it lacks the exact phrase "NLP systems," the topical overlap with meaning, context, and machine interpretation is strong.
-- **Rank 3: Context 18 (Artificial Intelligence)**
-    - **Why:** Context 18 explicitly mentions "natural language processing" as a key application of AI. It provides the "development of natural language processing systems" context but lacks the specific linguistic focus on syntax and semantics found in Contexts 16 and 17, naturally placing it 3rd.
 
 ---
 

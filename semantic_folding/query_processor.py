@@ -55,6 +55,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
+import scipy.signal
 
 from scipy.sparse import csr_matrix
 
@@ -1317,6 +1318,44 @@ def _flatten_grid(grid: np.ndarray, use_morton: bool) -> np.ndarray:
                 idx = xy_to_morton(x, y, grid_size)
                 flat[idx] = val
     return flat
+
+
+def apply_geometric_kernel(
+    fingerprint: csr_matrix,
+    grid_size: int,
+    use_morton: bool = True,
+    kernel: Optional[np.ndarray] = None,
+) -> csr_matrix:
+    """
+    Convolve the query fingerprint with a spatial adjacency kernel on the 2D grid.
+
+    This rewards documents whose activated cells are *adjacent* to query cells,
+    not just overlapping exactly.  The kernel gives partial credit for nearby
+    activation, encoding the intuition that spatial proximity on the semantic
+    grid implies semantic relatedness.
+
+    Default kernel (3x3 Gaussian-inspired):
+        [[0.25, 0.5, 0.25],
+         [0.5,  1.0, 0.5],
+         [0.25, 0.5, 0.25]]
+
+    This assigns:
+    - 1.0 for exact overlap (center cell)
+    - 0.5 for orthogonal adjacency (up/down/left/right)
+    - 0.25 for diagonal adjacency
+    """
+    if kernel is None:
+        kernel = np.array([
+            [0.25, 0.50, 0.25],
+            [0.50, 1.00, 0.50],
+            [0.25, 0.50, 0.25],
+        ], dtype=np.float32)
+
+    dense = fingerprint.toarray().ravel()
+    grid = _unflatten_vector(dense, grid_size, use_morton)
+    convolved = scipy.signal.convolve2d(grid, kernel, mode="same", boundary="symm")
+    flat = _flatten_grid(convolved, use_morton)
+    return csr_matrix(flat.reshape(1, -1))
 # ─────────────────────────────────────────────────────────────────────────────
 # Spreading
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1460,18 +1499,21 @@ def rank_documents(
     top_k           : int   = 10,
     min_similarity  : float = 0.0,
     use_batch       : bool  = True,
+    geometric       : bool  = False,
+    grid_size       : int   = 0,
+    use_morton      : bool  = True,
     **kwargs,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     """
     Rank documents by asymmetric cosine similarity against the query fingerprint.
 
-    Score formula:
+    Standard score formula:
         score(q, d) = dot(q, d) / (||q||₂ × sqrt(doc_nnz))
 
-    This is a deliberate asymmetric cosine: the query is fully L2-normalised
-    (preserving IDF weighting from phrase scores), while the document side uses
-    sqrt(nnz) — a mild length penalty that avoids over-penalising dense SDRs
-    compared to full L2 normalisation of binary vectors.
+    When ``geometric=True``, the query fingerprint is first convolved with
+    a 3×3 spatial adjacency kernel that rewards nearby (not just exact) overlap
+    on the 2D semantic grid.  This encodes the intuition that cells adjacent
+    on the grid represent semantically related concepts.
 
     Parameters
     ----------
@@ -1486,6 +1528,12 @@ def rank_documents(
         Minimum score threshold; documents below this are excluded.
     use_batch : bool, optional
         Accepted for API compatibility; batch path used when corpus > 50 docs.
+    geometric : bool
+        When True, apply spatial adjacency kernel before scoring.
+    grid_size : int
+        Grid side length (required when geometric=True).
+    use_morton : bool
+        Whether fingerprints use Morton encoding (required when geometric=True).
     **kwargs
         Catches any additional legacy keyword arguments without error.
 
@@ -1501,7 +1549,7 @@ def rank_documents(
     logger.debug(
         f"rank_documents: query_nnz={query_fp.nnz if query_fp is not None else 0}, "
         f"corpus_size={len(doc_fingerprints)}, top_k={top_k}, "
-        f"min_similarity={min_similarity}"
+        f"min_similarity={min_similarity}, geometric={geometric}"
     )
 
     empty_meta = {
@@ -1518,6 +1566,14 @@ def rank_documents(
     if not doc_fingerprints:
         logger.warning("No document fingerprints provided — returning no results")
         return [], empty_meta
+
+    # Apply geometric adjacency kernel if requested
+    if geometric:
+        if grid_size <= 0:
+            logger.warning("geometric=True but grid_size=0 — falling back to standard scoring")
+        else:
+            query_fp = apply_geometric_kernel(query_fp, grid_size, use_morton)
+            logger.info(f"  [GEOMETRIC] kernel applied, new nnz={query_fp.nnz}")
 
     # Precompute query L2 norm once — reused for every document
     query_norm = np.sqrt(query_fp.power(2).sum())
@@ -2043,11 +2099,16 @@ def process_query(
         f"min_similarity={getattr(args, 'min_similarity', 0.0)}"
     )
 
+    grid_size = int(np.sqrt(query_fp.shape[1]))
+
     results, ranking_metadata = rank_documents(
         query_fp, doc_fingerprints,
         top_k=getattr(args, "top_k", 10),
         min_similarity=getattr(args, "min_similarity", 0.0),
         use_batch=getattr(args, "use_batch", True),
+        geometric=getattr(args, "geometric", False),
+        grid_size=grid_size,
+        use_morton=use_morton,
     )
 
     top_score = f"{results[0][1]:.4f}" if results else "n/a"
@@ -2181,6 +2242,13 @@ def parse_args() -> argparse.Namespace:
         help="Minimum score threshold for results.",
     )
 
+    # ── Geometric scoring ─────────────────────────────────────────────────────
+    parser.add_argument(
+        "--geometric", action="store_true", default=False,
+        help="Apply 3×3 spatial adjacency kernel before scoring. Rewards "
+             "documents whose active cells are adjacent (not just overlapping) "
+             "the query's active cells on the semantic grid.",
+    )
 
     # ── Output ────────────────────────────────────────────────────────────────
     parser.add_argument(

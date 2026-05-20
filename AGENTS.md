@@ -19,6 +19,10 @@
 - Config: `config/semantic_folding.yml`, `config/exec_state.yml`
 - Test queries: `data/qa-sample.md`
 - Evaluation reports: `outputs/run_<timestamp>/query_metrics/qa_evaluation_report.md`
+- Benchmarking framework: `semantic_folding/dataset_benchmark/`
+  - MuSiQue benchmark: `semantic_folding/dataset_benchmark/musique/run_benchmark.py`
+  - Analysis: `semantic_folding/dataset_benchmark/musique/benchmark_analyzer.py`
+- Benchmark overview: `semantic_folding/benchmarks.md`
 
 ## Python Environment
 
@@ -39,6 +43,28 @@
 - Query weighting: IDF (best; uniform drops C17 ranking and loses C00)
 - Normalization: L2 for query, `sqrt(nnz)` for document fingerprints
 - Geometric scoring: optional `--geometric` flag (Step 6) applies a 3×3 spatial adjacency kernel before scoring, rewarding nearby (not just exact) cell overlap on the 2D grid. See `semantic_folding/parameters_tuning.md` for evaluation.
+
+## Benchmarking (MuSiQue)
+
+- **Script**: `semantic_folding/dataset_benchmark/musique/run_benchmark.py`
+- **Three-phase design**:
+  - Phase 1 (index): Collect unique paragraphs across query range, run Steps 1-5 once
+  - Phase 2 (benchmark): Run Step 6 per query against pre-built fingerprints, post-filter to 20 candidates
+  - Phase 3 (report): Auto-generate `benchmark_report.md`
+- **Interactive TUI** (default, no args): Colorama-colored menu with parameter auto-generation & user override
+- **CLI mode** (`--mode index|benchmark|report`): Non-interactive for automation; flags same as before
+- **Run registry**: `semantic_folding/dataset_benchmark/musique/runs/registry.yml` tracks all index & benchmark runs for resume
+- **Analysis**: `semantic_folding/dataset_benchmark/musique/benchmark_analyzer.py` — deep-dive into last benchmark results (distributions, failures, top performers)
+- **Key command (interactive)**: `.venv\scripts\python semantic_folding\dataset_benchmark\musique\run_benchmark.py` (no args = TUI with colored menu + param auto-generation & user override)
+- **Key command (CLI)**: `.venv\scripts\python semantic_folding\dataset_benchmark\musique\run_benchmark.py --mode index --split dev --max-queries 100 --grid-size 64 --spreading-steps 1 --top-percent 0.10 --weighting idf --benchmark`
+- **Params read from run's config.yml during benchmark** (must match index phase)
+- **Metrics**: MRR, AP, P@K, R@K, NDCG@K
+- **Output layout**:
+  ```
+  outputs/musique_benchmark/
+    runs/run_<ts>/          # Phase 1: combined corpus + Steps 1-5 artifacts
+    benchmarks/benchmark_<ts>/  # Phase 2: per-query results + report
+  ```
 
 ## Ground Truth Conventions
 

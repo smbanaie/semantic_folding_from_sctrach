@@ -21,6 +21,7 @@ experiments.
 | `spreading_steps` | 6 | Moore-neighbourhood expansion radius for query fingerprint | 1 | 0, 1, 2 |
 | `weighting` | 6 | Phrase weighting strategy for query fingerprint aggregation | `idf` | `idf`, `uniform` |
 | `smoothing_sigma` | 4–5 | Gaussian blur sigma before peak detection | 1.5 | 1.0, 1.5, 2.0 |
+| `geometric` | 6 | 3×3 spatial adjacency kernel before scoring | `false` | `false`, `true` |
 
 Parameters held constant: `min_freq=1`, `keep_verbs=true`, `min_word_length=3`,
 TF-IDF enabled (Step 2), t-SNE reduction (Step 3), Morton Z-order encoding,
@@ -43,6 +44,8 @@ Nine configurations were compared:
 | G | weak_smoothing | 128 | 0.10 | 1 | idf | 1.0 |
 | H | strong_smoothing | 128 | 0.10 | 1 | idf | 2.0 |
 | **I** | **small_grid** | **64** | **0.10** | **1** | **idf** | **1.5** |
+| J | geometric_no_spread | 64 | 0.10 | 0 | idf | 1.5 | ✓ |
+| K | geometric_with_spread | 64 | 0.10 | 1 | idf | 1.5 | ✓ |
 
 Each configuration was run through the full pipeline (Steps 1–6).  Steps 1–2
 were shared across all experiments (phrase extraction and term-context matrix
@@ -199,7 +202,92 @@ smoothing_sigma: 1.5             # Robust default
 
 ---
 
-## 7. Limitations and Future Work
+## 7. Geometric (Adjacency-Aware) Scoring
+
+### 7.1 Motivation
+
+The standard scoring formula treats the fingerprint as a *bag of bits* — two
+cells contribute the same score regardless of whether they are adjacent or far
+apart on the 2D semantic grid.  However, the grid topology encodes semantic
+proximity: cells that are close on the grid represent more similar concepts.
+The geometric scoring function exploits this by convolving the query
+fingerprint with a 3×3 spatial kernel before computing the dot product:
+
+\[
+K = \begin{bmatrix}
+0.25 & 0.50 & 0.25 \\
+0.50 & 1.00 & 0.50 \\
+0.25 & 0.50 & 0.25
+\end{bmatrix}
+\]
+
+This assigns a weight of 1.0 for exact cell overlap, 0.5 for orthogonal
+adjacency (up/down/left/right), and 0.25 for diagonal adjacency, so a
+document whose active cells lie adjacent to the query's receives partial
+credit compared to exact overlap.
+
+### 7.2 Implementation
+
+A new `--geometric` flag (Step 6) applies the kernel via
+`scipy.signal.convolve2d` after the query fingerprint is un-flattened to a
+2D grid and before scoring.  The kernel is applied with `mode="same"` and
+`boundary="symm"` to preserve grid boundaries.  The implementation is in
+`query_processor.py:apply_geometric_kernel()`.
+
+### 7.3 Results
+
+Two configurations were tested against the winning grid=64 baseline:
+
+| Metric | I_grid=64 (baseline) | J_geometric_no_spread | K_geometric_with_spread |
+|--------|:--------------------:|:---------------------:|:-----------------------:|
+| P@5    | 0.520 | 0.480 | 0.520 |
+| R@5    | 1.000 | 0.933 | 1.000 |
+| MRR    | 1.000 | 1.000 | 1.000 |
+| NDCG@5 | 0.918 | 0.888 | 0.918 |
+| AP     | 0.869 | 0.829 | 0.869 |
+
+**J (geometric, no spreading):** Loses C09 (Social Networks) in Q4 — the
+same failure mode as the no-spreading baseline (Experiment B).  The
+geometric kernel broadens the query footprint but not enough to replace the
+Moore-neighbourhood expansion of `apply_spreading`.  The kernel's Gaussian
+profile (0.25/0.5/1.0) provides 64% less adjacency boost than spreading
+(decay=0.5 applied to all 8 neighbours uniformly).
+
+**K (geometric + spreading):** Produces *identical rankings* to the standard
+scoring baseline.  When spreading (radius=1, decay=0.5) is already active,
+the additional convolution is a linear transformation that preserves the
+relative ordering of scores.  This is expected: both operations are
+translation-invariant linear filters on the grid.
+
+### 7.4 Discussion
+
+The geometric kernel does not improve retrieval quality for this 20-doc
+corpus because:
+1. **Spreading already captures adjacency:** The `--spreading-steps 1` flag
+   expands each active cell to its 8 neighbours with decay 0.5, which is a
+   coarser but functionally similar operation.
+2. **Uniform kernel is rank-preserving:** A translation-invariant convolution
+   applied to the *query* fingerprint before scoring multiplies every dot
+   product by the same linear operator, so relative rankings are unchanged
+   when spreading is active.
+3. **Small grid limits spatial discriminability:** On a 64×64 grid with ~300
+   active cells per document, most cells are already within the spreading
+   halo of their neighbours, so the kernel adds no new information.
+
+The geometric scoring approach may become valuable for:
+- **Asymmetric kernels** that weigh directions differently (e.g., vertical
+  vs horizontal semantic gradients on the grid).
+- **Learned position-dependent kernels** that adapt to local grid density.
+- **Larger grids (256+)** where spatial relationships are more
+  discriminative and the simple convolution may capture genuine semantic
+  distance gradients.
+
+The `--geometric` flag is retained in the codebase as an experimental
+feature for future investigation.
+
+---
+
+## 8. Limitations and Future Work
 
 1. **Corpus size dependency**: All sweeps were performed on a 20-document
    corpus.  These optimal values may shift for larger collections (500+

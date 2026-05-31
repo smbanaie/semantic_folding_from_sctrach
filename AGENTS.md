@@ -90,3 +90,7 @@
 
 - Tags follow `v<major>.<minor>` pattern (current: v3.2)
 - Commit messages: lowercase, descriptive
+- Every new feature or bug fix must be developed on a **dedicated branch** (e.g., `feature/<name>`, `fix/<name>`)
+- After completing work on a branch, push and present changes to the user for review
+- **Only merge into `main` after explicit user confirmation**
+- Once merged, delete the feature/fix branch (locally and remote)

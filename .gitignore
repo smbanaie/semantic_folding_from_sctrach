@@ -43,6 +43,9 @@ data/HippoRAG2/
 archive/
 archive/docs/
 
+# Benchmark run registry (auto-generated per run)
+semantic_folding/dataset_benchmark/musique/runs/
+
 # IDE
 .vscode/
 .idea/

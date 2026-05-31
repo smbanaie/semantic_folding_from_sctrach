@@ -41,7 +41,7 @@ logger = get_logger("musique_bench")
 # Paths
 # ============================================================================
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[3]
+PROJECT_ROOT = SCRIPT_DIR.parents[2]  # go up: musique -> dataset_benchmark -> semantic_folding -> knowledge-graph-builder
 DATASET_DIR = PROJECT_ROOT / "data" / "HippoRAG2" / "dataset" / "musique"
 BENCHMARK_BASE = PROJECT_ROOT / "outputs" / "musique_benchmark"
 RUNS_DIR = BENCHMARK_BASE / "runs"

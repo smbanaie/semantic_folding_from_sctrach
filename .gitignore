@@ -36,6 +36,13 @@ env/
 .env
 .env.local
 
+# Large datasets (not tracked)
+data/HippoRAG2/
+
+# Archive
+archive/
+archive/docs/
+
 # IDE
 .vscode/
 .idea/

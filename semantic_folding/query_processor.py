@@ -1868,6 +1868,36 @@ def process_query(
     # ── Stage 1: phrase extraction + OOV expansion ───────────────────────────
     logger.debug("  [STAGE 1] phrase extraction + OOV expansion")
 
+    # Query expansion with synonyms (optional)
+    expand_synonyms = getattr(args, "expand_synonyms", False)
+    synonym_weight = getattr(args, "synonym_weight", 0.5)
+
+    if expand_synonyms:
+        # Simple medical synonym dictionary
+        MEDICAL_SYNONYMS = {
+            "myocardial infarction": ["heart attack", "mi", "cardiac arrest"],
+            "hypertension": ["high blood pressure", "htn"],
+            "diabetes": ["diabetes mellitus", "dm", "blood sugar"],
+            "cancer": ["malignancy", "neoplasm", "tumor"],
+            "infection": ["infectious disease", "pathogen"],
+            "brain": ["cerebrum", "cranial"],
+            "heart": ["cardiac", "cardiovascular"],
+            "lung": ["pulmonary", "respiratory"],
+            "kidney": ["renal", "nephro"],
+            "liver": ["hepatic"],
+            "stomach": ["gastric", "gastrointestinal"],
+        }
+
+        query_lower = query.lower()
+        expanded_terms = []
+        for term, synonyms in MEDICAL_SYNONYMS.items():
+            if term in query_lower:
+                expanded_terms.extend(synonyms)
+
+        if expanded_terms:
+            query = query + " " + " ".join(expanded_terms)
+            logger.info(f"  [EXPAND] added synonyms: {expanded_terms}")
+
     # Primary extraction: vocabulary-filtered, typically returns single tokens
     # and the most common short phrases, but often misses multi-word vocab hits.
     matched_phrases = extract_query_phrases(
@@ -2251,6 +2281,17 @@ def parse_args() -> argparse.Namespace:
         help="Apply 3×3 spatial adjacency kernel before scoring. Rewards "
              "documents whose active cells are adjacent (not just overlapping) "
              "the query's active cells on the semantic grid.",
+    )
+
+    # ── Query expansion ─────────────────────────────────────────────────────
+    parser.add_argument(
+        "--expand-synonyms", dest="expand_synonyms", action="store_true",
+        default=False,
+        help="Expand query with synonyms before phrase extraction.",
+    )
+    parser.add_argument(
+        "--synonym-weight", dest="synonym_weight", type=float, default=0.5,
+        help="Weight for synonym-expanded phrases (0-1).",
     )
 
     # ── Output ────────────────────────────────────────────────────────────────

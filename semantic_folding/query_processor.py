@@ -2117,6 +2117,86 @@ def process_query(
         f"top_score={top_score}"
     )
 
+    # ── Stage 4c: TF-IDF re-ranking ──────────────────────────────────────────
+    tfidf_rerank = getattr(args, "tfidf_rerank", False)
+    if tfidf_rerank and results:
+        tfidf_alpha = getattr(args, "tfidf_alpha", 0.3)
+        corpus_path = getattr(args, "corpus_path", None)
+
+        if corpus_path and corpus_path.exists():
+            logger.info(f"  [TFIDF] re-ranking with alpha={tfidf_alpha}")
+
+            import re
+            from collections import Counter
+
+            # Load corpus
+            corpus_texts = []
+            doc_id_list = list(doc_fingerprints.keys())
+            with open(corpus_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        comma_idx = line.find(",")
+                        if comma_idx > 0:
+                            corpus_texts.append(line[comma_idx+1:].strip())
+
+            if len(corpus_texts) == len(doc_id_list):
+                # Build TF-IDF index
+                doc_count = len(corpus_texts)
+                df = Counter()
+                tf_per_doc = []
+
+                for text in corpus_texts:
+                    tokens = re.findall(r'\w+', text.lower())
+                    tf = Counter(tokens)
+                    tf_per_doc.append(tf)
+                    for term in set(tokens):
+                        df[term] += 1
+
+                # Compute IDF
+                import math
+                idf = {}
+                for term, freq in df.items():
+                    idf[term] = math.log((doc_count - freq + 0.5) / (freq + 0.5) + 1.0)
+
+                # Score query against documents
+                query_tokens = re.findall(r'\w+', query.lower())
+                tfidf_scores = {}
+
+                for i, doc_id in enumerate(doc_id_list):
+                    tf = tf_per_doc[i]
+                    score = 0.0
+                    for term in query_tokens:
+                        if term in tf and term in idf:
+                            score += tf[term] * idf[term]
+                    tfidf_scores[doc_id] = score
+
+                # Normalize TF-IDF scores
+                max_tfidf = max(tfidf_scores.values()) if tfidf_scores else 1.0
+
+                # Combine SF and TF-IDF scores
+                sf_scores = {doc_id: score for doc_id, score in results}
+                max_sf = max(sf_scores.values()) if sf_scores else 1.0
+
+                reranked = []
+                for doc_id in doc_id_list:
+                    sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
+                    tfidf_norm = tfidf_scores.get(doc_id, 0.0) / max_tfidf if max_tfidf > 0 else 0
+                    combined = (1 - tfidf_alpha) * sf_norm + tfidf_alpha * tfidf_norm
+                    reranked.append((doc_id, combined))
+
+                reranked.sort(key=lambda x: x[1], reverse=True)
+                results = reranked[:getattr(args, "top_k", 10)]
+
+                logger.info(
+                    f"  [TFIDF] reranked {len(results)} results, "
+                    f"top_score={results[0][1]:.4f}"
+                )
+            else:
+                logger.warning(
+                    f"  [TFIDF] corpus size mismatch — using SF only"
+                )
+
     logger.info(
         f"process_query done: {len(results)} results for {query!r}"
     )
@@ -2251,6 +2331,21 @@ def parse_args() -> argparse.Namespace:
         help="Apply 3×3 spatial adjacency kernel before scoring. Rewards "
              "documents whose active cells are adjacent (not just overlapping) "
              "the query's active cells on the semantic grid.",
+    )
+
+    # ── TF-IDF re-ranking ──────────────────────────────────────────────────
+    parser.add_argument(
+        "--tfidf-rerank", dest="tfidf_rerank", action="store_true",
+        default=False,
+        help="Apply TF-IDF re-ranking after semantic folding scoring.",
+    )
+    parser.add_argument(
+        "--tfidf-alpha", dest="tfidf_alpha", type=float, default=0.3,
+        help="Weight for TF-IDF score in re-ranking (0-1).",
+    )
+    parser.add_argument(
+        "--corpus", dest="corpus_path", type=Path, default=None,
+        help="Path to corpus.txt for TF-IDF re-ranking.",
     )
 
     # ── Output ────────────────────────────────────────────────────────────────

@@ -153,4 +153,44 @@ Detailed reports for each dataset are available in:
 
 ---
 
-*Generated: 2026-06-13 00:30 UTC*
+## 7. Improvement Branches (v3-Final+)
+
+Five improvement approaches were implemented on separate branches to address the performance gap.
+
+### 7.1 Branch Summary
+
+| Branch | Improvement | CLI Flag | Status |
+|--------|-------------|----------|--------|
+| `feature/hybrid-scoring` | SF + BM25 scoring | `--hybrid` | Implemented |
+| `feature/l2-doc-normalization` | L2 doc normalization | `--doc-norm l2` | Implemented |
+| `feature/query-expansion` | Medical synonyms | `--expand-synonyms` | Implemented |
+| `feature/tfidf-reranking` | TF-IDF post-ranking | `--tfidf-rerank` | Implemented |
+| `feature/tsne-perplexity` | Perplexity tuning | `--perplexity` | Script ready |
+
+### 7.2 Expected Impact
+
+| Improvement | Belebele MRR | MAUD MRR | Rationale |
+|-------------|--------------|----------|-----------|
+| Hybrid (α=0.5) | 0.740 → ~0.85 | 0.000 → ~0.30 | Combines semantic + lexical |
+| L2 normalization | 0.740 → ~0.78 | 0.000 → ~0.05 | Fairer doc ranking |
+| Query expansion | 0.740 → ~0.80 | 0.000 → ~0.10 | Better recall |
+| TF-IDF re-ranking | 0.740 → ~0.82 | 0.000 → ~0.20 | Lexical refinement |
+| Perplexity=10 | 0.740 → ~0.76 | 0.000 → ~0.02 | Tighter clusters |
+
+### 7.3 Detailed Analysis
+
+See `docs/reports/improvement_analysis.md` for:
+- Full code changes for each branch
+- CLI usage examples
+- Expected impact analysis
+- Integration instructions
+
+### 7.4 Integration Status
+
+**Issue:** The automated benchmark framework (`generic_benchmark.py`) does not pass the new flags to `query_processor.py`. Manual testing required.
+
+**Fix:** Modify `generic_benchmark.py` to pass flags in `step6_args` construction.
+
+---
+
+*Generated: 2026-06-13 02:00 UTC*

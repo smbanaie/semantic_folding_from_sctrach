@@ -544,6 +544,9 @@ class SemanticRunner:
         "idf_weights":          ["query_processing", "idf_weights"],
         "top_k":                ["query_processing", "top_k"],
         "spreading_steps":      ["query_processing", "spreading_steps"],
+        "viz_dir":              ["query_processing", "viz_dir"],
+        "viz_enabled":          ["query_processing", "viz_enabled"],
+        "viz_top_n":            ["query_processing", "viz_top_n"],
 
         # Phrase Visualization
         "threshold":            ["phrase_visualization", "threshold"],
@@ -638,7 +641,8 @@ class SemanticRunner:
                 "query", "fingerprints", "doc_fingerprints", "output"
             ],
             "optional_params": [
-                "weighting", "idf_weights", "top_k", "spreading_steps", "grid_size"
+                "weighting", "idf_weights", "top_k", "spreading_steps",
+                "grid_size"
             ],
             "default_output": "query_results",
             "depends_on": [2, 4, 5]
@@ -676,6 +680,8 @@ class SemanticRunner:
         "min_peak_distance":    "min-peak-distance",
         "top_k":                "top-k",
         "spreading_steps":      "spreading-steps",
+        "viz_dir":              "viz-dir",
+        "viz_top_n":            "viz-top-n",
         "grid_borders":         "grid-borders",
         "border_color":         "border-color",
         "border_width":         "border-width",
@@ -832,10 +838,33 @@ class SemanticRunner:
         params = {}
         print(f"\n{Colors.BOLD}Configure: {step['name']}{Colors.ENDC}")
         print(f"{Colors.CYAN}{'─' * 70}{Colors.ENDC}")
+
+        # ── Step 6: generate query folder name before the param loops ──────
+        query_id = None
+        if step["id"] == 6:
+            qid_default = f"q_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            query_id = self.get_input(
+                f"{Colors.BOLD}query folder name{Colors.ENDC} "
+                f"(results+viz go here)",
+                qid_default,
+            )
+            while not query_id:
+                query_id = self.get_input(
+                    f"{Colors.BOLD}query folder name{Colors.ENDC} "
+                    f"(results+viz go here)",
+                    qid_default,
+                )
+
         for param in step["required_params"]:
             resolved = self.resolve_parameter_from_previous_step(run_id, param, step["id"])
             if param == "output":
-                default = f"outputs/{run_id}/{step['default_output']}"
+                if step["id"] == 6 and query_id:
+                    default = (
+                        f"outputs/{run_id}/{step['default_output']}"
+                        f"/{query_id}/results.json"
+                    )
+                else:
+                    default = f"outputs/{run_id}/{step['default_output']}"
             elif param == "corpus":
                 run_data = self.get_run_info(run_id)
                 default = run_data.get("corpus") or resolved
@@ -846,6 +875,7 @@ class SemanticRunner:
                 self.print_error(f"'{param}' is required")
                 value = self.get_input(f"{Colors.BOLD}{param}{Colors.ENDC} (required)", default)
             params[param] = value
+
         if step["optional_params"]:
             print(f"\n{Colors.CYAN}Optional parameters (Enter to skip):{Colors.ENDC}")
             for param in step["optional_params"]:
@@ -855,6 +885,25 @@ class SemanticRunner:
                 value = self.get_input(f"  {param}", default)
                 if value:
                     params[param] = value
+
+        # ── Step 6: auto-set viz_dir so every query gets a visualisation ────
+        if step["id"] == 6 and query_id and "viz_dir" not in params:
+            # Check config: viz_enabled (default true)
+            cfg_enabled = self.get_default_value("viz_enabled", step["id"])
+            if cfg_enabled is not None and cfg_enabled.lower() in ("false", "no", "0"):
+                logger.info("Per‑query visualisation disabled via config (viz_enabled: false)")
+            else:
+                default_viz = (
+                    f"outputs/{run_id}/{step['default_output']}"
+                    f"/{query_id}/viz/"
+                )
+                # Read config‑level viz_dir override
+                cfg_viz = self.get_default_value("viz_dir", step["id"])
+                if cfg_viz and cfg_viz != "auto":
+                    default_viz = cfg_viz.format(run_id=run_id, qid=query_id)
+                viz_val = self.get_input(f"  viz_dir", default_viz)
+                params["viz_dir"] = viz_val if viz_val else default_viz
+
         return params
 
     def build_command(self, step, params):

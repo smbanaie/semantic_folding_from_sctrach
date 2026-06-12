@@ -4,93 +4,116 @@
 
 - Pipeline scripts: `semantic_folding/*.py`
 - Entry point: `semantic_folding/semantic_folder.py` (interactive TUI)
-- Individual steps can be run directly:
-  - `semantic_folding/phrase_extractor.py` (Step 1)
-  - `semantic_folding/term_context.py` (Step 2)
-  - `semantic_folding/semantic_space.py` (Step 3)
-  - `semantic_folding/phrase_fingerprints.py` (Step 4)
-  - `semantic_folding/doc_fingerprints.py` (Step 5)
-  - `semantic_folding/query_processor.py` (Step 6)
+- Individual steps: `semantic_folding/phrase_extractor.py` → `term_context.py` → `semantic_space.py` → `phrase_fingerprints.py` → `doc_fingerprints.py` → `query_processor.py`
 - Utilities: `semantic_folding/lib.py`
-- Parameter tuning study: `semantic_folding/parameters_tuning.md`
-- Visualizers: `semantic_folding/phrase_visualizer.py`, `semantic_folding/doc_visualizer.py`
+- Visualizers: `semantic_folding/{phrase,doc,query}_visualizer.py`
 - Notebooks: `semantic_folding/notebooks/`
 - Outputs: `outputs/run_<timestamp>/`
 - Config: `config/semantic_folding.yml`, `config/exec_state.yml`
-- Test queries: `data/qa-sample.md`
-- Evaluation reports: `outputs/run_<timestamp>/query_metrics/qa_evaluation_report.md`
-- Benchmarking framework: `semantic_folding/dataset_benchmark/`
-  - MuSiQue benchmark: `semantic_folding/dataset_benchmark/musique/run_benchmark.py`
-  - Analysis: `semantic_folding/dataset_benchmark/musique/benchmark_analyzer.py`
-- Benchmark overview: `semantic_folding/benchmarks.md`
 
 ## Python Environment
 
-- Virtual env: `.venv\scripts\python` (Windows)
+- Virtual env: `.venv\Scripts\python` (Windows)
 - spaCy model: `en_core_web_sm`
 - Key deps: `numpy`, `scipy`, `spacy`, `plotly`, `scikit-learn`, `pyyaml`
 
 ## Pipeline Parameters
 
-- Grid size: 64x64 (optimal for 20-doc corpus; set in config; must match across Steps 3–6)
-  - Sweep results: 64×64 beats 128×128 (MRR 1.000 vs 0.900, AP 0.869 vs 0.836)
-- Encoding: Morton Z-order (`use_morton: true`)
-- Smoothing: Gaussian blur, sigma=1.5 (`no_smooth: false` to enable)
-- TF-IDF: applied in Step 2
-- Dim reduction: t-SNE (default; also supports UMAP, PCA)
-- Spreading: radius=1, decay=0.5 (in query processor) — spread=0 loses recall on Q4/C09, spread=2 doesn't improve
-- top_percent: 0.10 (0.05 loses C00 in Q5, 0.15 dilutes signal)
-- Query weighting: IDF (best; uniform drops C17 ranking and loses C00)
-- Normalization: L2 for query, `sqrt(nnz)` for document fingerprints
-- Geometric scoring: optional `--geometric` flag (Step 6) applies a 3×3 spatial adjacency kernel before scoring, rewarding nearby (not just exact) cell overlap on the 2D grid. See `semantic_folding/parameters_tuning.md` for evaluation.
+These are the **verified optimal defaults** — use for all datasets unless evidence shows otherwise:
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Grid size | **64** | 128×128 tested on PubMedQA → MRR −5.3%. Do not change. |
+| Encoding | Morton Z-order (`use_morton: true`) | |
+| Smoothing | Gaussian blur, **sigma=1.5** | sigma=0 tested → MRR −31.2%. **Critical for performance.** |
+| Dim reduction | t-SNE (default) | |
+| Spreading | **radius=1, decay=0.5** | spread=2 tested → MRR −7.1% on short queries. Keep at 1. |
+| top_percent | **0.10** | 0.05 tested → MRR −5.3%. Keep at 0.10. |
+| Query weighting | **IDF** | uniform tested → MRR −0.86%. Keep IDF. |
+| Normalization | L2 for query, `sqrt(nnz)` for document fingerprints | |
+| `--geometric` | **Do not use** | Crashes with access violation at query 144. Buggy. |
+| `--dynamic-spreading` | **Do not use** | Makes short-query MRR worse. |
+| keep_verbs | true | Not worth testing — other param changes all failed. |
+| min_freq | 1 | Not worth testing. |
+
+**Key finding:** The default pipeline parameters (grid=64, spread=1, top%=0.10, smoothing=1.5, weighting=idf) are optimal for PubMedQA. Do not deviate without re-testing.
 
 ## Benchmarking (MuSiQue)
 
-- **Script**: `semantic_folding/dataset_benchmark/musique/run_benchmark.py`
-- **Three-phase design**:
-  - Phase 1 (index): Collect unique paragraphs across query range, run Steps 1-5 once
-  - Phase 2 (benchmark): Run Step 6 per query against pre-built fingerprints, post-filter to 20 candidates
-  - Phase 3 (report): Auto-generate `benchmark_report.md`
-- **Interactive TUI** (default, no args): Colorama-colored menu with parameter auto-generation & user override
-- **CLI mode** (`--mode index|benchmark|report`): Non-interactive for automation; flags same as before
-- **Run registry**: `semantic_folding/dataset_benchmark/musique/runs/registry.yml` tracks all index & benchmark runs for resume
-- **Analysis**: `semantic_folding/dataset_benchmark/musique/benchmark_analyzer.py` — deep-dive into last benchmark results (distributions, failures, top performers)
-- **Key command (interactive)**: `.venv\scripts\python semantic_folding\dataset_benchmark\musique\run_benchmark.py` (no args = TUI with colored menu + param auto-generation & user override)
-- **Key command (CLI)**: `.venv\scripts\python semantic_folding\dataset_benchmark\musique\run_benchmark.py --mode index --split dev --max-queries 100 --grid-size 64 --spreading-steps 1 --top-percent 0.10 --weighting idf --benchmark`
-- **Params read from run's config.yml during benchmark** (must match index phase)
-- **Metrics**: MRR, AP, P@K, R@K, NDCG@K
-- **Output layout**:
-  ```
-  outputs/musique_benchmark/
-    runs/run_<ts>/          # Phase 1: combined corpus + Steps 1-5 artifacts
-    benchmarks/benchmark_<ts>/  # Phase 2: per-query results + report
-  ```
-
-## Ground Truth Conventions
-
-- `data/qa-sample.md` defines 5 test queries with 3 relevant documents each
-- Document IDs match corpus line numbers (C00–C19)
-- Relevance: binary (relevant/not) — update for graded when needed
-
-## Evaluation
-
-- Metrics script: run `.venv\scripts\python tools\compute_ir_metrics.py`
-- Report output: `outputs/run_<timestamp>/query_metrics/qa_evaluation_report.md`
-- Key metrics: P@K, R@K, MRR, NDCG@K, AP
-- Normalization diagnostic: check doc_nnz uniqueness
+- Script: `semantic_folding/dataset_benchmark/musique/run_benchmark.py`
+- Three-phase design: index (Steps 1-5) → benchmark (Step 6) → report
+- Run registry: `semantic_folding/dataset_benchmark/musique/runs/registry.yml`
+- Analysis: `semantic_folding/dataset_benchmark/musique/benchmark_analyzer.py`
+- Metrics: MRR, AP, P@K, R@K, NDCG@K
 
 ## Naming Conventions
 
 - Python: snake_case for functions/variables
-- CLI flags: kebab-case (e.g., `--grid-size`, `--no-smooth`)
-- Config keys: snake_case (e.g., `grid_size`, `no_smooth`)
-- Output dirs: `snake_case` (e.g., `phrase_fingerprints`, `query_results`)
+- CLI flags: kebab-case (e.g., `--grid-size`)
+- Config keys: snake_case
+- Output dirs: `snake_case`
+
+## Common Workflows
+
+### Run full pipeline (TUI)
+```bash
+.venv\Scripts\python semantic_folding\semantic_folder.py
+```
+
+### Run individual steps
+1. `phrase_extractor.py --corpus data\corpus.txt`
+2. `term_context.py --vocab <vocab.csv> --mapping <mapping.json>`
+3. `semantic_space.py --matrix <npz> --metadata <json> --method tsne --grid-size 64`
+4. `phrase_fingerprints.py --coordinates <coords.json> --grid-size 64 --morton`
+5. `doc_fingerprints.py --corpus data\corpus.txt --fingerprints <dir> --grid-size 64`
+6. `query_processor.py --query "<text>" --grid-size 64 --spreading-steps 1 --top-k 5`
+
+### Run MuSiQue benchmark
+```bash
+.venv\Scripts\python semantic_folding\dataset_benchmark\musique\run_benchmark.py --mode index --split dev --max-queries 100 --grid-size 64 --spreading-steps 1 --top-percent 0.10 --weighting idf --benchmark
+```
+
+### Run experiments
+```bash
+.venv\Scripts\python run_experiments.py
+.venv\Scripts\python run_geometric_experiments.py
+```
+
+### Compute IR metrics
+```bash
+.venv\Scripts\python tools\compute_ir_metrics.py
+```
+
+## Verification (No Test Suite)
+
+This project has **no automated test suite**. To verify changes:
+1. Run the full pipeline TUI end-to-end
+2. Verify the output corpus matches expected structure
+3. Run the MuSiQue benchmark (baseline: MRR 1.000, AP 0.869)
+4. Run the 5-query QA sample and check the evaluation report
+5. Manually inspect visualizations in the run's output directory
+
+## Temporary Scripts Convention
+
+- All ad-hoc scripts (experiments, inspections, runners) must be placed in `temp/`
+- Run them from `temp/` via `.venv\Scripts\python temp\script_name.py`
+- When resuming a paused task, check `temp/` first for existing scripts and their log/output state
+- Each script in `temp/` has a README entry explaining its purpose and safe deletion criteria
+- The `temp/` directory is gitignored — never commit its contents
+
+## Agent Behavior Rules
+
+- **Never commit changes unless explicitly asked**
+- **Never merge branches into main without user confirmation**
+- **Prefer editing existing files over creating new ones** unless task requires new files
+- **No explanatory comments in code** unless task explicitly requests them
+- **Keep responses concise** (under 4 lines for informational answers)
 
 ## Git Conventions
 
-- Tags follow `v<major>.<minor>` pattern (current: v3.2)
+- Tags follow `v<major>.<minor>` pattern
 - Commit messages: lowercase, descriptive
-- Every new feature or bug fix must be developed on a **dedicated branch** (e.g., `feature/<name>`, `fix/<name>`)
-- After completing work on a branch, push and present changes to the user for review
+- Every new feature or bug fix on a **dedicated branch** (e.g., `feature/<name>`)
+- Push and present changes for review before merging
 - **Only merge into `main` after explicit user confirmation**
-- Once merged, delete the feature/fix branch (locally and remote)
+- Delete feature/fix branch after merge

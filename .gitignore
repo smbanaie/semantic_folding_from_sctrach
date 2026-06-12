@@ -37,7 +37,12 @@ env/
 .env.local
 
 # Large datasets (not tracked)
-data/HippoRAG2/
+data/
+data/*
+
+# Raw data files (large datasets)
+*.jsonl
+*.parquet
 
 # Archive
 archive/
@@ -80,8 +85,15 @@ Thumbs.db
 # Local notebooks, caches
 .ipynb_checkpoints/
 
+# Ad-hoc temporary scripts (experiments, inspections, runners)
+temp/
+temp/*
+
 # Python bytecode
 __pycache__/
 *.py[cod]
+
+# Agent memory
+.mimocode/
 
 

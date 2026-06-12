@@ -1,3 +1,91 @@
-last_run_id: null
-last_step: null
-runs: {}
+last_run_id: run_20260601_023917
+last_step: 6
+runs:
+  run_20260601_023917:
+    corpus: data\corpus.txt
+    created_at: '2026-06-01T02:39:17.110777'
+    steps:
+      1:
+        completed_at: '2026-06-01T02:39:29.266947'
+        mapping: outputs\run_20260601_023917\extracted_phrases\phrase_to_contexts.json
+        output: outputs/run_20260601_023917/extracted_phrases
+        params:
+          corpus: data\corpus.txt
+          keep_verbs: 'true'
+          min_freq: '1'
+          min_word_length: '3'
+          no_filter_generic: 'false'
+          no_spacy: 'false'
+          output: outputs/run_20260601_023917/extracted_phrases
+          stats: 'false'
+        vocab: outputs\run_20260601_023917\extracted_phrases\vocabulary.csv
+      2:
+        completed_at: '2026-06-01T02:39:36.557898'
+        idf_weights: outputs\run_20260601_023917\term_context_matrix\idf_weights.json
+        matrix_npz: outputs\run_20260601_023917\term_context_matrix\term_context_matrix.npz
+        metadata: outputs\run_20260601_023917\term_context_matrix\term_context_matrix.json
+        output: outputs/run_20260601_023917/term_context_matrix
+        params:
+          corpus: data\corpus.txt
+          mapping: outputs\run_20260601_023917\extracted_phrases\phrase_to_contexts.json
+          no_tfidf: 'false'
+          output: outputs/run_20260601_023917/term_context_matrix
+          vocab: outputs\run_20260601_023917\extracted_phrases\vocabulary.csv
+      3:
+        completed_at: '2026-06-01T02:39:56.405317'
+        coordinates: outputs\run_20260601_023917\semantic_space\context_coordinates.json
+        output: outputs/run_20260601_023917/semantic_space
+        params:
+          grid_size: '64'
+          matrix_npz: outputs\run_20260601_023917\term_context_matrix\term_context_matrix.npz
+          metadata: outputs\run_20260601_023917\term_context_matrix\term_context_matrix.json
+          method: tsne
+          output: outputs/run_20260601_023917/semantic_space
+          show_density: 'false'
+          visualize: 'true'
+      4:
+        completed_at: '2026-06-01T02:40:06.843090'
+        output: outputs/run_20260601_023917/phrase_fingerprints
+        params:
+          coordinates: outputs\run_20260601_023917\semantic_space\context_coordinates.json
+          grid_size: '64'
+          metadata: outputs\run_20260601_023917\term_context_matrix\term_context_matrix.json
+          morton: 'true'
+          no_smooth: 'false'
+          output: outputs/run_20260601_023917/phrase_fingerprints
+          smoothing_sigma: '1.5'
+      5:
+        completed_at: '2026-06-01T02:40:27.847070'
+        output: outputs/run_20260601_023917/doc_fingerprints
+        params:
+          compute_diversity: 'false'
+          corpus: data\corpus.txt
+          diversity_sample: '100'
+          filter_generic: 'true'
+          fingerprints: outputs/run_20260601_023917/phrase_fingerprints
+          grid_size: '64'
+          idf_weights: outputs\run_20260601_023917\term_context_matrix\idf_weights.json
+          keep_verbs: 'true'
+          min_peak_distance: '2'
+          min_word_length: '3'
+          morton: 'true'
+          no_normalize: 'true'
+          normalize_method: l2
+          output: outputs/run_20260601_023917/doc_fingerprints
+          smoothing_sigma: '1.5'
+          top_percent: '0.1'
+      6:
+        completed_at: '2026-06-01T04:14:31.103285'
+        output: outputs/run_20260601_023917/query_results/q_20260601_041021/results.json
+        params:
+          doc_fingerprints: outputs/run_20260601_023917/doc_fingerprints
+          fingerprints: outputs/run_20260601_023917/phrase_fingerprints
+          grid_size: '64'
+          idf_weights: outputs\run_20260601_023917\term_context_matrix\idf_weights.json
+          output: outputs/run_20260601_023917/query_results/q_20260601_041021/results.json
+          query: How does the ability to understand emotions and individual behavioral
+            characteristics influence interactions and success in diverse social groups?
+          spreading_steps: '1'
+          top_k: '5'
+          viz_dir: outputs/run_20260601_023917/query_results/q_20260601_041021/viz/
+          weighting: idf

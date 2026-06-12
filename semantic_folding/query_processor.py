@@ -2121,12 +2121,15 @@ def process_query(
         f"process_query done: {len(results)} results for {query!r}"
     )
 
+    # Dense query fingerprint for visualization (post-norm, post-spreading)
+    query_fp_dense = query_fp.toarray().ravel()
+
     return results, {
         "query"             : query,
         "query_construction": query_metadata,
         "spreading"         : spreading_metadata,
         "ranking"           : ranking_metadata,
-    }
+    }, query_fp_dense
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2254,6 +2257,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output", dest="output_json", type=Path, default=None,
         help="Save all query results to this JSON file.",
+    )
+    parser.add_argument(
+        "--viz-dir", dest="viz_dir", type=Path, default=None,
+        help="Directory for per-query fingerprint visualization HTML files.",
+    )
+    parser.add_argument(
+        "--viz-top-n", dest="viz_top_n", type=int, default=5,
+        help="Number of top documents shown in the visualization (default: 5).",
     )
     parser.add_argument(
         "--verbose", action="store_true",
@@ -2418,7 +2429,7 @@ def main() -> None:
     for i, query in enumerate(queries, 1):
         logger.info(f"[{i}/{len(queries)}] Processing: {query!r}")
 
-        results, metadata = process_query(
+        results, metadata, query_fp_dense = process_query(
             query,
             phrase_fingerprints,
             doc_fingerprints,
@@ -2453,6 +2464,42 @@ def main() -> None:
                 doc_metadata=doc_metadata,
                 verbose=args.verbose,
             )
+
+            # ── Query visualisation (if --viz-dir provided) ────────────────
+            if args.viz_dir is not None:
+                try:
+                    from query_visualizer import create_query_visualization
+
+                    # Embed spreading info in query_construction for the viz
+                    viz_meta = dict(metadata["query_construction"])
+                    viz_meta["_spreading_info"] = metadata.get("spreading", {})
+
+                    # Convert doc fingerprints to dense for the doc heatmaps
+                    doc_fp_dense = {
+                        d: fp.toarray().ravel()
+                        for d, fp in doc_fingerprints.items()
+                    }
+
+                    viz_dir = Path(args.viz_dir)
+                    viz_dir.mkdir(parents=True, exist_ok=True)
+
+                    output_html = viz_dir / "viz.html"
+
+                    create_query_visualization(
+                        query_text=query,
+                        query_fp_dense=query_fp_dense,
+                        query_metadata=viz_meta,
+                        results=results,
+                        doc_fingerprints_dense=doc_fp_dense,
+                        grid_size=doc_metadata.get("grid_size", args.grid_size),
+                        use_morton=doc_metadata.get("use_morton", True),
+                        top_n=min(args.viz_top_n, 3),
+                        output_html=output_html,
+                        generate_png=False,
+                    )
+                    logger.info(f"  [VIZ] saved → {output_html}")
+                except Exception as exc:
+                    logger.warning(f"  [VIZ] failed for this query: {exc}")
 
         all_results.append({
             "query":    query,

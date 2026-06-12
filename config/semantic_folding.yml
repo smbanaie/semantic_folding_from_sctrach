@@ -143,6 +143,11 @@ query_processing:
   spreading_steps: 1             # Neighbourhood expansion steps (0 = disabled)
   weighting: "idf"
 
+  # Per-query visualisation (Step 6)
+  viz_enabled: true              # Auto-generate query fingerprint dashboard
+  viz_top_n: 5                   # Top-N documents shown in the visualisation
+  viz_dir: "auto"                # Dir pattern: "auto" → run/query_results/<qid>/viz/
+
 # ============================================================
 # PHASE 7: PHRASE VISUALIZATION
 # ============================================================

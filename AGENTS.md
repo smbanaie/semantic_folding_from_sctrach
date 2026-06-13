@@ -8,7 +8,8 @@
 - Utilities: `semantic_folding/lib.py`
 - Visualizers: `semantic_folding/{phrase,doc,query}_visualizer.py`
 - Notebooks: `semantic_folding/notebooks/`
-- Outputs: `outputs/run_<timestamp>/`
+- Outputs: `outputs/<dataset>_benchmark/`
+- Reports: `docs/reports/` (versioned benchmark results)
 - Config: `config/semantic_folding.yml`, `config/exec_state.yml`
 
 ## PhD Thesis Markdown Files (Foundation Documents)
@@ -28,6 +29,56 @@ These files are the foundation of the PhD thesis and MUST be updated after each 
 | `semantic_folding/lib.md` | Library utilities | ✅ Current |
 
 **Rule:** After any benchmark improvement, update `benchmarks.md` with new results, metrics, and academic evidence.
+
+## Reports Convention
+
+Every benchmark run MUST be saved in `docs/reports/` with this structure:
+
+```
+docs/reports/
+├── REPORTS.md                          # Master index of all reports
+├── <dataset>/
+│   ├── <version>_<timestamp>.md        # Full report with params, metrics, analysis
+│   └── ...
+└── cross-dataset/
+    └── comparison_<timestamp>.md       # Cross-dataset comparison tables
+```
+
+### Report Filename Format
+`<version>_<YYYYMMDD>_<HHMMSS>.md`
+
+Examples:
+- `v1_20260613_003000.md` — first run on Belebele
+- `v2_20260613_143000.md` — improved parameters
+- `cross_20260613_150000.md` — cross-dataset comparison
+
+### Report Content Requirements
+
+Each report MUST include:
+1. **Header**: Dataset name, version, timestamp, pipeline parameters
+2. **Configuration**: Full parameter table (grid_size, spread, top_percent, etc.)
+3. **Metrics**: MRR, AP, P@K, R@K, NDCG@K (mean, min, max, std)
+4. **Found-at distribution**: Rank histogram
+5. **Per-query analysis**: Top performers and failures with query text
+6. **Comparison**: vs BM25 baseline and previous runs
+7. **Analysis**: Why results occurred, failure patterns
+8. **Recommendations**: Next steps, parameter changes to try
+9. **Reproduction**: Commands to reproduce the exact run
+
+### Saving a Benchmark Result
+
+```bash
+# After running benchmark, save report:
+# 1. Create directory if needed
+mkdir -p docs/reports/<dataset>
+
+# 2. Copy benchmark_report.md with version prefix
+cp outputs/<dataset>_benchmark/benchmarks/benchmark_<ts>/benchmark_report.md \
+   docs/reports/<dataset>/<version>_<timestamp>.md
+
+# 3. Update master index
+# Append entry to docs/reports/REPORTS.md
+```
 
 ## Python Environment
 
@@ -63,6 +114,38 @@ These are the **verified optimal defaults** — use for all datasets unless evid
 - Run registry: `semantic_folding/dataset_benchmark/musique/runs/registry.yml`
 - Analysis: `semantic_folding/dataset_benchmark/musique/benchmark_analyzer.py`
 - Metrics: MRR, AP, P@K, R@K, NDCG@K
+
+## Multi-Dataset Benchmarking
+
+- Script: `semantic_folding/dataset_benchmark/run_all_benchmarks.py`
+- Generic runner: `semantic_folding/dataset_benchmark/generic_benchmark.py`
+- BM25 baseline: `semantic_folding/dataset_benchmark/bm25_benchmark.py`
+- Adapters: `semantic_folding/dataset_benchmark/adapters/`
+- Datasets: PubMedQA, Belebele, BioASQ, MAUD, DROP, DocFinQA, CUAD
+
+### Adapter Pattern
+
+Each dataset has an adapter that:
+1. `download(output_dir)` — fetch raw data
+2. `convert_to_musique_format(raw_path, output_dir, max_queries)` — convert to JSONL
+3. `get_recommended_params()` — dataset-specific parameter overrides
+
+### Running Benchmarks
+
+```bash
+# Single dataset
+.venv\Scripts\python semantic_folding\dataset_benchmark\generic_benchmark.py all \
+  --dataset belebele --jsonl data/belebele/converted/belebele.jsonl --max-queries 100
+
+# All datasets
+.venv\Scripts\python semantic_folding\dataset_benchmark\run_all_benchmarks.py \
+  --datasets belebele maud --max-queries 100
+
+# BM25 baseline only
+.venv\Scripts\python semantic_folding\dataset_benchmark\bm25_benchmark.py \
+  --dataset belebele --jsonl data/belebele/converted/belebele.jsonl \
+  --run-dir outputs/belebele_benchmark/runs/run_<ts> --query-end 100
+```
 
 ## Naming Conventions
 

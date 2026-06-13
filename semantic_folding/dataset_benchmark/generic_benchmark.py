@@ -504,6 +504,18 @@ class GenericBenchmarkRunner:
             ]
             if self.params.get("geometric", False):
                 step6_args.append("--geometric")
+            if self.params.get("hybrid", False):
+                step6_args.extend(["--hybrid", "--hybrid-alpha", str(self.params.get("hybrid_alpha", 0.5))])
+                if self.params.get("corpus_path"):
+                    step6_args.extend(["--corpus", self.params["corpus_path"]])
+            if self.params.get("doc_norm", "sqrt_nnz") != "sqrt_nnz":
+                step6_args.extend(["--doc-norm", self.params["doc_norm"]])
+            if self.params.get("expand_synonyms", False):
+                step6_args.append("--expand-synonyms")
+            if self.params.get("tfidf_rerank", False):
+                step6_args.extend(["--tfidf-rerank", "--tfidf-alpha", str(self.params.get("tfidf_alpha", 0.3))])
+                if self.params.get("corpus_path"):
+                    step6_args.extend(["--corpus", self.params["corpus_path"]])
             ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor", timeout=300)
             elapsed = time.time() - t0
 
@@ -873,6 +885,13 @@ def cli_main():
                       default=PIPELINE_DEFAULTS["short_query_max_words"])
     p_bm.add_argument("--geometric", action="store_true",
                       help="Apply 3x3 spatial adjacency kernel to query fingerprint before scoring")
+    p_bm.add_argument("--hybrid", action="store_true", help="Enable hybrid SF+BM25 scoring")
+    p_bm.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
+    p_bm.add_argument("--doc-norm", type=str, default="sqrt_nnz", choices=["sqrt_nnz", "l2", "l1", "max"])
+    p_bm.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms")
+    p_bm.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
+    p_bm.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
+    p_bm.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
 
     # report
     p_rp = sub.add_parser("report", help="Phase 3: generate markdown report")
@@ -905,6 +924,13 @@ def cli_main():
                        default=PIPELINE_DEFAULTS["short_query_max_words"])
     p_all.add_argument("--geometric", action="store_true",
                        help="Apply 3x3 spatial adjacency kernel to query fingerprint before scoring")
+    p_all.add_argument("--hybrid", action="store_true", help="Enable hybrid SF+BM25 scoring")
+    p_all.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
+    p_all.add_argument("--doc-norm", type=str, default="sqrt_nnz", choices=["sqrt_nnz", "l2", "l1", "max"])
+    p_all.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms")
+    p_all.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
+    p_all.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
+    p_all.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
 
     args = parser.parse_args()
     if not args.command:
@@ -927,6 +953,18 @@ def cli_main():
         params["short_query_max_words"] = args.short_query_max_words
     if hasattr(args, "geometric"):
         params["geometric"] = args.geometric
+    if hasattr(args, "hybrid"):
+        params["hybrid"] = args.hybrid
+        params["hybrid_alpha"] = args.hybrid_alpha
+    if hasattr(args, "doc_norm"):
+        params["doc_norm"] = args.doc_norm
+    if hasattr(args, "expand_synonyms"):
+        params["expand_synonyms"] = args.expand_synonyms
+    if hasattr(args, "tfidf_rerank"):
+        params["tfidf_rerank"] = args.tfidf_rerank
+        params["tfidf_alpha"] = args.tfidf_alpha
+    if hasattr(args, "corpus") and args.corpus:
+        params["corpus_path"] = str(args.corpus)
 
     runner = GenericBenchmarkRunner(adapter, params)
 

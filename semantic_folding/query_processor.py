@@ -1550,13 +1550,20 @@ def rank_documents(
     geometric       : bool  = False,
     grid_size       : int   = 0,
     use_morton      : bool  = True,
+    doc_norm        : str   = "sqrt_nnz",
     **kwargs,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     """
     Rank documents by asymmetric cosine similarity against the query fingerprint.
 
     Standard score formula:
-        score(q, d) = dot(q, d) / (||q||₂ × sqrt(doc_nnz))
+        score(q, d) = dot(q, d) / (||q||₂ × doc_norm_factor)
+
+    doc_norm_factor depends on doc_norm parameter:
+        - "sqrt_nnz": sqrt(doc_nnz) — favors longer docs
+        - "l2": L2 norm of doc fingerprint — standard cosine
+        - "l1": L1 norm
+        - "max": max value in doc fingerprint
 
     When ``geometric=True``, the query fingerprint is first convolved with
     a 3×3 spatial adjacency kernel that rewards nearby (not just exact) overlap
@@ -1641,13 +1648,27 @@ def rank_documents(
             continue
 
         raw_dot = float(query_fp.dot(doc_fp.T).toarray()[0, 0])
-        # Asymmetric cosine: full query norm, sqrt(nnz) for doc length penalty
-        score   = raw_dot / (query_norm * np.sqrt(doc_fp.nnz))
+
+        # Document normalization factor
+        if doc_norm == "l2":
+            doc_norm_factor = np.sqrt(doc_fp.power(2).sum())
+        elif doc_norm == "l1":
+            doc_norm_factor = doc_fp.sum()
+        elif doc_norm == "max":
+            doc_norm_factor = doc_fp.max()
+        else:  # sqrt_nnz (default)
+            doc_norm_factor = np.sqrt(doc_fp.nnz)
+
+        if doc_norm_factor < 1e-9:
+            logger.debug(f"  [RANK SKIP] '{doc_id}' has near-zero norm")
+            continue
+
+        score = raw_dot / (query_norm * doc_norm_factor)
 
         logger.debug(
             f"  [RANK SCORE] '{doc_id}' raw_dot={raw_dot:.4f}, "
-            f"doc_nnz={doc_fp.nnz}, query_norm={query_norm:.4f}, "
-            f"score={score:.4f}"
+            f"doc_nnz={doc_fp.nnz}, doc_norm={doc_norm_factor:.4f}, "
+            f"query_norm={query_norm:.4f}, score={score:.4f}"
         )
         all_scores.append((doc_id, score))
 
@@ -1916,6 +1937,36 @@ def process_query(
     # ── Stage 1: phrase extraction + OOV expansion ───────────────────────────
     logger.debug("  [STAGE 1] phrase extraction + OOV expansion")
 
+    # Query expansion with synonyms (optional)
+    expand_synonyms = getattr(args, "expand_synonyms", False)
+    synonym_weight = getattr(args, "synonym_weight", 0.5)
+
+    if expand_synonyms:
+        # Simple medical synonym dictionary
+        MEDICAL_SYNONYMS = {
+            "myocardial infarction": ["heart attack", "mi", "cardiac arrest"],
+            "hypertension": ["high blood pressure", "htn"],
+            "diabetes": ["diabetes mellitus", "dm", "blood sugar"],
+            "cancer": ["malignancy", "neoplasm", "tumor"],
+            "infection": ["infectious disease", "pathogen"],
+            "brain": ["cerebrum", "cranial"],
+            "heart": ["cardiac", "cardiovascular"],
+            "lung": ["pulmonary", "respiratory"],
+            "kidney": ["renal", "nephro"],
+            "liver": ["hepatic"],
+            "stomach": ["gastric", "gastrointestinal"],
+        }
+
+        query_lower = query.lower()
+        expanded_terms = []
+        for term, synonyms in MEDICAL_SYNONYMS.items():
+            if term in query_lower:
+                expanded_terms.extend(synonyms)
+
+        if expanded_terms:
+            query = query + " " + " ".join(expanded_terms)
+            logger.info(f"  [EXPAND] added synonyms: {expanded_terms}")
+
     # Primary extraction: vocabulary-filtered, typically returns single tokens
     # and the most common short phrases, but often misses multi-word vocab hits.
     matched_phrases = extract_query_phrases(
@@ -2157,6 +2208,7 @@ def process_query(
         geometric=getattr(args, "geometric", False),
         grid_size=grid_size,
         use_morton=use_morton,
+        doc_norm=getattr(args, "doc_norm", "sqrt_nnz"),
     )
 
     # ── Stage 4b: hybrid SF+BM25 scoring ──────────────────────────────────────
@@ -2219,6 +2271,86 @@ def process_query(
         f"  [STAGE 4] returned {len(results)} results, "
         f"top_score={top_score}"
     )
+
+    # ── Stage 4c: TF-IDF re-ranking ──────────────────────────────────────────
+    tfidf_rerank = getattr(args, "tfidf_rerank", False)
+    if tfidf_rerank and results:
+        tfidf_alpha = getattr(args, "tfidf_alpha", 0.3)
+        corpus_path = getattr(args, "corpus_path", None)
+
+        if corpus_path and corpus_path.exists():
+            logger.info(f"  [TFIDF] re-ranking with alpha={tfidf_alpha}")
+
+            import re
+            from collections import Counter
+
+            # Load corpus
+            corpus_texts = []
+            doc_id_list = list(doc_fingerprints.keys())
+            with open(corpus_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        comma_idx = line.find(",")
+                        if comma_idx > 0:
+                            corpus_texts.append(line[comma_idx+1:].strip())
+
+            if len(corpus_texts) == len(doc_id_list):
+                # Build TF-IDF index
+                doc_count = len(corpus_texts)
+                df = Counter()
+                tf_per_doc = []
+
+                for text in corpus_texts:
+                    tokens = re.findall(r'\w+', text.lower())
+                    tf = Counter(tokens)
+                    tf_per_doc.append(tf)
+                    for term in set(tokens):
+                        df[term] += 1
+
+                # Compute IDF
+                import math
+                idf = {}
+                for term, freq in df.items():
+                    idf[term] = math.log((doc_count - freq + 0.5) / (freq + 0.5) + 1.0)
+
+                # Score query against documents
+                query_tokens = re.findall(r'\w+', query.lower())
+                tfidf_scores = {}
+
+                for i, doc_id in enumerate(doc_id_list):
+                    tf = tf_per_doc[i]
+                    score = 0.0
+                    for term in query_tokens:
+                        if term in tf and term in idf:
+                            score += tf[term] * idf[term]
+                    tfidf_scores[doc_id] = score
+
+                # Normalize TF-IDF scores
+                max_tfidf = max(tfidf_scores.values()) if tfidf_scores else 1.0
+
+                # Combine SF and TF-IDF scores
+                sf_scores = {doc_id: score for doc_id, score in results}
+                max_sf = max(sf_scores.values()) if sf_scores else 1.0
+
+                reranked = []
+                for doc_id in doc_id_list:
+                    sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
+                    tfidf_norm = tfidf_scores.get(doc_id, 0.0) / max_tfidf if max_tfidf > 0 else 0
+                    combined = (1 - tfidf_alpha) * sf_norm + tfidf_alpha * tfidf_norm
+                    reranked.append((doc_id, combined))
+
+                reranked.sort(key=lambda x: x[1], reverse=True)
+                results = reranked[:getattr(args, "top_k", 10)]
+
+                logger.info(
+                    f"  [TFIDF] reranked {len(results)} results, "
+                    f"top_score={results[0][1]:.4f}"
+                )
+            else:
+                logger.warning(
+                    f"  [TFIDF] corpus size mismatch — using SF only"
+                )
 
     logger.info(
         f"process_query done: {len(results)} results for {query!r}"
@@ -2347,6 +2479,11 @@ def parse_args() -> argparse.Namespace:
         "--min-similarity", dest="min_similarity", type=float, default=0.0,
         help="Minimum score threshold for results.",
     )
+    parser.add_argument(
+        "--doc-norm", dest="doc_norm", type=str, default="sqrt_nnz",
+        choices=["sqrt_nnz", "l2", "l1", "max"],
+        help="Document fingerprint normalization method for ranking.",
+    )
 
     # ── Geometric scoring ─────────────────────────────────────────────────────
     parser.add_argument(
@@ -2365,9 +2502,33 @@ def parse_args() -> argparse.Namespace:
         "--hybrid-alpha", dest="hybrid_alpha", type=float, default=0.5,
         help="Weight for SF score in hybrid mode (0=BM25 only, 1=SF only).",
     )
+
+    # ── Query expansion ─────────────────────────────────────────────────────
+    parser.add_argument(
+        "--expand-synonyms", dest="expand_synonyms", action="store_true",
+        default=False,
+        help="Expand query with synonyms before phrase extraction.",
+    )
+    parser.add_argument(
+        "--synonym-weight", dest="synonym_weight", type=float, default=0.5,
+        help="Weight for synonym-expanded phrases (0-1).",
+    )
+
+    # ── TF-IDF re-ranking ──────────────────────────────────────────────────
+    parser.add_argument(
+        "--tfidf-rerank", dest="tfidf_rerank", action="store_true",
+        default=False,
+        help="Apply TF-IDF re-ranking after semantic folding scoring.",
+    )
+    parser.add_argument(
+        "--tfidf-alpha", dest="tfidf_alpha", type=float, default=0.3,
+        help="Weight for TF-IDF score in re-ranking (0-1).",
+    )
+
+    # ── Shared corpus path ──────────────────────────────────────────────────
     parser.add_argument(
         "--corpus", dest="corpus_path", type=Path, default=None,
-        help="Path to corpus.txt for BM25 scoring (required when --hybrid).",
+        help="Path to corpus.txt for hybrid scoring or TF-IDF re-ranking.",
     )
 
     # ── Output ────────────────────────────────────────────────────────────────

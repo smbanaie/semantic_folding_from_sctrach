@@ -1550,13 +1550,20 @@ def rank_documents(
     geometric       : bool  = False,
     grid_size       : int   = 0,
     use_morton      : bool  = True,
+    doc_norm        : str   = "sqrt_nnz",
     **kwargs,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     """
     Rank documents by asymmetric cosine similarity against the query fingerprint.
 
     Standard score formula:
-        score(q, d) = dot(q, d) / (||q||₂ × sqrt(doc_nnz))
+        score(q, d) = dot(q, d) / (||q||₂ × doc_norm_factor)
+
+    doc_norm_factor depends on doc_norm parameter:
+        - "sqrt_nnz": sqrt(doc_nnz) — favors longer docs
+        - "l2": L2 norm of doc fingerprint — standard cosine
+        - "l1": L1 norm
+        - "max": max value in doc fingerprint
 
     When ``geometric=True``, the query fingerprint is first convolved with
     a 3×3 spatial adjacency kernel that rewards nearby (not just exact) overlap
@@ -1641,13 +1648,27 @@ def rank_documents(
             continue
 
         raw_dot = float(query_fp.dot(doc_fp.T).toarray()[0, 0])
-        # Asymmetric cosine: full query norm, sqrt(nnz) for doc length penalty
-        score   = raw_dot / (query_norm * np.sqrt(doc_fp.nnz))
+
+        # Document normalization factor
+        if doc_norm == "l2":
+            doc_norm_factor = np.sqrt(doc_fp.power(2).sum())
+        elif doc_norm == "l1":
+            doc_norm_factor = doc_fp.sum()
+        elif doc_norm == "max":
+            doc_norm_factor = doc_fp.max()
+        else:  # sqrt_nnz (default)
+            doc_norm_factor = np.sqrt(doc_fp.nnz)
+
+        if doc_norm_factor < 1e-9:
+            logger.debug(f"  [RANK SKIP] '{doc_id}' has near-zero norm")
+            continue
+
+        score = raw_dot / (query_norm * doc_norm_factor)
 
         logger.debug(
             f"  [RANK SCORE] '{doc_id}' raw_dot={raw_dot:.4f}, "
-            f"doc_nnz={doc_fp.nnz}, query_norm={query_norm:.4f}, "
-            f"score={score:.4f}"
+            f"doc_nnz={doc_fp.nnz}, doc_norm={doc_norm_factor:.4f}, "
+            f"query_norm={query_norm:.4f}, score={score:.4f}"
         )
         all_scores.append((doc_id, score))
 
@@ -2157,6 +2178,7 @@ def process_query(
         geometric=getattr(args, "geometric", False),
         grid_size=grid_size,
         use_morton=use_morton,
+        doc_norm=getattr(args, "doc_norm", "sqrt_nnz"),
     )
 
     # ── Stage 4b: hybrid SF+BM25 scoring ──────────────────────────────────────
@@ -2346,6 +2368,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--min-similarity", dest="min_similarity", type=float, default=0.0,
         help="Minimum score threshold for results.",
+    )
+    parser.add_argument(
+        "--doc-norm", dest="doc_norm", type=str, default="sqrt_nnz",
+        choices=["sqrt_nnz", "l2", "l1", "max"],
+        help="Document fingerprint normalization method for ranking.",
     )
 
     # ── Geometric scoring ─────────────────────────────────────────────────────

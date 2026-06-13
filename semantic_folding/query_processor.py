@@ -73,6 +73,54 @@ from lib import (
     normalize_phrase,
 )
 SPARCITY_GAURD=0.005
+
+# ── BM25 Scorer for Hybrid Mode ─────────────────────────────────────────────
+class BM25Scorer:
+    """Lightweight BM25 scorer for hybrid SF+BM25 ranking."""
+
+    def __init__(self, corpus_texts: List[str], k1: float = 1.2, b: float = 0.75):
+        import re
+        from collections import Counter
+        self.k1 = k1
+        self.b = b
+        self.doc_count = len(corpus_texts)
+        self.doc_lengths = []
+        self.avg_doc_len = 0.0
+        self.df = Counter()
+        self.tf_per_doc = []
+
+        for text in corpus_texts:
+            tokens = re.findall(r'\w+', text.lower())
+            self.doc_lengths.append(len(tokens))
+            tf = Counter(tokens)
+            self.tf_per_doc.append(tf)
+            for term in set(tokens):
+                self.df[term] += 1
+
+        self.avg_doc_len = sum(self.doc_lengths) / self.doc_count if self.doc_count > 0 else 1
+
+    def _idf(self, term: str) -> float:
+        import math
+        df = self.df.get(term, 0)
+        return math.log((self.doc_count - df + 0.5) / (df + 0.5) + 1.0)
+
+    def score_query(self, query_text: str, doc_idx: int) -> float:
+        import re
+        query_tokens = re.findall(r'\w+', query_text.lower())
+        tf = self.tf_per_doc[doc_idx]
+        doc_len = self.doc_lengths[doc_idx]
+        score = 0.0
+        for term in query_tokens:
+            if term in tf:
+                term_tf = tf[term]
+                idf = self._idf(term)
+                numerator = term_tf * (self.k1 + 1)
+                denominator = term_tf + self.k1 * (1 - self.b + self.b * doc_len / self.avg_doc_len)
+                score += idf * numerator / denominator
+        return score
+
+    def score_all(self, query_text: str) -> List[Tuple[int, float]]:
+        return [(i, self.score_query(query_text, i)) for i in range(self.doc_count)]
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging — level driven by LOG_LEVEL env var (default: INFO)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2111,6 +2159,61 @@ def process_query(
         use_morton=use_morton,
     )
 
+    # ── Stage 4b: hybrid SF+BM25 scoring ──────────────────────────────────────
+    hybrid_enabled = getattr(args, "hybrid", False)
+    if hybrid_enabled:
+        hybrid_alpha = getattr(args, "hybrid_alpha", 0.5)
+        corpus_path = getattr(args, "corpus_path", None)
+
+        if corpus_path and corpus_path.exists():
+            logger.info(f"  [HYBRID] enabled with alpha={hybrid_alpha}")
+
+            # Load corpus for BM25
+            corpus_texts = []
+            doc_id_list = list(doc_fingerprints.keys())
+            with open(corpus_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        comma_idx = line.find(",")
+                        if comma_idx > 0:
+                            corpus_texts.append(line[comma_idx+1:].strip())
+
+            if len(corpus_texts) == len(doc_id_list):
+                bm25 = BM25Scorer(corpus_texts)
+                sf_scores = {doc_id: score for doc_id, score in results}
+
+                # Compute BM25 scores for all docs
+                bm25_scores = bm25.score_all(query)
+                bm25_dict = {doc_id_list[i]: score for i, score in bm25_scores}
+
+                # Normalize both score sets
+                max_sf = max(sf_scores.values()) if sf_scores else 1.0
+                max_bm25 = max(bm25_dict.values()) if bm25_dict else 1.0
+
+                # Combine scores
+                hybrid_results = []
+                for doc_id in doc_id_list:
+                    sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
+                    bm25_norm = bm25_dict.get(doc_id, 0.0) / max_bm25 if max_bm25 > 0 else 0
+                    combined = hybrid_alpha * sf_norm + (1 - hybrid_alpha) * bm25_norm
+                    hybrid_results.append((doc_id, combined))
+
+                hybrid_results.sort(key=lambda x: x[1], reverse=True)
+                results = hybrid_results[:getattr(args, "top_k", 10)]
+
+                logger.info(
+                    f"  [HYBRID] combined {len(results)} results, "
+                    f"top_score={results[0][1]:.4f}"
+                )
+            else:
+                logger.warning(
+                    f"  [HYBRID] corpus size mismatch: {len(corpus_texts)} texts "
+                    f"vs {len(doc_id_list)} docs — falling back to SF only"
+                )
+        else:
+            logger.warning("  [HYBRID] --corpus not provided — using SF only")
+
     top_score = f"{results[0][1]:.4f}" if results else "n/a"
     logger.debug(
         f"  [STAGE 4] returned {len(results)} results, "
@@ -2251,6 +2354,20 @@ def parse_args() -> argparse.Namespace:
         help="Apply 3×3 spatial adjacency kernel before scoring. Rewards "
              "documents whose active cells are adjacent (not just overlapping) "
              "the query's active cells on the semantic grid.",
+    )
+
+    # ── Hybrid SF+BM25 scoring ──────────────────────────────────────────────
+    parser.add_argument(
+        "--hybrid", action="store_true", default=False,
+        help="Enable hybrid scoring: combine SF score with BM25 score.",
+    )
+    parser.add_argument(
+        "--hybrid-alpha", dest="hybrid_alpha", type=float, default=0.5,
+        help="Weight for SF score in hybrid mode (0=BM25 only, 1=SF only).",
+    )
+    parser.add_argument(
+        "--corpus", dest="corpus_path", type=Path, default=None,
+        help="Path to corpus.txt for BM25 scoring (required when --hybrid).",
     )
 
     # ── Output ────────────────────────────────────────────────────────────────

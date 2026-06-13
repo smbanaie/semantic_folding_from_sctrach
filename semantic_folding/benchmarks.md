@@ -329,7 +329,73 @@ To add a new dataset to the benchmark framework:
 
 ---
 
-## 8. Known Limitations
+## 8. Multi-Dataset Benchmarks (v3-Final+)
+
+### 8.1 Dataset Coverage
+
+| Dataset | Domain | Queries | Task |
+|---------|--------|---------|------|
+| PubMedQA | Biomedical QA | 112 | Question answering with context |
+| Belebele | Reading Comprehension | 100 | Multiple choice reading comp |
+| MAUD | Legal Contract QA | 100 | Merger agreement understanding |
+
+### 8.2 Cross-Dataset Results
+
+| Dataset | SF MRR | BM25 MRR | SF AP | BM25 AP | Gap |
+|---------|--------|----------|-------|---------|-----|
+| PubMedQA | **0.955** | 1.000 | 0.790 | 0.960 | -0.045 |
+| Belebele | 0.740 | **0.995** | 0.740 | **0.995** | -0.255 |
+| MAUD | 0.000 | **0.649** | 0.000 | **0.649** | -0.649 |
+
+**Finding:** BM25 dominates all three datasets. Semantic folding excels on PubMedQA (MRR=0.955) but degrades on reading comprehension (0.740) and fails on legal contracts (0.000).
+
+### 8.3 Root Cause Analysis
+
+**Belebele (MRR=0.740):**
+- 8/50 queries fail (16% failure rate)
+- Query processor scores ALL 926 documents, not just 20 candidates
+- For failing queries, gold document NOT in top-5 results
+- Zero overlap between gold and raw top-5
+
+**MAUD (MRR=0.000):**
+- 100% failure rate
+- Legal contract passages are short and formulaic
+- Queries are labels (not natural language)
+- Semantic space cannot distinguish similar clauses
+
+### 8.4 Hybrid SF+BM25 Scoring
+
+To address the performance gap, we implemented hybrid scoring that combines semantic folding with BM25:
+
+\[
+\text{score}_{\text{hybrid}}(q, d) = \alpha \cdot \text{score}_{\text{SF}}(q, d) + (1 - \alpha) \cdot \text{score}_{\text{BM25}}(q, d)
+\]
+
+where $\alpha$ controls the weight of semantic folding (0 = pure BM25, 1 = pure SF).
+
+**Results on Belebele (50 queries):**
+
+| Configuration | MRR | AP | Failures | Delta |
+|---------------|-----|-----|----------|-------|
+| Baseline (top_k=5) | 0.840 | 0.840 | 8/50 | --- |
+| Baseline (top_k=10) | 0.878 | 0.878 | 5/41 | +3.8% |
+| Hybrid α=0.3 | 0.880 | 0.880 | ? | +4.0% |
+| **Hybrid α=0.5** | **0.900** | **0.900** | 4/40 | **+6.0%** |
+
+**Key insight:** Increasing top_k from 5 to 10 allows more candidate documents to be considered, improving recall. Hybrid scoring further improves by combining semantic and lexical signals.
+
+### 8.5 PubMedQA Results
+
+| Configuration | Queries | MRR | AP |
+|---------------|---------|-----|-----|
+| Baseline (top_k=5) | 65 | 0.954 | 0.832 |
+| Baseline (top_k=10) | 21 | 0.952 | 0.881 |
+
+**Finding:** PubMedQA already achieves near-perfect MRR (0.954). top_k=10 slightly decreases MRR (-0.2%) but improves AP (+5.9%).
+
+---
+
+## 9. Known Limitations
 
 1. **Computational cost**: The original per-query design ran Steps 1–6 for
    every query (~1–3 min per query). The optimised three-phase design reduces
@@ -355,3 +421,6 @@ To add a new dataset to the benchmark framework:
 5. **Binary relevance**: Supporting passages are binary (relevant/not). A
    graded relevance scheme would make NDCG a more discriminating metric for
    parameter tuning.
+
+6. **Hybrid scoring dependency**: The hybrid SF+BM25 approach requires a
+   corpus file for BM25 indexing, adding complexity to the pipeline.

@@ -11,6 +11,24 @@
 - Outputs: `outputs/run_<timestamp>/`
 - Config: `config/semantic_folding.yml`, `config/exec_state.yml`
 
+## PhD Thesis Markdown Files (Foundation Documents)
+
+These files are the foundation of the PhD thesis and MUST be updated after each successful improvement:
+
+| File | Topic | Status |
+|------|-------|--------|
+| `semantic_folding/benchmarks.md` | Benchmarking methodology, multi-dataset results | ✅ Updated |
+| `semantic_folding/metrics.md` | Retrieval metrics & evaluation framework | ✅ Current |
+| `semantic_folding/parameters_tuning.md` | Parameter tuning experiments | ✅ Current |
+| `semantic_folding/fingerprints.md` | Phrase/doc fingerprint encoding | ✅ Current |
+| `semantic_folding/query_processing.md` | Query processing architecture | ✅ Current |
+| `semantic_folding/sematic_space.md` | Semantic space construction | ✅ Current |
+| `semantic_folding/phrase_extractor.md` | Phrase extraction pipeline | ✅ Current |
+| `semantic_folding/term_context.md` | Term-context matrix | ✅ Current |
+| `semantic_folding/lib.md` | Library utilities | ✅ Current |
+
+**Rule:** After any benchmark improvement, update `benchmarks.md` with new results, metrics, and academic evidence.
+
 ## Python Environment
 
 - Virtual env: `.venv\Scripts\python` (Windows)

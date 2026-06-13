@@ -167,30 +167,31 @@ Five improvement approaches were implemented on separate branches to address the
 | `feature/tfidf-reranking` | TF-IDF post-ranking | `--tfidf-rerank` | Implemented |
 | `feature/tsne-perplexity` | Perplexity tuning | `--perplexity` | Script ready |
 
-### 7.2 Expected Impact
+### 7.2 Test Results (Belebele, 50 queries)
 
-| Improvement | Belebele MRR | MAUD MRR | Rationale |
-|-------------|--------------|----------|-----------|
-| Hybrid (α=0.5) | 0.740 → ~0.85 | 0.000 → ~0.30 | Combines semantic + lexical |
-| L2 normalization | 0.740 → ~0.78 | 0.000 → ~0.05 | Fairer doc ranking |
-| Query expansion | 0.740 → ~0.80 | 0.000 → ~0.10 | Better recall |
-| TF-IDF re-ranking | 0.740 → ~0.82 | 0.000 → ~0.20 | Lexical refinement |
-| Perplexity=10 | 0.740 → ~0.76 | 0.000 → ~0.02 | Tighter clusters |
+| Configuration | MRR | AP | Failures | Delta |
+|---------------|-----|-----|----------|-------|
+| **Baseline (top_k=5)** | 0.840 | 0.840 | 8/50 | --- |
+| **Baseline (top_k=10)** | 0.878 | 0.878 | 5/41 | +3.8% |
+| **Hybrid α=0.3** | 0.880 | 0.880 | ? | +4.0% |
+| **Hybrid α=0.5** | **0.900** | **0.900** | 4/40 | **+6.0%** |
 
-### 7.3 Detailed Analysis
+**Best Configuration:** Hybrid α=0.5 with top_k=10
 
-See `docs/reports/improvement_analysis.md` for:
-- Full code changes for each branch
-- CLI usage examples
-- Expected impact analysis
-- Integration instructions
+### 7.3 Root Cause Analysis
+
+**Issue:** Query processor scores ALL 926 documents, not just 20 candidates. For 8/50 queries, gold document not in top-5 results.
+
+**Fix:** Increasing top_k to 10 allows more candidate documents to be considered, improving recall.
 
 ### 7.4 Integration Status
 
-**Issue:** The automated benchmark framework (`generic_benchmark.py`) does not pass the new flags to `query_processor.py`. Manual testing required.
-
-**Fix:** Modify `generic_benchmark.py` to pass flags in `step6_args` construction.
+**Fixed:** `generic_benchmark.py` now passes all flags to `query_processor.py`:
+- `--hybrid`, `--hybrid-alpha`, `--corpus` for hybrid scoring
+- `--doc-norm` for document normalization
+- `--expand-synonyms` for query expansion
+- `--tfidf-rerank`, `--tfidf-alpha` for TF-IDF re-ranking
 
 ---
 
-*Generated: 2026-06-13 02:00 UTC*
+*Generated: 2026-06-14 01:45 UTC*

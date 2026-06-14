@@ -377,7 +377,16 @@ where $\alpha$ controls the weight of semantic folding (0 = pure BM25, 1 = pure 
 
 **Finding:** Hybrid scoring **hurts** PubMedQA (-3.1% MRR). PubMedQA already has strong lexical overlap between queries and passages, so BM25 adds noise rather than signal.
 
-### 8.6 Recommendation: Hybrid as Optional Flag
+### 8.6 Query Expansion Results
+
+| Dataset | Baseline MRR | expand_default | expand_glossary | Verdict |
+|---------|--------------|----------------|-----------------|---------|
+| Belebele | 0.840 | 0.840 (0%) | 0.840 (0%) | No improvement |
+| PubMedQA | 0.954 | 0.954 (0%) | 0.931 (-2.3%) | **Hurts performance** |
+
+**Finding:** Query expansion with glossary does NOT help. Belebele queries don't contain glossary terms; PubMedQA expansion adds noise.
+
+### 8.7 Recommendation: Hybrid as Optional Flag
 
 | Dataset | Baseline MRR | Hybrid MRR | Best Config |
 |---------|--------------|------------|-------------|

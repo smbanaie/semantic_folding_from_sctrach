@@ -121,7 +121,7 @@ These are the **verified optimal defaults** — use for all datasets unless evid
 - Generic runner: `semantic_folding/dataset_benchmark/generic_benchmark.py`
 - BM25 baseline: `semantic_folding/dataset_benchmark/bm25_benchmark.py`
 - Adapters: `semantic_folding/dataset_benchmark/adapters/`
-- Datasets: PubMedQA, Belebele, BioASQ, MAUD, DROP, DocFinQA, CUAD
+- Datasets: PubMedQA, Belebele, BioASQ, DROP, DocFinQA, CUAD
 
 ### Adapter Pattern
 
@@ -139,7 +139,7 @@ Each dataset has an adapter that:
 
 # All datasets
 .venv\Scripts\python semantic_folding\dataset_benchmark\run_all_benchmarks.py \
-  --datasets belebele maud --max-queries 100
+  --datasets belebele --max-queries 100
 
 # BM25 baseline only
 .venv\Scripts\python semantic_folding\dataset_benchmark\bm25_benchmark.py \

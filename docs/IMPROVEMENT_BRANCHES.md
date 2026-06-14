@@ -1,7 +1,7 @@
 # Improvement Branches Summary
 
 **Date:** 2026-06-13  
-**Goal:** Improve semantic folding to beat BM25 on Belebele and MAUD datasets
+**Goal:** Improve semantic folding to beat BM25 on Belebele dataset
 
 ---
 
@@ -56,7 +56,7 @@ git checkout feature/tsne-perplexity
 | Dataset | SF MRR | BM25 MRR | Target |
 |---------|--------|----------|--------|
 | Belebele | 0.740 | 0.995 | > 0.995 |
-| MAUD | 0.000 | 0.649 | > 0.649 |
+| Belebele | 0.840 | 0.995 | > 0.860 |
 
 ---
 

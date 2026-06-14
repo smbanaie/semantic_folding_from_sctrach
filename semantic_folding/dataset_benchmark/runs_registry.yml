@@ -462,6 +462,46 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260613_211409
     status: running
     type: benchmark
+  belebele__benchmark_20260614_024653:
+    created_at: '2026-06-14T02:46:53.896120'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      hybrid: 'True'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '10'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_024653
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260614_032203:
+    created_at: '2026-06-14T03:22:03.712181'
+    dataset: belebele
+    params:
+      grid_size: '0'
+      keep_verbs: 'False'
+      min_freq: '1'
+      min_word_length: '0'
+      smoothing_sigma: '0'
+      spreading_steps: '0'
+      top_k: '5'
+      weighting: bm25
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_032203
+    status: completed
+    type: bm25_benchmark
   belebele__run_20260612_190420:
     created_at: '2026-06-12T19:04:20.596383'
     dataset: belebele
@@ -893,6 +933,31 @@ runs:
       tsne_perplexity: '30'
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260613_211233
+    status: completed
+    type: index
+  belebele__run_20260614_024156:
+    created_at: '2026-06-14T02:41:56.925841'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      hybrid: 'True'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '10'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260614_024156
     status: completed
     type: index
   cuad__benchmark_20260610_002838:
@@ -1798,6 +1863,31 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\benchmarks\benchmark_20260608_012630
     status: completed
     type: bm25_benchmark
+  pubmedqa__benchmark_20260614_032452:
+    created_at: '2026-06-14T03:24:53.172895'
+    dataset: pubmedqa
+    params:
+      corpus_path: data\pubmedqa\converted\pubmedqa_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      hybrid: 'True'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '10'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\benchmarks\benchmark_20260614_032452
+    status: running
+    type: benchmark
   pubmedqa__run_20260606_144656:
     created_at: '2026-06-06T14:46:56.223747'
     dataset: pubmedqa
@@ -2213,4 +2303,29 @@ runs:
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260607_224804
     status: indexing
+    type: index
+  pubmedqa__run_20260614_032208:
+    created_at: '2026-06-14T03:22:09.244126'
+    dataset: pubmedqa
+    params:
+      corpus_path: data\pubmedqa\converted\pubmedqa_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      hybrid: 'True'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '10'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260614_032208
+    status: completed
     type: index

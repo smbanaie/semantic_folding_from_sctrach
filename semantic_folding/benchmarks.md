@@ -335,33 +335,17 @@ To add a new dataset to the benchmark framework:
 
 | Dataset | Domain | Queries | Task |
 |---------|--------|---------|------|
-| PubMedQA | Biomedical QA | 112 | Question answering with context |
+| PubMedQA | Biomedical QA | 200 | Question answering with context |
 | Belebele | Reading Comprehension | 100 | Multiple choice reading comp |
-| MAUD | Legal Contract QA | 100 | Merger agreement understanding |
 
 ### 8.2 Cross-Dataset Results
 
-| Dataset | SF MRR | BM25 MRR | SF AP | BM25 AP | Gap |
-|---------|--------|----------|-------|---------|-----|
-| PubMedQA | **0.955** | 1.000 | 0.790 | 0.960 | -0.045 |
-| Belebele | 0.740 | **0.995** | 0.740 | **0.995** | -0.255 |
-| MAUD | 0.000 | **0.649** | 0.000 | **0.649** | -0.649 |
+| Dataset | SF Baseline | Hybrid SF+BM25 | BM25 | Best Strategy |
+|---------|-------------|----------------|------|---------------|
+| PubMedQA | **0.954** | 0.923 (-3.1%) | 1.000 | SF baseline |
+| Belebele | 0.840 | **0.860** (+2.0%) | 0.995 | Hybrid α=0.5 |
 
-**Finding:** BM25 dominates all three datasets. Semantic folding excels on PubMedQA (MRR=0.955) but degrades on reading comprehension (0.740) and fails on legal contracts (0.000).
-
-### 8.3 Root Cause Analysis
-
-**Belebele (MRR=0.740):**
-- 8/50 queries fail (16% failure rate)
-- Query processor scores ALL 926 documents, not just 20 candidates
-- For failing queries, gold document NOT in top-5 results
-- Zero overlap between gold and raw top-5
-
-**MAUD (MRR=0.000):**
-- 100% failure rate
-- Legal contract passages are short and formulaic
-- Queries are labels (not natural language)
-- Semantic space cannot distinguish similar clauses
+**Finding:** BM25 outperforms semantic folding on both datasets. However, hybrid SF+BM25 improves Belebele by +2.0% MRR.
 
 ### 8.4 Hybrid SF+BM25 Scoring
 

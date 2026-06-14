@@ -386,7 +386,18 @@ where $\alpha$ controls the weight of semantic folding (0 = pure BM25, 1 = pure 
 
 **Finding:** Query expansion with glossary does NOT help. Belebele queries don't contain glossary terms; PubMedQA expansion adds noise.
 
-### 8.7 Recommendation: Hybrid as Optional Flag
+### 8.7 Document Normalization Results (Belebele, 50 queries)
+
+| Configuration | MRR | Delta |
+|---------------|-----|-------|
+| Baseline (sqrt_nnz) | 0.840 | --- |
+| **L2 Normalization** | **0.880** | **+4.0%** |
+| L1 Normalization | 0.830 | -1.0% |
+| Max Normalization | 0.818 | -2.2% |
+
+**Finding:** L2 normalization provides significant improvement (+4.0% MRR) by treating all documents equally regardless of length. The default sqrt_nnz penalizes longer documents unfairly.
+
+### 8.8 Recommendation: Hybrid as Optional Flag
 
 | Dataset | Baseline MRR | Hybrid MRR | Best Config |
 |---------|--------------|------------|-------------|

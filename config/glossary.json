@@ -1,0 +1,73 @@
+{
+  "_description": "Domain glossary for query expansion. Each entry maps a canonical term to its synonyms/variants.",
+  "_usage": "Load during query processing, expand query terms using canonical→synonym mappings",
+  
+  "domains": {
+    "medical": {
+      "cardiovascular": {
+        "myocardial infarction": ["heart attack", "mi", "cardiac arrest", "acute mi"],
+        "hypertension": ["high blood pressure", "htn", "elevated blood pressure"],
+        "atherosclerosis": ["hardening of arteries", "arterial plaque"],
+        "arrhythmia": ["irregular heartbeat", "cardiac dysrhythmia"],
+        "angina": ["chest pain", "angina pectoris"]
+      },
+      "respiratory": {
+        "pneumonia": ["lung infection", "pulmonary infection"],
+        "bronchitis": ["bronchial inflammation", "airway inflammation"],
+        "asthma": ["bronchial asthma", "reactive airway disease"],
+        "copd": ["chronic obstructive pulmonary disease", "chronic bronchitis"]
+      },
+      "neurological": {
+        "cerebrovascular accident": ["stroke", "cva", "brain attack"],
+        "epilepsy": ["seizure disorder", "seizures"],
+        "neuroplasticity": ["brain plasticity", "neural adaptation", "brain adaptation"],
+        "alzheimers": ["alzheimer's disease", "dementia", "cognitive decline"]
+      },
+      "oncology": {
+        "neoplasm": ["tumor", "tumour", "growth", "mass"],
+        "malignancy": ["cancer", "carcinoma", "sarcoma"],
+        "metastasis": ["spread", "secondary tumor", "advanced cancer"]
+      },
+      "general": {
+        "etiology": ["cause", "origin", "causation"],
+        "pathogenesis": ["disease development", "disease mechanism"],
+        "prognosis": ["outlook", "predicted outcome", "forecast"],
+        "diagnosis": ["identification", "detection", "assessment"],
+        "treatment": ["therapy", "intervention", "management"],
+        "symptom": ["sign", "manifestation", "indication"]
+      }
+    },
+    "biomedical": {
+      "genetics": {
+        "gene expression": ["transcription", "protein production"],
+        "mutation": ["genetic change", "variant", "alteration"],
+        "genome": ["dna sequence", "genetic code", "genetic material"]
+      },
+      "pharmacology": {
+        "drug": ["medication", "pharmaceutical", "compound"],
+        "dosage": ["dose", "amount", "concentration"],
+        "efficacy": ["effectiveness", "potency", "therapeutic effect"]
+      }
+    },
+    "general": {
+      "cognition": {
+        "learning": ["acquisition", "education", "training"],
+        "memory": ["recall", "retention", "mnemonics"],
+        "attention": ["focus", "concentration", "vigilance"],
+        "perception": ["sensation", "awareness", "observation"]
+      },
+      "social": {
+        "community": ["society", "group", "population"],
+        "culture": ["tradition", "heritage", "customs"],
+        "communication": ["interaction", "exchange", "dialogue"],
+        "behavior": ["conduct", "action", "response"]
+      },
+      "technology": {
+        "artificial intelligence": ["ai", "machine intelligence", "automated reasoning"],
+        "machine learning": ["ml", "statistical learning", "pattern recognition"],
+        "neural network": ["deep learning model", "connectionist system"],
+        "algorithm": ["procedure", "method", "process"]
+      }
+    }
+  }
+}

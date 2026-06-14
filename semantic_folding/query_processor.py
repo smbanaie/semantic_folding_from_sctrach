@@ -1937,30 +1937,46 @@ def process_query(
     # ── Stage 1: phrase extraction + OOV expansion ───────────────────────────
     logger.debug("  [STAGE 1] phrase extraction + OOV expansion")
 
-    # Query expansion with synonyms (optional)
+    # Query expansion with glossary (optional)
     expand_synonyms = getattr(args, "expand_synonyms", False)
     synonym_weight = getattr(args, "synonym_weight", 0.5)
+    glossary_path = getattr(args, "glossary", None)
 
     if expand_synonyms:
-        # Simple medical synonym dictionary
-        MEDICAL_SYNONYMS = {
-            "myocardial infarction": ["heart attack", "mi", "cardiac arrest"],
-            "hypertension": ["high blood pressure", "htn"],
-            "diabetes": ["diabetes mellitus", "dm", "blood sugar"],
-            "cancer": ["malignancy", "neoplasm", "tumor"],
-            "infection": ["infectious disease", "pathogen"],
-            "brain": ["cerebrum", "cranial"],
-            "heart": ["cardiac", "cardiovascular"],
-            "lung": ["pulmonary", "respiratory"],
-            "kidney": ["renal", "nephro"],
-            "liver": ["hepatic"],
-            "stomach": ["gastric", "gastrointestinal"],
-        }
+        # Load glossary
+        glossary = {}
+        if glossary_path and Path(glossary_path).exists():
+            with open(glossary_path, encoding="utf-8") as f:
+                glossary_data = json.load(f)
+            # Flatten domains into term→synonyms mapping
+            for domain_name, domain in glossary_data.get("domains", {}).items():
+                for category, terms in domain.items():
+                    for canonical, synonyms in terms.items():
+                        glossary[canonical] = synonyms
+            logger.info(f"  [EXPAND] loaded glossary: {len(glossary)} terms")
+        else:
+            # Fallback to default medical glossary
+            glossary = {
+                "myocardial infarction": ["heart attack", "mi", "cardiac arrest"],
+                "hypertension": ["high blood pressure", "htn"],
+                "diabetes": ["diabetes mellitus", "dm", "blood sugar"],
+                "cancer": ["malignancy", "neoplasm", "tumor"],
+                "neuroplasticity": ["brain plasticity", "neural adaptation"],
+                "stroke": ["cerebrovascular accident", "cva", "brain attack"],
+                "epilepsy": ["seizure disorder", "seizures"],
+                "alzheimers": ["alzheimer's disease", "dementia"],
+                "pneumonia": ["lung infection", "pulmonary infection"],
+                "asthma": ["bronchial asthma", "reactive airway disease"],
+                "artificial intelligence": ["ai", "machine intelligence"],
+                "machine learning": ["ml", "statistical learning"],
+            }
+            logger.info(f"  [EXPAND] using default glossary: {len(glossary)} terms")
 
+        # Expand query using glossary
         query_lower = query.lower()
         expanded_terms = []
-        for term, synonyms in MEDICAL_SYNONYMS.items():
-            if term in query_lower:
+        for canonical, synonyms in glossary.items():
+            if canonical in query_lower:
                 expanded_terms.extend(synonyms)
 
         if expanded_terms:
@@ -2507,11 +2523,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--expand-synonyms", dest="expand_synonyms", action="store_true",
         default=False,
-        help="Expand query with synonyms before phrase extraction.",
+        help="Expand query with synonyms from glossary before phrase extraction.",
     )
     parser.add_argument(
         "--synonym-weight", dest="synonym_weight", type=float, default=0.5,
         help="Weight for synonym-expanded phrases (0-1).",
+    )
+    parser.add_argument(
+        "--glossary", dest="glossary", type=str, default=None,
+        help="Path to glossary JSON file for query expansion.",
     )
 
     # ── TF-IDF re-ranking ──────────────────────────────────────────────────

@@ -512,6 +512,8 @@ class GenericBenchmarkRunner:
                 step6_args.extend(["--doc-norm", self.params["doc_norm"]])
             if self.params.get("expand_synonyms", False):
                 step6_args.append("--expand-synonyms")
+                if self.params.get("glossary_path"):
+                    step6_args.extend(["--glossary", self.params["glossary_path"]])
             if self.params.get("tfidf_rerank", False):
                 step6_args.extend(["--tfidf-rerank", "--tfidf-alpha", str(self.params.get("tfidf_alpha", 0.3))])
                 if self.params.get("corpus_path"):
@@ -888,7 +890,8 @@ def cli_main():
     p_bm.add_argument("--hybrid", action="store_true", help="Enable hybrid SF+BM25 scoring")
     p_bm.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
     p_bm.add_argument("--doc-norm", type=str, default="sqrt_nnz", choices=["sqrt_nnz", "l2", "l1", "max"])
-    p_bm.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms")
+    p_bm.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
+    p_bm.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_bm.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_bm.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_bm.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
@@ -927,7 +930,8 @@ def cli_main():
     p_all.add_argument("--hybrid", action="store_true", help="Enable hybrid SF+BM25 scoring")
     p_all.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
     p_all.add_argument("--doc-norm", type=str, default="sqrt_nnz", choices=["sqrt_nnz", "l2", "l1", "max"])
-    p_all.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms")
+    p_all.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
+    p_all.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_all.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_all.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_all.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
@@ -960,6 +964,8 @@ def cli_main():
         params["doc_norm"] = args.doc_norm
     if hasattr(args, "expand_synonyms"):
         params["expand_synonyms"] = args.expand_synonyms
+    if hasattr(args, "glossary") and args.glossary:
+        params["glossary_path"] = args.glossary
     if hasattr(args, "tfidf_rerank"):
         params["tfidf_rerank"] = args.tfidf_rerank
         params["tfidf_alpha"] = args.tfidf_alpha

@@ -420,7 +420,24 @@ where $\alpha$ controls the weight of semantic folding (0 = pure BM25, 1 = pure 
 
 **Best Configuration:** `--doc-norm l2 --tsne-perplexity 50`
 
-### 8.10 Recommendation: Hybrid as Optional Flag
+### 8.10 PubMedQA Validation Results
+
+| Configuration | MRR | Delta |
+|---------------|-----|-------|
+| baseline | 0.954 | --- |
+| L2 Normalization | 0.954 | 0.0% |
+| **Perplexity=50** | **0.969** | **+1.5%** |
+
+**Finding:** Perplexity=50 improves PubMedQA by +1.5% MRR, validating the Belebele finding.
+
+### 8.11 Final Cross-Dataset Results
+
+| Dataset | Best Config | SF MRR | BM25 MRR | Improvement |
+|---------|-------------|--------|----------|-------------|
+| **PubMedQA** | Perplexity=50 | **0.969** | 1.000 | +1.5% |
+| **Belebele** | L2 norm + Perplexity=50 | **0.880** | 0.995 | +4.0% |
+
+### 8.12 Recommendation: Hybrid as Optional Flag
 
 | Dataset | Baseline MRR | Hybrid MRR | Best Config |
 |---------|--------------|------------|-------------|

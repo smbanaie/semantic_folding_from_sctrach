@@ -165,7 +165,7 @@ def run_step(script: Path, args: List[str], workdir: Path, step_name: str,
     try:
         result = subprocess.run(
             cmd, cwd=str(workdir), capture_output=True, text=True,
-            timeout=timeout,
+            timeout=timeout, encoding="utf-8", errors="replace",
         )
         if result.returncode != 0:
             stderr_tail = result.stderr[-800:].replace("\n", " | ")

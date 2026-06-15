@@ -8,6 +8,8 @@ from .pubmedqa_adapter import PubMedQAAdapter
 from .belebele_adapter import BelebeleAdapter
 from .bioasq_adapter import BioASQAdapter
 from .maud_adapter import MaudAdapter
+from .popqa_adapter import PopQAAdapter
+from .nq_rear_adapter import NQRearAdapter
 from ._stubs import (
     SciDQAAdapter,
     DropAdapter,
@@ -31,6 +33,8 @@ ADAPTER_REGISTRY = {
     "maud": MaudAdapter,
     "medreadme": MedReadMeAdapter,
     "cflue": CflueAdapter,
+    "popqa": PopQAAdapter,
+    "nq_rear": NQRearAdapter,
 }
 
 
@@ -58,4 +62,6 @@ __all__ = [
     "MaudAdapter",
     "MedReadMeAdapter",
     "CflueAdapter",
+    "PopQAAdapter",
+    "NQRearAdapter",
 ]

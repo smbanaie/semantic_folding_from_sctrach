@@ -8,6 +8,8 @@
 | v1 | 2026-06-07 | PubMedQA | 128 | 0.902 | — | Grid=128 experiment |
 | v3 | 2026-06-13 | Belebele | 64 | 0.740 | 0.995 | 100 queries |
 | v3 | 2026-06-13 | MAUD | 64 | 0.000 | 0.649 | 100 queries |
+| v1 | 2026-06-15 | PopQA | 64 | 0.980 | 1.000 | 100 queries, HippoRAG2 |
+| v1 | 2026-06-15 | NQ-REaR | 64 | 0.574 | 0.638 | 100 queries, HippoRAG2 |
 
 ---
 
@@ -23,6 +25,12 @@
 
 ### MAUD
 - `maud/v3_20260613_233820.md` — 100 queries, MRR=0.000
+
+### PopQA (HippoRAG2)
+- `popqa/v1_20260615_212400.md` — 100 queries, SF MRR=0.980, BM25 MRR=1.000
+
+### NQ-REaR (HippoRAG2)
+- `nq_rear/v1_20260615_212400.md` — 100 queries, SF MRR=0.574, BM25 MRR=0.638
 
 ### Cross-Dataset
 - `cross-dataset/comparison_20260613.md` — SF vs BM25 across all datasets

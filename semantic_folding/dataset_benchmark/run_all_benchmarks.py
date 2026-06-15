@@ -35,7 +35,7 @@ logger = get_logger("run_all")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 
-DATASETS_TO_RUN = ["belebele", "bioasq", "maud"]
+DATASETS_TO_RUN = ["belebele", "bioasq", "maud", "popqa", "nq_rear"]
 
 
 def run_single_dataset(dataset_name: str, max_queries: int = None,

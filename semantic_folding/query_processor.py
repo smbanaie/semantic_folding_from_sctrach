@@ -2590,6 +2590,12 @@ def main() -> None:
     0   — Success (all queries processed; some may have had no results).
     1   — Fatal error (missing input directories or empty fingerprint dicts).
     """
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
     args = parse_args()
 
     logger.debug(f"main: args={vars(args)}")

@@ -446,7 +446,26 @@ where $\alpha$ controls the weight of semantic folding (0 = pure BM25, 1 = pure 
 
 **Conclusion:** Skip WordNet expansion. Better suited for paraphrase detection, not reading comprehension.
 
-### 8.13 Recommendation: Hybrid as Optional Flag
+### 8.13 DROP Failure Analysis
+
+**Finding:** Only 4 sections in 50 queries, with 18+ queries sharing the same gold passage.
+
+**Root cause:** DROP adapter groups queries by section_id. When multiple queries come from the same section, they all share the same gold passage. The query processor can't distinguish between passages from the same section.
+
+**Fix required:** Ensure more diverse sections in the sample (currently sequential iteration creates bias).
+
+### 8.14 Additional Dataset Results
+
+| Dataset | Domain | SF Best | BM25 | Gap |
+|---------|--------|---------|------|-----|
+| PubMedQA | Biomedical QA | **0.969** | 1.000 | -0.031 |
+| Belebele | Reading Comp | **0.880** | 0.995 | -0.115 |
+| DROP | Reading Comp | **0.320** | 0.752 | -0.432 |
+| CUAD | Legal Contract | 0.000 | — | SF fails |
+
+**Pattern:** SF struggles on reading comprehension and legal tasks. L2 normalization helps but doesn't close the gap.
+
+### 8.15 Recommendation: Hybrid as Optional Flag
 
 | Dataset | Baseline MRR | Hybrid MRR | Best Config |
 |---------|--------------|------------|-------------|

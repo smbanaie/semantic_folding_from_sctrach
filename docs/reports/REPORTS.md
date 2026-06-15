@@ -31,6 +31,7 @@
 
 ### NQ-REaR (HippoRAG2)
 - `nq_rear/v1_20260615_212400.md` — 100 queries, SF MRR=0.574, BM25 MRR=0.638
+- `nq_rear/failure_analysis_v1.md` — Root cause analysis of SF underperformance
 
 ### Cross-Dataset
 - `cross-dataset/comparison_20260613.md` — SF vs BM25 across all datasets

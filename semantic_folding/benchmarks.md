@@ -437,7 +437,16 @@ where $\alpha$ controls the weight of semantic folding (0 = pure BM25, 1 = pure 
 | **PubMedQA** | Perplexity=50 | **0.969** | 1.000 | +1.5% |
 | **Belebele** | L2 norm + Perplexity=50 | **0.880** | 0.995 | +4.0% |
 
-### 8.12 Recommendation: Hybrid as Optional Flag
+### 8.12 WordNet Expansion Analysis
+
+**Finding:** WordNet provides 53.4% coverage on Belebele queries, but expansions are generic and irrelevant:
+- "according" → "harmonize" (irrelevant)
+- "have" → "rich person" (irrelevant)
+- "images" → "image" (same word)
+
+**Conclusion:** Skip WordNet expansion. Better suited for paraphrase detection, not reading comprehension.
+
+### 8.13 Recommendation: Hybrid as Optional Flag
 
 | Dataset | Baseline MRR | Hybrid MRR | Best Config |
 |---------|--------------|------------|-------------|

@@ -397,7 +397,30 @@ where $\alpha$ controls the weight of semantic folding (0 = pure BM25, 1 = pure 
 
 **Finding:** L2 normalization provides significant improvement (+4.0% MRR) by treating all documents equally regardless of length. The default sqrt_nnz penalizes longer documents unfairly.
 
-### 8.8 Recommendation: Hybrid as Optional Flag
+### 8.8 t-SNE Perplexity Results (Belebele, 50 queries)
+
+| Perplexity | MRR | Delta |
+|------------|-----|-------|
+| 10 | 0.860 | +2.0% |
+| **30 (baseline)** | 0.840 | --- |
+| **50** | **0.880** | **+4.0%** |
+
+**Finding:** Perplexity=50 improves MRR by +4.0%, matching L2 normalization performance. Lower perplexity (10) also helps (+2.0%).
+
+### 8.9 Final Improvement Summary
+
+| Improvement | Belebele MRR | Verdict |
+|-------------|--------------|---------|
+| **L2 Normalization** | +4.0% (0.880) | **Best** |
+| **Perplexity=50** | +4.0% (0.880) | **Best** |
+| Hybrid SF+BM25 | +2.0% (0.860) | Optional |
+| Perplexity=10 | +2.0% (0.860) | Optional |
+| Query Expansion | 0% | Skip |
+| TF-IDF Re-ranking | 0% | Skip |
+
+**Best Configuration:** `--doc-norm l2 --tsne-perplexity 50`
+
+### 8.10 Recommendation: Hybrid as Optional Flag
 
 | Dataset | Baseline MRR | Hybrid MRR | Best Config |
 |---------|--------------|------------|-------------|

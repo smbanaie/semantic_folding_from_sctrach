@@ -502,6 +502,351 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_032203
     status: completed
     type: bm25_benchmark
+  belebele__benchmark_20260614_122830:
+    created_at: '2026-06-14T12:28:31.448432'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_122830
+    status: running
+    type: benchmark
+  belebele__benchmark_20260614_135539:
+    created_at: '2026-06-14T13:55:39.608291'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_135539
+    status: running
+    type: benchmark
+  belebele__benchmark_20260614_151543:
+    created_at: '2026-06-14T15:15:44.150652'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_151543
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260614_154148:
+    created_at: '2026-06-14T15:41:48.732846'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      glossary_path: config\glossary.json
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_154148
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260614_155939:
+    created_at: '2026-06-14T15:59:39.722965'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      hybrid: 'True'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '10'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_155939
+    status: running
+    type: benchmark
+  belebele__benchmark_20260614_234839:
+    created_at: '2026-06-14T23:48:39.595901'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260614_234839
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260615_000635:
+    created_at: '2026-06-15T00:06:35.957251'
+    dataset: belebele
+    params:
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_000635
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260615_002223:
+    created_at: '2026-06-15T00:22:23.985864'
+    dataset: belebele
+    params:
+      doc_norm: l1
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_002223
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260615_003809:
+    created_at: '2026-06-15T00:38:09.662288'
+    dataset: belebele
+    params:
+      doc_norm: max
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_003809
+    status: running
+    type: benchmark
+  belebele__benchmark_20260615_013647:
+    created_at: '2026-06-15T01:36:48.277229'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_013647
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260615_015312:
+    created_at: '2026-06-15T01:53:13.307593'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'True'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_015312
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260615_021613:
+    created_at: '2026-06-15T02:16:14.197847'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      tfidf_alpha: '0.5'
+      tfidf_rerank: 'True'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_021613
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260615_025143:
+    created_at: '2026-06-15T02:51:43.691210'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '10'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_025143
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260615_031215:
+    created_at: '2026-06-15T03:12:16.621707'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_031215
+    status: completed
+    type: benchmark
+  belebele__benchmark_20260615_033122:
+    created_at: '2026-06-15T03:31:22.768929'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\benchmarks\benchmark_20260615_033122
+    status: completed
+    type: benchmark
   belebele__run_20260612_190420:
     created_at: '2026-06-12T19:04:20.596383'
     dataset: belebele
@@ -960,6 +1305,376 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260614_024156
     status: completed
     type: index
+  belebele__run_20260614_122016:
+    created_at: '2026-06-14T12:20:16.815572'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260614_122016
+    status: completed
+    type: index
+  belebele__run_20260614_134956:
+    created_at: '2026-06-14T13:49:57.160949'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260614_134956
+    status: completed
+    type: index
+  belebele__run_20260614_150553:
+    created_at: '2026-06-14T15:05:54.241528'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260614_150553
+    status: completed
+    type: index
+  belebele__run_20260614_153837:
+    created_at: '2026-06-14T15:38:37.631196'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      glossary_path: config\glossary.json
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260614_153837
+    status: completed
+    type: index
+  belebele__run_20260614_155628:
+    created_at: '2026-06-14T15:56:28.478146'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      hybrid: 'True'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '10'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260614_155628
+    status: completed
+    type: index
+  belebele__run_20260614_234431:
+    created_at: '2026-06-14T23:44:31.895919'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260614_234431
+    status: completed
+    type: index
+  belebele__run_20260615_000335:
+    created_at: '2026-06-15T00:03:35.289676'
+    dataset: belebele
+    params:
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_000335
+    status: completed
+    type: index
+  belebele__run_20260615_001939:
+    created_at: '2026-06-15T00:19:40.290214'
+    dataset: belebele
+    params:
+      doc_norm: l1
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_001939
+    status: completed
+    type: index
+  belebele__run_20260615_003520:
+    created_at: '2026-06-15T00:35:20.926160'
+    dataset: belebele
+    params:
+      doc_norm: max
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_003520
+    status: completed
+    type: index
+  belebele__run_20260615_013357:
+    created_at: '2026-06-15T01:33:57.367986'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_013357
+    status: completed
+    type: index
+  belebele__run_20260615_015024:
+    created_at: '2026-06-15T01:50:25.150664'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'True'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_015024
+    status: completed
+    type: index
+  belebele__run_20260615_021221:
+    created_at: '2026-06-15T02:12:21.940422'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      tfidf_alpha: '0.5'
+      tfidf_rerank: 'True'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_021221
+    status: completed
+    type: index
+  belebele__run_20260615_023216:
+    created_at: '2026-06-15T02:32:16.834132'
+    dataset: belebele
+    params:
+      corpus_path: data\belebele\converted\belebele_corpus.txt
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      tfidf_alpha: '0.7'
+      tfidf_rerank: 'True'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_023216
+    status: indexing
+    type: index
+  belebele__run_20260615_024821:
+    created_at: '2026-06-15T02:48:22.622448'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '10'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_024821
+    status: completed
+    type: index
+  belebele__run_20260615_030750:
+    created_at: '2026-06-15T03:07:50.522649'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_030750
+    status: completed
+    type: index
+  belebele__run_20260615_032803:
+    created_at: '2026-06-15T03:28:04.337251'
+    dataset: belebele
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260615_032803
+    status: completed
+    type: index
   cuad__benchmark_20260610_002838:
     created_at: '2026-06-10T00:28:38.196671'
     dataset: cuad
@@ -1044,6 +1759,28 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\cuad_benchmark\benchmarks\benchmark_20260610_134504
     status: completed
     type: bm25_benchmark
+  cuad__benchmark_20260615_143309:
+    created_at: '2026-06-15T14:33:11.211366'
+    dataset: cuad
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\cuad_benchmark\benchmarks\benchmark_20260615_143309
+    status: running
+    type: benchmark
   cuad__run_20260609_141716:
     created_at: '2026-06-09T14:17:21.577816'
     dataset: cuad
@@ -1111,6 +1848,28 @@ runs:
       tsne_perplexity: '30'
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\cuad_benchmark\runs\run_20260610_000759
+    status: completed
+    type: index
+  cuad__run_20260615_141517:
+    created_at: '2026-06-15T14:15:18.848214'
+    dataset: cuad
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\cuad_benchmark\runs\run_20260615_141517
     status: completed
     type: index
   docfinqa__benchmark_20260608_125607:
@@ -1328,6 +2087,66 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\drop_benchmark\benchmarks\benchmark_20260609_111845
     status: completed
     type: bm25_benchmark
+  drop__benchmark_20260615_125648:
+    created_at: '2026-06-15T12:56:49.069586'
+    dataset: drop
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\drop_benchmark\benchmarks\benchmark_20260615_125648
+    status: completed
+    type: benchmark
+  drop__benchmark_20260615_134527:
+    created_at: '2026-06-15T13:45:27.952194'
+    dataset: drop
+    params:
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\drop_benchmark\benchmarks\benchmark_20260615_134527
+    status: completed
+    type: benchmark
+  drop__benchmark_20260615_141512:
+    created_at: '2026-06-15T14:15:13.488057'
+    dataset: drop
+    params:
+      grid_size: '0'
+      keep_verbs: 'False'
+      min_freq: '1'
+      min_word_length: '0'
+      smoothing_sigma: '0'
+      spreading_steps: '0'
+      top_k: '5'
+      weighting: bm25
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\drop_benchmark\benchmarks\benchmark_20260615_141512
+    status: completed
+    type: bm25_benchmark
   drop__run_20260608_091248:
     created_at: '2026-06-08T09:12:48.344639'
     dataset: drop
@@ -1348,6 +2167,51 @@ runs:
       tsne_perplexity: '30'
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\drop_benchmark\runs\run_20260608_091248
+    status: completed
+    type: index
+  drop__run_20260615_124451:
+    created_at: '2026-06-15T12:44:52.364147'
+    dataset: drop
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\drop_benchmark\runs\run_20260615_124451
+    status: completed
+    type: index
+  drop__run_20260615_133328:
+    created_at: '2026-06-15T13:33:29.574927'
+    dataset: drop
+    params:
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\drop_benchmark\runs\run_20260615_133328
     status: completed
     type: index
   maud__benchmark_20260612_221327:
@@ -1888,6 +2752,118 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\benchmarks\benchmark_20260614_032452
     status: running
     type: benchmark
+  pubmedqa__benchmark_20260614_162019:
+    created_at: '2026-06-14T16:20:19.909067'
+    dataset: pubmedqa
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\benchmarks\benchmark_20260614_162019
+    status: completed
+    type: benchmark
+  pubmedqa__benchmark_20260614_164311:
+    created_at: '2026-06-14T16:43:11.407311'
+    dataset: pubmedqa
+    params:
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\benchmarks\benchmark_20260614_164311
+    status: running
+    type: benchmark
+  pubmedqa__benchmark_20260615_041142:
+    created_at: '2026-06-15T04:11:43.439402'
+    dataset: pubmedqa
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\benchmarks\benchmark_20260615_041142
+    status: completed
+    type: benchmark
+  pubmedqa__benchmark_20260615_043311:
+    created_at: '2026-06-15T04:33:12.625877'
+    dataset: pubmedqa
+    params:
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\benchmarks\benchmark_20260615_043311
+    status: completed
+    type: benchmark
+  pubmedqa__benchmark_20260615_045116:
+    created_at: '2026-06-15T04:51:16.822623'
+    dataset: pubmedqa
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\benchmarks\benchmark_20260615_045116
+    status: completed
+    type: benchmark
   pubmedqa__run_20260606_144656:
     created_at: '2026-06-06T14:46:56.223747'
     dataset: pubmedqa
@@ -2328,4 +3304,139 @@ runs:
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260614_032208
     status: completed
+    type: index
+  pubmedqa__run_20260614_161832:
+    created_at: '2026-06-14T16:18:32.920384'
+    dataset: pubmedqa
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260614_161832
+    status: completed
+    type: index
+  pubmedqa__run_20260614_164122:
+    created_at: '2026-06-14T16:41:23.444801'
+    dataset: pubmedqa
+    params:
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260614_164122
+    status: completed
+    type: index
+  pubmedqa__run_20260615_040936:
+    created_at: '2026-06-15T04:09:37.460011'
+    dataset: pubmedqa
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260615_040936
+    status: completed
+    type: index
+  pubmedqa__run_20260615_043135:
+    created_at: '2026-06-15T04:31:36.233369'
+    dataset: pubmedqa
+    params:
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260615_043135
+    status: completed
+    type: index
+  pubmedqa__run_20260615_044948:
+    created_at: '2026-06-15T04:49:48.981272'
+    dataset: pubmedqa
+    params:
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260615_044948
+    status: completed
+    type: index
+  pubmedqa__run_20260615_050504:
+    created_at: '2026-06-15T05:05:04.398208'
+    dataset: pubmedqa
+    params:
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      grid_size: '64'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\pubmedqa_benchmark\runs\run_20260615_050504
+    status: indexing
     type: index

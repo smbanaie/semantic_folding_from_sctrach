@@ -99,7 +99,7 @@ These are the **verified optimal defaults** — use for all datasets unless evid
 | Spreading | **radius=1, decay=0.5** | spread=2 tested → MRR −7.1% on short queries. Keep at 1. |
 | top_percent | **0.10** | 0.05 tested → MRR −5.3%. Keep at 0.10. |
 | Query weighting | **IDF** | uniform tested → MRR −0.86%. Keep IDF. |
-| Normalization | L2 for query, `sqrt(nnz)` for document fingerprints | |
+| Normalization | L2 for query, **L2 for documents** (`--doc-norm l2`) | sqrt_nnz tested → MRR −4.0% on Belebele |
 | `--geometric` | **Do not use** | Crashes with access violation at query 144. Buggy. |
 | `--dynamic-spreading` | **Do not use** | Makes short-query MRR worse. |
 | keep_verbs | true | Not worth testing — other param changes all failed. |

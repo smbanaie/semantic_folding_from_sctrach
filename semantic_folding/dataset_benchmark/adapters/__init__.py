@@ -10,6 +10,9 @@ from .bioasq_adapter import BioASQAdapter
 from .maud_adapter import MaudAdapter
 from .popqa_adapter import PopQAAdapter
 from .nq_rear_adapter import NQRearAdapter
+from .narrativeqa_adapter import NarrativeQAAdapter
+from .hotpotqa_adapter import HotpotQAAdapter
+from .twowiki_adapter import TwoWikiMultihopQAAdapter
 from ._stubs import (
     SciDQAAdapter,
     DropAdapter,
@@ -35,6 +38,9 @@ ADAPTER_REGISTRY = {
     "cflue": CflueAdapter,
     "popqa": PopQAAdapter,
     "nq_rear": NQRearAdapter,
+    "narrativeqa": NarrativeQAAdapter,
+    "hotpotqa": HotpotQAAdapter,
+    "2wikimultihopqa": TwoWikiMultihopQAAdapter,
 }
 
 
@@ -64,4 +70,7 @@ __all__ = [
     "CflueAdapter",
     "PopQAAdapter",
     "NQRearAdapter",
+    "NarrativeQAAdapter",
+    "HotpotQAAdapter",
+    "TwoWikiMultihopQAAdapter",
 ]

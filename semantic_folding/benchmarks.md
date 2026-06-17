@@ -565,7 +565,20 @@ making it trivial for BM25 (perfect scores). SF achieves MRR=0.980, failing on
 SF struggles with the larger candidate pool and diverse topic coverage.
 BM25's lexical matching is more effective for general knowledge queries.
 
-### 10.4 Cross-Dataset Summary
+### 10.4 MuSiQue Results (Multi-hop QA)
+
+**Configuration**: grid=64, spread=1, top%=0.10, IDF, L2 norm, morton, smoothing=1.5, perplexity=30
+
+| Metric | SF | BM25 | Delta |
+|--------|-----|------|-------|
+| **MRR** | 0.453 | 0.672 | -32.6% |
+| **AP** | 0.272 | 0.482 | -43.7% |
+| **P@1** | 0.395 | 0.563 | -29.8% |
+| **P@2** | 0.221 | 0.362 | -39.0% |
+
+**Analysis**: MuSiQue requires composing facts across 2-5 hops. BM25's lexical matching significantly outperforms SF's semantic approach. 47.7% of SF queries had no gold passage in top results.
+
+### 10.5 Cross-Dataset Summary
 
 | Dataset | SF MRR | BM25 MRR | SF Wins? |
 |---------|--------|----------|----------|
@@ -574,8 +587,10 @@ BM25's lexical matching is more effective for general knowledge queries.
 | PopQA | 0.980 | 1.000 | No |
 | NQ-REaR | 0.574 | 0.638 | No |
 | DROP | 0.320 | 0.752 | No |
+| **MuSiQue** | **0.453** | **0.672** | **No** |
 
 **Key Finding**: SF excels on biomedical QA (PubMedQA MRR=0.969) but
-underperforms BM25 on general knowledge retrieval tasks. The pattern
-suggests SF's strength is domain-specific semantic matching, not
-general-purpose lexical retrieval.
+underperforms BM25 on general knowledge retrieval tasks. Performance
+degrades further on multi-hop QA (MuSiQue MRR=0.453, -32.6% vs BM25).
+The pattern suggests SF's strength is domain-specific semantic matching,
+not general-purpose or compositional retrieval.

@@ -67,7 +67,7 @@ semantic_space:
   method: "tsne"                 # Options: tsne, umap, pca
 
   # Grid configuration
-  grid_size: 128                  # Semantic space resolution (8, 16, 32, 64, 128)
+  grid_size: 64                  # Semantic space resolution (8, 16, 32, 64, 128)
   grid_padding: 0                # Padding around grid edges
   enable_grid: true              # Generate discrete grid coordinates
 
@@ -82,7 +82,7 @@ semantic_space:
   # UMAP specific parameters
   umap:
     n_neighbors: 15              # Local neighborhood size (2–100)
-    min_dist: 0.1                # Minimum separation (0.0–0.99)
+    min_dist: 0.0                # Minimum separation (0.0 for tight grid mapping)
     metric: "cosine"             # Distance metric
 
   # PCA specific parameters

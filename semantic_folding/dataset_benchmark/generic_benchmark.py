@@ -74,8 +74,12 @@ PIPELINE_DEFAULTS = {
     "min_word_length": 3,
     "min_freq": 1,
     "morton": True,
+    "method": "tsne",
     "tsne_perplexity": 30,
     "tsne_iter": 1000,
+    "umap_n_neighbors": 15,
+    "umap_min_dist": 0.0,
+    "umap_metric": "cosine",
     # Dynamic spreading: if True, picks spread=2 for short queries (≤ short_query_max_words)
     # and spread=1 for longer ones. Otherwise uses spreading_steps for all.
     "dynamic_spreading": False,
@@ -363,14 +367,25 @@ class GenericBenchmarkRunner:
 
         # Step 3
         out = run_dir / "semantic_space"
-        ok = run_step(STEP_SCRIPTS[3], [
+        step3_args = [
             "--matrix", str(run_dir / "term_context_matrix" / "term_context_matrix.npz"),
             "--metadata", str(run_dir / "term_context_matrix" / "term_context_matrix.json"),
             "--output", str(out),
             "--grid-size", str(self.params["grid_size"]),
-            "--perplexity", str(self.params["tsne_perplexity"]),
-            "--tsne-iter", str(self.params["tsne_iter"]),
-        ], PROJECT_ROOT, "Step 3 semantic_space", timeout=900)
+            "--method", self.params["method"],
+        ]
+        if self.params["method"] == "tsne":
+            step3_args.extend([
+                "--perplexity", str(self.params["tsne_perplexity"]),
+                "--tsne-iter", str(self.params["tsne_iter"]),
+            ])
+        elif self.params["method"] == "umap":
+            step3_args.extend([
+                "--n-neighbors", str(self.params["umap_n_neighbors"]),
+                "--min-dist", str(self.params["umap_min_dist"]),
+                "--metric", self.params["umap_metric"],
+            ])
+        ok = run_step(STEP_SCRIPTS[3], step3_args, PROJECT_ROOT, "Step 3 semantic_space", timeout=900)
         if not ok:
             update_run_status(run_dir, self.adapter.dataset_name, "failed_step3")
             return None
@@ -865,6 +880,10 @@ def cli_main():
     p_idx.add_argument("--jsonl", type=Path, required=True, help="Converted MuSiQue-like JSONL")
     p_idx.add_argument("--max-queries", type=int, default=None)
     p_idx.add_argument("--grid-size", type=int, default=PIPELINE_DEFAULTS["grid_size"])
+    p_idx.add_argument("--method", default=PIPELINE_DEFAULTS["method"], choices=["tsne", "umap", "pca"])
+    p_idx.add_argument("--umap-n-neighbors", type=int, default=PIPELINE_DEFAULTS["umap_n_neighbors"])
+    p_idx.add_argument("--umap-min-dist", type=float, default=PIPELINE_DEFAULTS["umap_min_dist"])
+    p_idx.add_argument("--umap-metric", default=PIPELINE_DEFAULTS["umap_metric"])
     p_idx.add_argument("--spreading-steps", type=int, default=PIPELINE_DEFAULTS["spreading_steps"])
     p_idx.add_argument("--top-percent", type=float, default=PIPELINE_DEFAULTS["top_percent"])
     p_idx.add_argument("--weighting", default=PIPELINE_DEFAULTS["weighting"])
@@ -912,6 +931,10 @@ def cli_main():
     p_all.add_argument("--jsonl", type=Path, required=True)
     p_all.add_argument("--max-queries", type=int, default=None)
     p_all.add_argument("--grid-size", type=int, default=PIPELINE_DEFAULTS["grid_size"])
+    p_all.add_argument("--method", default=PIPELINE_DEFAULTS["method"], choices=["tsne", "umap", "pca"])
+    p_all.add_argument("--umap-n-neighbors", type=int, default=PIPELINE_DEFAULTS["umap_n_neighbors"])
+    p_all.add_argument("--umap-min-dist", type=float, default=PIPELINE_DEFAULTS["umap_min_dist"])
+    p_all.add_argument("--umap-metric", default=PIPELINE_DEFAULTS["umap_metric"])
     p_all.add_argument("--spreading-steps", type=int, default=PIPELINE_DEFAULTS["spreading_steps"])
     p_all.add_argument("--top-percent", type=float, default=PIPELINE_DEFAULTS["top_percent"])
     p_all.add_argument("--weighting", default=PIPELINE_DEFAULTS["weighting"])
@@ -946,6 +969,10 @@ def cli_main():
     params = {}
     if hasattr(args, "grid_size"):
         params["grid_size"] = args.grid_size
+        params["method"] = args.method
+        params["umap_n_neighbors"] = args.umap_n_neighbors
+        params["umap_min_dist"] = args.umap_min_dist
+        params["umap_metric"] = args.umap_metric
         params["spreading_steps"] = args.spreading_steps
         params["top_percent"] = args.top_percent
         params["weighting"] = args.weighting

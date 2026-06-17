@@ -429,7 +429,7 @@ def reduce_dimensions_tsne(
 def reduce_dimensions_umap(
     vectors: np.ndarray,
     n_neighbors: int = 15,
-    min_dist: float = 0.1,
+    min_dist: float = 0.0,
     metric: str = "cosine",
     n_jobs: int = 1,
     random_state: int = 42,
@@ -442,7 +442,7 @@ def reduce_dimensions_umap(
     recommended when the number of contexts exceeds ~2 000.
 
     The ``n_neighbors`` parameter is automatically clamped to
-    ``min(n_neighbors, max(2, n_samples // 2))`` to avoid errors when the
+    ``min(n_neighbors, max(2, n_samples // 3))`` to avoid errors when the
     dataset is small.
 
     Parameters
@@ -458,6 +458,7 @@ def reduce_dimensions_umap(
     min_dist:
         Minimum distance between embedded points.  Smaller values allow
         tighter clusters; larger values produce a more uniform spread.
+        ``0.0`` is recommended for discrete grid mapping.
     metric:
         Distance metric for the high-dimensional neighbour graph.  Defaults
         to ``'cosine'``, which pairs well with L2-normalised vectors.
@@ -480,7 +481,15 @@ def reduce_dimensions_umap(
     import umap
 
     n_samples = vectors.shape[0]
-    n_neighbors = min(n_neighbors, max(2, n_samples // 2))
+    n_neighbors = min(n_neighbors, max(2, n_samples // 3))
+
+    if vectors.shape[1] > 100:
+        logger.info("High dimensionality detected. Applying TruncatedSVD pre-reduction...")
+        svd = TruncatedSVD(n_components=100, random_state=random_state)
+        vectors = svd.fit_transform(vectors)
+    elif issparse(vectors):
+        vectors = vectors.toarray()
+
     logger.info(
         f"Running UMAP: n_samples={n_samples}, n_neighbors={n_neighbors}, "
         f"min_dist={min_dist}, metric={metric}"
@@ -1142,9 +1151,9 @@ def main() -> int:
     parser.add_argument(
         "--min-dist",
         type=float,
-        default=0.25,
+        default=0.0,
         dest="min_dist",
-        help="UMAP minimum distance between embedded points.",
+        help="UMAP minimum distance between embedded points. 0.0 recommended for grid mapping.",
     )
     parser.add_argument(
         "--metric",

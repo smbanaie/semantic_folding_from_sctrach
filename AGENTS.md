@@ -10,6 +10,7 @@
 - Notebooks: `semantic_folding/notebooks/`
 - Outputs: `outputs/<dataset>_benchmark/`
 - Reports: `docs/reports/` (versioned benchmark results)
+- Research: `docs/research/` (literature reviews, method comparisons, technical deep-dives for pipeline improvements)
 - Config: `config/semantic_folding.yml`, `config/exec_state.yml`
 
 ## PhD Thesis Markdown Files (Foundation Documents)
@@ -95,7 +96,7 @@ These are the **verified optimal defaults** — use for all datasets unless evid
 | Grid size | **64** | 128×128 tested on PubMedQA → MRR −5.3%. Do not change. |
 | Encoding | Morton Z-order (`use_morton: true`) | |
 | Smoothing | Gaussian blur, **sigma=1.5** | sigma=0 tested → MRR −31.2%. **Critical for performance.** |
-| Dim reduction | t-SNE (default) | |
+| Dim reduction | **t-SNE** (default) | t-SNE MRR=0.88 vs UMAP MRR=0.80 on Belebele 50 queries. |
 | Spreading | **radius=1, decay=0.5** | spread=2 tested → MRR −7.1% on short queries. Keep at 1. |
 | top_percent | **0.10** | 0.05 tested → MRR −5.3%. Keep at 0.10. |
 | Query weighting | **IDF** | uniform tested → MRR −0.86%. Keep IDF. |
@@ -105,7 +106,7 @@ These are the **verified optimal defaults** — use for all datasets unless evid
 | keep_verbs | true | Not worth testing — other param changes all failed. |
 | min_freq | 1 | Not worth testing. |
 
-**Key finding:** The default pipeline parameters (grid=64, spread=1, top%=0.10, smoothing=1.5, weighting=idf) are optimal for PubMedQA. Do not deviate without re-testing.
+**Key finding:** t-SNE outperforms UMAP on Belebele (MRR 0.88 vs 0.80). UMAP is faster (10-100x) and preserves global structure better, but t-SNE's local focus is better for phrase-level semantic matching. Use UMAP when dataset > 10k contexts or out-of-sample projection is needed.
 
 ## Benchmarking (MuSiQue)
 
@@ -122,6 +123,29 @@ These are the **verified optimal defaults** — use for all datasets unless evid
 - BM25 baseline: `semantic_folding/dataset_benchmark/bm25_benchmark.py`
 - Adapters: `semantic_folding/dataset_benchmark/adapters/`
 - Datasets: PubMedQA, Belebele, BioASQ, DROP, DocFinQA, CUAD
+
+### Reporting Rule (MANDATORY)
+
+**Every benchmark run MUST be saved to `docs/reports/` with this workflow:**
+
+```bash
+# 1. Run benchmark
+.venv\Scripts\python -m semantic_folding.dataset_benchmark.generic_benchmark all \
+  --dataset <name> --jsonl data/<name>/converted/<name>.jsonl --max-queries 50
+
+# 2. Create report directory if needed
+New-Item -ItemType Directory -Force -Path "docs/reports/<name>" | Out-Null
+
+# 3. Copy report with versioned filename
+Copy-Item "outputs/<name>_benchmark/benchmarks/benchmark_<ts>/benchmark_report.md" \
+  "docs/reports/<name>/v<N>_<YYYYMMDD>_<HHMMSS>.md"
+
+# 4. Update docs/reports/REPORTS.md (add row to version history + report list)
+```
+
+**Report filename format:** `v<N>_<YYYYMMDD>_<HHMMSS>.md`
+
+**Reports index:** `docs/reports/REPORTS.md` — MUST be updated after every benchmark.
 
 ### Adapter Pattern
 
@@ -145,6 +169,16 @@ Each dataset has an adapter that:
 .venv\Scripts\python semantic_folding\dataset_benchmark\bm25_benchmark.py \
   --dataset belebele --jsonl data/belebele/converted/belebele.jsonl \
   --run-dir outputs/belebele_benchmark/runs/run_<ts> --query-end 100
+
+# Run with UMAP (default is now UMAP)
+.venv\Scripts\python semantic_folding\dataset_benchmark\generic_benchmark.py all \
+  --dataset belebele --jsonl data/belebele/converted/belebele.jsonl \
+  --method umap --umap-n-neighbors 15 --umap-min-dist 0.0 --umap-metric cosine
+
+# Run with t-SNE (for comparison)
+.venv\Scripts\python semantic_folding\dataset_benchmark\generic_benchmark.py all \
+  --dataset belebele --jsonl data/belebele/converted/belebele.jsonl \
+  --method tsne --perplexity 30 --tsne-iter 1000
 ```
 
 ## Naming Conventions

@@ -82,6 +82,11 @@ data/output/*
 .DS_Store
 Thumbs.db
 
+# Binary files
+*.pdf
+*.zip
+*.tar.gz
+
 # Local notebooks, caches
 .ipynb_checkpoints/
 
@@ -95,5 +100,8 @@ __pycache__/
 
 # Agent memory
 .mimocode/
+
+# Embedded repos (use submodule if needed)
+brain_approaches/hipporag2/
 
 

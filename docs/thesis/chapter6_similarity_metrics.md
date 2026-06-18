@@ -1,4 +1,4 @@
-# Chapter 7: Similarity Metrics for Sparse Distributed Representations
+# Chapter 6: Similarity Metrics for Sparse Distributed Representations
 
 ## 7.1 Introduction
 

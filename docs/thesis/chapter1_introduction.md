@@ -38,13 +38,14 @@ This work makes the following contributions to closed-domain QA:
 
 ## 1.4 Thesis Outline
 
-- **Chapter 2** reviews related work in information retrieval, sparse distributed representations, and semantic matching, with emphasis on closed-domain QA systems and domain-specific retrieval.
+- **Chapter 2** reviews related work in information retrieval, sparse distributed representations, and semantic matching.
 - **Chapter 3** presents the Semantic Folding methodology with full mathematical formulation of each pipeline stage.
 - **Chapter 4** provides a systematic parameter tuning analysis with academic justification for each configuration choice.
-- **Chapter 5** describes the experimental setup and multi-dataset benchmark results.
-- **Chapter 6** presents a comprehensive analysis of sparse vs dense retrieval paradigms, including the theoretical Orthogonality Constraint framework.
-- **Chapter 7** discusses findings, implications, and the unique position of SF in the retrieval landscape for closed-domain QA.
-- **Chapter 8** concludes with summary of contributions and future research directions.
+- **Chapter 5** presents a comprehensive analysis of sparse vs dense retrieval paradigms, including the theoretical Orthogonality Constraint framework.
+- **Chapter 6** provides a detailed analysis of similarity metrics for sparse distributed representations.
+- **Chapter 7** describes the experimental setup and multi-dataset benchmark results.
+- **Chapter 8** discusses findings, implications, and the unique position of SF in the retrieval landscape.
+- **Chapter 9** concludes with summary of contributions and future research directions.
 
 ## 1.5 Publications
 

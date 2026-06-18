@@ -1,4 +1,4 @@
-# Chapter 6: Sparse vs Dense Retrieval — A Fundamental Trade-off
+# Chapter 5: Sparse vs Dense Retrieval — A Fundamental Trade-off
 
 ## 6.1 Introduction
 

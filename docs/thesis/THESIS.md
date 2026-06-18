@@ -37,9 +37,9 @@ Our results demonstrate that sparse methods trade peak performance for zero-shot
 | 2 | Literature Review | [chapter2_literature_review.md](chapter2_literature_review.md) |
 | 3 | The Semantic Folding Pipeline | [chapter3_sf_pipeline.md](chapter3_sf_pipeline.md) |
 | 4 | Parameter Tuning | [chapter4_parameter_tuning.md](chapter4_parameter_tuning.md) |
-| 5 | Experiments and Benchmark Results | [chapter5_experiments.md](chapter5_experiments.md) |
-| 6 | Sparse vs Dense Retrieval | [chapter6_sparse_vs_dense.md](chapter6_sparse_vs_dense.md) |
-| 7 | Similarity Metrics | [chapter7_similarity_metrics.md](chapter7_similarity_metrics.md) |
+| 5 | Sparse vs Dense Retrieval | [chapter5_sparse_vs_dense.md](chapter5_sparse_vs_dense.md) |
+| 6 | Similarity Metrics | [chapter6_similarity_metrics.md](chapter6_similarity_metrics.md) |
+| 7 | Experiments and Benchmark Results | [chapter7_experiments.md](chapter7_experiments.md) |
 | 8 | Discussion | [chapter8_discussion.md](chapter8_discussion.md) |
 | 9 | Conclusions and Future Work | [chapter9_conclusions.md](chapter9_conclusions.md) |
 

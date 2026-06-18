@@ -1,4 +1,4 @@
-# Chapter 5: Experiments and Benchmark Results
+# Chapter 7: Experiments and Benchmark Results
 
 ## 5.1 Experimental Setup
 

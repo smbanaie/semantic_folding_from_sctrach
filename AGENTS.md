@@ -9,9 +9,32 @@
 - Visualizers: `semantic_folding/{phrase,doc,query}_visualizer.py`
 - Notebooks: `semantic_folding/notebooks/`
 - Outputs: `outputs/<dataset>_benchmark/`
-- Reports: `docs/reports/` (versioned benchmark results)
-- Research: `docs/research/` (literature reviews, method comparisons, technical deep-dives for pipeline improvements)
 - Config: `config/semantic_folding.yml`, `config/exec_state.yml`
+
+### Documentation Structure
+
+```
+docs/
+├── recommendations.md                          # Future work & improvement roadmap
+├── reports/
+│   ├── BENCHMARK_RESULTS.md                    # SINGLE SOURCE OF TRUTH (all metrics, all datasets)
+│   ├── REPORTS.md                              # Version history index + file log
+│   ├── <dataset>/
+│   │   ├── v2_*_comprehensive_analysis.md      # Per-dataset deep dive (keep)
+│   │   ├── v1_*.md                             # Per-dataset detailed report (keep)
+│   │   └── failure_analysis_*.md               # Root cause analysis (keep)
+│   └── (hipporag2_full_benchmark.md)           # Archived — content in BENCHMARK_RESULTS.md
+├── research/                                   # Literature reviews, method comparisons
+└── thesis/                                     # Thesis drafts
+```
+
+| File | Role | Update Frequency |
+|------|------|-----------------|
+| `docs/reports/BENCHMARK_RESULTS.md` | **Single source of truth** — all metrics, all datasets, all experiments | After every benchmark run |
+| `docs/reports/REPORTS.md` | **Index** — version history table + report file references | After every benchmark run |
+| `docs/recommendations.md` | **Roadmap** — future work, improvement priorities, tested experiments | When new improvements are tested |
+| `docs/reports/<dataset>/` | **Deep dives** — per-dataset detailed analysis with failure patterns | Per-dataset |
+| `semantic_folding/benchmarks.md` | **Thesis foundation** — methodology, parameter justification, academic framing | After significant changes |
 
 ## PhD Thesis Markdown Files (Foundation Documents)
 
@@ -141,11 +164,15 @@ Copy-Item "outputs/<name>_benchmark/benchmarks/benchmark_<ts>/benchmark_report.m
   "docs/reports/<name>/v<N>_<YYYYMMDD>_<HHMMSS>.md"
 
 # 4. Update docs/reports/REPORTS.md (add row to version history + report list)
+
+# 5. Update docs/reports/BENCHMARK_RESULTS.md (add/update dataset metrics table)
 ```
 
 **Report filename format:** `v<N>_<YYYYMMDD>_<HHMMSS>.md`
 
 **Reports index:** `docs/reports/REPORTS.md` — MUST be updated after every benchmark.
+
+**Single source of truth:** `docs/reports/BENCHMARK_RESULTS.md` — MUST be updated after every benchmark with new metrics.
 
 ### Adapter Pattern
 
@@ -252,3 +279,109 @@ This project has **no automated test suite**. To verify changes:
 - Push and present changes for review before merging
 - **Only merge into `main` after explicit user confirmation**
 - Delete feature/fix branch after merge
+
+### Thesis Branch Rule
+
+- **All thesis changes** (`docs/thesis/`) MUST be pushed in the `thesis` branch
+- Create the branch: `git checkout -b thesis`
+- Never commit thesis files directly to `main`
+- Thesis branch is long-lived and persists across sessions
+
+---
+
+## Citation Management & Academic Writing
+
+### Paper & Thesis Location
+
+- **Paper draft**: `docs/papers/paper1/semantic_folding_paper.md`
+- **Thesis chapters**: `docs/thesis/chapter{1-9}_*.md`
+- **Thesis index**: `docs/thesis/THESIS.md`
+
+### Citation Format
+
+All citations use numbered references `[N]` in the paper, and author-year `(Author, Year)` in the thesis chapters.
+
+**Paper format:**
+```
+[1] Kanerva, P. (1988). *Sparse Distributed Memory*. MIT Press.
+```
+
+**Thesis format:**
+```
+Kanerva (1988) proposed Sparse Distributed Memory...
+```
+
+### Citation Sources
+
+| Source | Search Pattern | Purpose |
+|--------|---------------|---------|
+| Google Scholar | `scholar.google.com/scholar?q=...` | General academic search |
+| ScienceDirect | `site:sciencedirect.com` via Google Scholar | Elsevier journals |
+| arXiv | `arxiv.org/abs/...` | Preprints and working papers |
+
+### ScienceDirect Search Pattern
+
+```
+https://scholar.google.com/scholar?q=<topic>+site:sciencedirect.com
+```
+
+**Example searches:**
+- `semantic embedding sparse vectors site:sciencedirect.com`
+- `domain specific question answering medical site:sciencedirect.com`
+- `sparse distributed memory information retrieval site:sciencedirect.com`
+- `glossary integration terminology retrieval site:sciencedirect.com`
+- `multi hop question answering reasoning site:sciencedirect.com`
+
+### Citation Verification Checklist
+
+When adding citations to paper or thesis:
+
+1. **Search Google Scholar** for each claim requiring citation
+2. **Search ScienceDirect** using `site:sciencedirect.com` pattern for domain-specific papers
+3. **Verify the citation** by checking the actual paper title, authors, and year
+4. **Format consistently** using the established format for paper/thesis
+5. **Update in-text references** to use numbered `[N]` (paper) or author-year (thesis)
+6. **Add to references section** at the end of the document
+7. **Update `docs/recommendations.md`** with new citations found
+
+### Citation Categories
+
+| Category | Papers | Topics |
+|----------|--------|--------|
+| Semantic Folding & SDR | [1-5] | Kanerva, Hawkins, Webber, HTM |
+| Dense Retrieval | [6-9] | DPR, ColBERT, SPLADE |
+| Classical IR | [10-12] | Vector space, BM25 |
+| Distributional Semantics | [13-15] | Harris, Firth, vocabulary mismatch |
+| Dimensionality Reduction | [16-17] | t-SNE, UMAP |
+| Morton Encoding | [18] | Z-order curve |
+| Orthogonality Constraint | [19] | Semantic interference |
+| Closed-Domain QA | [20-23] | Domain-specific QA, ontology |
+| Domain-Specific Retrieval | [24-25] | Medical, biomedical IR |
+| Benchmark Datasets | [26-32] | PubMedQA, SciFact, etc. |
+| Hyperdimensional Computing | [33-34] | VSA, HDC |
+| IR Surveys | [35-36] | BERT for IR, LLMs for IR |
+| ScienceDirect Papers | [37-69] | Domain QA, sparse vectors, hybrid retrieval |
+
+### Applying Recommendations
+
+After citation search, check `docs/recommendations.md` for:
+
+1. **New citations found** — Section "New Citations Added"
+2. **Recommendations for paper enhancement** — Specific sections to update
+3. **Key insights from search** — Patterns identified across papers
+
+**Apply recommendations by:**
+1. Reading the specific section mentioned in the recommendation
+2. Adding new citations to in-text references
+3. Expanding discussion based on new findings
+4. Updating the recommendations.md file with completion status
+
+### Thesis Chapter Update Process
+
+1. **Read the current chapter** to understand existing content
+2. **Identify claims needing citations** (especially domain-specific claims)
+3. **Search Google Scholar and ScienceDirect** for supporting papers
+4. **Add citations** in author-year format for thesis
+5. **Expand discussion** based on new findings
+6. **Update references section** at end of chapter
+7. **Verify consistency** across all chapters

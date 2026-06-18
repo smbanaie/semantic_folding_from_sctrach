@@ -294,8 +294,20 @@ This project has **no automated test suite**. To verify changes:
 ### Paper & Thesis Location
 
 - **Paper draft**: `docs/papers/paper1/semantic_folding_paper.md`
-- **Thesis chapters**: `docs/thesis/chapter{1-9}_*.md`
 - **Thesis index**: `docs/thesis/THESIS.md`
+- **Thesis chapters** (in order):
+
+| # | File | Title |
+|---|------|-------|
+| 1 | `chapter1_introduction.md` | Introduction |
+| 2 | `chapter2_literature_review.md` | Literature Review |
+| 3 | `chapter3_sf_pipeline.md` | The Semantic Folding Pipeline |
+| 4 | `chapter4_parameter_tuning.md` | Parameter Tuning |
+| 5 | `chapter5_sparse_vs_dense.md` | Sparse vs Dense Retrieval |
+| 6 | `chapter6_similarity_metrics.md` | Similarity Metrics |
+| 7 | `chapter7_experiments.md` | Experiments and Benchmark Results |
+| 8 | `chapter8_discussion.md` | Discussion |
+| 9 | `chapter9_conclusions.md` | Conclusions and Future Work |
 
 ### Citation Format
 

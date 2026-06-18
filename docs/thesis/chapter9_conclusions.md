@@ -169,7 +169,9 @@ Raw Context → LLM → Extracted Concepts → Enhanced Term-Context Matrix
 
 Use Gumbel-Softmax to make the grid mapping differentiable, enabling gradient-based optimization of the entire pipeline:
 
-$$\mathbf{y} = \text{softmax}(\mathbf{W} \cdot \mathbf{x} / \tau) \cdot \text{grid\_positions}$$
+$$y_{ij} = \frac{\exp((\log \pi_{ij} + g_{ij}) / \tau)}{\sum_{k} \exp((\log \pi_{ik} + g_{ik}) / \tau)}$$
+
+where $\pi_{ij}$ is the probability of assigning phrase $i$ to grid cell $j$, $g_{ij}$ is Gumbel noise, and $\tau$ is the temperature parameter. As $\tau \rightarrow 0$, this approaches a hard assignment.
 
 This could learn optimal grid assignments rather than relying on t-SNE.
 

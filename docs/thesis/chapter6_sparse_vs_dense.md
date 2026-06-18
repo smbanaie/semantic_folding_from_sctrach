@@ -39,15 +39,17 @@ Sparse Distributed Representations (SDRs) naturally satisfy the Orthogonality Co
 
 **1. High-dimensional binary vectors are nearly orthogonal by construction**
 
-For random binary vectors $\mathbf{x}, \mathbf{y} \in \{0,1\}^d$ with density $\rho$:
+For random binary vectors $\mathbf{x}, \mathbf{y} \in \{0,1\}^d$ with density $\rho$ (exactly $\rho d$ active bits each):
 
 $$\mathbb{E}[\cos(\mathbf{x}, \mathbf{y})] = \rho$$
 
-$$\text{Var}[\cos(\mathbf{x}, \mathbf{y})] = \frac{\rho(1-\rho)}{d}$$
+$$\text{Var}[\cos(\mathbf{x}, \mathbf{y})] = \frac{1-\rho}{d}$$
+
+This follows from the hypergeometric distribution of the intersection $|\mathcal{A} \cap \mathcal{B}|$ where $|\mathcal{A}| = |\mathcal{B}| = \rho d$.
 
 For SF with $d = 4096$ and $\rho = 0.10$:
 - Expected cosine similarity: 0.10
-- Standard deviation: 0.0047
+- Standard deviation: $\sqrt{0.90/4096} \approx 0.0149$
 - 99.9% of random pairs have cosine < 0.15
 
 **2. No training required to maintain separability**

@@ -71,9 +71,9 @@ The 64×64 grid outperforms 128×128 because:
 
 ### 4.4.1 Mathematical Formulation
 
-Spreading applies a spatial filter to active bits, creating a "semantic halo" with exponential decay:
+Spreading applies a spatial filter to active bits, creating a "semantic halo" with exponential decay. For each active cell $(u,v)$, neighbouring cells $(x,y)$ within radius $r$ receive attenuated activation:
 
-$$\tilde{Q}_{x,y} = \max_{u,v} \left( Q_{u,v} \cdot \gamma^{d((u,v), (x,y))} \right)$$
+$$\tilde{Q}_{x,y} = \sum_{(u,v): d((u,v),(x,y)) \leq r} Q_{u,v} \cdot \gamma^{d((u,v), (x,y))}$$
 
 where $\gamma = 0.5$ is the decay factor and $d$ is Chebyshev distance.
 
@@ -293,12 +293,16 @@ random_seed: 42                  # Reproducibility
 
 ### 4.11.1 Grid Size × Top Percent
 
-The interaction between grid size and top percent determines effective fingerprint density:
+The interaction between grid size and top percent determines fingerprint density. The `top_percent` parameter directly controls the fraction of grid cells retained:
 
-$$\rho_{\text{effective}} = \text{top\_percent} \times \frac{\text{avg\_active\_bits}}{g^2}$$
+$$\rho = \text{top\_percent}$$
 
-For grid=64, top=0.10: $\rho \approx 7\text{--}10\%$ (optimal)
-For grid=128, top=0.10: $\rho \approx 2\text{--}5\%$ (too sparse)
+For a 64×64 grid (4,096 cells) with top_percent=0.10:
+$$k = \lfloor 0.10 \times 4096 \rfloor = 410 \text{ active bits}$$
+
+The actual density depends on the number of unique phrases in the corpus:
+- 20-doc corpus with ~900 phrases: $\rho \approx 7\text{--}10\%$ (optimal)
+- 100-doc corpus with ~5,000 phrases: $\rho \approx 12\text{--}15\%$ (still acceptable)
 
 ### 4.11.2 Spreading × IDF Weighting
 
@@ -328,7 +332,7 @@ For top=0.10, the pipeline is robust to σ ∈ [1.0, 2.0].
 
 4. **Spreading decay**: Fixed at 0.5. Varying this (0.3, 0.7) could further tune soft-matching.
 
-5. **Normalisation formula**: Current scoring uses $\text{score} = \frac{\mathbf{q} \cdot \mathbf{d}_i}{\sqrt{\text{nnz}(\mathbf{d}_i)}}$. Alternative normalizations not explored.
+5. **Normalisation formula**: Current scoring uses L2 normalization: $\text{score} = \frac{\mathbf{q} \cdot \mathbf{d}_i}{\|\mathbf{q}\|_2 \cdot \|\mathbf{d}_i\|_2}$. The legacy sqrt_nnz normalization ($\sqrt{\text{nnz}(\mathbf{d}_i)}$) was replaced after showing -4.0% MRR on Belebele.
 
 ### 4.12.2 Future Directions
 

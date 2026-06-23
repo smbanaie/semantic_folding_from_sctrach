@@ -273,20 +273,34 @@ All benchmarks use the same recommended configuration unless noted:
 
 **Rule**: SF-only remains the best approach for BioASQ. For PubMedQA/Belebele, use SF+BM25 hybrid.
 
-### 5.7 SF+SPLADE Full Benchmark (10Q)
+### 5.7 SF+SPLADE Full Benchmark (10Q) — Updated 2026-06-18
 
 | Dataset | SF-only | SF+SPLADE | Delta | Notes |
 |---------|---------|-----------|-------|-------|
-| PubMedQA | 0.8000 | 0.8000 | 0% | Same |
+| PubMedQA | 0.8000 | **0.9200** | **+15.0%** | Major improvement |
 | Belebele | 1.0000 | 1.0000 | 0% | Perfect |
-| BioASQ | 0.4450 | **0.4533** | +1.9% | Slight improvement |
+| BioASQ | 0.4450 | **0.5267** | **+18.4%** | Major improvement |
 | PopQA | 1.0000 | 1.0000 | 0% | Perfect |
-| NarrativeQA | 1.0000 | 1.0000 | 0% | Perfect |
-| NQ-REaR | 0.5740 | **0.7667** | **+33.6%** | Major improvement |
-| HotpotQA | 0.7260 | **0.8583** | **+18.2%** | Major improvement |
-| 2WikiMultihopQA | 0.7880 | **1.0000** | **+26.9%** | Major improvement |
+| NarrativeQA | 1.0000 | 0.8100 | −19.0% | Hurts |
+| NQ-REaR | 0.5740 | **0.9200** | **+60.3%** | Major improvement |
+| HotpotQA | 0.7260 | **0.9833** | **+35.4%** | Major improvement |
+| 2WikiMultihopQA | 0.7880 | **0.9833** | **+24.8%** | Major improvement |
 
-**Finding**: SPLADE significantly improves multi-hop tasks (HotpotQA +18.2%, 2WikiMultihopQA +26.9%) and factoid retrieval (NQ-REaR +33.6%). No improvement on simple tasks (PubMedQA, PopQA, NarrativeQA). SPLADE is complementary to SF — it helps where SF struggles (compositional reasoning) but not where SF already excels (semantic matching).
+**Finding**: SPLADE shows large improvements on most multi-hop and factoid tasks: NQ-REaR +60.3%, HotpotQA +35.4%, BioASQ +18.4%, 2WikiMultihopQA +24.8%, PubMedQA +15.0%. SPLADE hurts NarrativeQA (−19.0%) — narrative queries benefit from SF's semantic matching, not lexical expansion. No change on Belebele and PopQA (already perfect with SF-only).
+
+**Rule**: Use SF+SPLADE for factoid, multi-hop, and biomedical QA. Use SF-only for narrative tasks. SF+SPLADE is the strongest universal configuration.
+
+### 5.8 Query Decomposition (P0)
+
+| Dataset | SF-only | SF+Decompose | Delta | Notes |
+|---------|---------|--------------|-------|-------|
+| NQ-REaR | 0.5740 | **0.6867** | **+19.6%** | Major improvement |
+| HotpotQA | 0.7260 | 0.5167 | -28.8% | Hurts significantly |
+| 2WikiMultihopQA | 0.7880 | 0.7917 | +0.5% | Marginal |
+
+**Finding**: Query decomposition helps on factoid retrieval (NQ-REaR +19.6%) but hurts on multi-hop QA (HotpotQA -28.8%). The decomposition logic needs improvement — current pattern matching is too simplistic for complex biomedical queries.
+
+**Rule**: Use query decomposition selectively for factoid tasks. Avoid for multi-hop QA where decomposition may lose context.
 
 ### 5.7 Query Expansion
 | Dataset | Baseline | expand_default | expand_glossary | Verdict |

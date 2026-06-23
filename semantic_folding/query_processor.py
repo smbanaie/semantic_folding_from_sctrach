@@ -1966,6 +1966,39 @@ def process_query(
         f"corpus_size={len(doc_fingerprints)}"
     )
 
+    # ── Query decomposition (optional) ────────────────────────────────────────
+    decompose = getattr(args, "decompose", False)
+    if decompose:
+        from query_decomposer import is_multi_hop_query, decompose_and_score
+        
+        if is_multi_hop_query(query):
+            logger.info(f"  [DECOMPOSE] Multi-hop query detected: {query[:60]}...")
+            
+            # Create a score function that calls process_query recursively
+            def score_fn(sub_query):
+                results, _, _ = process_query(
+                    sub_query, phrase_fingerprints, doc_fingerprints,
+                    args, idf_weights, use_morton=use_morton
+                )
+                return results
+            
+            # Decompose and score
+            decomposed_results = decompose_and_score(
+                query, score_fn, top_k=getattr(args, "top_k", 10)
+            )
+            
+            # Create metadata
+            metadata = {
+                "query": query,
+                "decomposed": True,
+                "ranking": {
+                    "total_documents": len(doc_fingerprints),
+                    "documents_above_threshold": len(decomposed_results),
+                },
+            }
+            
+            return decomposed_results, metadata, None
+    
     phrase_vocab    = set(phrase_fingerprints.keys())
     use_spacy       = not getattr(args, "no_spacy",        False)
     remove_verbs    = getattr(args, "remove_verbs",        False)
@@ -2546,6 +2579,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--min-similarity", dest="min_similarity", type=float, default=0.0,
         help="Minimum score threshold for results.",
+    )
+    parser.add_argument(
+        "--decompose", dest="decompose", action="store_true", default=False,
+        help="Enable multi-hop query decomposition for complex queries.",
     )
     parser.add_argument(
         "--doc-norm", dest="doc_norm", type=str, default="sqrt_nnz",

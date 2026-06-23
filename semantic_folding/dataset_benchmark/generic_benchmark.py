@@ -1004,6 +1004,8 @@ def cli_main():
                         help="Similarity metric for document ranking")
     p_all.add_argument("--adaptive-spreading", action="store_true",
                         help="Adjust spreading radius based on query length")
+    p_all.add_argument("--decompose", action="store_true",
+                        help="Enable multi-hop query decomposition")
     p_all.add_argument("--asymmetric", action="store_true", help="Use asymmetric containment/coverage scoring")
     p_all.add_argument("--asym-alpha", type=float, default=0.7, help="Containment weight in asymmetric mode")
     p_all.add_argument("--score-norm", type=str, default="none",

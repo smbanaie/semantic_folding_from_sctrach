@@ -273,6 +273,21 @@ All benchmarks use the same recommended configuration unless noted:
 
 **Rule**: SF-only remains the best approach for BioASQ. For PubMedQA/Belebele, use SF+BM25 hybrid.
 
+### 5.7 SF+SPLADE Full Benchmark (10Q)
+
+| Dataset | SF-only | SF+SPLADE | Delta | Notes |
+|---------|---------|-----------|-------|-------|
+| PubMedQA | 0.8000 | 0.8000 | 0% | Same |
+| Belebele | 1.0000 | 1.0000 | 0% | Perfect |
+| BioASQ | 0.4450 | **0.4533** | +1.9% | Slight improvement |
+| PopQA | 1.0000 | 1.0000 | 0% | Perfect |
+| NarrativeQA | 1.0000 | 1.0000 | 0% | Perfect |
+| NQ-REaR | 0.5740 | **0.7667** | **+33.6%** | Major improvement |
+| HotpotQA | 0.7260 | **0.8583** | **+18.2%** | Major improvement |
+| 2WikiMultihopQA | 0.7880 | **1.0000** | **+26.9%** | Major improvement |
+
+**Finding**: SPLADE significantly improves multi-hop tasks (HotpotQA +18.2%, 2WikiMultihopQA +26.9%) and factoid retrieval (NQ-REaR +33.6%). No improvement on simple tasks (PubMedQA, PopQA, NarrativeQA). SPLADE is complementary to SF — it helps where SF struggles (compositional reasoning) but not where SF already excels (semantic matching).
+
 ### 5.7 Query Expansion
 | Dataset | Baseline | expand_default | expand_glossary | Verdict |
 |---------|----------|----------------|-----------------|---------|

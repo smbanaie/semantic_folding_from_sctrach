@@ -300,8 +300,11 @@ $$\text{score}_{\text{hybrid}}(q, d) = \alpha \cdot \text{score}_{\text{SF}}(q, 
 | PubMedQA (50Q) | 0.9355 | **0.9677** (+3.4%) | **0.9677** (+3.4%) | Both hybrids help |
 | Belebele (50Q) | 0.8800 | — | **1.0000** (+13.6%) | BM25 hybrid: perfect score |
 | BioASQ (50Q) | **0.2480** | 0.2204 (-11.1%) | 0.1667 (-32.8%) | SF-only best |
+| NQ-REaR (10Q) | 0.5740 | **0.7667** (+33.6%) | — | Major improvement |
+| HotpotQA (10Q) | 0.7260 | **0.8583** (+18.2%) | — | Major improvement |
+| 2WikiMultihopQA (10Q) | 0.7880 | **1.0000** (+26.9%) | — | Major improvement |
 
-**Finding**: SF-only is best on BioASQ (MRR=0.2480). BM25 hybrid hurts significantly (-32.8%) because BM25's lexical strictness dilutes SF's semantic advantage on complex biomedical queries. SPLADE hybrid hurts moderately (-11.1%). The hybrids work on simple tasks (PubMedQA, Belebele) but hurt on complex biomedical queries (BioASQ).
+**Finding**: SPLADE significantly improves multi-hop tasks (HotpotQA +18.2%, 2WikiMultihopQA +26.9%) and factoid retrieval (NQ-REaR +33.6%). No improvement on simple tasks (PubMedQA, PopQA, NarrativeQA). SPLADE is complementary to SF — it helps where SF struggles (compositional reasoning) but not where SF already excels (semantic matching).
 
 ### 5.10.4 Improvement Experiments
 

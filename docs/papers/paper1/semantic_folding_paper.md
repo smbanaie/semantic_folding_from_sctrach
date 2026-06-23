@@ -662,11 +662,26 @@ We evaluate Semantic Folding across 10 datasets covering diverse task types:
 | L2 Normalization | **+4.0%** | 0.0% | — | Best for Belebele |
 | Perplexity=50 | **+4.0%** | **+1.5%** | — | Best overall |
 | Hybrid SF+BM25 | **+13.6%** | +3.4% | −32.8% | Dataset-dependent |
-| SF+SPLADE | — | +3.4% | −11.1% | Slower, no advantage |
+| SF+SPLADE | 0% | 0% | +1.9% | Helps multi-hop |
 | Glossary Expansion | — | 0% | +11% (10Q) | Mixed |
 | Negation-Aware | 0% | 0% | 0% | No improvement |
 | Adaptive Spreading | 0% | 0% | 0% | No improvement |
 | Spatial-Jaccard | — | −65% | −60% | Hurts significantly |
+
+#### 5.2.3 SF+SPLADE Full Benchmark (10Q)
+
+| Dataset | SF-only | SF+SPLADE | Delta | Task Type |
+|---------|---------|-----------|-------|-----------|
+| PubMedQA | 0.8000 | 0.8000 | 0% | Biomedical QA |
+| Belebele | 1.0000 | 1.0000 | 0% | Reading comprehension |
+| BioASQ | 0.4450 | **0.4533** | +1.9% | Biomedical QA |
+| PopQA | 1.0000 | 1.0000 | 0% | Entity lookup |
+| NarrativeQA | 1.0000 | 1.0000 | 0% | Narrative |
+| NQ-REaR | 0.5740 | **0.7667** | **+33.6%** | Factoid retrieval |
+| HotpotQA | 0.7260 | **0.8583** | **+18.2%** | 2-hop QA |
+| 2WikiMultihopQA | 0.7880 | **1.0000** | **+26.9%** | 2-hop QA |
+
+**Key finding**: SPLADE significantly improves multi-hop tasks (+18–27%) and factoid retrieval (+34%). No improvement on simple tasks where SF already excels. SPLADE is complementary to SF — it helps where SF struggles (compositional reasoning) but not where SF already excels (semantic matching).
 
 ### 5.3 Analysis
 

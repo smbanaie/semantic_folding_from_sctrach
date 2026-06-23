@@ -32,9 +32,9 @@ This work makes the following contributions to closed-domain QA:
 
 3. **A glossary integration mechanism** that allows domain-specific terminologies (MeSH terms, legal citations, chemical formulas) to be directly incorporated into the semantic grid, improving retrieval for specialized vocabulary without retraining.
 
-4. **A comprehensive multi-dataset benchmark** across 9 datasets (PubMedQA, Belebele, NarrativeQA, PopQA, SciFact, HotpotQA, 2WikiMultihopQA, NQ-REaR, MuSiQue) demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
+4. **A comprehensive multi-dataset benchmark** across 10 datasets (PubMedQA, Belebele, NarrativeQA, PopQA, SciFact, HotpotQA, 2WikiMultihopQA, NQ-REaR, MuSiQue, BioASQ) demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
 
-5. **A hybrid SF+BM25 architecture** that improves reading comprehension by +16.2% MRR on Belebele, providing a practical deployment strategy combining semantic coverage with lexical precision for closed-domain systems.
+5. **A hybrid SF+BM25 architecture** that improves reading comprehension by +13.6% MRR on Belebele (0.8800→1.0000), providing a practical deployment strategy combining semantic coverage with lexical precision for closed-domain systems.
 
 ## 1.4 Thesis Outline
 
@@ -51,7 +51,7 @@ This work makes the following contributions to closed-domain QA:
 
 Parts of this work have been published or are under review:
 
-- [To be completed with actual publication records]
+- [To be completed with actual publication records before final submission]
 
 ## References
 

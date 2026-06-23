@@ -109,9 +109,47 @@ SF occupies a unique position in the retrieval landscape:
 | Boolean operations | **AND/OR/NOT** | No | No | No |
 | Domain adaptation | **Instant** | Instant | Slow | Slow |
 
-## 8.4 The Hybrid Opportunity
+## 8.4 Alignment with BioASQ Task Types
 
-### 8.4.1 Cross-Dataset Hybrid Results
+The BioASQ challenge evaluates biomedical QA across four question types: **factoid**, **yes/no**, **list**, and **summary** [Nentidis et al., 2025]. The official ranking averages performance on the three exact-answer types (yes/no F1, factoid MRR, list mean F1), excluding summary from the primary leaderboard. This framework maps directly to SF's strengths and weaknesses.
+
+### 8.4.1 SF Suitability by BioASQ Question Type
+
+| BioASQ Type | Example | SF Suitability | Evidence | Key Mechanism |
+|-------------|---------|---------------|----------|---------------|
+| **Factoid** | "What protein is implicated in disease X?" | **Strong** | PubMedQA MRR=0.955, PopQA MRR=0.980 | Entity names match phrase fingerprints |
+| **Yes/No** | "Does drug X inhibit pathway Y?" | **Strong** | NarrativeQA MRR=0.939, Belebele MRR=0.880 | Supporting passage retrieval via semantic overlap |
+| **List** | "List all genes associated with disease X" | **Moderate** | DROP MRR=0.320 (partial overlap) | Single-pass retrieval may miss peripheral facets |
+| **Summary** | "Summarize the role of gene Z in cancer" | **Weak** | DocFinQA MRR=0.250 | Requires generation, not just retrieval |
+
+### 8.4.2 Why SF Excels on Factoid and Yes/No
+
+**Factoid questions** benefit from SF's phrase-level matching because:
+- The answer is a single entity (protein, drug, gene) that maps directly to domain vocabulary
+- Biomedical terms have high synonymy ("myocardial infarction" = "heart attack" = "MI"), and SF's topographic encoding captures these equivalences as grid proximity
+- Dense retrievers suffer semantic interference on semantically dense biomedical concept spaces, while SF's sparse binary fingerprints naturally maintain orthogonality
+
+**Yes/No questions** benefit from SF's semantic matching because:
+- The task requires retrieving a supporting passage with relevant evidence
+- SF's phrase-level matching excels when query terms overlap semantically with passage content — the vocabulary mismatch problem SF was designed to solve
+- Boolean verification is a single-hop task that aligns with SF's architecture
+
+### 8.4.3 Why SF Struggles on List and Summary
+
+**List questions** require retrieving multiple passages covering different facets of a topic. SF's single-pass retrieval may miss peripheral facets. Hybrid approaches (RRF fusion achieving nDCG@10=0.828, outperforming sparse-only by 14.9% [Formal et al., 2021]) suggest list retrieval benefits from combining sparse and dense signals.
+
+**Summary questions** require synthesizing information across passages into a coherent answer. SF retrieves passages but does not perform generation. This is outside SF's scope as a retrieval method.
+
+### 8.4.4 Implications for BioASQ Participation
+
+SF's alignment with BioASQ's evaluation framework is favorable:
+- The primary ranking excludes summary questions, which are SF's weakest type
+- Factoid and yes/no types — SF's strongest — drive the ranking
+- SF could compete as a retrieval component in a larger pipeline (feature extractor + sentence selection), matching the architecture described in BioASQ system papers
+
+## 8.5 The Hybrid Opportunity
+
+### 8.5.1 Cross-Dataset Hybrid Results
 
 | Dataset | SF Only | Hybrid (α=0.3) | Δ | Task Type |
 |---------|---------|----------------|---|-----------|
@@ -121,7 +159,7 @@ SF occupies a unique position in the retrieval landscape:
 
 **Key finding**: Hybrid is **task-dependent** — helps on biomedical, hurts on reading comprehension.
 
-### 8.4.2 Practical Deployment Strategy
+### 8.5.2 Practical Deployment Strategy
 
 **Stage 1**: SF retrieves top-K candidates using semantic matching (fast, no GPU)
 **Stage 2**: BM25 re-ranks using lexical matching (fast, no GPU)
@@ -129,9 +167,9 @@ SF occupies a unique position in the retrieval landscape:
 
 This three-stage architecture combines the strengths of both paradigms while mitigating their weaknesses.
 
-## 8.5 Limitations
+## 8.6 Limitations
 
-### 8.5.1 Current Limitations
+### 8.6.1 Current Limitations
 
 1. **Score compression**: All documents score within a narrow range (0.034–0.051 on NQ-REaR), limiting fine-grained ranking.
 
@@ -139,9 +177,11 @@ This three-stage architecture combines the strengths of both paradigms while mit
 
 3. **Multi-hop degradation**: Performance drops linearly with hop count (−2% for 1-hop, −33% for 2–5 hops). SF cannot compose facts across passages.
 
-4. **Computational cost**: SF indexing takes ~10 minutes for 100 queries (vs ~10 seconds for BM25). Per-query scoring takes ~30 seconds (vs ~0.01 seconds for BM25).
+4. **BioASQ performance**: SF achieves MRR=0.248 on BioASQ (50 queries, 1075 docs) — much lower than PubMedQA (MRR=0.936). The larger corpus and more complex question types (summary, list) expose SF's limitations on real-world biomedical QA.
 
-### 8.5.2 Methodological Limitations
+5. **Computational cost**: SF indexing takes ~10 minutes for 100 queries (vs ~10 seconds for BM25). Per-query scoring takes ~30 seconds (vs ~0.01 seconds for BM25). SPLADE hybrid scoring is even slower (~60s per query on 1075 docs).
+
+### 8.6.2 Methodological Limitations
 
 1. **Binary relevance**: Ground truth uses binary relevance. Graded relevance would make NDCG more discriminating.
 
@@ -149,9 +189,9 @@ This three-stage architecture combines the strengths of both paradigms while mit
 
 3. **Grid size sensitivity**: Optimal for 20-passage corpora. Larger pools need scaling guidelines.
 
-## 8.6 Implications for Retrieval Research
+## 8.7 Implications for Retrieval Research
 
-### 8.6.1 The Value of Unsupervised Methods
+### 8.7.1 The Value of Unsupervised Methods
 
 Our results demonstrate that unsupervised semantic matching can achieve competitive performance on specific task types. While supervised methods (DPR, SPLADE) achieve higher absolute scores, SF provides:
 
@@ -162,13 +202,13 @@ Our results demonstrate that unsupervised semantic matching can achieve competit
 
 These properties make SF valuable for scenarios where training data is unavailable, interpretability is required, or resource constraints prevent dense retrieval.
 
-### 8.6.2 The Vocabulary Mismatch Revisited
+### 8.7.2 The Vocabulary Mismatch Revisited
 
 SF's strong performance on PubMedQA (95.5% of BM25) and NarrativeQA (95.8% of BM25) confirms that vocabulary mismatch remains a significant challenge for lexical retrieval. SF's topographic encoding provides a principled solution: synonymous phrases map to nearby grid regions, enabling semantic matching without learning.
 
 However, SF's weaker performance on Belebele (88.4%) and NQ-REaR (89.9%) suggests that vocabulary mismatch is only one component of retrieval quality. Lexical precision, entity matching, and compositional reasoning are equally important — and SF cannot address these through semantic matching alone.
 
-### 8.6.3 The Sparse vs Dense Trade-off
+### 8.7.3 The Sparse vs Dense Trade-off
 
 The Orthogonality Constraint provides a theoretical framework for understanding the sparse-dense trade-off:
 
@@ -177,27 +217,27 @@ The Orthogonality Constraint provides a theoretical framework for understanding 
 
 SF's success on SciFact (0.755 vs. DPR's 0.675) suggests that for tasks requiring semantic matching without composition, sparse methods can match or exceed dense methods — without any training.
 
-## 8.7 Future Directions
+## 8.8 Future Directions
 
-### 8.7.1 Immediate Improvements
+### 8.8.1 Immediate Improvements
 
 1. **Negation-aware processing**: Post-processing negation detection and scoring penalties
 2. **Multi-hop decomposition**: Break complex queries into sub-queries
 3. **LambdaMART re-ranking**: Train on 35 features for +10-15% MRR improvement
 
-### 8.7.2 Medium-Term Research
+### 8.8.2 Medium-Term Research
 
 1. **LLM-enhanced semantic space**: Use LLMs to extract concepts for richer representations
 2. **End-to-end training**: Gumbel-Softmax for differentiable grid mapping
 3. **Learned sparsification**: Adaptive thresholding for document fingerprints
 
-### 8.7.3 Long-Term Vision
+### 8.8.3 Long-Term Vision
 
 1. **Cross-lingual Semantic Folding**: Multilingual retrieval via aligned semantic spaces
 2. **Streaming Semantic Folding**: Incremental updates without full recomputation
 3. **Semantic Folding for Generation**: Extending from retrieval to text generation
 
-## 8.8 Conclusion
+## 8.9 Conclusion
 
 Semantic Folding occupies a unique position in the retrieval landscape: the only method that provides unsupervised semantic matching, interpretable grid visualizations, and memory-efficient storage without any training data. While it cannot match the peak performance of supervised dense methods on all tasks, its zero-shot capability and interpretability make it invaluable for emerging domains where training data is unavailable and explainability is required.
 
@@ -211,3 +251,7 @@ As retrieval systems increasingly operate in low-resource, emerging domains, the
 - Karpukhin, V., et al. (2020). Dense Passage Retrieval. *EMNLP 2020*.
 - Santhanam, K., et al. (2022). ColBERTv2. *NAACL 2022*.
 - Zahn, O., et al. (2026). Attention Is Not Retention. arXiv:2601.15313.
+- Nentidis, A., et al. (2025). Overview of BioASQ 2024. arXiv:2508.20532.
+- Wang, L., et al. (2025). BioRAGent: A RAG System for Biomedical Q&A. arXiv:2412.12358.
+- Formal, T., et al. (2024). Mistral-SPLADE. arXiv:2408.11119.
+- Gao, Y., et al. (2024). DEXTER: Benchmark for Complex QA. arXiv:2406.17158.

@@ -18,9 +18,9 @@ This thesis has presented Semantic Folding (SF), an unsupervised retrieval archi
 
 2. **Systematic Parameter Tuning**: Comprehensive analysis of grid size, spreading steps, top percent, IDF weighting, Gaussian smoothing, Morton encoding, and document normalization with mathematical justification.
 
-3. **Multi-dataset Benchmark**: Evaluation across 9 datasets (PubMedQA, Belebele, NarrativeQA, PopQA, SciFact, HotpotQA, 2WikiMultihopQA, NQ-REaR, MuSiQue) demonstrating competitive performance.
+3. **Multi-dataset Benchmark**: Evaluation across 10 datasets (PubMedQA, Belebele, NarrativeQA, PopQA, SciFact, HotpotQA, 2WikiMultihopQA, NQ-REaR, MuSiQue, BioASQ) demonstrating competitive performance.
 
-4. **Hybrid SF+BM25 Architecture**: Combining semantic coverage with lexical precision, improving reading comprehension by +16.2% MRR on Belebele.
+4. **Hybrid SF+BM25 Architecture**: Combining semantic coverage with lexical precision, improving reading comprehension by +13.6% MRR on Belebele (0.8800→1.0000).
 
 ### 9.1.3 Empirical Contributions
 

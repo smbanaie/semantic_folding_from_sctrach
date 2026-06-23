@@ -140,9 +140,63 @@ Domain glossaries—controlled vocabularies mapping synonymous terms to canonica
 
 Ontology-based retrieval systems leverage structured knowledge to improve semantic matching (Fernández et al., 2011; Munir & Anjum, 2018; Kara et al., 2012). SF's grid positions can be aligned with ontological concepts, creating a bridge between distributional semantics and structured knowledge.
 
-## 2.6 Evaluation Framework
+## 2.6 The Current State of Sparse Retrieval for QA (2023–2025)
 
-### 2.6.1 Standard IR Metrics
+### 2.6.1 Semantic Folding's Absence from Recent Literature
+
+A systematic search of arXiv and Google Scholar reveals that **Semantic Folding has zero presence in 2023–2025 QA literature**. The only published reference is the original 2015 white paper by Webber (arXiv:1511.08855). No papers combine "semantic folding" with "question answering" on any academic search engine.
+
+This absence is both a gap and an opportunity: the approach has not been validated by the broader IR community, but it also means the thesis work filling this gap would be genuinely novel. The method must be positioned carefully against well-established alternatives (SPLADE, DPR, ColBERT) to gain credibility.
+
+### 2.6.2 Dominant Methods in BioASQ (2023–2024)
+
+BioASQ 2023 (28 teams, 150+ systems) and 2024 (37 teams, 700+ submissions) were dominated by:
+
+| Method Category | Examples | Trend |
+|----------------|----------|-------|
+| LLM-augmented retrieval | GPT-4, Llama2, Mistral for query expansion | **Rising** — winning systems use few-shot prompting |
+| Domain-specific fine-tuning | BioBERT, PubMedBERT | **Stable** — strong for answer extraction |
+| BM25 + neural reranking | BM25 first-stage + ColBERT/MonoT5 rerank | **Dominant** — most common pipeline architecture |
+| Pure sparse retrieval | BM25 alone | **Declining** — without learned expansion |
+
+Key finding: BioRAGent (arXiv:2412.12358), a successful BioASQ 2024 participant, used BM25 + Elasticsearch + LLM query expansion — confirming that sparse retrieval remains competitive when augmented with neural components.
+
+### 2.6.3 SPLADE as the Learned Sparse Baseline
+
+SPLADE (Formal et al., 2021) dominates learned sparse retrieval with recent improvements:
+
+- **Mistral-SPLADE** (arXiv:2408.11119): Decoder-only LLMs outperform encoder-only SPLADE variants; new SOTA on BEIR
+- **Two-Step SPLADE** (arXiv:2404.13357): 30x speedup for in-domain with minimal quality loss
+- **SPLATE** (arXiv:2404.13950): Combines ColBERTv2 with SPLADE adapter for CPU-efficient late interaction
+- **SPLADE for medical review** (arXiv:2405.03972): Reduces systematic review cost by 10–18%
+
+SPLADE achieves MRR=0.863 on Natural Questions — the best neural method — but requires ~500K training pairs and GPU infrastructure.
+
+### 2.6.4 The Hybrid Pipeline Dominance
+
+Recent evidence confirms that hybrid sparse+dense pipelines outperform single-method baselines:
+
+- **RRF fusion** (arXiv:2604.13728): Sparse+dense outperforms sparse-only by 14.9% and dense-only by 6.1%
+- **DEXTER benchmark** (arXiv:2406.17158): Late interaction models (ColBERT) and BM25 "surprisingly perform well compared to pre-trained dense models on complex QA"
+- **HiRAG** (arXiv:2408.11875): Sparse document-level + dense chunk-level retrieval for multi-hop QA
+- **GeAR** (arXiv:2412.18431): Graph expansion augments any sparse retriever; >10% improvement on MuSiQue
+
+**Key insight**: No unsupervised sparse method approaches SPLADE's performance levels. SF's value proposition is not matching SPLADE's accuracy, but providing unsupervised semantic matching with zero training data.
+
+### 2.6.5 BioASQ Challenge (2023–2025)
+
+BioASQ is the premier biomedical QA benchmark, evaluating systems on four question types: yes/no, factoid, list, and summary [Nentidis et al., 2025]. The official ranking averages performance on the three exact-answer types (yes/no F1, factoid MRR, list mean F1), excluding summary from the primary leaderboard.
+
+**BioASQ 2024 results** (37 teams, 700+ submissions):
+- Best factoid MRR: ~0.45 (dmiip2024_3)
+- Best yes/no accuracy: ~0.94 (UR-IW-2)
+- Dominant approaches: LLM-augmented retrieval, BM25+neural reranking, BioBERT fine-tuning
+
+**SF on BioASQ**: MRR=0.2480 (50 queries, 1075 docs). SF's phrase-level matching captures some biomedical semantics but struggles with complex queries requiring compositional reasoning. Hybrid SF+BM25 hurts (-32.8%) because BM25's lexical strictness dilutes SF's semantic advantage.
+
+## 2.7 Evaluation Framework
+
+### 2.7.1 Standard IR Metrics
 
 | Metric | Formula | Interpretation |
 |--------|---------|----------------|
@@ -151,7 +205,7 @@ Ontology-based retrieval systems leverage structured knowledge to improve semant
 | NDCG@K | $\frac{\text{DCG@K}}{\text{IDCG@K}}$ | Ranking quality vs optimal |
 | P@K | $\frac{|\mathcal{R} \cap \text{top-}K|}{K}$ | Precision at cutoff |
 
-### 2.6.2 Benchmark Datasets
+### 2.7.2 Benchmark Datasets
 
 Our evaluation spans 9 datasets covering diverse task types:
 
@@ -196,3 +250,17 @@ Our evaluation spans 9 datasets covering diverse task types:
 - Santhanam, K., et al. (2022). ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction. *NAACL 2022*.
 - van der Maaten, L., & Hinton, G. (2008). Visualizing data using t-SNE. *JMLR*, 9, 2579–2605.
 - Zahn, O., et al. (2026). Attention Is Not Retention: The Orthogonality Constraint. arXiv:2601.15313.
+- Nentidis, A., et al. (2025). Overview of BioASQ 2024: The twelfth BioASQ challenge. arXiv:2508.20532.
+- Krithara, A., et al. (2024). BioASQ-QA: A manually curated corpus for Biomedical Question Answering. *Scientific Data*, 10, 170.
+- Formal, T., et al. (2024). Mistral-SPLADE: LLMs for better Learned Sparse Retrieval. arXiv:2408.11119.
+- Lin, J., et al. (2024). Two-Step SPLADE: Simple, Efficient and Effective Approximation. *ECIR 2024 Findings*. arXiv:2404.13357.
+- Paria, B., et al. (2024). SPLATE: Sparse Late Interaction Retrieval. *SIGIR 2024*. arXiv:2404.13950.
+- Wang, L., et al. (2025). BioRAGent: A RAG System for Biomedical Q&A. *ECIR 2025*. arXiv:2412.12358.
+- Gao, Y., et al. (2024). DEXTER: Benchmark for Complex QA using LLMs. arXiv:2406.17158.
+- Ma, X., et al. (2024). HiRAG: Hierarchical RAG with Rethink. arXiv:2408.11875.
+- Chen, J., et al. (2024). GeAR: Graph-enhanced Agent for RAG. *ACL 2025 Findings*. arXiv:2412.18431.
+- Webber, F. (2015). Semantic Folding Theory and its Application in Semantic Fingerprinting. arXiv:1511.08855.
+- BMQExpander (2025). BM25+ontology query expansion competitive with dense retrievers. arXiv:2508.11784.
+- RRF Fusion (2026). Reciprocal Rank Fusion of sparse and dense retrieval. arXiv:2604.13728.
+- Domain Dense Retrievers (2025). General-purpose dense retrievers struggle with specialized domains. arXiv:2510.04757.
+- Joint Document-Snippet Ranking (2021). PDRMM competitive with BERT at fraction of parameters. arXiv:2106.08908.

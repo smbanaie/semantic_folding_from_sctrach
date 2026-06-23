@@ -34,7 +34,7 @@ docs/
 | `docs/reports/REPORTS.md` | **Index** — version history table + report file references | After every benchmark run |
 | `docs/recommendations.md` | **Roadmap** — future work, improvement priorities, tested experiments | When new improvements are tested |
 | `docs/reports/<dataset>/` | **Deep dives** — per-dataset detailed analysis with failure patterns | Per-dataset |
-| `semantic_folding/benchmarks.md` | **Thesis foundation** — methodology, parameter justification, academic framing | After significant changes |
+| `docs/thesis/benchmarks.md` | **Thesis foundation** — methodology, parameter justification, academic framing | After significant changes |
 
 ## PhD Thesis Markdown Files (Foundation Documents)
 
@@ -42,15 +42,15 @@ These files are the foundation of the PhD thesis and MUST be updated after each 
 
 | File | Topic | Status |
 |------|-------|--------|
-| `semantic_folding/benchmarks.md` | Benchmarking methodology, multi-dataset results | ✅ Updated |
-| `semantic_folding/metrics.md` | Retrieval metrics & evaluation framework | ✅ Current |
-| `semantic_folding/parameters_tuning.md` | Parameter tuning experiments | ✅ Current |
-| `semantic_folding/fingerprints.md` | Phrase/doc fingerprint encoding | ✅ Current |
-| `semantic_folding/query_processing.md` | Query processing architecture | ✅ Current |
-| `semantic_folding/sematic_space.md` | Semantic space construction | ✅ Current |
-| `semantic_folding/phrase_extractor.md` | Phrase extraction pipeline | ✅ Current |
-| `semantic_folding/term_context.md` | Term-context matrix | ✅ Current |
-| `semantic_folding/lib.md` | Library utilities | ✅ Current |
+| `docs/thesis/benchmarks.md` | Benchmarking methodology, multi-dataset results | ✅ Updated |
+| `docs/thesis/archive/metrics.md` | Retrieval metrics & evaluation framework | ✅ Current |
+| `docs/thesis/archive/parameters_tuning.md` | Parameter tuning experiments | ✅ Current |
+| `docs/thesis/archive/fingerprints.md` | Phrase/doc fingerprint encoding | ✅ Current |
+| `docs/thesis/archive/query_processing.md` | Query processing architecture | ✅ Current |
+| `docs/thesis/archive/semantic_space.md` | Semantic space construction | ✅ Current |
+| `docs/thesis/archive/phrase_extractor.md` | Phrase extraction pipeline | ✅ Current |
+| `docs/thesis/archive/term_context.md` | Term-context matrix | ✅ Current |
+| `docs/thesis/archive/lib.md` | Library utilities | ✅ Current |
 
 **Rule:** After any benchmark improvement, update `benchmarks.md` with new results, metrics, and academic evidence.
 

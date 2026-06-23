@@ -1,12 +1,12 @@
 # Chapter 5: Sparse vs Dense Retrieval — A Fundamental Trade-off
 
-## 6.1 Introduction
+## 5.1 Introduction
 
 The retrieval landscape is divided into two fundamental paradigms: **sparse methods** (BM25, SF, SPLADE) that operate on explicit term/bit representations, and **dense methods** (DPR, ColBERT, Contriever) that operate on learned continuous embeddings. This chapter provides a comprehensive analysis of the trade-offs between these paradigms, grounded in recent theoretical work on memory interference and validated by our empirical benchmarks.
 
-## 6.2 Theoretical Foundations
+## 5.2 Theoretical Foundations
 
-### 6.2.1 The Orthogonality Constraint
+### 5.2.1 The Orthogonality Constraint
 
 Recent theoretical work (Zahn et al., 2026) identifies the **Orthogonality Constraint**: reliable memory requires orthogonal keys, but semantic embeddings cannot be orthogonal because training clusters similar concepts together.
 
@@ -20,7 +20,7 @@ $$\cos(\mathbf{k}_i, \mathbf{k}_j) > 0 \quad \text{when } \text{sem}(i, j) > \th
 
 This creates **Semantic Interference** — memory collapse when storing many related facts.
 
-### 6.2.2 Semantic Interference
+### 5.2.2 Semantic Interference
 
 The Orthogonality Constraint leads to a fundamental limitation:
 
@@ -33,7 +33,7 @@ The Orthogonality Constraint leads to a fundamental limitation:
 - Scientific measurements ($\rho = 0.96$): 0.02% accuracy at N=10,000
 - Image embeddings ($\rho = 0.82$): 0.05% accuracy at N=2,000
 
-### 6.2.3 Why Sparse Methods Avoid Interference
+### 5.2.3 Why Sparse Methods Avoid Interference
 
 Sparse Distributed Representations (SDRs) naturally satisfy the Orthogonality Constraint through three mechanisms:
 
@@ -64,9 +64,9 @@ $$P(\text{overlap}) = \rho^2 \approx 0.01\text{--}0.06$$
 
 This is orders of magnitude lower than the interference levels in dense embeddings.
 
-## 6.3 Empirical Comparison
+## 5.3 Empirical Comparison
 
-### 6.3.1 Performance Across Task Types
+### 5.3.1 Performance Across Task Types
 
 | Task Type | SF MRR | BM25 MRR | DPR MRR | Best |
 |-----------|--------|----------|---------|------|
@@ -78,8 +78,9 @@ This is orders of magnitude lower than the interference levels in dense embeddin
 | 2-hop QA | **0.757** | 0.895 | ~0.78 | BM25 |
 | Factoid retrieval | **0.574** | 0.638 | 0.794 | DPR |
 | Multi-hop QA | **0.453** | 0.672 | ~0.65 | BM25 |
+| **BioASQ** | **0.248** | — | — | **SF-only** |
 
-### 6.3.2 Key Findings
+### 5.3.2 Key Findings
 
 **1. SF matches or exceeds DPR on SciFact (0.755 vs 0.675)**
 
@@ -99,9 +100,9 @@ Factoid retrieval requires precise entity matching that SF's phrase-level granul
 
 SF cannot compose facts across passages — it matches phrases independently. Dense methods learn compositional patterns through training.
 
-## 6.4 The Training Data Trade-off
+## 5.4 The Training Data Trade-off
 
-### 6.4.1 Resource Requirements
+### 5.4.1 Resource Requirements
 
 | Aspect | SF | BM25 | DPR | ColBERT | SPLADE |
 |--------|-----|------|-----|---------|--------|
@@ -112,7 +113,7 @@ SF cannot compose facts across passages — it matches phrases independently. De
 | **Query time** | ~30s | ~0.01s | ~0.1s | ~0.2s | ~0.05s |
 | **GPU required** | No | No | Yes | Yes | Optional |
 
-### 6.4.2 The Zero-Shot Advantage
+### 5.4.2 The Zero-Shot Advantage
 
 SF's most significant advantage is **zero-shot domain adaptation**:
 
@@ -125,9 +126,9 @@ SF's most significant advantage is **zero-shot domain adaptation**:
 
 **Example**: When a new biomedical subfield emerges (e.g., long COVID research), SF can immediately index and retrieve documents without any labeled training data. DPR and SPLADE require annotated retrieval pairs that may not exist for emerging topics.
 
-## 6.5 The Compositional Gap
+## 5.5 The Compositional Gap
 
-### 6.5.1 Theoretical Limitation
+### 5.5.1 Theoretical Limitation
 
 Sparse methods store individual facts but cannot compose them. A query like "Who was the spouse of the Green performer?" requires:
 
@@ -137,7 +138,7 @@ Sparse methods store individual facts but cannot compose them. A query like "Who
 
 SF can match "Green performer" to a passage, but it cannot compose the result with a second passage. This is a fundamental architectural limitation.
 
-### 6.5.2 Empirical Evidence
+### 5.5.2 Empirical Evidence
 
 | Dataset | Hop Count | SF MRR | BM25 MRR | Gap |
 |---------|-----------|--------|----------|-----|
@@ -149,7 +150,7 @@ SF can match "Green performer" to a passage, but it cannot compose the result wi
 
 The degradation is approximately linear with hop count: -2% for 1-hop, -15% for 2-hop, -33% for 2-5 hops.
 
-### 6.5.3 Why Dense Methods Handle Composition
+### 5.5.3 Why Dense Methods Handle Composition
 
 Dense methods learn compositional patterns through training on multi-hop QA datasets. The training signal teaches the model to:
 1. Recognize entity chains across passages
@@ -158,9 +159,9 @@ Dense methods learn compositional patterns through training on multi-hop QA data
 
 SF cannot learn these patterns because it has no training phase — it operates purely on distributional similarity.
 
-## 6.6 The Memory and Speed Trade-off
+## 5.6 The Memory and Speed Trade-off
 
-### 6.6.1 Storage Efficiency
+### 5.6.1 Storage Efficiency
 
 | Method | Bytes/Document | 1M Documents | Compression vs DPR |
 |--------|----------------|--------------|-------------------|
@@ -172,7 +173,7 @@ SF cannot learn these patterns because it has no training phase — it operates 
 
 SF's 512 bytes/document is remarkable — achieved through binary encoding and sparse storage.
 
-### 6.6.2 Query Latency
+### 5.6.2 Query Latency
 
 | Method | Query Time | GPU Required | Real-time? |
 |--------|------------|--------------|------------|
@@ -186,9 +187,44 @@ SF's query time (~30s) is 3000× slower than BM25 (~0.01s). This makes SF suitab
 
 **Optimization opportunity**: SF's query time is dominated by sparse matrix operations. GPU acceleration or approximate nearest neighbor search could reduce this to ~1s.
 
-## 6.7 The Interpretability Advantage
+## 5.7 The Competitive Landscape (2023–2025)
 
-### 6.7.1 SF's Unique Interpretability
+### 5.7.1 SPLADE as the Learned Sparse Baseline
+
+SPLADE dominates learned sparse retrieval. Recent improvements include:
+
+- **Mistral-SPLADE** (arXiv:2408.11119): Decoder-only LLMs outperform encoder-only variants; new SOTA on BEIR
+- **Two-Step SPLADE** (arXiv:2404.13357): 30× speedup for in-domain with minimal quality loss
+- **SPLATE** (arXiv:2404.13950): ColBERTv2 + SPLADE adapter for CPU-efficient late interaction
+- **SPLADE for medical review** (arXiv:2405.03972): Reduces systematic review cost by 10–18%
+
+SPLADE achieves MRR=0.863 on Natural Questions — the best neural method — but requires ~500K training pairs and GPU infrastructure.
+
+### 5.7.2 Hybrid Pipeline Dominance
+
+Recent evidence confirms hybrid sparse+dense pipelines outperform single-method baselines:
+
+| System | Method | Key Finding | Source |
+|--------|--------|-------------|--------|
+| RRF Fusion | Sparse+dense reciprocal rank fusion | Outperforms sparse-only by 14.9%, dense-only by 6.1% | arXiv:2604.13728 |
+| DEXTER | ColBERT + BM25 on complex QA | "Late interaction and lexical models surprisingly perform well vs. pre-trained dense models" | arXiv:2406.17158 |
+| HiRAG | Sparse doc-level + dense chunk-level | Multi-hop QA via hierarchical retrieval | arXiv:2408.11875 |
+| GeAR | Graph expansion + sparse retriever | >10% improvement on MuSiQue | arXiv:2412.18431 |
+
+**Key insight**: No unsupervised sparse method approaches SPLADE's performance levels. SF's value proposition is not matching SPLADE's accuracy, but providing unsupervised semantic matching with zero training data.
+
+### 5.7.3 SF's Position in the Landscape
+
+| Method | Training | Best Task | SF Advantage |
+|--------|----------|-----------|--------------|
+| BM25 | None | Lexical exact match | SF adds semantics |
+| SPLADE | ~500K pairs | General retrieval | SF needs no training |
+| DPR | ~50K pairs | Factoid retrieval | SF is interpretable |
+| ColBERT | ~500K pairs | Reading comprehension | SF is memory-efficient |
+
+## 5.8 The Interpretability Advantage
+
+### 5.8.1 SF's Unique Interpretability
 
 SF provides interpretability through 2D grid visualizations that no dense method can match:
 
@@ -198,7 +234,7 @@ SF provides interpretability through 2D grid visualizations that no dense method
 | **Document grid** | Which concepts activated document | Understanding document content |
 | **Overlap grid** | Where query and document intersect | Explaining ranking decisions |
 
-### 6.7.2 Comparison with Dense Methods
+### 5.8.2 Comparison with Dense Methods
 
 | Method | Interpretability | Explanation |
 |--------|------------------|-------------|
@@ -208,7 +244,7 @@ SF provides interpretability through 2D grid visualizations that no dense method
 | ColBERT | Token matching | Shows token-level similarity |
 | SPLADE | Partial | Shows expanded terms |
 
-### 6.7.3 Value of Interpretability
+### 5.8.3 Value of Interpretability
 
 Interpretability is critical for:
 1. **Debugging retrieval failures**: Understanding why a document was ranked poorly
@@ -216,9 +252,9 @@ Interpretability is critical for:
 3. **Educational purposes**: Teaching how semantic retrieval works
 4. **Legal/medical applications**: Requiring explainable decisions
 
-## 6.8 When to Use Sparse vs Dense
+## 5.9 When to Use Sparse vs Dense
 
-### 6.8.1 Use Sparse Methods (SF, BM25) When:
+### 5.9.1 Use Sparse Methods (SF, BM25) When:
 
 - **No labeled training data available** — cold start scenarios
 - **Domain is new or rapidly evolving** — emerging topics
@@ -227,7 +263,7 @@ Interpretability is critical for:
 - **Boolean operations on fingerprints are needed** — AND/OR/NOT reasoning
 - **Offline batch retrieval** — not real-time
 
-### 6.8.2 Use Dense Methods (DPR, ColBERT, SPLADE) When:
+### 5.9.2 Use Dense Methods (DPR, ColBERT, SPLADE) When:
 
 - **Labeled training data is available** — established domains
 - **Compositional reasoning is required** — multi-hop QA
@@ -235,19 +271,19 @@ Interpretability is critical for:
 - **GPU resources are available** — production infrastructure
 - **Real-time query latency is needed** — search engines
 
-### 6.8.3 Use Hybrid Approaches When:
+### 5.9.3 Use Hybrid Approaches When:
 
 - **Both semantic coverage and lexical precision are needed**
 - **Training data is partially available**
 - **Application can tolerate multi-stage retrieval**
 
-## 6.9 The Hybrid Opportunity
+## 5.10 The Hybrid Opportunity
 
-### 6.9.1 Hybrid SF+BM25 Architecture
+### 5.10.1 Hybrid SF+BM25 Architecture
 
 $$\text{score}_{\text{hybrid}}(q, d) = \alpha \cdot \text{score}_{\text{SF}}(q, d) + (1 - \alpha) \cdot \text{score}_{\text{BM25}}(q, d)$$
 
-### 6.9.2 Cross-Dataset Results
+### 5.10.2 Cross-Dataset Results
 
 | Dataset | SF Only | Hybrid (α=0.3) | Δ | Task Type |
 |---------|---------|----------------|---|-----------|
@@ -257,15 +293,36 @@ $$\text{score}_{\text{hybrid}}(q, d) = \alpha \cdot \text{score}_{\text{SF}}(q, 
 
 **Key finding**: Hybrid is task-dependent — helps on biomedical, hurts on reading comprehension.
 
-### 6.9.3 Practical Deployment Strategy
+### 5.10.3 Hybrid SF+SPLADE Results
+
+| Dataset | Pure SF | SF+SPLADE α=0.3 | SF+BM25 α=0.3 | Verdict |
+|---------|---------|-----------------|---------------|---------|
+| PubMedQA (50Q) | 0.9355 | **0.9677** (+3.4%) | **0.9677** (+3.4%) | Both hybrids help |
+| Belebele (50Q) | 0.8800 | — | **1.0000** (+13.6%) | BM25 hybrid: perfect score |
+| BioASQ (50Q) | **0.2480** | 0.2204 (-11.1%) | 0.1667 (-32.8%) | SF-only best |
+
+**Finding**: SF-only is best on BioASQ (MRR=0.2480). BM25 hybrid hurts significantly (-32.8%) because BM25's lexical strictness dilutes SF's semantic advantage on complex biomedical queries. SPLADE hybrid hurts moderately (-11.1%). The hybrids work on simple tasks (PubMedQA, Belebele) but hurt on complex biomedical queries (BioASQ).
+
+### 5.10.4 Improvement Experiments
+
+| Dataset | Glossary | Negation | Adaptive | Spatial J |
+|---------|----------|----------|----------|-----------|
+| PubMedQA 50Q | 0.9355 (0%) | 0.9355 (0%) | 0.9355 (0%) | 0.3226 (-65%) |
+| BioASQ 10Q | 0.4950 (+11%) | 0.4450 (0%) | 0.4450 (0%) | 0.1000 (-60%) |
+
+**Finding**: None of the tested improvements provided consistent gains. Glossary expansion helps on BioASQ 10Q (+11%) but hurts on 50Q (-4.7%). Negation-aware and adaptive spreading show no improvement because BioASQ queries lack negation patterns and are already long enough. Spatial-Jaccard hurts significantly — Morton proximity weighting doesn't improve ranking for biomedical queries.
+
+**Conclusion**: SF-only remains the best unsupervised approach. The bottleneck is SF's phrase-level matching architecture, not the scoring method. Future improvements require architectural changes (query decomposition, ontology-guided retrieval, multi-stage pipelines).
+
+### 5.10.5 Practical Deployment Strategy
 
 **Stage 1**: SF retrieves top-K candidates (fast, no GPU)
 **Stage 2**: BM25 re-ranks using lexical matching (fast, no GPU)
 **Stage 3**: (Optional) Dense re-ranker for final precision (slow, GPU)
 
-## 6.10 Theoretical Implications
+## 5.11 Theoretical Implications
 
-### 6.10.1 The Sparse-Dense Spectrum
+### 5.11.1 The Sparse-Dense Spectrum
 
 Our analysis reveals a spectrum rather than a binary choice:
 
@@ -280,7 +337,7 @@ BM25    SF    SPLADE    DPR    ColBERT
 - **DPR**: Learned dense embeddings
 - **ColBERT**: Token-level dense interaction
 
-### 6.10.2 The Fundamental Trade-off
+### 5.11.2 The Fundamental Trade-off
 
 The trade-off can be summarized as:
 
@@ -291,7 +348,7 @@ The trade-off can be summarized as:
 
 This trade-off is fundamental and cannot be eliminated by architectural improvements. It stems from the Orthogonality Constraint: learning to separate semantically similar concepts requires training data, while sparse methods achieve separation through mathematical properties of high-dimensional binary vectors.
 
-## 6.11 Conclusion
+## 5.12 Conclusion
 
 The sparse-dense trade-off is a fundamental architectural choice with clear implications:
 
@@ -307,3 +364,9 @@ SF occupies a unique niche: the only method that provides unsupervised semantic 
 - Karpukhin, V., et al. (2020). Dense Passage Retrieval. *EMNLP 2020*.
 - Santhanam, K., et al. (2022). ColBERTv2. *NAACL 2022*.
 - Zahn, O., et al. (2026). Attention Is Not Retention: The Orthogonality Constraint. arXiv:2601.15313.
+- Formal, T., et al. (2024). Mistral-SPLADE. arXiv:2408.11119.
+- Lin, J., et al. (2024). Two-Step SPLADE. *ECIR 2024 Findings*. arXiv:2404.13357.
+- Paria, B., et al. (2024). SPLATE. *SIGIR 2024*. arXiv:2404.13950.
+- Gao, Y., et al. (2024). DEXTER: Benchmark for Complex QA. arXiv:2406.17158.
+- Ma, X., et al. (2024). HiRAG. arXiv:2408.11875.
+- Chen, J., et al. (2024). GeAR. *ACL 2025 Findings*. arXiv:2412.18431.

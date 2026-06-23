@@ -1,12 +1,12 @@
 # Chapter 6: Similarity Metrics for Sparse Distributed Representations
 
-## 7.1 Introduction
+## 6.1 Introduction
 
 The choice of similarity metric fundamentally affects retrieval performance. For Sparse Distributed Representations (SDRs), the metric must account for the high-dimensional, sparse, and often binary nature of the vectors. This chapter provides a comprehensive analysis of similarity metrics applicable to SF, with mathematical formulations, theoretical properties, and empirical validation.
 
-## 7.2 Theoretical Framework
+## 6.2 Theoretical Framework
 
-### 7.2.1 Metric Properties
+### 6.2.1 Metric Properties
 
 A valid similarity metric $\text{sim}: \mathcal{X} \times \mathcal{X} \rightarrow \mathbb{R}$ should satisfy:
 
@@ -19,7 +19,7 @@ A valid similarity metric $\text{sim}: \mathcal{X} \times \mathcal{X} \rightarro
 
 **Note**: Retrieval is inherently **asymmetric** — we want to score how well a document $D$ satisfies a query $Q$, not vice versa. Standard symmetric metrics may not capture this directionality.
 
-### 7.2.2 SDR-Specific Considerations
+### 6.2.2 SDR-Specific Considerations
 
 For SDRs with dimensions $d = g^2$ (e.g., 4,096 for 64×64 grid) and density $\rho \approx 0.10$:
 
@@ -27,9 +27,9 @@ For SDRs with dimensions $d = g^2$ (e.g., 4,096 for 64×64 grid) and density $\r
 2. **Binary/Continuous**: Fingerprints can be binary $\{0,1\}$ or continuous $\mathbb{R}^+$
 3. **Locality preservation**: Morton encoding ensures spatial proximity → Hamming-like distance
 
-## 7.3 Cosine Similarity (Default)
+## 6.3 Cosine Similarity (Default)
 
-### 7.3.1 Formulation
+### 6.3.1 Formulation
 
 Given query fingerprint $\mathbf{q} \in \mathbb{R}^{g^2}$ and document fingerprint $\mathbf{d} \in \mathbb{R}^{g^2}$:
 
@@ -39,7 +39,7 @@ With L2-normalized query ($\|\mathbf{q}\|_2 = 1$):
 
 $$\text{sim}_{\cos}(\mathbf{q}, \mathbf{d}) = \frac{\mathbf{q} \cdot \mathbf{d}}{\|\mathbf{d}\|_2}$$
 
-### 7.3.2 Properties
+### 6.3.2 Properties
 
 | Property | Value | Interpretation |
 |----------|-------|----------------|
@@ -48,19 +48,19 @@ $$\text{sim}_{\cos}(\mathbf{q}, \mathbf{d}) = \frac{\mathbf{q} \cdot \mathbf{d}}
 | Computational cost | $O(d)$ | Linear in dimensionality |
 | Sensitivity to magnitude | Yes | Higher activation → higher score |
 
-### 7.3.3 Advantages for SF
+### 6.3.3 Advantages for SF
 
 1. **Leverages activation magnitudes**: Continuous-valued SF fingerprints encode semantic strength
 2. **Well-understood**: Standard metric in information retrieval
 3. **Efficient**: Fast sparse matrix operations
 
-### 7.3.4 Limitations
+### 6.3.4 Limitations
 
 1. **Ignores bit position**: Two documents with same number of active bits in different positions score identically
 2. **Sparsity bias**: Very sparse vectors tend to have higher cosine similarity
 3. **Loses asymmetry**: $\text{sim}(q, d) = \text{sim}(d, q)$ even though retrieval is asymmetric
 
-### 7.3.5 Empirical Performance
+### 6.3.5 Empirical Performance
 
 | Dataset | Cosine MRR | Best Alternative | Δ |
 |---------|------------|------------------|---|
@@ -69,15 +69,15 @@ $$\text{sim}_{\cos}(\mathbf{q}, \mathbf{d}) = \frac{\mathbf{q} \cdot \mathbf{d}}
 
 **Conclusion**: Cosine is preferred for float-valued SF fingerprints at ~7.8% density.
 
-## 7.4 Dice Coefficient (Sørensen–Dice)
+## 6.4 Dice Coefficient (Sørensen–Dice)
 
-### 7.4.1 Formulation
+### 6.4.1 Formulation
 
 $$D(\mathbf{q}, \mathbf{d}) = \frac{2|\mathcal{A} \cap \mathcal{B}|}{|\mathcal{A}| + |\mathcal{B}|}$$
 
 where $\mathcal{A} = \{i : q_i > 0\}$ and $\mathcal{B} = \{i : d_i > 0\}$ are active bit sets.
 
-### 7.4.2 Properties
+### 6.4.2 Properties
 
 | Property | Value | Interpretation |
 |----------|-------|----------------|
@@ -86,30 +86,30 @@ where $\mathcal{A} = \{i : q_i > 0\}$ and $\mathcal{B} = \{i : d_i > 0\}$ are ac
 | Bias | Toward smaller set | Favors queries over documents |
 | Binary equivalence | $D = \cos$ for binary vectors | Mathematically equivalent |
 
-### 7.4.3 Advantages
+### 6.4.3 Advantages
 
 1. **Set-based**: Ignores activation magnitudes, focuses on bit positions
 2. **Biased toward query**: Appropriate for asymmetric retrieval
 3. **Efficient**: Set intersection operations on sparse vectors
 
-### 7.4.4 Limitations
+### 6.4.4 Limitations
 
 1. **Ignores magnitudes**: Cannot distinguish strong from weak activations
 2. **Equivalent to cosine for binary**: No advantage over cosine for binarized fingerprints
 
-### 7.4.5 When to Use
+### 6.4.5 When to Use
 
 - Binary fingerprints ($\{0,1\}^d$)
 - Short queries where query-document asymmetry matters
 - When activation magnitudes are not informative
 
-## 7.5 Jaccard Index
+## 6.5 Jaccard Index
 
-### 7.5.1 Formulation
+### 6.5.1 Formulation
 
 $$J(\mathbf{q}, \mathbf{d}) = \frac{|\mathcal{A} \cap \mathcal{B}|}{|\mathcal{A} \cup \mathcal{B}|}$$
 
-### 7.5.2 Properties
+### 6.5.2 Properties
 
 | Property | Value | Interpretation |
 |----------|-------|----------------|
@@ -117,14 +117,14 @@ $$J(\mathbf{q}, \mathbf{d}) = \frac{|\mathcal{A} \cap \mathcal{B}|}{|\mathcal{A}
 | Symmetry | Yes | Symmetric |
 | Shared absence | Excludes $M_{00}$ | Appropriate for sparse data |
 
-### 7.5.3 Theoretical Justification
+### 6.5.3 Theoretical Justification
 
 Jaccard is the standard metric for binary sets (Broder, 1997) because:
 1. Excludes shared absences ($M_{00}$) which are uninformative for sparse data
 2. Normalizes by union size, accounting for different set sizes
 3. Has strong theoretical properties for MinHash-based approximate similarity
 
-### 7.5.4 Relationship to Other Metrics
+### 6.5.4 Relationship to Other Metrics
 
 For binary vectors with active bit counts $|\mathcal{A}| = a$, $|\mathcal{B}| = b$, intersection $|\mathcal{A} \cap \mathcal{B}| = c$:
 
@@ -134,7 +134,7 @@ $$D = \frac{2c}{a + b}$$
 
 $$O = \frac{c}{\min(a, b)}$$
 
-### 7.5.5 Empirical Performance
+### 6.5.5 Empirical Performance
 
 | Dataset | Jaccard MRR | Cosine MRR | Δ |
 |---------|-------------|------------|---|
@@ -143,13 +143,13 @@ $$O = \frac{c}{\min(a, b)}$$
 
 **Conclusion**: Jaccard underperforms cosine for float-valued SF fingerprints.
 
-## 7.6 Overlap Coefficient
+## 6.6 Overlap Coefficient
 
-### 7.6.1 Formulation
+### 6.6.1 Formulation
 
 $$O(\mathbf{q}, \mathbf{d}) = \frac{|\mathcal{A} \cap \mathcal{B}|}{\min(|\mathcal{A}|, |\mathcal{B}|)}$$
 
-### 7.6.2 Properties
+### 6.6.2 Properties
 
 | Property | Value | Interpretation |
 |----------|-------|----------------|
@@ -157,7 +157,7 @@ $$O(\mathbf{q}, \mathbf{d}) = \frac{|\mathcal{A} \cap \mathcal{B}|}{\min(|\mathc
 | Symmetry | Yes | Symmetric |
 | Robustness | Maximum | Immune to set size differences |
 
-### 7.6.3 Theoretical Justification
+### 6.6.3 Theoretical Justification
 
 Overlap coefficient is optimal when:
 1. Queries are shorter than documents (typical in IR)
@@ -166,7 +166,7 @@ Overlap coefficient is optimal when:
 
 Returns 1.0 when $\mathcal{A} \subseteq \mathcal{B}$ — ideal for passage retrieval where the gold passage contains all query concepts.
 
-### 7.6.4 Empirical Performance
+### 6.6.4 Empirical Performance
 
 | Dataset | Overlap MRR | Cosine MRR | Δ |
 |---------|-------------|------------|---|
@@ -175,13 +175,13 @@ Returns 1.0 when $\mathcal{A} \subseteq \mathcal{B}$ — ideal for passage retri
 
 **Interesting**: Overlap outperforms cosine on MuSiQue (multi-hop) where query-document size asymmetry is extreme.
 
-## 7.7 IDF-Weighted Intersection
+## 6.7 IDF-Weighted Intersection
 
-### 7.7.1 Formulation
+### 6.7.1 Formulation
 
 $$S_{\text{idf}}(\mathbf{q}, \mathbf{d}) = \frac{\sum_{i \in \mathcal{A} \cap \mathcal{B}} w_i^{\text{idf}}}{\sum_{i \in \mathcal{A}} w_i^{\text{idf}}}$$
 
-### 7.7.2 Properties
+### 6.7.2 Properties
 
 | Property | Value | Interpretation |
 |----------|-------|----------------|
@@ -189,18 +189,18 @@ $$S_{\text{idf}}(\mathbf{q}, \mathbf{d}) = \frac{\sum_{i \in \mathcal{A} \cap \m
 | Asymmetry | Inherently asymmetric | Query-weighted |
 | Rare term emphasis | Yes | High IDF → high weight |
 
-### 7.7.3 Theoretical Justification
+### 6.7.3 Theoretical Justification
 
 Analogous to BM25's term frequency saturation (Sparck Jones, 1972):
 - Rare concepts (high IDF) contribute more to the score
 - Common concepts (low IDF) are down-weighted
 - Matches the intuition that rare terms are more discriminative
 
-### 7.7.4 Implementation Requirement
+### 6.7.4 Implementation Requirement
 
 Requires mapping from bit positions back to the concepts that activated them, maintained in the term-context matrix.
 
-### 7.7.5 Empirical Performance
+### 6.7.5 Empirical Performance
 
 | Dataset | IDF MRR | Cosine MRR | Δ |
 |---------|---------|------------|---|
@@ -209,13 +209,13 @@ Requires mapping from bit positions back to the concepts that activated them, ma
 
 **Interesting**: IDF weighting outperforms cosine on NQ-REaR (factoid retrieval) where rare entity terms are critical.
 
-## 7.8 Asymmetric Scoring
+## 6.8 Asymmetric Scoring
 
-### 7.8.1 Motivation
+### 6.8.1 Motivation
 
 Standard set similarity is symmetric: $J(A,B) = J(B,A)$. But retrieval is inherently asymmetric — we want to score how well a document satisfies a query.
 
-### 7.8.2 Query Containment (Recall-like)
+### 6.8.2 Query Containment (Recall-like)
 
 $$S_{\text{contain}}(\mathbf{q}, \mathbf{d}) = \frac{|\mathcal{A} \cap \mathcal{B}|}{|\mathcal{A}|}$$
 
@@ -223,13 +223,13 @@ Measures what fraction of query concepts are present in the document.
 
 **Example**: If $\mathcal{A} = \{\text{NBA, basketball, oldest}\}$ and $\mathcal{B} = \{\text{NBA, basketball, history, Eddie Gottlieb}\}$, then $S_{\text{contain}} = 2/3$.
 
-### 7.8.3 Document Coverage (Precision-like)
+### 6.8.3 Document Coverage (Precision-like)
 
 $$S_{\text{cover}}(\mathbf{q}, \mathbf{d}) = \frac{|\mathcal{A} \cap \mathcal{B}|}{|\mathcal{B}|}$$
 
 Measures what fraction of the document's concepts are relevant to the query.
 
-### 7.8.4 Combined Asymmetric Score
+### 6.8.4 Combined Asymmetric Score
 
 $$S_{\text{asym}}(\mathbf{q}, \mathbf{d}) = \alpha \cdot S_{\text{contain}}(\mathbf{q}, \mathbf{d}) + (1 - \alpha) \cdot S_{\text{cover}}(\mathbf{q}, \mathbf{d})$$
 
@@ -237,7 +237,7 @@ where $\alpha \in [0, 1]$ is the containment weight (default $\alpha = 0.7$).
 
 **Analogy**: This is analogous to the $F_\beta$ score in classification, where $\alpha$ controls the precision-recall trade-off.
 
-### 7.8.5 Empirical Performance
+### 6.8.5 Empirical Performance
 
 | α | Belebele MRR | PubMedQA MRR |
 |---|--------------|--------------|
@@ -247,13 +247,13 @@ where $\alpha \in [0, 1]$ is the containment weight (default $\alpha = 0.7$).
 
 **Conclusion**: $\alpha = 0.7$ (favoring recall) provides best overall performance.
 
-## 7.9 Score Normalization
+## 6.9 Score Normalization
 
-### 7.9.1 The Score Compression Problem
+### 6.9.1 The Score Compression Problem
 
 When all documents score within a narrow range (e.g., 0.034–0.051 on NQ-REaR), fine-grained ranking becomes impossible.
 
-### 7.9.2 Z-Score Normalization
+### 6.9.2 Z-Score Normalization
 
 $$S_z = \frac{S - \mu_S}{\sigma_S}$$
 
@@ -262,7 +262,7 @@ $$S_z = \frac{S - \mu_S}{\sigma_S}$$
 - Amplifies signal without amplifying noise
 - Differentiable (enabling end-to-end training)
 
-### 7.9.3 Percentile Rank
+### 6.9.3 Percentile Rank
 
 $$S_{\text{pct}} = \frac{\text{rank}(S)}{N}$$
 
@@ -271,7 +271,7 @@ $$S_{\text{pct}} = \frac{\text{rank}(S)}{N}$$
 - Handles any score distribution
 - Robust to outliers
 
-### 7.9.4 Min-Max Normalization
+### 6.9.4 Min-Max Normalization
 
 $$S_{\text{norm}} = \frac{S - S_{\min}}{S_{\max} - S_{\min}}$$
 
@@ -281,16 +281,16 @@ $$S_{\text{norm}} = \frac{S - S_{\min}}{S_{\max} - S_{\min}}$$
 
 **Disadvantage:** More sensitive to outliers than z-score.
 
-### 7.9.5 Ranking Equivalence
+### 6.9.5 Ranking Equivalence
 
 For ranking-only tasks (without learning), z-score, percentile rank, and min-max produce **identical rankings** since they are monotonic transformations. The choice only matters when:
 1. Absolute score values are needed
 2. Combining scores from different queries
 3. Training a downstream model
 
-## 7.10 LambdaMART Re-ranking Features
+## 6.10 LambdaMART Re-ranking Features
 
-### 7.10.1 Feature Design
+### 6.10.1 Feature Design
 
 The 35-feature vector captures complementary aspects of query-document similarity:
 
@@ -302,7 +302,7 @@ The 35-feature vector captures complementary aspects of query-document similarit
 | Block histogram | Per-block Jaccard (16 blocks of 256 bits) | 16 | Spatial distribution across grid |
 | Auxiliary | BM25 score, query length, document length | 3 | Lexical matching signal |
 
-### 7.10.2 Feature Importance (50-query Belebele training)
+### 6.10.2 Feature Importance (50-query Belebele training)
 
 | Rank | Feature | Gain | Category |
 |------|---------|------|----------|
@@ -314,13 +314,13 @@ The 35-feature vector captures complementary aspects of query-document similarit
 
 **Key finding**: Cosine and BM25 dominate (730 and 714 gain respectively), but block histogram features contribute significantly when trained on 50+ queries.
 
-### 7.10.3 SiDR Validation
+### 6.10.3 SiDR Validation
 
 Mallia et al. (2022) demonstrate that binary sparse first-stage + learned re-ranking achieves 49.5% top-1 on NQ with $m=20$ candidates, matching full neural retrieval (49.1%).
 
-## 7.11 Metric Selection Guide
+## 6.11 Metric Selection Guide
 
-### 7.11.1 Decision Tree
+### 6.11.1 Decision Tree
 
 ```
 Is your fingerprint binary {0,1}?
@@ -333,7 +333,7 @@ Is your fingerprint binary {0,1}?
          └─ Multi-hop tasks? → Overlap coefficient
 ```
 
-### 7.11.2 Summary Table
+### 6.11.2 Summary Table
 
 | Metric | Best For | Limitation | SF Performance |
 |--------|----------|------------|----------------|
@@ -343,7 +343,7 @@ Is your fingerprint binary {0,1}?
 | **Overlap** | Subset matching, asymmetric retrieval | Ignores document size | Best for multi-hop |
 | **IDF-weighted** | Rare term matching | Requires concept mapping | Best for factoid |
 
-## 7.12 Conclusion
+## 6.12 Conclusion
 
 The choice of similarity metric depends on fingerprint characteristics and task requirements:
 

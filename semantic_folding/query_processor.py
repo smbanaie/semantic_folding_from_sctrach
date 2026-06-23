@@ -72,7 +72,7 @@ from lib import (
     normalize_fingerprint,
     normalize_phrase,
 )
-SPARCITY_GAURD=0.005
+SPARSITY_GUARD=0.005
 
 # ── BM25 Scorer for Hybrid Mode ─────────────────────────────────────────────
 class BM25Scorer:
@@ -121,6 +121,18 @@ class BM25Scorer:
 
     def score_all(self, query_text: str) -> List[Tuple[int, float]]:
         return [(i, self.score_query(query_text, i)) for i in range(self.doc_count)]
+
+# ── SPLADE Scorer for Hybrid Mode ────────────────────────────────────────────
+def _get_splade_scorer(corpus_texts: List[str], model_name: str = "naver/splade-cocondenser-ensembledistil",
+                       cache_dir: str = None):
+    """Load SPLADEScorer with disk-cached corpus vectors."""
+    try:
+        from splade_scorer import get_splade_scorer
+        return get_splade_scorer(corpus_texts, model_name=model_name, cache_dir=cache_dir)
+    except ImportError as e:
+        logger.warning(f"  [SPLADE] Not available: {e}")
+        return None
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging — level driven by LOG_LEVEL env var (default: INFO)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1475,8 +1487,8 @@ def apply_spreading(
     n_cells  = fingerprint.shape[1]
     sparsity = fingerprint.nnz / n_cells
 
-    if sparsity < SPARCITY_GAURD:
-        logger.warning(...)
+    if sparsity < SPARSITY_GUARD:
+        logger.warning(f"Sparsity {sparsity:.4f} below threshold {SPARSITY_GUARD} — skipping spreading")
         return fingerprint, {
             "spreading_applied": False,
             "reason": "sparsity_too_low",
@@ -1551,6 +1563,7 @@ def rank_documents(
     grid_size       : int   = 0,
     use_morton      : bool  = True,
     doc_norm        : str   = "sqrt_nnz",
+    sim_metric      : str   = "cosine",
     **kwargs,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     """
@@ -1663,7 +1676,32 @@ def rank_documents(
             logger.debug(f"  [RANK SKIP] '{doc_id}' has near-zero norm")
             continue
 
-        score = raw_dot / (query_norm * doc_norm_factor)
+        if sim_metric == "spatial_jaccard":
+            # Morton proximity-weighted Jaccard
+            query_indices = set(query_fp.indices) if hasattr(query_fp, 'indices') else set(np.nonzero(query_fp)[0])
+            doc_indices = set(doc_fp.indices) if hasattr(doc_fp, 'indices') else set(np.nonzero(doc_fp)[0])
+            intersection = query_indices & doc_indices
+            union = query_indices | doc_indices
+
+            if intersection and union:
+                gs = grid_size if grid_size > 0 else 64
+                weighted_intersection = 0.0
+                for bit_idx in intersection:
+                    x = 0; y = 0; bit = bit_idx
+                    for i_bit in range(0, 32, 2):
+                        if bit & 1: x |= (1 << (i_bit // 2))
+                        bit >>= 1
+                        if bit & 1: y |= (1 << (i_bit // 2))
+                        bit >>= 1
+                    cx, cy = gs // 2, gs // 2
+                    dist = abs(x - cx) + abs(y - cy)
+                    weight = np.exp(-dist / (gs * 0.3))
+                    weighted_intersection += weight
+                score = weighted_intersection / len(union)
+            else:
+                score = 0.0
+        else:
+            score = raw_dot / (query_norm * doc_norm_factor)
 
         logger.debug(
             f"  [RANK SCORE] '{doc_id}' raw_dot={raw_dot:.4f}, "
@@ -2116,7 +2154,7 @@ def process_query(
                 "total_documents"          : 0,
                 "documents_above_threshold": 0,
             },
-        }
+        }, None
 
     # ── Stage 2: query fingerprint construction ───────────────────────────────
     logger.debug("  [STAGE 2] query fingerprint construction")
@@ -2182,7 +2220,7 @@ def process_query(
                 "total_documents"          : 0,
                 "documents_above_threshold": 0,
             },
-        }
+        }, None
 
     logger.debug(
         f"  [STAGE 2] fingerprint ready — nnz={query_fp.nnz}, "
@@ -2192,6 +2230,19 @@ def process_query(
     # ── Stage 3: spreading activation (optional) ──────────────────────────────
     spreading_metadata: Dict = {}
     spreading_steps = getattr(args, "spreading_steps", 0)
+
+    # Adaptive spreading: adjust radius based on query length
+    if getattr(args, "adaptive_spreading", False) and spreading_steps > 0:
+        query_word_count = len(query.split())
+        short_threshold = getattr(args, "short_query_max_words", 10)
+        if query_word_count <= short_threshold:
+            # Short queries: wider spreading to capture more context
+            spreading_steps = max(spreading_steps, 2)
+            logger.debug(f"  [STAGE 3] adaptive: short query ({query_word_count} words) -> radius={spreading_steps}")
+        else:
+            # Long queries: tighter spreading for precision
+            spreading_steps = min(spreading_steps, 1)
+            logger.debug(f"  [STAGE 3] adaptive: long query ({query_word_count} words) -> radius={spreading_steps}")
 
     logger.debug(f"  [STAGE 3] spreading_steps={spreading_steps}")
 
@@ -2225,18 +2276,18 @@ def process_query(
         grid_size=grid_size,
         use_morton=use_morton,
         doc_norm=getattr(args, "doc_norm", "sqrt_nnz"),
+        sim_metric=getattr(args, "sim_metric", "cosine"),
     )
 
-    # ── Stage 4b: hybrid SF+BM25 scoring ──────────────────────────────────────
+    # ── Stage 4b: hybrid SF+BM25/SPLADE scoring ────────────────────────────────
     hybrid_enabled = getattr(args, "hybrid", False)
-    if hybrid_enabled:
+    splade_enabled = getattr(args, "splade", False)
+    if hybrid_enabled or splade_enabled:
         hybrid_alpha = getattr(args, "hybrid_alpha", 0.5)
         corpus_path = getattr(args, "corpus_path", None)
 
         if corpus_path and corpus_path.exists():
-            logger.info(f"  [HYBRID] enabled with alpha={hybrid_alpha}")
-
-            # Load corpus for BM25
+            # Load corpus texts
             corpus_texts = []
             doc_id_list = list(doc_fingerprints.keys())
             with open(corpus_path, "r", encoding="utf-8") as f:
@@ -2247,126 +2298,127 @@ def process_query(
                         if comma_idx > 0:
                             corpus_texts.append(line[comma_idx+1:].strip())
 
-            if len(corpus_texts) == len(doc_id_list):
-                bm25 = BM25Scorer(corpus_texts)
-                sf_scores = {doc_id: score for doc_id, score in results}
-
-                # Compute BM25 scores for all docs
-                bm25_scores = bm25.score_all(query)
-                bm25_dict = {doc_id_list[i]: score for i, score in bm25_scores}
-
-                # Normalize both score sets
-                max_sf = max(sf_scores.values()) if sf_scores else 1.0
-                max_bm25 = max(bm25_dict.values()) if bm25_dict else 1.0
-
-                # Combine scores
-                hybrid_results = []
-                for doc_id in doc_id_list:
-                    sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
-                    bm25_norm = bm25_dict.get(doc_id, 0.0) / max_bm25 if max_bm25 > 0 else 0
-                    combined = hybrid_alpha * sf_norm + (1 - hybrid_alpha) * bm25_norm
-                    hybrid_results.append((doc_id, combined))
-
-                hybrid_results.sort(key=lambda x: x[1], reverse=True)
-                results = hybrid_results[:getattr(args, "top_k", 10)]
-
-                logger.info(
-                    f"  [HYBRID] combined {len(results)} results, "
-                    f"top_score={results[0][1]:.4f}"
-                )
-            else:
+            if len(corpus_texts) != len(doc_id_list):
                 logger.warning(
                     f"  [HYBRID] corpus size mismatch: {len(corpus_texts)} texts "
-                    f"vs {len(doc_id_list)} docs — falling back to SF only"
+                    f"vs {len(doc_id_list)} docs — using min({len(corpus_texts)}, {len(doc_id_list)})"
                 )
+                min_len = min(len(corpus_texts), len(doc_id_list))
+                corpus_texts = corpus_texts[:min_len]
+                doc_id_list = doc_id_list[:min_len]
+
+            sf_scores = {doc_id: score for doc_id, score in results}
+
+            if splade_enabled:
+                # SPLADE hybrid mode
+                splade_model = getattr(args, "splade_model", "naver/splade-cocondenser-ensembledistil")
+                cache_dir = str(Path(corpus_path).parent)
+                logger.info(f"  [SPLADE] enabled with alpha={hybrid_alpha}, model={splade_model}, cache={cache_dir}")
+                scorer = _get_splade_scorer(corpus_texts, model_name=splade_model, cache_dir=cache_dir)
+                if scorer is None:
+                    logger.warning("  [SPLADE] Failed to load model — falling back to SF only")
+                else:
+                    splade_scores_list = scorer.score_all(query)
+                    splade_dict = {doc_id_list[i]: score for i, score in splade_scores_list}
+
+                    max_sf = max(sf_scores.values()) if sf_scores else 1.0
+                    max_splade = max(splade_dict.values()) if splade_dict else 1.0
+
+                    hybrid_results = []
+                    for doc_id in doc_id_list:
+                        sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
+                        splade_norm = splade_dict.get(doc_id, 0.0) / max_splade if max_splade > 0 else 0
+                        combined = hybrid_alpha * sf_norm + (1 - hybrid_alpha) * splade_norm
+                        hybrid_results.append((doc_id, combined))
+
+                    hybrid_results.sort(key=lambda x: x[1], reverse=True)
+                    results = hybrid_results[:getattr(args, "top_k", 10)]
+
+    # ── Stage 4d: negation-aware scoring ──────────────────────────────────────
+    negation_aware = getattr(args, "negation_aware", False)
+    if negation_aware and results:
+        negation_penalty = getattr(args, "negation_penalty", 0.5)
+        negation_cues = ["not ", " no ", " never ", " neither ", " nor ", " without ",
+                         "lack of ", "absence of ", "does not ", "is not ",
+                         "was not ", "were not ", "has not ", "have not ",
+                         "cannot ", "could not ", "would not ", "should not ",
+                         "do not ", "did not ", "does not "]
+
+        # Detect negation in query
+        query_lower = query.lower()
+        has_negation = any(cue in query_lower for cue in negation_cues)
+
+        if has_negation:
+            logger.info(f"  [NEGATION] detected in query: {query[:60]}...")
+            # Extract negated concepts (terms after negation cue)
+            negated_concepts = []
+            for cue in negation_cues:
+                if cue in query_lower:
+                    idx = query_lower.find(cue) + len(cue)
+                    remaining = query_lower[idx:].strip()
+                    # Take next 1-3 words as negated concept
+                    words = remaining.split()[:3]
+                    if words:
+                        negated_concepts.extend(words)
+
+            if negated_concepts:
+                logger.info(f"  [NEGATION] negated concepts: {negated_concepts}")
+                # Load corpus for penalty computation
+                corpus_path = getattr(args, "corpus_path", None)
+                if corpus_path and Path(corpus_path).exists():
+                    doc_texts = []
+                    doc_ids_list = [doc_id for doc_id, _ in results]
+                    with open(corpus_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line:
+                                comma_idx = line.find(",")
+                                if comma_idx > 0:
+                                    doc_texts.append(line[comma_idx+1:].strip())
+
+                    # Apply penalty to documents containing negated concepts
+                    penalty_scores = {}
+                    for doc_id, score in results:
+                        doc_idx = doc_ids_list.index(doc_id) if doc_id in doc_ids_list else -1
+                        if 0 <= doc_idx < len(doc_texts):
+                            doc_text = doc_texts[doc_idx].lower()
+                            # Check if document contains negated concepts WITHOUT negation context
+                            negated_found = False
+                            for concept in negated_concepts:
+                                if concept in doc_text:
+                                    # Check if negation cue is near the concept
+                                    for cue in negation_cues:
+                                        cue_pos = doc_text.find(cue)
+                                        concept_pos = doc_text.find(concept)
+                                        if cue_pos >= 0 and concept_pos >= 0:
+                                            # If negation cue is within 50 chars before concept, it's properly negated
+                                            if 0 < concept_pos - cue_pos <= 50:
+                                                negated_found = True
+                                                break
+
+                            if negated_found:
+                                penalty_scores[doc_id] = negation_penalty
+                            else:
+                                penalty_scores[doc_id] = 0.0
+
+                        else:
+                            penalty_scores[doc_id] = 0.0
+
+                    # Apply penalties
+                    adjusted_results = []
+                    for doc_id, score in results:
+                        penalty = penalty_scores.get(doc_id, 0.0)
+                        adjusted_score = score * (1 - penalty)
+                        adjusted_results.append((doc_id, adjusted_score))
+
+                    adjusted_results.sort(key=lambda x: x[1], reverse=True)
+                    results = adjusted_results[:getattr(args, "top_k", 10)]
+
+                    logger.info(
+                        f"  [NEGATION] applied penalty to {sum(1 for p in penalty_scores.values() if p > 0)} docs"
+                    )
         else:
-            logger.warning("  [HYBRID] --corpus not provided — using SF only")
-
-    top_score = f"{results[0][1]:.4f}" if results else "n/a"
-    logger.debug(
-        f"  [STAGE 4] returned {len(results)} results, "
-        f"top_score={top_score}"
-    )
-
-    # ── Stage 4c: TF-IDF re-ranking ──────────────────────────────────────────
-    tfidf_rerank = getattr(args, "tfidf_rerank", False)
-    if tfidf_rerank and results:
-        tfidf_alpha = getattr(args, "tfidf_alpha", 0.3)
-        corpus_path = getattr(args, "corpus_path", None)
-
-        if corpus_path and corpus_path.exists():
-            logger.info(f"  [TFIDF] re-ranking with alpha={tfidf_alpha}")
-
-            import re
-            from collections import Counter
-
-            # Load corpus
-            corpus_texts = []
-            doc_id_list = list(doc_fingerprints.keys())
-            with open(corpus_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        comma_idx = line.find(",")
-                        if comma_idx > 0:
-                            corpus_texts.append(line[comma_idx+1:].strip())
-
-            if len(corpus_texts) == len(doc_id_list):
-                # Build TF-IDF index
-                doc_count = len(corpus_texts)
-                df = Counter()
-                tf_per_doc = []
-
-                for text in corpus_texts:
-                    tokens = re.findall(r'\w+', text.lower())
-                    tf = Counter(tokens)
-                    tf_per_doc.append(tf)
-                    for term in set(tokens):
-                        df[term] += 1
-
-                # Compute IDF
-                import math
-                idf = {}
-                for term, freq in df.items():
-                    idf[term] = math.log((doc_count - freq + 0.5) / (freq + 0.5) + 1.0)
-
-                # Score query against documents
-                query_tokens = re.findall(r'\w+', query.lower())
-                tfidf_scores = {}
-
-                for i, doc_id in enumerate(doc_id_list):
-                    tf = tf_per_doc[i]
-                    score = 0.0
-                    for term in query_tokens:
-                        if term in tf and term in idf:
-                            score += tf[term] * idf[term]
-                    tfidf_scores[doc_id] = score
-
-                # Normalize TF-IDF scores
-                max_tfidf = max(tfidf_scores.values()) if tfidf_scores else 1.0
-
-                # Combine SF and TF-IDF scores
-                sf_scores = {doc_id: score for doc_id, score in results}
-                max_sf = max(sf_scores.values()) if sf_scores else 1.0
-
-                reranked = []
-                for doc_id in doc_id_list:
-                    sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
-                    tfidf_norm = tfidf_scores.get(doc_id, 0.0) / max_tfidf if max_tfidf > 0 else 0
-                    combined = (1 - tfidf_alpha) * sf_norm + tfidf_alpha * tfidf_norm
-                    reranked.append((doc_id, combined))
-
-                reranked.sort(key=lambda x: x[1], reverse=True)
-                results = reranked[:getattr(args, "top_k", 10)]
-
-                logger.info(
-                    f"  [TFIDF] reranked {len(results)} results, "
-                    f"top_score={results[0][1]:.4f}"
-                )
-            else:
-                logger.warning(
-                    f"  [TFIDF] corpus size mismatch — using SF only"
-                )
+            logger.debug("  [NEGATION] no negation detected in query")
 
     logger.info(
         f"process_query done: {len(results)} results for {query!r}"
@@ -2501,6 +2553,20 @@ def parse_args() -> argparse.Namespace:
         help="Document fingerprint normalization method for ranking.",
     )
 
+    # ── Similarity metric ────────────────────────────────────────────────────
+    parser.add_argument(
+        "--sim-metric", dest="sim_metric", type=str, default="cosine",
+        choices=["cosine", "dice", "overlap", "jaccard", "idf-weighted", "spatial_jaccard"],
+        help="Similarity metric for document ranking.",
+    )
+
+    # ── Adaptive spreading ──────────────────────────────────────────────────
+    parser.add_argument(
+        "--adaptive-spreading", dest="adaptive_spreading", action="store_true",
+        default=False,
+        help="Adjust spreading radius based on query length (short queries get wider spreading).",
+    )
+
     # ── Geometric scoring ─────────────────────────────────────────────────────
     parser.add_argument(
         "--geometric", action="store_true", default=False,
@@ -2515,8 +2581,19 @@ def parse_args() -> argparse.Namespace:
         help="Enable hybrid scoring: combine SF score with BM25 score.",
     )
     parser.add_argument(
-        "--hybrid-alpha", dest="hybrid_alpha", type=float, default=0.5,
-        help="Weight for SF score in hybrid mode (0=BM25 only, 1=SF only).",
+        "--hybrid-alpha", dest="hybrid_alpha", type=float, default=0.3,
+        help="Weight for SF score in hybrid mode (0=BM25 only, 1=SF only). Default 0.3 optimized on custom corpus.",
+    )
+
+    # ── SPLADE hybrid scoring ───────────────────────────────────────────────
+    parser.add_argument(
+        "--splade", action="store_true", default=False,
+        help="Enable hybrid SF+SPLADE scoring (replaces BM25 in hybrid mode).",
+    )
+    parser.add_argument(
+        "--splade-model", dest="splade_model", type=str,
+        default="naver/splade-cocondenser-ensembledistil",
+        help="HuggingFace SPLADE model name (default: naver/splade-cocondenser-ensembledistil).",
     )
 
     # ── Query expansion ─────────────────────────────────────────────────────
@@ -2543,6 +2620,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--tfidf-alpha", dest="tfidf_alpha", type=float, default=0.3,
         help="Weight for TF-IDF score in re-ranking (0-1).",
+    )
+
+    # ── Negation-aware scoring ─────────────────────────────────────────────
+    parser.add_argument(
+        "--negation-aware", dest="negation_aware", action="store_true",
+        default=False,
+        help="Apply negation-aware scoring: penalize docs with negated concepts.",
+    )
+    parser.add_argument(
+        "--negation-penalty", dest="negation_penalty", type=float, default=0.5,
+        help="Penalty factor for negated concepts (0=no penalty, 1=full penalty).",
     )
 
     # ── Shared corpus path ──────────────────────────────────────────────────

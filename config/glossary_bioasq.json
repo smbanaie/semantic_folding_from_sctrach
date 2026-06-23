@@ -1,0 +1,116 @@
+{
+  "_description": "MeSH-based glossary for BioASQ biomedical QA. Maps canonical MeSH terms to synonyms/variants.",
+  "domains": {
+    "medical": {
+      "genetics": {
+        "mendelian disorder": ["monogenic", "single-gene", "inherited genetic"],
+        "multifactorial disorder": ["complex", "polygenic", "multigenic"],
+        "gene mutation": ["genetic variant", "allele change", "nucleotide change"],
+        "splicing": ["rna splicing", "mrna processing", "intron removal"],
+        "non coding rna": ["ncrna", "non-coding rna", "noncoding rna"],
+        "lncrna": ["long non-coding rna", "long ncRNA"],
+        "microrna": ["mirna", "micro rna"],
+        "transcription factor": ["gene regulator", "transcription regulator"],
+        "gene expression": ["transcription", "gene activity"],
+        "epigenetics": ["epigenetic modification", "dna methylation", "histone modification"],
+        "hypomethylation": ["reduced methylation", "demethylation", "loss of methylation"]
+      },
+      "oncology": {
+        "breast cancer": ["mammary carcinoma", "breast carcinoma", "breast neoplasm"],
+        "prostate cancer": ["prostatic neoplasm", "prostatic carcinoma"],
+        "ovarian cancer": ["ovarian neoplasm", "ovarian carcinoma"],
+        "epithelial ovarian cancer": ["ovarian epithelial carcinoma"],
+        "tumor suppressor": ["tumor suppressor gene", "anti-oncogene"],
+        "oncogene": ["cancer gene", "tumor-promoting gene"],
+        "metastasis": ["cancer spread", "tumor spread", "secondary tumor"],
+        "biomarker": ["biological marker", "diagnostic marker", "prognostic marker"],
+        "immunotherapy": ["immune therapy", "immunologic therapy"],
+        "monoclonal antibody": ["mab", "monoclonal ab"]
+      },
+      "cardiovascular": {
+        "myocardial infarction": ["heart attack", "mi", "cardiac arrest", "acute mi"],
+        "hypertension": ["high blood pressure", "htn", "elevated blood pressure"],
+        "heart failure": ["cardiac failure", "congestive heart failure", "chf"],
+        "arrhythmia": ["irregular heartbeat", "cardiac dysrhythmia"],
+        "atherosclerosis": ["hardening of arteries", "arterial plaque"],
+        "angina": ["chest pain", "angina pectoris"],
+        "thrombosis": ["blood clot", "clot formation"],
+        "embolism": ["blood clot migration", "vascular obstruction"],
+        "endocarditis": ["heart valve infection", "cardiac infection"]
+      },
+      "neurology": {
+        "neurodegeneration": ["neural degeneration", "brain cell loss"],
+        "dementia": ["cognitive decline", "memory loss"],
+        "parkinsons disease": ["parkinson disease", "pd", "parkinsonism"],
+        "epilepsy": ["seizure disorder", "seizures"],
+        "stroke": ["cerebrovascular accident", "cva", "brain attack"],
+        "neuropathy": ["nerve damage", "nerve disease"],
+        "meningitis": ["brain membrane inflammation"],
+        "encephalitis": ["brain inflammation"]
+      },
+      "pharmacology": {
+        "drug resistance": ["medication resistance", "treatment resistance"],
+        "bioavailability": ["drug absorption", "drug uptake"],
+        "pharmacokinetics": ["drug metabolism", "drug disposition"],
+        "pharmacodynamics": ["drug action", "drug effect"],
+        "dosage": ["dose", "drug dose", "medication dose"],
+        "side effect": ["adverse effect", "adverse reaction", "drug reaction"],
+        "contraindication": ["treatment restriction", "therapy restriction"],
+        "absorption": ["drug absorption", "nutrient uptake"]
+      },
+      "immunology": {
+        "autoimmune": ["autoimmune disease", "self-immune"],
+        "immunodeficiency": ["immune deficiency", "immune compromise"],
+        "inflammation": ["inflammatory response", "immune response"],
+        "cytokine": ["signaling protein", "immune mediator"],
+        "antibody": ["immunoglobulin", "ab", "ig"],
+        "antigen": ["immune target", "epitope"]
+      },
+      "cell_biology": {
+        "secreted protein": ["extracellular protein", "secreted factor"],
+        "transmembrane protein": ["integral membrane protein", "membrane protein"],
+        "receptor": ["cell receptor", "binding protein"],
+        "ligand": ["binding molecule", "receptor binder"],
+        "signal transduction": ["cell signaling", "signal传导"],
+        "apoptosis": ["programmed cell death", "cell suicide"],
+        "cell proliferation": ["cell growth", "cell division"],
+        "differentiation": ["cell specialization", "cell maturation"]
+      },
+      "molecular_biology": {
+        "dna methylation": ["methylation", "epigenetic silencing"],
+        "histone modification": ["chromatin remodeling", "epigenetic mark"],
+        "chromatin": ["chromatin structure", "dna packaging"],
+        "telomere": ["chromosome end", "telomeric repeat"],
+        "telomerase": ["telomere maintenance enzyme"],
+        "dna repair": ["dna damage repair", "genome maintenance"],
+        "homologous recombination": ["genetic recombination"],
+        "crispr": ["gene editing", "genome editing", "cas9"]
+      },
+      "anatomy": {
+        "coronary artery": ["heart artery", "cardiac artery"],
+        "cerebral cortex": ["brain cortex", "cortical region"],
+        "hippocampus": ["memory center", "brain memory region"],
+        "amygdala": ["emotional center", "fear center"],
+        "basal ganglia": ["brain motor center"]
+      },
+      "diseases": {
+        "diabetes mellitus": ["diabetes", "dm", "blood sugar disease"],
+        "cancer": ["malignancy", "neoplasm", "tumor"],
+        "obesity": ["overweight", "excess body fat"],
+        "asthma": ["bronchial asthma", "reactive airway disease"],
+        "copd": ["chronic obstructive pulmonary disease"],
+        "pneumonia": ["lung infection", "pulmonary infection"],
+        "alzheimers disease": ["alzheimers", "dementia", "memory loss"],
+        "parkinsons disease": ["parkinson disease", "parkinsonism"]
+      },
+      "procedures": {
+        "mammography": ["breast x-ray", "breast imaging"],
+        "biopsy": ["tissue sampling", "tissue removal"],
+        "chemotherapy": ["chemo", "drug therapy", "cytotoxic therapy"],
+        "radiotherapy": ["radiation therapy", "radiation treatment"],
+        "surgery": ["surgical procedure", "operation"],
+        "endoscopy": ["internal examination", "scope procedure"]
+      }
+    }
+  }
+}

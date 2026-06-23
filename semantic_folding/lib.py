@@ -43,9 +43,11 @@ import numpy as np
 from functools import lru_cache
 import json, os
 
-
-nltk.data.path.insert(0, 'C:\\nltk_data')
-os.environ['NLTK_DATA'] = r'C:\nltk_data'
+# NLTK data path — use user home directory for cross-platform compatibility
+_nltk_data_path = os.path.join(os.path.expanduser('~'), 'nltk_data')
+if os.path.exists(_nltk_data_path):
+    nltk.data.path.insert(0, _nltk_data_path)
+    os.environ['NLTK_DATA'] = _nltk_data_path
 
 import re
 from typing import List, Set, Tuple, Optional
@@ -145,15 +147,6 @@ def get_wordnet_pos(treebank_tag):
         return wordnet.NOUN
 
 @lru_cache(maxsize=10000)
-def lemmatize_token(word: str, pos_tag_str: str) -> str:
-    pos = get_wordnet_pos(pos_tag_str)
-    return lemmatizer.lemmatize(word.lower(), pos=pos)
-
-def clear_lemma_cache():
-    lemmatize_token.cache_clear()
-
-
-@lru_cache(maxsize=10000)
 def lemmatize_token(word: str, pos_tag: str) -> str:
     """
     Lemmatize a single token with POS-aware processing and caching.
@@ -191,6 +184,7 @@ def is_generic_word(word: str, min_length: int = 3) -> bool:
     
     Generic words are filtered out during phrase expansion to maintain
     semantic quality. A word is considered generic if it meets any of:
+    - Domain acronym (ai, nlp, qa, etc.) — preserved, not generic
     - Too short (< min_length characters)
     - Common stop word (articles, prepositions, etc.)
     - Pure numeric string
@@ -206,17 +200,19 @@ def is_generic_word(word: str, min_length: int = 3) -> bool:
         >>> is_generic_word('the')
         True  # stop word
         >>> is_generic_word('ai')
-        True  # too short (< 3 chars)
+        False  # domain acronym, preserved
         >>> is_generic_word('123')
         True  # numeric
         >>> is_generic_word('algorithm')
         False  # meaningful content word
     """
+    if word.lower() in _DOMAIN_ACRONYMS:
+        return False
     if len(word) < min_length:
         return True
     if word in en_stop_words:
         return True
-    if word.isdigit():
+    if word.isdigit() or not word.isalpha():
         return True
     return False
 
@@ -1596,6 +1592,209 @@ def compute_jaccard_similarity(
         return 0.0
     
     return intersection / union
+
+
+def compute_dice_coefficient(
+    vec1: np.ndarray,
+    vec2: np.ndarray
+) -> float:
+    """
+    Compute Dice coefficient between two binary sparse vectors.
+
+    D(A, B) = 2|A ∩ B| / (|A| + |B|)
+
+    Biased toward the smaller set — appropriate for retrieval where queries
+    are shorter than documents.
+    """
+    if hasattr(vec1, 'indices'):
+        set1 = set(vec1.indices)
+    else:
+        set1 = set(np.nonzero(vec1)[0])
+    if hasattr(vec2, 'indices'):
+        set2 = set(vec2.indices)
+    else:
+        set2 = set(np.nonzero(vec2)[0])
+
+    intersection = len(set1 & set2)
+    total = len(set1) + len(set2)
+
+    return (2.0 * intersection / total) if total > 0 else 0.0
+
+
+def compute_overlap_coefficient(
+    vec1: np.ndarray,
+    vec2: np.ndarray
+) -> float:
+    """
+    Compute overlap coefficient (Szymkiewicz-Simpson) between two binary vectors.
+
+    O(A, B) = |A ∩ B| / min(|A|, |B|)
+
+    Maximum robustness to set size differences. Returns 1.0 when the smaller
+    set is a complete subset of the larger.
+    """
+    if hasattr(vec1, 'indices'):
+        set1 = set(vec1.indices)
+    else:
+        set1 = set(np.nonzero(vec1)[0])
+    if hasattr(vec2, 'indices'):
+        set2 = set(vec2.indices)
+    else:
+        set2 = set(np.nonzero(vec2)[0])
+
+    intersection = len(set1 & set2)
+    min_size = min(len(set1), len(set2))
+
+    return (intersection / min_size) if min_size > 0 else 0.0
+
+
+def compute_binary_jaccard(
+    vec1: np.ndarray,
+    vec2: np.ndarray
+) -> float:
+    """
+    Compute Jaccard index for two binary sparse vectors.
+
+    J(A, B) = |A ∩ B| / |A ∪ B|
+
+    Excludes shared absences (M00) — appropriate for sparse binary data.
+    """
+    if hasattr(vec1, 'indices'):
+        set1 = set(vec1.indices)
+    else:
+        set1 = set(np.nonzero(vec1)[0])
+    if hasattr(vec2, 'indices'):
+        set2 = set(vec2.indices)
+    else:
+        set2 = set(np.nonzero(vec2)[0])
+
+    intersection = len(set1 & set2)
+    union = len(set1 | set2)
+
+    return (intersection / union) if union > 0 else 0.0
+
+
+def compute_idf_weighted_intersection(
+    vec1: np.ndarray,
+    vec2: np.ndarray,
+    idf_weights: np.ndarray
+) -> float:
+    """
+    Compute IDF-weighted set intersection.
+
+    S = Σ_{i ∈ A∩B} w_i / Σ_{i ∈ A} w_i
+
+    Weights rare concepts (high IDF) more than common ones.
+    """
+    if hasattr(vec1, 'indices'):
+        set1 = set(vec1.indices)
+    else:
+        set1 = set(np.nonzero(vec1)[0])
+    if hasattr(vec2, 'indices'):
+        set2 = set(vec2.indices)
+    else:
+        set2 = set(np.nonzero(vec2)[0])
+
+    intersection = set1 & set2
+    if not intersection or not set1:
+        return 0.0
+
+    intersection_weight = sum(idf_weights[i] for i in intersection if i < len(idf_weights))
+    query_weight = sum(idf_weights[i] for i in set1 if i < len(idf_weights))
+
+    return (intersection_weight / query_weight) if query_weight > 0 else 0.0
+
+
+def batch_compute_binary_similarities(
+    query_fp: csr_matrix,
+    doc_fps: List[csr_matrix],
+    metric: str = "dice",
+    idf_weights: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """
+    Batch compute binary similarity metrics between query and documents.
+
+    Args:
+        query_fp: Query fingerprint (1 x N sparse matrix)
+        doc_fps: List of document fingerprints
+        metric: Similarity metric name
+        idf_weights: IDF weights array (required for idf-weighted metric)
+
+    Returns:
+        Array of similarity scores, one per document
+    """
+    query_indices = set(query_fp.indices) if hasattr(query_fp, 'indices') else set(np.nonzero(query_fp)[0])
+    query_popcount = len(query_indices)
+
+    if query_popcount == 0:
+        return np.zeros(len(doc_fps))
+
+    scores = np.zeros(len(doc_fps))
+
+    for i, doc_fp in enumerate(doc_fps):
+        if hasattr(doc_fp, 'indices'):
+            doc_indices = set(doc_fp.indices)
+        else:
+            doc_indices = set(np.nonzero(doc_fp)[0])
+
+        doc_popcount = len(doc_indices)
+        if doc_popcount == 0:
+            continue
+
+        intersection = len(query_indices & doc_indices)
+
+        if metric == "dice":
+            total = query_popcount + doc_popcount
+            scores[i] = (2.0 * intersection / total) if total > 0 else 0.0
+
+        elif metric == "overlap":
+            min_size = min(query_popcount, doc_popcount)
+            scores[i] = (intersection / min_size) if min_size > 0 else 0.0
+
+        elif metric == "jaccard":
+            union = len(query_indices | doc_indices)
+            scores[i] = (intersection / union) if union > 0 else 0.0
+
+        elif metric == "idf-weighted":
+            if idf_weights is not None:
+                matched = query_indices & doc_indices
+                intersection_weight = sum(idf_weights[j] for j in matched if j < len(idf_weights))
+                query_weight = sum(idf_weights[j] for j in query_indices if j < len(idf_weights))
+                scores[i] = (intersection_weight / query_weight) if query_weight > 0 else 0.0
+
+        elif metric == "containment":
+            scores[i] = (intersection / query_popcount) if query_popcount > 0 else 0.0
+
+        elif metric == "coverage":
+            scores[i] = (intersection / doc_popcount) if doc_popcount > 0 else 0.0
+
+        elif metric == "spatial_jaccard":
+            # Morton proximity-weighted Jaccard
+            # Weight intersections by how close the bits are in Morton space
+            grid_size = int(np.sqrt(query_fp.shape[1])) if hasattr(query_fp, 'shape') else 64
+            if grid_size > 0:
+                weighted_intersection = 0.0
+                for bit_idx in (query_indices & doc_indices):
+                    # Convert Morton index to (x, y) coordinates
+                    x = 0; y = 0
+                    bit = bit_idx
+                    for i_bit in range(0, 32, 2):
+                        if bit & 1: x |= (1 << (i_bit // 2))
+                        bit >>= 1
+                        if bit & 1: y |= (1 << (i_bit // 2))
+                        bit >>= 1
+                    # Distance-based weight: closer bits get higher weight
+                    # Use exponential decay based on Manhattan distance from center
+                    cx, cy = grid_size // 2, grid_size // 2
+                    dist = abs(x - cx) + abs(y - cy)
+                    max_dist = grid_size
+                    weight = np.exp(-dist / (max_dist * 0.3))
+                    weighted_intersection += weight
+                union = len(query_indices | doc_indices)
+                scores[i] = (weighted_intersection / union) if union > 0 else 0.0
+
+    return scores
+
 
 # ============================================================================
 # Z-ORDER CURVE UTILITIES

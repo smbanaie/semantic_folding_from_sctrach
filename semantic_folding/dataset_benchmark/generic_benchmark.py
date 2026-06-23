@@ -313,6 +313,9 @@ class GenericBenchmarkRunner:
             for line in corpus_lines:
                 f.write(line + "\n")
 
+        # Store corpus path in params for Step 6 hybrid/SPLADE scoring
+        self.params["corpus_path"] = str(corpus_path)
+
         with open(run_dir / "query_doc_map.json", "w") as f:
             json.dump(query_doc_map, f, indent=2)
         with open(run_dir / "query_gold.json", "w") as f:
@@ -523,8 +526,27 @@ class GenericBenchmarkRunner:
                 step6_args.extend(["--hybrid", "--hybrid-alpha", str(self.params.get("hybrid_alpha", 0.5))])
                 if self.params.get("corpus_path"):
                     step6_args.extend(["--corpus", self.params["corpus_path"]])
+            if self.params.get("splade", False):
+                step6_args.extend(["--splade", "--splade-model", self.params.get("splade_model", "naver/splade-cocondenser-ensembledistil")])
+                if self.params.get("corpus_path"):
+                    step6_args.extend(["--corpus", self.params["corpus_path"]])
             if self.params.get("doc_norm", "sqrt_nnz") != "sqrt_nnz":
                 step6_args.extend(["--doc-norm", self.params["doc_norm"]])
+            if self.params.get("sim_metric", "cosine") != "cosine":
+                step6_args.extend(["--sim-metric", self.params["sim_metric"]])
+            if self.params.get("asymmetric", False):
+                step6_args.append("--asymmetric")
+                step6_args.extend(["--asym-alpha", str(self.params.get("asym_alpha", 0.7))])
+            if self.params.get("score_norm", "none") != "none":
+                step6_args.extend(["--score-norm", self.params["score_norm"]])
+            if self.params.get("rerank", False):
+                step6_args.append("--rerank")
+                if self.params.get("rerank_model"):
+                    step6_args.extend(["--rerank-model", str(self.params["rerank_model"])])
+                step6_args.extend(["--rerank-top-k", str(self.params.get("rerank_top_k", 100))])
+            if self.params.get("negation_aware", False):
+                step6_args.append("--negation-aware")
+                step6_args.extend(["--negation-penalty", str(self.params.get("negation_penalty", 0.5))])
             if self.params.get("expand_synonyms", False):
                 step6_args.append("--expand-synonyms")
                 if self.params.get("glossary_path"):
@@ -533,7 +555,7 @@ class GenericBenchmarkRunner:
                 step6_args.extend(["--tfidf-rerank", "--tfidf-alpha", str(self.params.get("tfidf_alpha", 0.3))])
                 if self.params.get("corpus_path"):
                     step6_args.extend(["--corpus", self.params["corpus_path"]])
-            ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor", timeout=300)
+            ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor", timeout=900)
             elapsed = time.time() - t0
 
             if not ok:
@@ -908,12 +930,28 @@ def cli_main():
                       help="Apply 3x3 spatial adjacency kernel to query fingerprint before scoring")
     p_bm.add_argument("--hybrid", action="store_true", help="Enable hybrid SF+BM25 scoring")
     p_bm.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
+    p_bm.add_argument("--splade", action="store_true", help="Enable hybrid SF+SPLADE scoring (replaces BM25)")
+    p_bm.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
+                       help="HuggingFace SPLADE model name")
     p_bm.add_argument("--doc-norm", type=str, default="sqrt_nnz", choices=["sqrt_nnz", "l2", "l1", "max"])
     p_bm.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
     p_bm.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_bm.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_bm.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_bm.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
+    p_bm.add_argument("--sim-metric", type=str, default="cosine",
+                       choices=["cosine", "dice", "overlap", "jaccard", "idf-weighted", "spatial_jaccard"],
+                       help="Similarity metric for document ranking")
+    p_bm.add_argument("--asymmetric", action="store_true", help="Use asymmetric containment/coverage scoring")
+    p_bm.add_argument("--asym-alpha", type=float, default=0.7, help="Containment weight in asymmetric mode")
+    p_bm.add_argument("--score-norm", type=str, default="none",
+                       choices=["none", "zscore", "percentile", "minmax"],
+                       help="Score normalization method")
+    p_bm.add_argument("--rerank", action="store_true", help="Apply LambdaMART re-ranking")
+    p_bm.add_argument("--rerank-model", type=Path, default=None, help="Path to trained re-ranker model")
+    p_bm.add_argument("--rerank-top-k", type=int, default=100, help="Number of SF candidates for re-ranking")
+    p_bm.add_argument("--negation-aware", action="store_true", help="Apply negation penalty to matching documents")
+    p_bm.add_argument("--negation-penalty", type=float, default=0.5, help="Negation penalty weight (0-1)")
 
     # report
     p_rp = sub.add_parser("report", help="Phase 3: generate markdown report")
@@ -952,12 +990,30 @@ def cli_main():
                        help="Apply 3x3 spatial adjacency kernel to query fingerprint before scoring")
     p_all.add_argument("--hybrid", action="store_true", help="Enable hybrid SF+BM25 scoring")
     p_all.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
+    p_all.add_argument("--splade", action="store_true", help="Enable hybrid SF+SPLADE scoring (replaces BM25)")
+    p_all.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
+                        help="HuggingFace SPLADE model name")
     p_all.add_argument("--doc-norm", type=str, default="sqrt_nnz", choices=["sqrt_nnz", "l2", "l1", "max"])
     p_all.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
     p_all.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_all.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_all.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_all.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
+    p_all.add_argument("--sim-metric", type=str, default="cosine",
+                        choices=["cosine", "dice", "overlap", "jaccard", "idf-weighted", "spatial_jaccard"],
+                        help="Similarity metric for document ranking")
+    p_all.add_argument("--adaptive-spreading", action="store_true",
+                        help="Adjust spreading radius based on query length")
+    p_all.add_argument("--asymmetric", action="store_true", help="Use asymmetric containment/coverage scoring")
+    p_all.add_argument("--asym-alpha", type=float, default=0.7, help="Containment weight in asymmetric mode")
+    p_all.add_argument("--score-norm", type=str, default="none",
+                        choices=["none", "zscore", "percentile", "minmax"],
+                        help="Score normalization method")
+    p_all.add_argument("--rerank", action="store_true", help="Apply LambdaMART re-ranking")
+    p_all.add_argument("--rerank-model", type=Path, default=None, help="Path to trained re-ranker model")
+    p_all.add_argument("--rerank-top-k", type=int, default=100, help="Number of SF candidates for re-ranking")
+    p_all.add_argument("--negation-aware", action="store_true", help="Apply negation penalty to matching documents")
+    p_all.add_argument("--negation-penalty", type=float, default=0.5, help="Negation penalty weight (0-1)")
 
     args = parser.parse_args()
     if not args.command:
@@ -987,8 +1043,25 @@ def cli_main():
     if hasattr(args, "hybrid"):
         params["hybrid"] = args.hybrid
         params["hybrid_alpha"] = args.hybrid_alpha
+    if hasattr(args, "splade"):
+        params["splade"] = args.splade
+        params["splade_model"] = args.splade_model
     if hasattr(args, "doc_norm"):
         params["doc_norm"] = args.doc_norm
+    if hasattr(args, "sim_metric"):
+        params["sim_metric"] = args.sim_metric
+    if hasattr(args, "asymmetric"):
+        params["asymmetric"] = args.asymmetric
+        params["asym_alpha"] = args.asym_alpha
+    if hasattr(args, "score_norm"):
+        params["score_norm"] = args.score_norm
+    if hasattr(args, "rerank"):
+        params["rerank"] = args.rerank
+        params["rerank_model"] = args.rerank_model
+        params["rerank_top_k"] = args.rerank_top_k
+    if hasattr(args, "negation_aware"):
+        params["negation_aware"] = args.negation_aware
+        params["negation_penalty"] = args.negation_penalty
     if hasattr(args, "expand_synonyms"):
         params["expand_synonyms"] = args.expand_synonyms
     if hasattr(args, "glossary") and args.glossary:
@@ -998,6 +1071,16 @@ def cli_main():
         params["tfidf_alpha"] = args.tfidf_alpha
     if hasattr(args, "corpus") and args.corpus:
         params["corpus_path"] = str(args.corpus)
+    elif args.command == "benchmark" and hasattr(args, "run_dir"):
+        # Load corpus_path from run config for benchmark subcommand
+        run_config_path = Path(args.run_dir) / "config.yml"
+        if run_config_path.exists():
+            import yaml as _yaml
+            with open(run_config_path) as f:
+                run_cfg = _yaml.safe_load(f)
+            run_pipeline = run_cfg.get("pipeline", {})
+            if "corpus_path" in run_pipeline:
+                params["corpus_path"] = run_pipeline["corpus_path"]
 
     runner = GenericBenchmarkRunner(adapter, params)
 

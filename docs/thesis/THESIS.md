@@ -251,6 +251,26 @@ python -m spacy download en_core_web_sm
 
 ---
 
+## Appendix D: Support Files (Archive)
+
+The following files in `docs/thesis/archive/` contain detailed technical documentation for individual pipeline stages. These were written as standalone references before the chapter reorganization and are retained for completeness.
+
+| File | Corresponding Chapter | Content |
+|------|----------------------|---------|
+| `phrase_extractor.md` | Ch3 (Pipeline) | Full v3.1 technical documentation of phrase extraction |
+| `term_context.md` | Ch3 (Pipeline) | Term-context matrix construction details |
+| `semantic_space.md` | Ch3 (Pipeline) | Semantic space construction with t-SNE/UMAP math |
+| `fingerprints.md` | Ch3 (Pipeline) | Deep technical description of Steps 4-5 with full math |
+| `query_processing.md` | Ch3 (Pipeline) / Ch6 | Comprehensive query processing with LambdaMART, negation, hybrid scoring |
+| `parameters_tuning.md` | Ch4 (Parameter Tuning) | Parameter sweep results on 20-doc corpus |
+| `datasets.md` | Ch7 (Experiments) / Ch8 (Discussion) | Dataset characteristics matrix, performance tiers |
+| `metrics.md` | Ch6 (Similarity Metrics) | Retrieval metrics framework |
+| `benchmarks.md` | Ch7 / Ch8 | Benchmarking methodology and multi-dataset results |
+| `lib.md` | — | API reference for lib.py utility module (developer docs) |
+| `review-comments.md` | — | Review comments and feedback |
+
+---
+
 ## References
 
 ### Information Retrieval

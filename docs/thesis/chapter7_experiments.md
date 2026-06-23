@@ -17,6 +17,7 @@ We evaluate Semantic Folding across 10 datasets covering diverse task types:
 | HotpotQA | Multi-hop QA | 48 | 2-hop Wikipedia QA | Yang et al. (2018) |
 | NQ-REaR | Factoid Retrieval | 100 | Google Natural Questions | Google (2019) |
 | MuSiQue | Multi-hop QA | 100 | 2–5 hop Wikipedia QA | Trivedi et al. (2022) |
+| BioASQ | Biomedical QA | 50 | Biomedical factoid/yes-no/list/summary | Nentidis et al. (2025) |
 
 ### 7.1.2 Evaluation Protocol
 

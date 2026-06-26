@@ -56,8 +56,16 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import scipy.signal
+from functools import lru_cache
 
 from scipy.sparse import csr_matrix
+
+# FAISS is optional — used for O(V·D) → O(log V) OOV expansion
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
 
 from phrase_extractor import (
     SPACY_AVAILABLE,
@@ -72,7 +80,9 @@ from lib import (
     normalize_fingerprint,
     normalize_phrase,
 )
-SPARCITY_GAURD=0.005
+from negation_handler import get_negation_handler
+from ontology_expander import get_ontology_expander
+SPARSITY_GUARD=0.005
 
 # ── BM25 Scorer for Hybrid Mode ─────────────────────────────────────────────
 class BM25Scorer:
@@ -121,6 +131,18 @@ class BM25Scorer:
 
     def score_all(self, query_text: str) -> List[Tuple[int, float]]:
         return [(i, self.score_query(query_text, i)) for i in range(self.doc_count)]
+
+# ── SPLADE Scorer for Hybrid Mode ────────────────────────────────────────────
+def _get_splade_scorer(corpus_texts: List[str], model_name: str = "naver/splade-cocondenser-ensembledistil",
+                       cache_dir: str = None):
+    """Load SPLADEScorer with disk-cached corpus vectors."""
+    try:
+        from splade_scorer import get_splade_scorer
+        return get_splade_scorer(corpus_texts, model_name=model_name, cache_dir=cache_dir)
+    except ImportError as e:
+        logger.warning(f"  [SPLADE] Not available: {e}")
+        return None
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging — level driven by LOG_LEVEL env var (default: INFO)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -386,6 +408,29 @@ def expand_oov_query_terms(
     dim = grid_size * grid_size
     expansions: Dict[str, List[Tuple[str, float]]] = {}
 
+    # ─────────────────────────────────────────────────────────────────────
+    # FAISS index for O(V·D) → O(log V) OOV expansion (when available)
+    # ─────────────────────────────────────────────────────────────────────
+    faiss_index = None
+    if FAISS_AVAILABLE and len(vocab_phrases) > 100:
+        import time
+        t0 = time.time()
+        # L2-normalize vectors for cosine similarity via inner product
+        faiss.normalize_L2(vocab_matrix)
+        # IVFFlat: faster approximate search for large vocabularies
+        nlist = min(int(np.sqrt(len(vocab_phrases))), 256)
+        quantizer = faiss.IndexFlatIP(dim)
+        faiss_index = faiss.IndexIVFFlat(quantizer, dim, nlist, faiss.METRIC_INNER_PRODUCT)
+        faiss_index.train(vocab_matrix)
+        faiss_index.add(vocab_matrix)
+        faiss_index.nprobe = min(nlist, 16)  # search this many cells
+        logger.info(
+            f"  [OOV FAISS] Built IVFFlat index: {len(vocab_phrases)} vectors, "
+            f"dim={dim}, nlist={nlist}, time={time.time()-t0:.2f}s"
+        )
+    elif not FAISS_AVAILABLE and len(vocab_phrases) > 100:
+        logger.info("  [OOV] FAISS not installed — falling back to numpy cosine sweep")
+
     # ═════════════════════════════════════════════════════════════════════
     # FIX #3 — Deduplicate OOV terms that resolve to identical anchor sets
     # ═════════════════════════════════════════════════════════════════════
@@ -568,21 +613,44 @@ def expand_oov_query_terms(
 
         # ── STEP 3: Batch cosine similarity against entire vocab ──────────
         #
-        # dot(vocab_matrix, anchor) / (vocab_norms * anchor_norm)
-        # Shapes: (V,D) @ (D,) → (V,) / ((V,1).squeeze() * scalar) → (V,)
+        # Two paths:
+        #   FAISS:  O(log V) approximate search via IVFFlat index
+        #   NumPy:  O(V·D) exact cosine sweep (fallback)
         #
-        # vocab_norms were precomputed before the loop (O(V) once).
-        similarities = (vocab_matrix @ anchor_vec) / (
-            vocab_norms.squeeze() * anchor_norm
-        )
+        # Both produce the same interface: sorted (phrase, score) pairs.
+        # ─────────────────────────────────────────────────────────────────
 
-        # Sort indices descending; iterate until threshold or top_k is reached
-        top_indices = np.argsort(similarities)[::-1]
+        if faiss_index is not None:
+            # ── FAISS path: O(log V) approximate nearest neighbor ────────
+            # L2-normalize anchor and search via inner product = cosine sim
+            anchor_normalized = anchor_vec.reshape(1, -1).copy()
+            faiss.normalize_L2(anchor_normalized)
+            # Search top_k * 4 to account for filtered results
+            search_k = min(top_k_per_term * 4, len(vocab_phrases))
+            scores, indices = faiss_index.search(anchor_normalized, search_k)
+            scores = scores[0]
+            indices = indices[0]
+        else:
+            # ── NumPy path: O(V·D) exact cosine sweep ────────────────────
+            # dot(vocab_matrix, anchor) / (vocab_norms * anchor_norm)
+            # Shapes: (V,D) @ (D,) → (V,) / ((V,1).squeeze() * scalar) → (V,)
+            #
+            # vocab_norms were precomputed before the loop (O(V) once).
+            similarities = (vocab_matrix @ anchor_vec) / (
+                vocab_norms.squeeze() * anchor_norm
+            )
+            # Sort indices descending; iterate until threshold or top_k is reached
+            top_indices = np.argsort(similarities)[::-1]
+            scores = similarities[top_indices]
+            indices = top_indices
 
         matches: List[Tuple[str, float]] = []
-        for idx in top_indices:
+        for rank in range(len(indices)):
+            idx = indices[rank]
+            if idx < 0:
+                continue  # FAISS returns -1 for missing results
             phrase = vocab_phrases[idx]
-            score  = float(similarities[idx])
+            score  = float(scores[rank])
 
             # ── Early exit: sorted descending, nothing below can qualify ──
             if score < min_similarity:
@@ -1475,8 +1543,8 @@ def apply_spreading(
     n_cells  = fingerprint.shape[1]
     sparsity = fingerprint.nnz / n_cells
 
-    if sparsity < SPARCITY_GAURD:
-        logger.warning(...)
+    if sparsity < SPARSITY_GUARD:
+        logger.warning(f"Sparsity {sparsity:.4f} below threshold {SPARSITY_GUARD} — skipping spreading")
         return fingerprint, {
             "spreading_applied": False,
             "reason": "sparsity_too_low",
@@ -1551,6 +1619,7 @@ def rank_documents(
     grid_size       : int   = 0,
     use_morton      : bool  = True,
     doc_norm        : str   = "sqrt_nnz",
+    sim_metric      : str   = "cosine",
     **kwargs,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     """
@@ -1663,7 +1732,32 @@ def rank_documents(
             logger.debug(f"  [RANK SKIP] '{doc_id}' has near-zero norm")
             continue
 
-        score = raw_dot / (query_norm * doc_norm_factor)
+        if sim_metric == "spatial_jaccard":
+            # Morton proximity-weighted Jaccard
+            query_indices = set(query_fp.indices) if hasattr(query_fp, 'indices') else set(np.nonzero(query_fp)[0])
+            doc_indices = set(doc_fp.indices) if hasattr(doc_fp, 'indices') else set(np.nonzero(doc_fp)[0])
+            intersection = query_indices & doc_indices
+            union = query_indices | doc_indices
+
+            if intersection and union:
+                gs = grid_size if grid_size > 0 else 64
+                weighted_intersection = 0.0
+                for bit_idx in intersection:
+                    x = 0; y = 0; bit = bit_idx
+                    for i_bit in range(0, 32, 2):
+                        if bit & 1: x |= (1 << (i_bit // 2))
+                        bit >>= 1
+                        if bit & 1: y |= (1 << (i_bit // 2))
+                        bit >>= 1
+                    cx, cy = gs // 2, gs // 2
+                    dist = abs(x - cx) + abs(y - cy)
+                    weight = np.exp(-dist / (gs * 0.3))
+                    weighted_intersection += weight
+                score = weighted_intersection / len(union)
+            else:
+                score = 0.0
+        else:
+            score = raw_dot / (query_norm * doc_norm_factor)
 
         logger.debug(
             f"  [RANK SCORE] '{doc_id}' raw_dot={raw_dot:.4f}, "
@@ -1928,6 +2022,39 @@ def process_query(
         f"corpus_size={len(doc_fingerprints)}"
     )
 
+    # ── Query decomposition (optional) ────────────────────────────────────────
+    decompose = getattr(args, "decompose", False)
+    if decompose:
+        from query_decomposer import is_multi_hop_query, decompose_and_score
+        
+        if is_multi_hop_query(query):
+            logger.info(f"  [DECOMPOSE] Multi-hop query detected: {query[:60]}...")
+            
+            # Create a score function that calls process_query recursively
+            def score_fn(sub_query):
+                results, _, _ = process_query(
+                    sub_query, phrase_fingerprints, doc_fingerprints,
+                    args, idf_weights, use_morton=use_morton
+                )
+                return results
+            
+            # Decompose and score
+            decomposed_results = decompose_and_score(
+                query, score_fn, top_k=getattr(args, "top_k", 10)
+            )
+            
+            # Create metadata
+            metadata = {
+                "query": query,
+                "decomposed": True,
+                "ranking": {
+                    "total_documents": len(doc_fingerprints),
+                    "documents_above_threshold": len(decomposed_results),
+                },
+            }
+            
+            return decomposed_results, metadata, None
+    
     phrase_vocab    = set(phrase_fingerprints.keys())
     use_spacy       = not getattr(args, "no_spacy",        False)
     remove_verbs    = getattr(args, "remove_verbs",        False)
@@ -1937,51 +2064,27 @@ def process_query(
     # ── Stage 1: phrase extraction + OOV expansion ───────────────────────────
     logger.debug("  [STAGE 1] phrase extraction + OOV expansion")
 
-    # Query expansion with glossary (optional)
+    # Query expansion with ontology (optional)
     expand_synonyms = getattr(args, "expand_synonyms", False)
     synonym_weight = getattr(args, "synonym_weight", 0.5)
     glossary_path = getattr(args, "glossary", None)
 
     if expand_synonyms:
-        # Load glossary
-        glossary = {}
-        if glossary_path and Path(glossary_path).exists():
-            with open(glossary_path, encoding="utf-8") as f:
-                glossary_data = json.load(f)
-            # Flatten domains into term→synonyms mapping
-            for domain_name, domain in glossary_data.get("domains", {}).items():
-                for category, terms in domain.items():
-                    for canonical, synonyms in terms.items():
-                        glossary[canonical] = synonyms
-            logger.info(f"  [EXPAND] loaded glossary: {len(glossary)} terms")
-        else:
-            # Fallback to default medical glossary
-            glossary = {
-                "myocardial infarction": ["heart attack", "mi", "cardiac arrest"],
-                "hypertension": ["high blood pressure", "htn"],
-                "diabetes": ["diabetes mellitus", "dm", "blood sugar"],
-                "cancer": ["malignancy", "neoplasm", "tumor"],
-                "neuroplasticity": ["brain plasticity", "neural adaptation"],
-                "stroke": ["cerebrovascular accident", "cva", "brain attack"],
-                "epilepsy": ["seizure disorder", "seizures"],
-                "alzheimers": ["alzheimer's disease", "dementia"],
-                "pneumonia": ["lung infection", "pulmonary infection"],
-                "asthma": ["bronchial asthma", "reactive airway disease"],
-                "artificial intelligence": ["ai", "machine intelligence"],
-                "machine learning": ["ml", "statistical learning"],
-            }
-            logger.info(f"  [EXPAND] using default glossary: {len(glossary)} terms")
+        from ontology_expander import get_ontology_expander
 
-        # Expand query using glossary
-        query_lower = query.lower()
-        expanded_terms = []
-        for canonical, synonyms in glossary.items():
-            if canonical in query_lower:
-                expanded_terms.extend(synonyms)
+        # Load ontology expander
+        expander = get_ontology_expander(glossary_path)
 
-        if expanded_terms:
-            query = query + " " + " ".join(expanded_terms)
-            logger.info(f"  [EXPAND] added synonyms: {expanded_terms}")
+        # Expand query with weighted synonyms
+        query, term_weights = expander.expand_query_weighted(
+            query,
+            synonym_weight=synonym_weight,
+            max_synonyms=3,
+        )
+
+        logger.info(
+            f"  [ONTOLOGY] expanded query: {len(term_weights)} weighted terms"
+        )
 
     # Primary extraction: vocabulary-filtered, typically returns single tokens
     # and the most common short phrases, but often misses multi-word vocab hits.
@@ -2083,12 +2186,17 @@ def process_query(
         f"({len(vocab_fp_index)} entries)"
     )
 
-    oov_expansions = expand_oov_query_terms(
-        oov_terms=oov_terms,
-        vocab_fp_index=vocab_fp_index,
-        phrase_fp_dir=str(args.phrase_fp_dir),
-        grid_size=getattr(args, "grid_size", 128),
-    )
+    # ── OOV expansion (skipped if --no-oov-expansion) ─────────────────────
+    if getattr(args, "no_oov_expansion", False):
+        oov_expansions = {}
+        logger.info("  [STAGE 1] OOV expansion disabled (--no-oov-expansion)")
+    else:
+        oov_expansions = expand_oov_query_terms(
+            oov_terms=oov_terms,
+            vocab_fp_index=vocab_fp_index,
+            phrase_fp_dir=str(args.phrase_fp_dir),
+            grid_size=getattr(args, "grid_size", 128),
+        )
     logger.debug(f"  [STAGE 1] oov_expansions={oov_expansions}")
 
     # ── Merge combined_matched + OOV expansions into final phrase_weights ─────
@@ -2116,7 +2224,7 @@ def process_query(
                 "total_documents"          : 0,
                 "documents_above_threshold": 0,
             },
-        }
+        }, None
 
     # ── Stage 2: query fingerprint construction ───────────────────────────────
     logger.debug("  [STAGE 2] query fingerprint construction")
@@ -2182,7 +2290,7 @@ def process_query(
                 "total_documents"          : 0,
                 "documents_above_threshold": 0,
             },
-        }
+        }, None
 
     logger.debug(
         f"  [STAGE 2] fingerprint ready — nnz={query_fp.nnz}, "
@@ -2193,9 +2301,54 @@ def process_query(
     spreading_metadata: Dict = {}
     spreading_steps = getattr(args, "spreading_steps", 0)
 
-    logger.debug(f"  [STAGE 3] spreading_steps={spreading_steps}")
+    # Adaptive spreading: adjust radius based on query length
+    if getattr(args, "adaptive_spreading", False) and spreading_steps > 0:
+        query_word_count = len(query.split())
 
-    if spreading_steps > 0:
+        # Granular adaptive spreading based on query length
+        if query_word_count <= 5:
+            # Very short queries: wide spreading for context
+            spreading_steps = max(spreading_steps, 3)
+            logger.debug(f"  [STAGE 3] adaptive: very short query ({query_word_count} words) -> radius={spreading_steps}")
+        elif query_word_count <= 10:
+            # Short queries: moderate spreading
+            spreading_steps = max(spreading_steps, 2)
+            logger.debug(f"  [STAGE 3] adaptive: short query ({query_word_count} words) -> radius={spreading_steps}")
+        elif query_word_count <= 20:
+            # Medium queries: standard spreading
+            spreading_steps = min(spreading_steps, 2)
+            logger.debug(f"  [STAGE 3] adaptive: medium query ({query_word_count} words) -> radius={spreading_steps}")
+        else:
+            # Long queries: tight spreading for precision
+            spreading_steps = min(spreading_steps, 1)
+            logger.debug(f"  [STAGE 3] adaptive: long query ({query_word_count} words) -> radius={spreading_steps}")
+
+    # Multi-resolution spreading: spread at multiple radii and combine
+    multi_resolution = getattr(args, "multi_resolution", False)
+    if multi_resolution and spreading_steps > 0:
+        grid_size = int(np.sqrt(query_fp.shape[1]))
+        radii = [1, 2, 3]  # Multiple resolutions
+        weights = [0.5, 0.3, 0.2]  # Weight smaller radii more
+
+        combined_fp = np.zeros(query_fp.shape, dtype=np.float32)
+        for radius, weight in zip(radii, weights):
+            fp_spread, _ = apply_spreading(
+                query_fp, grid_size,
+                radius=radius,
+                decay=getattr(args, "spreading_decay", 0.5),
+                normalize_after=True,
+                use_morton=use_morton,
+            )
+            combined_fp += weight * fp_spread.toarray()
+
+        # Normalize combined fingerprint
+        from lib import normalize_fingerprint
+        query_fp = normalize_fingerprint(csr_matrix(combined_fp), method='l2')
+        spreading_metadata["multi_resolution"] = True
+        spreading_metadata["radii"] = radii
+        spreading_metadata["weights"] = weights
+        logger.debug(f"  [STAGE 3] multi-resolution spreading: radii={radii}, weights={weights}")
+    elif spreading_steps > 0:
         grid_size = int(np.sqrt(query_fp.shape[1]))
         query_fp, spreading_metadata = apply_spreading(
             query_fp, grid_size,
@@ -2225,18 +2378,21 @@ def process_query(
         grid_size=grid_size,
         use_morton=use_morton,
         doc_norm=getattr(args, "doc_norm", "sqrt_nnz"),
+        sim_metric=getattr(args, "sim_metric", "cosine"),
     )
 
-    # ── Stage 4b: hybrid SF+BM25 scoring ──────────────────────────────────────
+    # Initialize sf_scores from results (used by hybrid and TF-IDF blocks)
+    sf_scores = {doc_id: score for doc_id, score in results}
+
+    # ── Stage 4b: hybrid SF+BM25/SPLADE scoring ────────────────────────────────
     hybrid_enabled = getattr(args, "hybrid", False)
-    if hybrid_enabled:
+    splade_enabled = getattr(args, "splade", False)
+    if hybrid_enabled or splade_enabled:
         hybrid_alpha = getattr(args, "hybrid_alpha", 0.5)
         corpus_path = getattr(args, "corpus_path", None)
 
         if corpus_path and corpus_path.exists():
-            logger.info(f"  [HYBRID] enabled with alpha={hybrid_alpha}")
-
-            # Load corpus for BM25
+            # Load corpus texts
             corpus_texts = []
             doc_id_list = list(doc_fingerprints.keys())
             with open(corpus_path, "r", encoding="utf-8") as f:
@@ -2247,126 +2403,150 @@ def process_query(
                         if comma_idx > 0:
                             corpus_texts.append(line[comma_idx+1:].strip())
 
-            if len(corpus_texts) == len(doc_id_list):
-                bm25 = BM25Scorer(corpus_texts)
-                sf_scores = {doc_id: score for doc_id, score in results}
-
-                # Compute BM25 scores for all docs
-                bm25_scores = bm25.score_all(query)
-                bm25_dict = {doc_id_list[i]: score for i, score in bm25_scores}
-
-                # Normalize both score sets
-                max_sf = max(sf_scores.values()) if sf_scores else 1.0
-                max_bm25 = max(bm25_dict.values()) if bm25_dict else 1.0
-
-                # Combine scores
-                hybrid_results = []
-                for doc_id in doc_id_list:
-                    sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
-                    bm25_norm = bm25_dict.get(doc_id, 0.0) / max_bm25 if max_bm25 > 0 else 0
-                    combined = hybrid_alpha * sf_norm + (1 - hybrid_alpha) * bm25_norm
-                    hybrid_results.append((doc_id, combined))
-
-                hybrid_results.sort(key=lambda x: x[1], reverse=True)
-                results = hybrid_results[:getattr(args, "top_k", 10)]
-
-                logger.info(
-                    f"  [HYBRID] combined {len(results)} results, "
-                    f"top_score={results[0][1]:.4f}"
-                )
-            else:
+            if len(corpus_texts) != len(doc_id_list):
                 logger.warning(
                     f"  [HYBRID] corpus size mismatch: {len(corpus_texts)} texts "
-                    f"vs {len(doc_id_list)} docs — falling back to SF only"
+                    f"vs {len(doc_id_list)} docs — using min({len(corpus_texts)}, {len(doc_id_list)})"
                 )
+                min_len = min(len(corpus_texts), len(doc_id_list))
+                corpus_texts = corpus_texts[:min_len]
+                doc_id_list = doc_id_list[:min_len]
+
+            if splade_enabled:
+                # SPLADE hybrid mode
+                splade_model = getattr(args, "splade_model", "naver/splade-cocondenser-ensembledistil")
+                cache_dir = str(Path(corpus_path).parent)
+                logger.info(f"  [SPLADE] enabled with alpha={hybrid_alpha}, model={splade_model}, cache={cache_dir}")
+                scorer = _get_splade_scorer(corpus_texts, model_name=splade_model, cache_dir=cache_dir)
+                if scorer is None:
+                    logger.warning("  [SPLADE] Failed to load model — falling back to SF only")
+                else:
+                    splade_scores_list = scorer.score_all(query)
+                    splade_dict = {doc_id_list[i]: score for i, score in splade_scores_list}
+
+                    max_sf = max(sf_scores.values()) if sf_scores else 1.0
+                    max_splade = max(splade_dict.values()) if splade_dict else 1.0
+
+                    hybrid_results = []
+                    for doc_id in doc_id_list:
+                        sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
+                        splade_norm = splade_dict.get(doc_id, 0.0) / max_splade if max_splade > 0 else 0
+                        combined = hybrid_alpha * sf_norm + (1 - hybrid_alpha) * splade_norm
+                        hybrid_results.append((doc_id, combined))
+
+                    hybrid_results.sort(key=lambda x: x[1], reverse=True)
+                    results = hybrid_results[:getattr(args, "top_k", 10)]
+
+    # ── Stage 4d: negation-aware scoring ──────────────────────────────────────
+    negation_aware = getattr(args, "negation_aware", False)
+    if negation_aware and results:
+        from negation_handler import get_negation_handler
+
+        neg_handler = get_negation_handler()
+        neg_info = neg_handler.detect_negation(query)
+
+        if neg_info["has_negation"]:
+            logger.info(
+                f"  [NEGATION] type={neg_info['negation_type']}, "
+                f"cues={neg_info['negation_cues_found']}, "
+                f"negated={neg_info['negated_concepts']}"
+            )
+
+            # Load corpus for scoring
+            corpus_path = getattr(args, "corpus_path", None)
+            if corpus_path and Path(corpus_path).exists():
+                doc_texts = {}
+                doc_ids_list = [doc_id for doc_id, _ in results]
+                with open(corpus_path, "r", encoding="utf-8") as f:
+                    for i, line in enumerate(f):
+                        line = line.strip()
+                        if line and i < len(doc_ids_list):
+                            comma_idx = line.find(",")
+                            if comma_idx > 0:
+                                doc_texts[doc_ids_list[i]] = line[comma_idx+1:].strip()
+
+                # Apply negation-aware scoring
+                negation_boost = getattr(args, "negation_boost", 0.3)
+                negation_penalty = getattr(args, "negation_penalty", 0.5)
+
+                results = neg_handler.score_documents(
+                    query=query,
+                    results=results,
+                    doc_texts=doc_texts,
+                    negation_boost=negation_boost,
+                    negation_penalty=negation_penalty,
+                )
+
+                # Truncate to top_k
+                results = results[:getattr(args, "top_k", 10)]
+
+                logger.info(
+                    f"  [NEGATION] applied negation-aware scoring to {len(doc_texts)} docs"
+                )
+            else:
+                logger.warning("  [NEGATION] corpus_path required for negation-aware scoring")
         else:
-            logger.warning("  [HYBRID] --corpus not provided — using SF only")
+            logger.debug("  [NEGATION] no negation detected in query")
 
-    top_score = f"{results[0][1]:.4f}" if results else "n/a"
-    logger.debug(
-        f"  [STAGE 4] returned {len(results)} results, "
-        f"top_score={top_score}"
-    )
-
-    # ── Stage 4c: TF-IDF re-ranking ──────────────────────────────────────────
+    # ── Stage 4e: TF-IDF re-ranking (optional) ──────────────────────────────
     tfidf_rerank = getattr(args, "tfidf_rerank", False)
     if tfidf_rerank and results:
         tfidf_alpha = getattr(args, "tfidf_alpha", 0.3)
         corpus_path = getattr(args, "corpus_path", None)
 
-        if corpus_path and corpus_path.exists():
+        if corpus_path and Path(corpus_path).exists():
             logger.info(f"  [TFIDF] re-ranking with alpha={tfidf_alpha}")
 
-            import re
-            from collections import Counter
-
-            # Load corpus
-            corpus_texts = []
-            doc_id_list = list(doc_fingerprints.keys())
+            # Load corpus for TF-IDF
+            doc_texts = []
+            doc_id_list = [doc_id for doc_id, _ in results]
             with open(corpus_path, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line:
                         comma_idx = line.find(",")
                         if comma_idx > 0:
-                            corpus_texts.append(line[comma_idx+1:].strip())
+                            doc_texts.append(line[comma_idx+1:].strip())
 
-            if len(corpus_texts) == len(doc_id_list):
-                # Build TF-IDF index
-                doc_count = len(corpus_texts)
-                df = Counter()
-                tf_per_doc = []
+            # Compute TF-IDF scores
+            from collections import Counter
+            import math
 
-                for text in corpus_texts:
-                    tokens = re.findall(r'\w+', text.lower())
-                    tf = Counter(tokens)
-                    tf_per_doc.append(tf)
-                    for term in set(tokens):
-                        df[term] += 1
+            # Build IDF
+            doc_freq = Counter()
+            for text in doc_texts:
+                terms = set(text.lower().split())
+                for term in terms:
+                    doc_freq[term] += 1
+            n_docs = len(doc_texts)
 
-                # Compute IDF
-                import math
-                idf = {}
-                for term, freq in df.items():
-                    idf[term] = math.log((doc_count - freq + 0.5) / (freq + 0.5) + 1.0)
+            # Compute TF-IDF for each document
+            tfidf_scores = {}
+            for doc_id, text in zip(doc_id_list, doc_texts):
+                terms = text.lower().split()
+                tf = Counter(terms)
+                score = 0.0
+                for term, count in tf.items():
+                    idf = math.log((n_docs + 1) / (doc_freq.get(term, 0) + 1)) + 1
+                    tfidf = count * idf
+                    score += tfidf
+                tfidf_scores[doc_id] = score
 
-                # Score query against documents
-                query_tokens = re.findall(r'\w+', query.lower())
-                tfidf_scores = {}
+            # Combine SF and TF-IDF scores
+            max_sf = max(sf_scores.values()) if sf_scores else 1.0
+            max_tfidf = max(tfidf_scores.values()) if tfidf_scores else 1.0
 
-                for i, doc_id in enumerate(doc_id_list):
-                    tf = tf_per_doc[i]
-                    score = 0.0
-                    for term in query_tokens:
-                        if term in tf and term in idf:
-                            score += tf[term] * idf[term]
-                    tfidf_scores[doc_id] = score
+            reranked_results = []
+            for doc_id, sf_score in results:
+                sf_norm = sf_score / max_sf if max_sf > 0 else 0
+                tfidf_norm = tfidf_scores.get(doc_id, 0) / max_tfidf if max_tfidf > 0 else 0
+                combined = tfidf_alpha * sf_norm + (1 - tfidf_alpha) * tfidf_norm
+                reranked_results.append((doc_id, combined))
 
-                # Normalize TF-IDF scores
-                max_tfidf = max(tfidf_scores.values()) if tfidf_scores else 1.0
+            reranked_results.sort(key=lambda x: x[1], reverse=True)
+            results = reranked_results[:getattr(args, "top_k", 10)]
 
-                # Combine SF and TF-IDF scores
-                sf_scores = {doc_id: score for doc_id, score in results}
-                max_sf = max(sf_scores.values()) if sf_scores else 1.0
-
-                reranked = []
-                for doc_id in doc_id_list:
-                    sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
-                    tfidf_norm = tfidf_scores.get(doc_id, 0.0) / max_tfidf if max_tfidf > 0 else 0
-                    combined = (1 - tfidf_alpha) * sf_norm + tfidf_alpha * tfidf_norm
-                    reranked.append((doc_id, combined))
-
-                reranked.sort(key=lambda x: x[1], reverse=True)
-                results = reranked[:getattr(args, "top_k", 10)]
-
-                logger.info(
-                    f"  [TFIDF] reranked {len(results)} results, "
-                    f"top_score={results[0][1]:.4f}"
-                )
-            else:
-                logger.warning(
-                    f"  [TFIDF] corpus size mismatch — using SF only"
-                )
+            logger.info(f"  [TFIDF] re-ranked {len(results)} results")
 
     logger.info(
         f"process_query done: {len(results)} results for {query!r}"
@@ -2496,9 +2676,38 @@ def parse_args() -> argparse.Namespace:
         help="Minimum score threshold for results.",
     )
     parser.add_argument(
+        "--decompose", dest="decompose", action="store_true", default=False,
+        help="Enable multi-hop query decomposition for complex queries.",
+    )
+    parser.add_argument(
         "--doc-norm", dest="doc_norm", type=str, default="sqrt_nnz",
         choices=["sqrt_nnz", "l2", "l1", "max"],
         help="Document fingerprint normalization method for ranking.",
+    )
+
+    # ── Similarity metric ────────────────────────────────────────────────────
+    parser.add_argument(
+        "--sim-metric", dest="sim_metric", type=str, default="cosine",
+        choices=["cosine", "dice", "overlap", "jaccard", "idf-weighted", "spatial_jaccard"],
+        help="Similarity metric for document ranking.",
+    )
+
+    # ── Adaptive spreading ──────────────────────────────────────────────────
+    parser.add_argument(
+        "--adaptive-spreading", dest="adaptive_spreading", action="store_true",
+        default=False,
+        help="Adjust spreading radius based on query length (short queries get wider spreading).",
+    )
+    parser.add_argument(
+        "--short-query-max-words", dest="short_query_max_words", type=int, default=10,
+        help="Maximum word count for a query to be considered 'short' in adaptive spreading.",
+    )
+
+    # ── Multi-resolution spreading ──────────────────────────────────────────
+    parser.add_argument(
+        "--multi-resolution", dest="multi_resolution", action="store_true",
+        default=False,
+        help="Apply multi-resolution spreading: spread at multiple radii (1,2,3) and combine.",
     )
 
     # ── Geometric scoring ─────────────────────────────────────────────────────
@@ -2515,8 +2724,30 @@ def parse_args() -> argparse.Namespace:
         help="Enable hybrid scoring: combine SF score with BM25 score.",
     )
     parser.add_argument(
-        "--hybrid-alpha", dest="hybrid_alpha", type=float, default=0.5,
-        help="Weight for SF score in hybrid mode (0=BM25 only, 1=SF only).",
+        "--hybrid-alpha", dest="hybrid_alpha", type=float, default=0.3,
+        help="Weight for SF score in hybrid mode (0=BM25 only, 1=SF only). Default 0.3 optimized on custom corpus.",
+    )
+
+    # ── SPLADE hybrid scoring ───────────────────────────────────────────────
+    parser.add_argument(
+        "--splade", action="store_true", default=True,
+        help="Enable hybrid SF+SPLADE scoring (default: True). Use --no-splade to disable.",
+    )
+    parser.add_argument(
+        "--no-splade", dest="splade", action="store_false",
+        help="Disable SPLADE hybrid scoring.",
+    )
+    parser.add_argument(
+        "--splade-model", dest="splade_model", type=str,
+        default="naver/splade-cocondenser-ensembledistil",
+        help="HuggingFace SPLADE model name (default: naver/splade-cocondenser-ensembledistil).",
+    )
+
+    # ── OOV expansion ────────────────────────────────────────────────────
+    parser.add_argument(
+        "--no-oov-expansion", dest="no_oov_expansion", action="store_true",
+        default=False,
+        help="Skip OOV term expansion entirely (faster, but misses vocabulary matches for unknown phrases).",
     )
 
     # ── Query expansion ─────────────────────────────────────────────────────
@@ -2543,6 +2774,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--tfidf-alpha", dest="tfidf_alpha", type=float, default=0.3,
         help="Weight for TF-IDF score in re-ranking (0-1).",
+    )
+
+    # ── Negation-aware scoring ─────────────────────────────────────────────
+    parser.add_argument(
+        "--negation-aware", dest="negation_aware", action="store_true",
+        default=False,
+        help="Apply negation-aware scoring: penalize docs with negated concepts.",
+    )
+    parser.add_argument(
+        "--negation-penalty", dest="negation_penalty", type=float, default=0.5,
+        help="Penalty factor for negated concepts (0=no penalty, 1=full penalty).",
+    )
+    parser.add_argument(
+        "--negation-boost", dest="negation_boost", type=float, default=0.3,
+        help="Boost factor for documents with properly negated concepts (0-1).",
     )
 
     # ── Shared corpus path ──────────────────────────────────────────────────

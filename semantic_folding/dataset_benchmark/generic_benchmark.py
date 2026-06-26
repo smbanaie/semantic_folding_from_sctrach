@@ -75,7 +75,7 @@ PIPELINE_DEFAULTS = {
     "min_freq": 1,
     "morton": True,
     "method": "tsne",
-    "tsne_perplexity": 30,
+    "tsne_perplexity": 50,
     "tsne_iter": 1000,
     "umap_n_neighbors": 15,
     "umap_min_dist": 0.0,
@@ -85,7 +85,58 @@ PIPELINE_DEFAULTS = {
     "dynamic_spreading": False,
     "short_query_max_words": 10,
     "spreading_steps_long": 1,
+    "doc_norm": "l2",
 }
+
+# ============================================================================
+# Dataset Registry
+# ============================================================================
+def load_dataset_registry(registry_path: Optional[Path] = None, dataset: str = None) -> Dict[str, Any]:
+    """
+    Load per-dataset parameter overrides from a YAML registry.
+    
+    Parameters
+    ----------
+    registry_path : Path, optional
+        Path to dataset_registry.yml. If None, uses default location.
+    dataset : str, optional
+        Dataset name to load overrides for.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Merged parameters: defaults + dataset-specific overrides.
+    """
+    if registry_path is None:
+        registry_path = Path(__file__).resolve().parents[2] / "config" / "dataset_registry.yml"
+    
+    if not registry_path.exists():
+        logger.warning(f"  [REGISTRY] Not found: {registry_path}")
+        return {}
+    
+    try:
+        with open(registry_path, "r", encoding="utf-8") as f:
+            registry = yaml.safe_load(f)
+    except Exception as e:
+        logger.error(f"  [REGISTRY] Failed to load: {e}")
+        return {}
+    
+    # Start with global defaults
+    params = dict(registry.get("defaults", {}))
+    
+    # Apply dataset-specific overrides
+    if dataset and dataset in registry:
+        dataset_params = registry[dataset]
+        # Skip non-parameter keys
+        for key in ["description", "max_queries"]:
+            dataset_params.pop(key, None)
+        params.update(dataset_params)
+        logger.info(f"  [REGISTRY] Loaded params for '{dataset}': {params}")
+    elif dataset:
+        logger.warning(f"  [REGISTRY] Dataset '{dataset}' not found in registry")
+    
+    return params
+
 
 # ============================================================================
 # Terminal Colors
@@ -313,6 +364,9 @@ class GenericBenchmarkRunner:
             for line in corpus_lines:
                 f.write(line + "\n")
 
+        # Store corpus path in params for Step 6 hybrid/SPLADE scoring
+        self.params["corpus_path"] = str(corpus_path)
+
         with open(run_dir / "query_doc_map.json", "w") as f:
             json.dump(query_doc_map, f, indent=2)
         with open(run_dir / "query_gold.json", "w") as f:
@@ -523,8 +577,28 @@ class GenericBenchmarkRunner:
                 step6_args.extend(["--hybrid", "--hybrid-alpha", str(self.params.get("hybrid_alpha", 0.5))])
                 if self.params.get("corpus_path"):
                     step6_args.extend(["--corpus", self.params["corpus_path"]])
+            if self.params.get("splade", False):
+                step6_args.extend(["--splade", "--splade-model", self.params.get("splade_model", "naver/splade-cocondenser-ensembledistil")])
+                if self.params.get("corpus_path"):
+                    step6_args.extend(["--corpus", self.params["corpus_path"]])
             if self.params.get("doc_norm", "sqrt_nnz") != "sqrt_nnz":
                 step6_args.extend(["--doc-norm", self.params["doc_norm"]])
+            if self.params.get("sim_metric", "cosine") != "cosine":
+                step6_args.extend(["--sim-metric", self.params["sim_metric"]])
+            if self.params.get("asymmetric", False):
+                step6_args.append("--asymmetric")
+                step6_args.extend(["--asym-alpha", str(self.params.get("asym_alpha", 0.7))])
+            if self.params.get("score_norm", "none") != "none":
+                step6_args.extend(["--score-norm", self.params["score_norm"]])
+            if self.params.get("rerank", False):
+                step6_args.append("--rerank")
+                if self.params.get("rerank_model"):
+                    step6_args.extend(["--rerank-model", str(self.params["rerank_model"])])
+                step6_args.extend(["--rerank-top-k", str(self.params.get("rerank_top_k", 100))])
+            if self.params.get("negation_aware", False):
+                step6_args.append("--negation-aware")
+                step6_args.extend(["--negation-penalty", str(self.params.get("negation_penalty", 0.5))])
+                step6_args.extend(["--negation-boost", str(self.params.get("negation_boost", 0.3))])
             if self.params.get("expand_synonyms", False):
                 step6_args.append("--expand-synonyms")
                 if self.params.get("glossary_path"):
@@ -533,7 +607,11 @@ class GenericBenchmarkRunner:
                 step6_args.extend(["--tfidf-rerank", "--tfidf-alpha", str(self.params.get("tfidf_alpha", 0.3))])
                 if self.params.get("corpus_path"):
                     step6_args.extend(["--corpus", self.params["corpus_path"]])
-            ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor", timeout=300)
+            if self.params.get("decompose", False):
+                step6_args.append("--decompose")
+            if self.params.get("multi_resolution", False):
+                step6_args.append("--multi-resolution")
+            ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor", timeout=900)
             elapsed = time.time() - t0
 
             if not ok:
@@ -879,6 +957,8 @@ def cli_main():
     p_idx.add_argument("--dataset", required=True)
     p_idx.add_argument("--jsonl", type=Path, required=True, help="Converted MuSiQue-like JSONL")
     p_idx.add_argument("--max-queries", type=int, default=None)
+    p_idx.add_argument("--registry", type=Path, default=None,
+                       help="Path to dataset_registry.yml for per-dataset parameter overrides")
     p_idx.add_argument("--grid-size", type=int, default=PIPELINE_DEFAULTS["grid_size"])
     p_idx.add_argument("--method", default=PIPELINE_DEFAULTS["method"], choices=["tsne", "umap", "pca"])
     p_idx.add_argument("--umap-n-neighbors", type=int, default=PIPELINE_DEFAULTS["umap_n_neighbors"])
@@ -897,6 +977,8 @@ def cli_main():
     p_bm.add_argument("--run-dir", type=Path, required=True)
     p_bm.add_argument("--query-start", type=int, default=0)
     p_bm.add_argument("--query-end", type=int, default=None)
+    p_bm.add_argument("--registry", type=Path, default=None,
+                       help="Path to dataset_registry.yml for per-dataset parameter overrides")
     p_bm.add_argument("--spreading-steps", type=int, default=PIPELINE_DEFAULTS["spreading_steps"])
     p_bm.add_argument("--dynamic-spreading", action="store_true",
                       help="If set, use spreading_steps_long for queries with <= short-query-max-words")
@@ -908,12 +990,34 @@ def cli_main():
                       help="Apply 3x3 spatial adjacency kernel to query fingerprint before scoring")
     p_bm.add_argument("--hybrid", action="store_true", help="Enable hybrid SF+BM25 scoring")
     p_bm.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
-    p_bm.add_argument("--doc-norm", type=str, default="sqrt_nnz", choices=["sqrt_nnz", "l2", "l1", "max"])
+    p_bm.add_argument("--splade", action="store_true", default=True, help="Enable hybrid SF+SPLADE scoring (default: True)")
+    p_bm.add_argument("--no-splade", dest="splade", action="store_false", help="Disable SPLADE hybrid scoring")
+    p_bm.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
+                       help="HuggingFace SPLADE model name")
+    p_bm.add_argument("--multi-resolution", action="store_true",
+                       help="Apply multi-resolution spreading (spread at multiple radii and combine)")
+    p_bm.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
     p_bm.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
     p_bm.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_bm.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_bm.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_bm.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
+    p_bm.add_argument("--sim-metric", type=str, default="cosine",
+                       choices=["cosine", "dice", "overlap", "jaccard", "idf-weighted", "spatial_jaccard"],
+                       help="Similarity metric for document ranking")
+    p_bm.add_argument("--asymmetric", action="store_true", help="Use asymmetric containment/coverage scoring")
+    p_bm.add_argument("--asym-alpha", type=float, default=0.7, help="Containment weight in asymmetric mode")
+    p_bm.add_argument("--score-norm", type=str, default="none",
+                       choices=["none", "zscore", "percentile", "minmax"],
+                       help="Score normalization method")
+    p_bm.add_argument("--rerank", action="store_true", help="Apply LambdaMART re-ranking")
+    p_bm.add_argument("--rerank-model", type=Path, default=None, help="Path to trained re-ranker model")
+    p_bm.add_argument("--rerank-top-k", type=int, default=100, help="Number of SF candidates for re-ranking")
+    p_bm.add_argument("--negation-aware", action="store_true", help="Apply negation penalty to matching documents")
+    p_bm.add_argument("--negation-penalty", type=float, default=0.5, help="Negation penalty weight (0-1)")
+    p_bm.add_argument("--negation-boost", type=float, default=0.3, help="Boost for properly negated docs (0-1)")
+    p_bm.add_argument("--decompose", action="store_true",
+                        help="Enable multi-hop query decomposition")
 
     # report
     p_rp = sub.add_parser("report", help="Phase 3: generate markdown report")
@@ -930,6 +1034,8 @@ def cli_main():
     p_all.add_argument("--dataset", required=True)
     p_all.add_argument("--jsonl", type=Path, required=True)
     p_all.add_argument("--max-queries", type=int, default=None)
+    p_all.add_argument("--registry", type=Path, default=None,
+                       help="Path to dataset_registry.yml for per-dataset parameter overrides")
     p_all.add_argument("--grid-size", type=int, default=PIPELINE_DEFAULTS["grid_size"])
     p_all.add_argument("--method", default=PIPELINE_DEFAULTS["method"], choices=["tsne", "umap", "pca"])
     p_all.add_argument("--umap-n-neighbors", type=int, default=PIPELINE_DEFAULTS["umap_n_neighbors"])
@@ -952,12 +1058,36 @@ def cli_main():
                        help="Apply 3x3 spatial adjacency kernel to query fingerprint before scoring")
     p_all.add_argument("--hybrid", action="store_true", help="Enable hybrid SF+BM25 scoring")
     p_all.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
-    p_all.add_argument("--doc-norm", type=str, default="sqrt_nnz", choices=["sqrt_nnz", "l2", "l1", "max"])
+    p_all.add_argument("--splade", action="store_true", default=True, help="Enable hybrid SF+SPLADE scoring (default: True)")
+    p_all.add_argument("--no-splade", dest="splade", action="store_false", help="Disable SPLADE hybrid scoring")
+    p_all.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
+                        help="HuggingFace SPLADE model name")
+    p_all.add_argument("--multi-resolution", action="store_true",
+                        help="Apply multi-resolution spreading (spread at multiple radii and combine)")
+    p_all.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
     p_all.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
     p_all.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_all.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_all.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_all.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
+    p_all.add_argument("--sim-metric", type=str, default="cosine",
+                        choices=["cosine", "dice", "overlap", "jaccard", "idf-weighted", "spatial_jaccard"],
+                        help="Similarity metric for document ranking")
+    p_all.add_argument("--adaptive-spreading", action="store_true",
+                        help="Adjust spreading radius based on query length")
+    p_all.add_argument("--decompose", action="store_true",
+                        help="Enable multi-hop query decomposition")
+    p_all.add_argument("--asymmetric", action="store_true", help="Use asymmetric containment/coverage scoring")
+    p_all.add_argument("--asym-alpha", type=float, default=0.7, help="Containment weight in asymmetric mode")
+    p_all.add_argument("--score-norm", type=str, default="none",
+                        choices=["none", "zscore", "percentile", "minmax"],
+                        help="Score normalization method")
+    p_all.add_argument("--rerank", action="store_true", help="Apply LambdaMART re-ranking")
+    p_all.add_argument("--rerank-model", type=Path, default=None, help="Path to trained re-ranker model")
+    p_all.add_argument("--rerank-top-k", type=int, default=100, help="Number of SF candidates for re-ranking")
+    p_all.add_argument("--negation-aware", action="store_true", help="Apply negation penalty to matching documents")
+    p_all.add_argument("--negation-penalty", type=float, default=0.5, help="Negation penalty weight (0-1)")
+    p_all.add_argument("--negation-boost", type=float, default=0.3, help="Boost for properly negated docs (0-1)")
 
     args = parser.parse_args()
     if not args.command:
@@ -966,18 +1096,28 @@ def cli_main():
 
     from .adapters import get_adapter
     adapter = get_adapter(args.dataset)
+    
+    # ── Load registry defaults (CLI overrides take precedence) ─────────────
+    registry_params = {}
+    if hasattr(args, "registry") and args.registry:
+        registry_params = load_dataset_registry(args.registry, args.dataset)
+    elif hasattr(args, "dataset"):
+        # Try default registry location
+        registry_params = load_dataset_registry(dataset=args.dataset)
+    
     params = {}
     if hasattr(args, "grid_size"):
-        params["grid_size"] = args.grid_size
-        params["method"] = args.method
-        params["umap_n_neighbors"] = args.umap_n_neighbors
-        params["umap_min_dist"] = args.umap_min_dist
-        params["umap_metric"] = args.umap_metric
-        params["spreading_steps"] = args.spreading_steps
-        params["top_percent"] = args.top_percent
-        params["weighting"] = args.weighting
-        params["smoothing_sigma"] = args.smoothing_sigma
-        params["morton"] = not args.no_morton
+        # Registry provides defaults; CLI flags override
+        params["grid_size"] = registry_params.get("grid_size", args.grid_size)
+        params["method"] = registry_params.get("method", args.method)
+        params["umap_n_neighbors"] = registry_params.get("umap_n_neighbors", args.umap_n_neighbors)
+        params["umap_min_dist"] = registry_params.get("umap_min_dist", args.umap_min_dist)
+        params["umap_metric"] = registry_params.get("umap_metric", args.umap_metric)
+        params["spreading_steps"] = registry_params.get("spreading_steps", args.spreading_steps)
+        params["top_percent"] = registry_params.get("top_percent", args.top_percent)
+        params["weighting"] = registry_params.get("weighting", args.weighting)
+        params["smoothing_sigma"] = registry_params.get("smoothing_sigma", args.smoothing_sigma)
+        params["morton"] = registry_params.get("use_morton", not args.no_morton)
     if hasattr(args, "dynamic_spreading"):
         params["dynamic_spreading"] = args.dynamic_spreading
         params["spreading_steps_long"] = args.spreading_steps_long
@@ -987,8 +1127,33 @@ def cli_main():
     if hasattr(args, "hybrid"):
         params["hybrid"] = args.hybrid
         params["hybrid_alpha"] = args.hybrid_alpha
+    if hasattr(args, "splade"):
+        # Registry can override splade settings per-dataset
+        params["splade"] = registry_params.get("splade", args.splade)
+        params["splade_model"] = args.splade_model
+        if "splade_alpha" in registry_params:
+            params["hybrid_alpha"] = registry_params["splade_alpha"]
+    if hasattr(args, "multi_resolution"):
+        params["multi_resolution"] = args.multi_resolution
     if hasattr(args, "doc_norm"):
-        params["doc_norm"] = args.doc_norm
+        params["doc_norm"] = registry_params.get("doc_norm", args.doc_norm)
+    if hasattr(args, "sim_metric"):
+        params["sim_metric"] = args.sim_metric
+    if hasattr(args, "asymmetric"):
+        params["asymmetric"] = args.asymmetric
+        params["asym_alpha"] = args.asym_alpha
+    if hasattr(args, "score_norm"):
+        params["score_norm"] = args.score_norm
+    if hasattr(args, "rerank"):
+        params["rerank"] = args.rerank
+        params["rerank_model"] = args.rerank_model
+        params["rerank_top_k"] = args.rerank_top_k
+    if hasattr(args, "negation_aware"):
+        params["negation_aware"] = args.negation_aware
+        params["negation_penalty"] = args.negation_penalty
+        params["negation_boost"] = args.negation_boost
+    if hasattr(args, "decompose"):
+        params["decompose"] = args.decompose
     if hasattr(args, "expand_synonyms"):
         params["expand_synonyms"] = args.expand_synonyms
     if hasattr(args, "glossary") and args.glossary:
@@ -998,6 +1163,16 @@ def cli_main():
         params["tfidf_alpha"] = args.tfidf_alpha
     if hasattr(args, "corpus") and args.corpus:
         params["corpus_path"] = str(args.corpus)
+    elif args.command == "benchmark" and hasattr(args, "run_dir"):
+        # Load corpus_path from run config for benchmark subcommand
+        run_config_path = Path(args.run_dir) / "config.yml"
+        if run_config_path.exists():
+            import yaml as _yaml
+            with open(run_config_path) as f:
+                run_cfg = _yaml.safe_load(f)
+            run_pipeline = run_cfg.get("pipeline", {})
+            if "corpus_path" in run_pipeline:
+                params["corpus_path"] = run_pipeline["corpus_path"]
 
     runner = GenericBenchmarkRunner(adapter, params)
 

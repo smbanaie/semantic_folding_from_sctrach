@@ -85,7 +85,7 @@ class BaseDatasetAdapter(ABC):
             "min_freq": 1,
             "keep_verbs": True,
             "top_k": 5,
-            "tsne_perplexity": 30,
+            "tsne_perplexity": 50,
             "tsne_iter": 1000,
         }
 

@@ -13,6 +13,10 @@ from .nq_rear_adapter import NQRearAdapter
 from .narrativeqa_adapter import NarrativeQAAdapter
 from .hotpotqa_adapter import HotpotQAAdapter
 from .twowiki_adapter import TwoWikiMultihopQAAdapter
+from .beir_adapter import (
+    NFCorpusAdapter, SciFactAdapter, QuoraAdapter,
+    TRECCOVIDAdapter, DBPediaAdapter,
+)
 from ._stubs import (
     SciDQAAdapter,
     DropAdapter,
@@ -41,6 +45,24 @@ ADAPTER_REGISTRY = {
     "narrativeqa": NarrativeQAAdapter,
     "hotpotqa": HotpotQAAdapter,
     "2wikimultihopqa": TwoWikiMultihopQAAdapter,
+    "nfcorpus": NFCorpusAdapter,
+    "scifact": SciFactAdapter,
+    "quora": QuoraAdapter,
+    "trec-covid": TRECCOVIDAdapter,
+    "trec_covid": TRECCOVIDAdapter,
+    "dbpedia-entity": DBPediaAdapter,
+    "dbpedia": DBPediaAdapter,
+    "sf_custom": lambda **kwargs: type('SFCustomAdapter', (object,), {
+        'dataset_name': 'sf_custom',
+        'display_name': 'SF Custom Corpus',
+        'default_subset': 'test',
+        'get_recommended_params': lambda self: {
+            'grid_size': 64, 'spreading_steps': 1, 'top_percent': 0.10,
+            'weighting': 'idf', 'smoothing_sigma': 1.5, 'morton': True,
+            'min_word_length': 3, 'min_freq': 1, 'keep_verbs': True, 'top_k': 10,
+            'tsne_perplexity': 50, 'tsne_iter': 1000,
+        },
+    })(),
 }
 
 
@@ -73,4 +95,9 @@ __all__ = [
     "NarrativeQAAdapter",
     "HotpotQAAdapter",
     "TwoWikiMultihopQAAdapter",
+    "NFCorpusAdapter",
+    "SciFactAdapter",
+    "QuoraAdapter",
+    "TRECCOVIDAdapter",
+    "DBPediaAdapter",
 ]

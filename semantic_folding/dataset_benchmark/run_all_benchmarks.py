@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from semantic_folding.dataset_benchmark.adapters import get_adapter, ADAPTER_REGISTRY
-from semantic_folding.dataset_benchmark.generic_benchmark import GenericBenchmarkRunner, load_entries
+from semantic_folding.dataset_benchmark.generic_benchmark import GenericBenchmarkRunner, load_entries, load_dataset_registry
 from semantic_folding.dataset_benchmark.bm25_benchmark import run_bm25_benchmark
 from lib import get_logger
 
@@ -40,7 +40,8 @@ DATASETS_TO_RUN = ["belebele", "bioasq", "maud", "popqa", "nq_rear"]
 
 def run_single_dataset(dataset_name: str, max_queries: int = None,
                        skip_index: bool = False, skip_bm25: bool = False,
-                       only_bm25: bool = False, run_dir_override: Path = None):
+                       only_bm25: bool = False, run_dir_override: Path = None,
+                       registry_path: Path = None):
     """Run full benchmark pipeline for one dataset."""
 
     separator = f"{'=' * 60}"
@@ -86,6 +87,15 @@ def run_single_dataset(dataset_name: str, max_queries: int = None,
         return False
 
     runner = GenericBenchmarkRunner(adapter)
+
+    # Apply registry params (per-dataset recommended settings)
+    if registry_path:
+        registry_params = load_dataset_registry(registry_path, dataset_name)
+    else:
+        registry_params = load_dataset_registry(dataset=dataset_name)
+    if registry_params:
+        runner.params.update(registry_params)
+        logger.info(f"  [REGISTRY] Applied {len(registry_params)} params for {dataset_name}")
 
     run_dir = run_dir_override
 
@@ -176,6 +186,8 @@ def main():
                         help="Only run BM25 baseline (requires existing index)")
     parser.add_argument("--run-dir", type=str, default=None,
                         help="Override run directory for all datasets")
+    parser.add_argument("--registry", type=Path, default=None,
+                        help="Path to dataset_registry.yml for per-dataset parameter overrides")
     args = parser.parse_args()
 
     run_dir = Path(args.run_dir) if args.run_dir else None
@@ -190,6 +202,7 @@ def main():
                 ds, max_queries=args.max_queries,
                 skip_index=args.skip_index, skip_bm25=args.skip_bm25,
                 only_bm25=args.only_bm25, run_dir_override=run_dir,
+                registry_path=args.registry,
             )
             results[ds] = "OK" if ok else "FAILED"
         except Exception as e:

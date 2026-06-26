@@ -352,7 +352,7 @@ def prepare_context_vectors(
 
 def reduce_dimensions_tsne(
     vectors: np.ndarray,
-    perplexity: int = 30,
+    perplexity: int = 50,
     n_iter: int = 1000,
     n_jobs: int = 1,
     random_state: int = 42,

@@ -1,0 +1,174 @@
+# ============================================================
+# Dataset Parameter Registry
+# ============================================================
+# Recommended parameters per dataset based on benchmark results.
+# Use with: python -m semantic_folding.dataset_benchmark.generic_benchmark all \
+#           --dataset <name> --registry config/dataset_registry.yml
+#
+# Generated: 2026-06-26
+# Source: BENCHMARK_RESULTS.md + per-dataset analyses
+
+# ============================================================
+# GLOBAL DEFAULTS (override per-dataset as needed)
+# ============================================================
+defaults:
+  grid_size: 64
+  smoothing_sigma: 1.5
+  method: tsne
+  perplexity: 50
+  spreading_steps: 1
+  top_percent: 0.10
+  weighting: idf
+  doc_norm: l2
+  use_morton: true
+  splade: true
+  splade_alpha: 0.3
+
+# ============================================================
+# PER-DATASET OVERRIDES
+# ============================================================
+# Each dataset can override any default parameter.
+# Parameters not listed inherit from defaults.
+
+belebele:
+  description: "Reading comprehension across 122 languages (English subset)"
+  max_queries: 200
+  # SPLADE hybrid gives MRR 1.000 on Belebele
+  splade: true
+  splade_alpha: 0.3
+  # t-SNE perplexity=50 tested optimal
+  perplexity: 50
+  # L2 norm tested optimal (+4% vs sqrt_nnz)
+  doc_norm: l2
+
+pubmedqa:
+  description: "Biomedical question answering (yes/no/maybe)"
+  max_queries: 200
+  # SPLADE hurts PubMedQA (domain mismatch)
+  splade: false
+  # Default params work well (MRR 0.955)
+  perplexity: 50
+  doc_norm: l2
+
+popqa:
+  description: "Popular culture QA (entity-centric)"
+  max_queries: 200
+  # SPLADE not tested on PopQA; start with it enabled
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+narrativeqa:
+  description: "Narrative/story comprehension"
+  max_queries: 200
+  # SPLADE hurts NarrativeQA (-19%)
+  splade: false
+  perplexity: 50
+  doc_norm: l2
+
+musique:
+  description: "Multi-hop compositional QA"
+  max_queries: 200
+  # SPLADE helps (+24.8% on 2WikiMultihop, similar expected here)
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+hotpotqa:
+  description: "Multi-hop factoid QA"
+  max_queries: 200
+  # SPLADE helps (+35.4%)
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+nq_rear:
+  description: "Natural Questions (entity matching)"
+  max_queries: 200
+  # SPLADE helps (+60.3%)
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+bioasq:
+  description: "Biomedical semantic QA"
+  max_queries: 200
+  # SPLADE helps (+18.4%)
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+drop:
+  description: "Discrete reasoning over paragraphs"
+  max_queries: 200
+  # SPLADE not tested; start with enabled
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+docfinqa:
+  description: "Document-level financial QA"
+  max_queries: 200
+  # SPLADE not tested; start with enabled
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+cuad:
+  description: "Legal contract review (CUAD)"
+  max_queries: 200
+  # Legal domain — SPLADE may help with terminology
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+  # NOTE: CUAD currently at MRR 0.000 — needs domain-specific tuning
+  # Consider: longer chunks, legal-specific preprocessing
+
+twowikimultihopqa:
+  description: "Multi-hop QA across Wikipedia"
+  max_queries: 200
+  # SPLADE helps (+24.8%)
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+# ============================================================
+# BENCHMARK PROTOCOLS
+# ============================================================
+# Pre-defined benchmark configurations for reproducibility
+
+protocols:
+  # Quick smoke test (50 queries, fast)
+  quick:
+    max_queries: 50
+    splade: false  # Skip SPLADE for speed
+    
+  # Standard benchmark (100 queries)
+  standard:
+    max_queries: 100
+    splade: true
+    
+  # Full benchmark (200+ queries, all datasets)
+  full:
+    max_queries: 200
+    splade: true
+    
+  # SF-only (no SPLADE, for ablation study)
+  sf_only:
+    max_queries: 100
+    splade: false
+    
+  # SPLADE-only (no SF, for ablation study)
+  splade_only:
+    max_queries: 100
+    # This requires custom code to disable SF scoring
+    # Not directly supported by current CLI

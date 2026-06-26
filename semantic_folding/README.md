@@ -115,6 +115,7 @@ uv sync
 
 # Launch interactive interface
 uv run python semantic_folding/semantic_folder.py
+```
 
 ### Command Line (Step by Step)
 
@@ -163,6 +164,20 @@ uv run python semantic_folding/query_processor.py \
 ## Configuration
 
 The semantic folding pipeline is highly configurable through `config/semantic_folding.yml`:
+
+### Recommended Defaults (Verified Optimal)
+
+| Parameter | Value | Justification |
+|-----------|-------|---------------|
+| Grid size | **64** | 128×128 tested → MRR −5.3%. Do not change. |
+| Method | **t-SNE** | +10% MRR vs UMAP on Belebele |
+| Perplexity | **30** | Default; 50 improved some datasets +1.5–4% |
+| Smoothing | **σ=1.5** | σ=0 → MRR −31.2%. Critical. |
+| Top percent | **0.10** | 5% loses signal, 15% adds noise |
+| Weighting | **IDF** | −0.86% MRR vs uniform |
+| Spreading | **radius=1, decay=0.5** | radius=2 → MRR −7.1% |
+| Morton | **true** | Z-order spatial encoding |
+| Normalization | **L2** (`--doc-norm l2`) | +4.0% MRR vs sqrt_nnz |
 
 ### Core Parameters
 
@@ -598,6 +613,49 @@ id,text
 - **Cached Fingerprints**: Load phrase fingerprints once and reuse across documents
 - **Sparse Accumulation**: Maintain activation maps as sparse dictionaries during aggregation
 - **Early Validation**: Filter malformed phrases before any fingerprint operations
+
+## Documentation
+
+### docs/ Structure
+
+```
+docs/
+├── recommendations.md                          # Future work & improvement roadmap
+├── reports/
+│   ├── BENCHMARK_RESULTS.md                    # SINGLE SOURCE OF TRUTH (all 12 datasets)
+│   ├── REPORTS.md                              # Version history index + file log
+│   └── <dataset>/
+│       ├── v2_*_comprehensive_analysis.md      # Per-dataset deep dive
+│       └── failure_analysis_*.md               # Root cause analysis
+├── research/                                   # Literature reviews, method comparisons
+└── thesis/                                     # Thesis drafts
+```
+
+| File | Role | Update Frequency |
+|------|------|-----------------|
+| `docs/reports/BENCHMARK_RESULTS.md` | All metrics, all datasets, all experiments | After every benchmark |
+| `docs/reports/REPORTS.md` | Version history + file references | After every benchmark |
+| `docs/recommendations.md` | Future work, improvement priorities | When improvements tested |
+| `semantic_folding/benchmarks.md` | Thesis foundation — methodology & justification | After significant changes |
+
+### Benchmark Results (12 Datasets)
+
+| Dataset | SF MRR | BM25 MRR | SF/BM25 | Category |
+|---------|--------|----------|---------|----------|
+| PopQA | 0.980 | 1.000 | 98.0% | Entity lookup |
+| PubMedQA | 0.955 | 1.000 | 95.5% | Biomedical QA |
+| NarrativeQA | 0.939 | 0.980 | 95.8% | Narrative |
+| Belebele | 0.880 | 0.995 | 88.4% | Reading comprehension |
+| NQ-REaR | 0.574 | 0.638 | 89.9% | Factoid retrieval |
+| 2WikiMultihopQA | 0.788 | 0.921 | 85.6% | Multi-hop |
+| HotpotQA | 0.726 | 0.869 | 83.5% | Multi-hop |
+| DocFinQA | 0.250 | 0.341 | 73.3% | Financial QA |
+| MuSiQue | 0.453 | 0.672 | 67.4% | Multi-hop QA |
+| DROP | 0.320 | 0.762 | 42.6% | Discrete reasoning |
+| CUAD | 0.000 | 0.244 | 0% | Legal |
+| MAUD | 0.000 | 0.649 | 0% | Legal |
+
+**Key finding**: SF excels on biomedical/narrative tasks (≥95% of BM25). Degrades on multi-hop (67–85%) and legal/financial (0–73%). See `docs/reports/BENCHMARK_RESULTS.md` for full analysis.
 
 ## Future Work
 

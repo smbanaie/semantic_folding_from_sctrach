@@ -73,7 +73,7 @@ semantic_space:
 
   # t-SNE specific parameters
   tsne:
-    perplexity: 30               # Balance local vs global structure (5–50)
+    perplexity: 50               # Balance local vs global structure (5–50), optimal for most datasets
     max_iter: 1000               # Maximum iterations
     learning_rate: 200           # Step size (auto, or 10–1000)
     early_exaggeration: 12       # Initial separation strength

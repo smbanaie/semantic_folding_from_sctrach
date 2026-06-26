@@ -69,8 +69,11 @@ PIPELINE_DEFAULTS = {
     "min_word_length": 3,
     "min_freq": 1,
     "morton": True,
-    "tsne_perplexity": 30,
+    "tsne_perplexity": 50,
     "tsne_iter": 1000,
+    "splade": True,
+    "hybrid_alpha": 0.3,
+    "doc_norm": "l2",
 }
 
 # ============================================================================
@@ -457,6 +460,9 @@ def phase2_benchmark(run_dir: Path, entries: List[dict], query_start: int,
             "--top-k", str(params["top_k"]),
             "--weighting", params["weighting"],
             "--spreading-steps", str(params["spreading_steps"]),
+            "--doc-norm", params["doc_norm"],
+            "--splade", "--splade-model", "naver/splade-cocondenser-ensembledistil",
+            "--hybrid-alpha", str(params["hybrid_alpha"]),
             "--output", str(result_json),
             "--keep-verbs", "--min-word-length", str(params["min_word_length"]),
         ], PROJECT_ROOT, "Step 6 query_processor", timeout=120)

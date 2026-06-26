@@ -6,28 +6,24 @@ Semantic Folding is an unsupervised retrieval architecture that represents words
 
 **Pipeline Architecture:**
 
-```
-Raw Text Corpus
-    ↓
-[Step 1: Phrase Extraction]
-    → Domain vocabulary via noun-chunk parsing and n-gram discovery
-    ↓
-[Step 2: Term-Context Matrix]
-    → Sparse co-occurrence matrix weighted by TF-IDF
-    ↓
-[Step 3: Semantic Space]
-    → Contexts embedded onto g×g integer grid via t-SNE/UMAP
-    ↓
-[Step 4: Phrase Fingerprints]
-    → Each phrase assigned a centroid, convolved with Gaussian kernel
-    ↓
-[Step 5: Document Fingerprints]
-    → Phrase fingerprints accumulated and sparsified via peak selection
-    ↓
-[Step 6: Query Processing]
-    → Query decomposed into phrases, weighted, scored against documents
-    ↓
-Ranked Document List
+```mermaid
+graph TD
+    A[Raw Text Corpus] --> B[Step 1: Phrase Extraction]
+    B --> |Noun chunks, Named entities, N-grams| C[Step 2: Term-Context Matrix]
+    C --> |Sparse co-occurrence, TF-IDF weighting| D[Step 3: Semantic Space]
+    D --> |t-SNE/UMAP embedding, Grid mapping| E[Step 4: Phrase Fingerprints]
+    E --> |Gaussian smoothing, Morton encoding| F[Step 5: Document Fingerprints]
+    F --> |Phrase aggregation, Sparsification| G[Step 6: Query Processing]
+    G --> |Query decomposition, Spreading activation| H[Ranked Document List]
+
+    style A fill:#e1f5fe
+    style H fill:#c8e6c9
+    style B fill:#fff3e0
+    style C fill:#fff3e0
+    style D fill:#fce4ec
+    style E fill:#fce4ec
+    style F fill:#f3e5f5
+    style G fill:#f3e5f5
 ```
 
 ## 3.2 Step 1: Phrase Extraction
@@ -130,6 +126,22 @@ Natural language exhibits extreme sparsity ($\rho < 0.1\%$). Sparse storage achi
 | TF-IDF calculation | $O(\text{nnz} + P)$ |
 
 ## 3.4 Step 3: Semantic Space Construction
+
+```mermaid
+graph TD
+    A[Term-Context Matrix] --> B[Transpose]
+    B --> |Contexts as rows| C[L2 Normalization]
+    C --> D[Dimensionality Reduction]
+    D --> |t-SNE or UMAP| E[2D Continuous Coordinates]
+    E --> F[Grid Quantisation]
+    F --> |N×N integer grid| G[Collision Resolution]
+    G --> |Chebyshev spiral search| H[Final Grid Coordinates]
+
+    style A fill:#e1f5fe
+    style H fill:#c8e6c9
+    style D fill:#fff3e0
+    style F fill:#fce4ec
+```
 
 ### 3.4.1 The Curse of Dimensionality
 
@@ -239,6 +251,21 @@ This hybrid approach could combine the robustness of distributional semantics wi
 
 ## 3.5 Step 4: Phrase Fingerprints
 
+```mermaid
+graph TD
+    A[Phrase from Vocabulary] --> B[Find Contexts]
+    B --> |Matrix lookup| C[Map to Grid Coordinates]
+    C --> D[Create Sparse Activation Map]
+    D --> E[Gaussian Smoothing]
+    E --> |σ = 1.5| F[Morton Z-order Encoding]
+    F --> |2D → 1D linearization| G[Phrase Fingerprint]
+
+    style A fill:#e1f5fe
+    style G fill:#c8e6c9
+    style E fill:#fff3e0
+    style F fill:#fce4ec
+```
+
 ### 3.5.1 Centroid Placement
 
 For each phrase $p$, the centroid of its context coordinates is computed:
@@ -310,6 +337,25 @@ $$k_i = \max\left(1, \left\lfloor k \cdot \frac{\hat{G}_d(x_i,y_i)}{\sum_{j=1}^m
 - **Locality under Morton**: Hamming distance approximates spatial proximity
 
 ## 3.7 Step 6: Query Processing
+
+```mermaid
+graph TD
+    Q[User Query] --> A[Phrase Extraction]
+    A --> |Same pipeline as Step 1| B[Phrase Normalization]
+    B --> C[Grid Position Mapping]
+    C --> |Using learned coordinates| D[Gaussian Smoothing]
+    D --> |σ = 1.5| E[Phrase Fingerprint Aggregation]
+    E --> |IDF weighting| F[Spreading Activation]
+    F --> |radius=1, decay=0.5| G[Query Fingerprint]
+    G --> H[Cosine Similarity]
+    H --> I[Document Fingerprints]
+    I --> J[Ranked Results]
+
+    style Q fill:#e1f5fe
+    style J fill:#c8e6c9
+    style G fill:#fff3e0
+    style H fill:#fce4ec
+```
 
 ### 3.7.1 Query Fingerprint Construction
 

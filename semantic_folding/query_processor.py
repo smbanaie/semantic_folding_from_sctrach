@@ -56,8 +56,16 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import scipy.signal
+from functools import lru_cache
 
 from scipy.sparse import csr_matrix
+
+# FAISS is optional — used for O(V·D) → O(log V) OOV expansion
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
 
 from phrase_extractor import (
     SPACY_AVAILABLE,
@@ -72,6 +80,8 @@ from lib import (
     normalize_fingerprint,
     normalize_phrase,
 )
+from negation_handler import get_negation_handler
+from ontology_expander import get_ontology_expander
 SPARSITY_GUARD=0.005
 
 # ── BM25 Scorer for Hybrid Mode ─────────────────────────────────────────────
@@ -398,6 +408,29 @@ def expand_oov_query_terms(
     dim = grid_size * grid_size
     expansions: Dict[str, List[Tuple[str, float]]] = {}
 
+    # ─────────────────────────────────────────────────────────────────────
+    # FAISS index for O(V·D) → O(log V) OOV expansion (when available)
+    # ─────────────────────────────────────────────────────────────────────
+    faiss_index = None
+    if FAISS_AVAILABLE and len(vocab_phrases) > 100:
+        import time
+        t0 = time.time()
+        # L2-normalize vectors for cosine similarity via inner product
+        faiss.normalize_L2(vocab_matrix)
+        # IVFFlat: faster approximate search for large vocabularies
+        nlist = min(int(np.sqrt(len(vocab_phrases))), 256)
+        quantizer = faiss.IndexFlatIP(dim)
+        faiss_index = faiss.IndexIVFFlat(quantizer, dim, nlist, faiss.METRIC_INNER_PRODUCT)
+        faiss_index.train(vocab_matrix)
+        faiss_index.add(vocab_matrix)
+        faiss_index.nprobe = min(nlist, 16)  # search this many cells
+        logger.info(
+            f"  [OOV FAISS] Built IVFFlat index: {len(vocab_phrases)} vectors, "
+            f"dim={dim}, nlist={nlist}, time={time.time()-t0:.2f}s"
+        )
+    elif not FAISS_AVAILABLE and len(vocab_phrases) > 100:
+        logger.info("  [OOV] FAISS not installed — falling back to numpy cosine sweep")
+
     # ═════════════════════════════════════════════════════════════════════
     # FIX #3 — Deduplicate OOV terms that resolve to identical anchor sets
     # ═════════════════════════════════════════════════════════════════════
@@ -580,21 +613,44 @@ def expand_oov_query_terms(
 
         # ── STEP 3: Batch cosine similarity against entire vocab ──────────
         #
-        # dot(vocab_matrix, anchor) / (vocab_norms * anchor_norm)
-        # Shapes: (V,D) @ (D,) → (V,) / ((V,1).squeeze() * scalar) → (V,)
+        # Two paths:
+        #   FAISS:  O(log V) approximate search via IVFFlat index
+        #   NumPy:  O(V·D) exact cosine sweep (fallback)
         #
-        # vocab_norms were precomputed before the loop (O(V) once).
-        similarities = (vocab_matrix @ anchor_vec) / (
-            vocab_norms.squeeze() * anchor_norm
-        )
+        # Both produce the same interface: sorted (phrase, score) pairs.
+        # ─────────────────────────────────────────────────────────────────
 
-        # Sort indices descending; iterate until threshold or top_k is reached
-        top_indices = np.argsort(similarities)[::-1]
+        if faiss_index is not None:
+            # ── FAISS path: O(log V) approximate nearest neighbor ────────
+            # L2-normalize anchor and search via inner product = cosine sim
+            anchor_normalized = anchor_vec.reshape(1, -1).copy()
+            faiss.normalize_L2(anchor_normalized)
+            # Search top_k * 4 to account for filtered results
+            search_k = min(top_k_per_term * 4, len(vocab_phrases))
+            scores, indices = faiss_index.search(anchor_normalized, search_k)
+            scores = scores[0]
+            indices = indices[0]
+        else:
+            # ── NumPy path: O(V·D) exact cosine sweep ────────────────────
+            # dot(vocab_matrix, anchor) / (vocab_norms * anchor_norm)
+            # Shapes: (V,D) @ (D,) → (V,) / ((V,1).squeeze() * scalar) → (V,)
+            #
+            # vocab_norms were precomputed before the loop (O(V) once).
+            similarities = (vocab_matrix @ anchor_vec) / (
+                vocab_norms.squeeze() * anchor_norm
+            )
+            # Sort indices descending; iterate until threshold or top_k is reached
+            top_indices = np.argsort(similarities)[::-1]
+            scores = similarities[top_indices]
+            indices = top_indices
 
         matches: List[Tuple[str, float]] = []
-        for idx in top_indices:
+        for rank in range(len(indices)):
+            idx = indices[rank]
+            if idx < 0:
+                continue  # FAISS returns -1 for missing results
             phrase = vocab_phrases[idx]
-            score  = float(similarities[idx])
+            score  = float(scores[rank])
 
             # ── Early exit: sorted descending, nothing below can qualify ──
             if score < min_similarity:
@@ -2008,51 +2064,27 @@ def process_query(
     # ── Stage 1: phrase extraction + OOV expansion ───────────────────────────
     logger.debug("  [STAGE 1] phrase extraction + OOV expansion")
 
-    # Query expansion with glossary (optional)
+    # Query expansion with ontology (optional)
     expand_synonyms = getattr(args, "expand_synonyms", False)
     synonym_weight = getattr(args, "synonym_weight", 0.5)
     glossary_path = getattr(args, "glossary", None)
 
     if expand_synonyms:
-        # Load glossary
-        glossary = {}
-        if glossary_path and Path(glossary_path).exists():
-            with open(glossary_path, encoding="utf-8") as f:
-                glossary_data = json.load(f)
-            # Flatten domains into term→synonyms mapping
-            for domain_name, domain in glossary_data.get("domains", {}).items():
-                for category, terms in domain.items():
-                    for canonical, synonyms in terms.items():
-                        glossary[canonical] = synonyms
-            logger.info(f"  [EXPAND] loaded glossary: {len(glossary)} terms")
-        else:
-            # Fallback to default medical glossary
-            glossary = {
-                "myocardial infarction": ["heart attack", "mi", "cardiac arrest"],
-                "hypertension": ["high blood pressure", "htn"],
-                "diabetes": ["diabetes mellitus", "dm", "blood sugar"],
-                "cancer": ["malignancy", "neoplasm", "tumor"],
-                "neuroplasticity": ["brain plasticity", "neural adaptation"],
-                "stroke": ["cerebrovascular accident", "cva", "brain attack"],
-                "epilepsy": ["seizure disorder", "seizures"],
-                "alzheimers": ["alzheimer's disease", "dementia"],
-                "pneumonia": ["lung infection", "pulmonary infection"],
-                "asthma": ["bronchial asthma", "reactive airway disease"],
-                "artificial intelligence": ["ai", "machine intelligence"],
-                "machine learning": ["ml", "statistical learning"],
-            }
-            logger.info(f"  [EXPAND] using default glossary: {len(glossary)} terms")
+        from ontology_expander import get_ontology_expander
 
-        # Expand query using glossary
-        query_lower = query.lower()
-        expanded_terms = []
-        for canonical, synonyms in glossary.items():
-            if canonical in query_lower:
-                expanded_terms.extend(synonyms)
+        # Load ontology expander
+        expander = get_ontology_expander(glossary_path)
 
-        if expanded_terms:
-            query = query + " " + " ".join(expanded_terms)
-            logger.info(f"  [EXPAND] added synonyms: {expanded_terms}")
+        # Expand query with weighted synonyms
+        query, term_weights = expander.expand_query_weighted(
+            query,
+            synonym_weight=synonym_weight,
+            max_synonyms=3,
+        )
+
+        logger.info(
+            f"  [ONTOLOGY] expanded query: {len(term_weights)} weighted terms"
+        )
 
     # Primary extraction: vocabulary-filtered, typically returns single tokens
     # and the most common short phrases, but often misses multi-word vocab hits.
@@ -2154,12 +2186,17 @@ def process_query(
         f"({len(vocab_fp_index)} entries)"
     )
 
-    oov_expansions = expand_oov_query_terms(
-        oov_terms=oov_terms,
-        vocab_fp_index=vocab_fp_index,
-        phrase_fp_dir=str(args.phrase_fp_dir),
-        grid_size=getattr(args, "grid_size", 128),
-    )
+    # ── OOV expansion (skipped if --no-oov-expansion) ─────────────────────
+    if getattr(args, "no_oov_expansion", False):
+        oov_expansions = {}
+        logger.info("  [STAGE 1] OOV expansion disabled (--no-oov-expansion)")
+    else:
+        oov_expansions = expand_oov_query_terms(
+            oov_terms=oov_terms,
+            vocab_fp_index=vocab_fp_index,
+            phrase_fp_dir=str(args.phrase_fp_dir),
+            grid_size=getattr(args, "grid_size", 128),
+        )
     logger.debug(f"  [STAGE 1] oov_expansions={oov_expansions}")
 
     # ── Merge combined_matched + OOV expansions into final phrase_weights ─────
@@ -2267,19 +2304,51 @@ def process_query(
     # Adaptive spreading: adjust radius based on query length
     if getattr(args, "adaptive_spreading", False) and spreading_steps > 0:
         query_word_count = len(query.split())
-        short_threshold = getattr(args, "short_query_max_words", 10)
-        if query_word_count <= short_threshold:
-            # Short queries: wider spreading to capture more context
+
+        # Granular adaptive spreading based on query length
+        if query_word_count <= 5:
+            # Very short queries: wide spreading for context
+            spreading_steps = max(spreading_steps, 3)
+            logger.debug(f"  [STAGE 3] adaptive: very short query ({query_word_count} words) -> radius={spreading_steps}")
+        elif query_word_count <= 10:
+            # Short queries: moderate spreading
             spreading_steps = max(spreading_steps, 2)
             logger.debug(f"  [STAGE 3] adaptive: short query ({query_word_count} words) -> radius={spreading_steps}")
+        elif query_word_count <= 20:
+            # Medium queries: standard spreading
+            spreading_steps = min(spreading_steps, 2)
+            logger.debug(f"  [STAGE 3] adaptive: medium query ({query_word_count} words) -> radius={spreading_steps}")
         else:
-            # Long queries: tighter spreading for precision
+            # Long queries: tight spreading for precision
             spreading_steps = min(spreading_steps, 1)
             logger.debug(f"  [STAGE 3] adaptive: long query ({query_word_count} words) -> radius={spreading_steps}")
 
-    logger.debug(f"  [STAGE 3] spreading_steps={spreading_steps}")
+    # Multi-resolution spreading: spread at multiple radii and combine
+    multi_resolution = getattr(args, "multi_resolution", False)
+    if multi_resolution and spreading_steps > 0:
+        grid_size = int(np.sqrt(query_fp.shape[1]))
+        radii = [1, 2, 3]  # Multiple resolutions
+        weights = [0.5, 0.3, 0.2]  # Weight smaller radii more
 
-    if spreading_steps > 0:
+        combined_fp = np.zeros(query_fp.shape, dtype=np.float32)
+        for radius, weight in zip(radii, weights):
+            fp_spread, _ = apply_spreading(
+                query_fp, grid_size,
+                radius=radius,
+                decay=getattr(args, "spreading_decay", 0.5),
+                normalize_after=True,
+                use_morton=use_morton,
+            )
+            combined_fp += weight * fp_spread.toarray()
+
+        # Normalize combined fingerprint
+        from lib import normalize_fingerprint
+        query_fp = normalize_fingerprint(csr_matrix(combined_fp), method='l2')
+        spreading_metadata["multi_resolution"] = True
+        spreading_metadata["radii"] = radii
+        spreading_metadata["weights"] = weights
+        logger.debug(f"  [STAGE 3] multi-resolution spreading: radii={radii}, weights={weights}")
+    elif spreading_steps > 0:
         grid_size = int(np.sqrt(query_fp.shape[1]))
         query_fp, spreading_metadata = apply_spreading(
             query_fp, grid_size,
@@ -2312,6 +2381,9 @@ def process_query(
         sim_metric=getattr(args, "sim_metric", "cosine"),
     )
 
+    # Initialize sf_scores from results (used by hybrid and TF-IDF blocks)
+    sf_scores = {doc_id: score for doc_id, score in results}
+
     # ── Stage 4b: hybrid SF+BM25/SPLADE scoring ────────────────────────────────
     hybrid_enabled = getattr(args, "hybrid", False)
     splade_enabled = getattr(args, "splade", False)
@@ -2339,8 +2411,6 @@ def process_query(
                 min_len = min(len(corpus_texts), len(doc_id_list))
                 corpus_texts = corpus_texts[:min_len]
                 doc_id_list = doc_id_list[:min_len]
-
-            sf_scores = {doc_id: score for doc_id, score in results}
 
             if splade_enabled:
                 # SPLADE hybrid mode
@@ -2370,88 +2440,113 @@ def process_query(
     # ── Stage 4d: negation-aware scoring ──────────────────────────────────────
     negation_aware = getattr(args, "negation_aware", False)
     if negation_aware and results:
-        negation_penalty = getattr(args, "negation_penalty", 0.5)
-        negation_cues = ["not ", " no ", " never ", " neither ", " nor ", " without ",
-                         "lack of ", "absence of ", "does not ", "is not ",
-                         "was not ", "were not ", "has not ", "have not ",
-                         "cannot ", "could not ", "would not ", "should not ",
-                         "do not ", "did not ", "does not "]
+        from negation_handler import get_negation_handler
 
-        # Detect negation in query
-        query_lower = query.lower()
-        has_negation = any(cue in query_lower for cue in negation_cues)
+        neg_handler = get_negation_handler()
+        neg_info = neg_handler.detect_negation(query)
 
-        if has_negation:
-            logger.info(f"  [NEGATION] detected in query: {query[:60]}...")
-            # Extract negated concepts (terms after negation cue)
-            negated_concepts = []
-            for cue in negation_cues:
-                if cue in query_lower:
-                    idx = query_lower.find(cue) + len(cue)
-                    remaining = query_lower[idx:].strip()
-                    # Take next 1-3 words as negated concept
-                    words = remaining.split()[:3]
-                    if words:
-                        negated_concepts.extend(words)
+        if neg_info["has_negation"]:
+            logger.info(
+                f"  [NEGATION] type={neg_info['negation_type']}, "
+                f"cues={neg_info['negation_cues_found']}, "
+                f"negated={neg_info['negated_concepts']}"
+            )
 
-            if negated_concepts:
-                logger.info(f"  [NEGATION] negated concepts: {negated_concepts}")
-                # Load corpus for penalty computation
-                corpus_path = getattr(args, "corpus_path", None)
-                if corpus_path and Path(corpus_path).exists():
-                    doc_texts = []
-                    doc_ids_list = [doc_id for doc_id, _ in results]
-                    with open(corpus_path, "r", encoding="utf-8") as f:
-                        for line in f:
-                            line = line.strip()
-                            if line:
-                                comma_idx = line.find(",")
-                                if comma_idx > 0:
-                                    doc_texts.append(line[comma_idx+1:].strip())
+            # Load corpus for scoring
+            corpus_path = getattr(args, "corpus_path", None)
+            if corpus_path and Path(corpus_path).exists():
+                doc_texts = {}
+                doc_ids_list = [doc_id for doc_id, _ in results]
+                with open(corpus_path, "r", encoding="utf-8") as f:
+                    for i, line in enumerate(f):
+                        line = line.strip()
+                        if line and i < len(doc_ids_list):
+                            comma_idx = line.find(",")
+                            if comma_idx > 0:
+                                doc_texts[doc_ids_list[i]] = line[comma_idx+1:].strip()
 
-                    # Apply penalty to documents containing negated concepts
-                    penalty_scores = {}
-                    for doc_id, score in results:
-                        doc_idx = doc_ids_list.index(doc_id) if doc_id in doc_ids_list else -1
-                        if 0 <= doc_idx < len(doc_texts):
-                            doc_text = doc_texts[doc_idx].lower()
-                            # Check if document contains negated concepts WITHOUT negation context
-                            negated_found = False
-                            for concept in negated_concepts:
-                                if concept in doc_text:
-                                    # Check if negation cue is near the concept
-                                    for cue in negation_cues:
-                                        cue_pos = doc_text.find(cue)
-                                        concept_pos = doc_text.find(concept)
-                                        if cue_pos >= 0 and concept_pos >= 0:
-                                            # If negation cue is within 50 chars before concept, it's properly negated
-                                            if 0 < concept_pos - cue_pos <= 50:
-                                                negated_found = True
-                                                break
+                # Apply negation-aware scoring
+                negation_boost = getattr(args, "negation_boost", 0.3)
+                negation_penalty = getattr(args, "negation_penalty", 0.5)
 
-                            if negated_found:
-                                penalty_scores[doc_id] = negation_penalty
-                            else:
-                                penalty_scores[doc_id] = 0.0
+                results = neg_handler.score_documents(
+                    query=query,
+                    results=results,
+                    doc_texts=doc_texts,
+                    negation_boost=negation_boost,
+                    negation_penalty=negation_penalty,
+                )
 
-                        else:
-                            penalty_scores[doc_id] = 0.0
+                # Truncate to top_k
+                results = results[:getattr(args, "top_k", 10)]
 
-                    # Apply penalties
-                    adjusted_results = []
-                    for doc_id, score in results:
-                        penalty = penalty_scores.get(doc_id, 0.0)
-                        adjusted_score = score * (1 - penalty)
-                        adjusted_results.append((doc_id, adjusted_score))
-
-                    adjusted_results.sort(key=lambda x: x[1], reverse=True)
-                    results = adjusted_results[:getattr(args, "top_k", 10)]
-
-                    logger.info(
-                        f"  [NEGATION] applied penalty to {sum(1 for p in penalty_scores.values() if p > 0)} docs"
-                    )
+                logger.info(
+                    f"  [NEGATION] applied negation-aware scoring to {len(doc_texts)} docs"
+                )
+            else:
+                logger.warning("  [NEGATION] corpus_path required for negation-aware scoring")
         else:
             logger.debug("  [NEGATION] no negation detected in query")
+
+    # ── Stage 4e: TF-IDF re-ranking (optional) ──────────────────────────────
+    tfidf_rerank = getattr(args, "tfidf_rerank", False)
+    if tfidf_rerank and results:
+        tfidf_alpha = getattr(args, "tfidf_alpha", 0.3)
+        corpus_path = getattr(args, "corpus_path", None)
+
+        if corpus_path and Path(corpus_path).exists():
+            logger.info(f"  [TFIDF] re-ranking with alpha={tfidf_alpha}")
+
+            # Load corpus for TF-IDF
+            doc_texts = []
+            doc_id_list = [doc_id for doc_id, _ in results]
+            with open(corpus_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        comma_idx = line.find(",")
+                        if comma_idx > 0:
+                            doc_texts.append(line[comma_idx+1:].strip())
+
+            # Compute TF-IDF scores
+            from collections import Counter
+            import math
+
+            # Build IDF
+            doc_freq = Counter()
+            for text in doc_texts:
+                terms = set(text.lower().split())
+                for term in terms:
+                    doc_freq[term] += 1
+            n_docs = len(doc_texts)
+
+            # Compute TF-IDF for each document
+            tfidf_scores = {}
+            for doc_id, text in zip(doc_id_list, doc_texts):
+                terms = text.lower().split()
+                tf = Counter(terms)
+                score = 0.0
+                for term, count in tf.items():
+                    idf = math.log((n_docs + 1) / (doc_freq.get(term, 0) + 1)) + 1
+                    tfidf = count * idf
+                    score += tfidf
+                tfidf_scores[doc_id] = score
+
+            # Combine SF and TF-IDF scores
+            max_sf = max(sf_scores.values()) if sf_scores else 1.0
+            max_tfidf = max(tfidf_scores.values()) if tfidf_scores else 1.0
+
+            reranked_results = []
+            for doc_id, sf_score in results:
+                sf_norm = sf_score / max_sf if max_sf > 0 else 0
+                tfidf_norm = tfidf_scores.get(doc_id, 0) / max_tfidf if max_tfidf > 0 else 0
+                combined = tfidf_alpha * sf_norm + (1 - tfidf_alpha) * tfidf_norm
+                reranked_results.append((doc_id, combined))
+
+            reranked_results.sort(key=lambda x: x[1], reverse=True)
+            results = reranked_results[:getattr(args, "top_k", 10)]
+
+            logger.info(f"  [TFIDF] re-ranked {len(results)} results")
 
     logger.info(
         f"process_query done: {len(results)} results for {query!r}"
@@ -2603,6 +2698,17 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help="Adjust spreading radius based on query length (short queries get wider spreading).",
     )
+    parser.add_argument(
+        "--short-query-max-words", dest="short_query_max_words", type=int, default=10,
+        help="Maximum word count for a query to be considered 'short' in adaptive spreading.",
+    )
+
+    # ── Multi-resolution spreading ──────────────────────────────────────────
+    parser.add_argument(
+        "--multi-resolution", dest="multi_resolution", action="store_true",
+        default=False,
+        help="Apply multi-resolution spreading: spread at multiple radii (1,2,3) and combine.",
+    )
 
     # ── Geometric scoring ─────────────────────────────────────────────────────
     parser.add_argument(
@@ -2624,13 +2730,24 @@ def parse_args() -> argparse.Namespace:
 
     # ── SPLADE hybrid scoring ───────────────────────────────────────────────
     parser.add_argument(
-        "--splade", action="store_true", default=False,
-        help="Enable hybrid SF+SPLADE scoring (replaces BM25 in hybrid mode).",
+        "--splade", action="store_true", default=True,
+        help="Enable hybrid SF+SPLADE scoring (default: True). Use --no-splade to disable.",
+    )
+    parser.add_argument(
+        "--no-splade", dest="splade", action="store_false",
+        help="Disable SPLADE hybrid scoring.",
     )
     parser.add_argument(
         "--splade-model", dest="splade_model", type=str,
         default="naver/splade-cocondenser-ensembledistil",
         help="HuggingFace SPLADE model name (default: naver/splade-cocondenser-ensembledistil).",
+    )
+
+    # ── OOV expansion ────────────────────────────────────────────────────
+    parser.add_argument(
+        "--no-oov-expansion", dest="no_oov_expansion", action="store_true",
+        default=False,
+        help="Skip OOV term expansion entirely (faster, but misses vocabulary matches for unknown phrases).",
     )
 
     # ── Query expansion ─────────────────────────────────────────────────────
@@ -2668,6 +2785,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--negation-penalty", dest="negation_penalty", type=float, default=0.5,
         help="Penalty factor for negated concepts (0=no penalty, 1=full penalty).",
+    )
+    parser.add_argument(
+        "--negation-boost", dest="negation_boost", type=float, default=0.3,
+        help="Boost factor for documents with properly negated concepts (0-1).",
     )
 
     # ── Shared corpus path ──────────────────────────────────────────────────

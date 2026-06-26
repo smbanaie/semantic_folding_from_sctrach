@@ -958,7 +958,7 @@ def _load_fingerprint_matrix(
 
 # ─────────────────────────────────────────────────────────────────────────────
 
-def load_phrase_fingerprints_sparse(
+def _load_phrase_fingerprints_dense(
     fingerprints_dir : Path,
     grid_size        : int,
 ) -> Dict[str, np.ndarray]:

@@ -1,14 +1,14 @@
 # Semantic Folding — Complete Benchmark Report
 
 **Generated**: 2026-06-27 (updated with new defaults: SPLADE + perplexity=50 + L2)
-**Scope**: 10 benchmarked datasets across biomedical, narrative, reading comprehension, scientific, and multi-hop QA domains
+**Scope**: 13 benchmarked datasets across biomedical, narrative, reading comprehension, scientific, multi-hop QA, legal, financial, and discrete reasoning domains
 **Method**: Semantic Folding (SF) vs BM25 baseline vs SF+SPLADE hybrid
 
 ---
 
 ## 1. Executive Summary
 
-Semantic Folding was benchmarked on **9 datasets** spanning 4 performance tiers. **With new defaults (SPLADE + perplexity=50 + L2), SF achieves perfect MRR=1.0 on Belebele (+13.6%) and PopQA (1.0)**, surpassing BM25 on reading comprehension tasks. SF achieves competitive results on **entity lookup** (100%), **biomedical QA** (96.8%), and **narrative comprehension** (95.8%). SF degrades on **multi-hop reasoning** (67–85%) and **complex biomedical QA** (19.5%).
+Semantic Folding was benchmarked on **13 datasets** spanning 4 performance tiers. **With new defaults (SPLADE + perplexity=50 + L2), SF achieves perfect MRR=1.0 on Belebele (+13.6%) and PopQA (1.0)**, surpassing BM25 on reading comprehension tasks. SF achieves competitive results on **entity lookup** (100%), **biomedical QA** (96.8%), and **narrative comprehension** (95.8%). SF degrades on **multi-hop reasoning** (67–85%) and **complex biomedical QA** (19.5%).
 
 ### New Default Configuration Results (2026-06-27)
 
@@ -380,7 +380,7 @@ All benchmarks use the same recommended configuration unless noted:
 
 ### For Thesis
 - MuSiQue results (MRR=0.453, −32.6% vs BM25) provide honest baseline
-- Pattern across 12 datasets shows clear task-type dependency
+- Pattern across 13 datasets shows clear task-type dependency
 - Future work: phrase-level composition, domain-adaptive training
 
 ---

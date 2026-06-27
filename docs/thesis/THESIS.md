@@ -134,6 +134,23 @@ python -m spacy download en_core_web_sm
   --morton
 ```
 
+### A.4 Performance Optimizations
+
+**FAISS-Accelerated OOV Expansion:**
+- OOV lookup: ~30s/query → ~0.075s/query (400× speedup)
+- Uses FAISS IVFFlat index, built once during phrase fingerprint generation
+- Memory overhead: ~15KB (negligible)
+
+**Per-Dataset Parameter Registry:**
+- Config file: `config/dataset_registry.yml`
+- Stores dataset-specific optimal parameters (perplexity, normalization, hybrid weight)
+- Impact: +1–4% MRR across datasets
+
+**Query Decomposition:**
+- Multi-hop queries decomposed into sub-queries via LLM
+- Independent retrieval + result fusion
+- +19.6% NQ-REaR, −28.8% HotpotQA (depends on LLM entity extraction quality)
+
 ---
 
 ## Appendix B: Mathematical Notation
@@ -249,7 +266,8 @@ python -m spacy download en_core_web_sm
 - **Task**: Biomedical QA (factoid, yes/no, list, summary)
 - **Queries**: 50
 - **Passages/query**: ~1075 docs
-- **SF MRR**: 0.248
+- **SF MRR**: 0.195 (p50, L2) / 0.210 (p30, L2)
+- **Note**: Old 0.248 baseline was inflated by batched 10Q evaluation. SPLADE has 0% effect on BioASQ.
 
 ---
 

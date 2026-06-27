@@ -34,7 +34,7 @@ This work makes the following contributions to closed-domain QA:
 
 4. **A comprehensive multi-dataset benchmark** across 10 datasets (PubMedQA, Belebele, NarrativeQA, PopQA, SciFact, HotpotQA, 2WikiMultihopQA, NQ-REaR, MuSiQue, BioASQ) demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
 
-5. **A hybrid SF+BM25 architecture** that improves reading comprehension by +13.6% MRR on Belebele (0.8800→1.0000), providing a practical deployment strategy combining semantic coverage with lexical precision for closed-domain systems.
+5. **A hybrid SF+SPLADE architecture** that achieves perfect MRR=1.0 on Belebele (+13.6% over baseline, surpassing BM25 at 0.995), providing a practical deployment strategy combining unsupervised semantic coverage with learned sparse expansion for closed-domain systems. This is complemented by per-dataset parameter optimization via a registry system and FAISS-accelerated out-of-vocabulary query expansion (reducing OOV lookup from ~30s to 0.075s per query).
 
 ## 1.4 Thesis Outline
 

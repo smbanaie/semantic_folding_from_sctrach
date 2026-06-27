@@ -78,7 +78,7 @@ This is orders of magnitude lower than the interference levels in dense embeddin
 | 2-hop QA | **0.757** | 0.895 | ~0.78 | BM25 |
 | Factoid retrieval | **0.574** | 0.638 | 0.794 | DPR |
 | Multi-hop QA | **0.453** | 0.672 | ~0.65 | BM25 |
-| **BioASQ** | **0.248** | — | — | **SF-only** |
+| **BioASQ** | **0.195** | — | — | **SF-only** |
 
 ### 5.3.2 Key Findings
 
@@ -110,7 +110,7 @@ SF cannot compose facts across passages — it matches phrases independently. De
 | **Training time** | None | None | ~4 hours | ~12 hours | ~8 hours |
 | **Infrastructure** | CPU | CPU | GPU (1x V100) | GPU (4x V100) | GPU (1x A100) |
 | **Memory/doc** | 512 bytes | ~1KB | 3KB | 3KB | 2KB |
-| **Query time** | ~30s | ~0.01s | ~0.1s | ~0.2s | ~0.05s |
+| **Query time** | ~47s (steady-state) | ~0.01s | ~0.1s | ~0.2s | ~0.05s |
 | **GPU required** | No | No | Yes | Yes | Optional |
 
 ### 5.4.2 The Zero-Shot Advantage
@@ -181,11 +181,11 @@ SF's 512 bytes/document is remarkable — achieved through binary encoding and s
 | DPR | ~0.1s | Yes | Yes |
 | SPLADE | ~0.05s | Optional | Yes |
 | ColBERT | ~0.2s | Yes | Yes |
-| **SF** | **~30s** | **No** | **No** |
+| **SF** | **~47s** | **No** | **No** |
 
-SF's query time (~30s) is 3000× slower than BM25 (~0.01s). This makes SF suitable for **offline batch retrieval** but not real-time search.
+SF's query time (~47s steady-state, dominated by SPLADE inference) is 4700× slower than BM25 (~0.01s). The OOV expansion step, previously the largest bottleneck (~30s per query), has been optimized to ~0.075s using FAISS approximate nearest neighbor search. This makes SF suitable for **offline batch retrieval** but not real-time search.
 
-**Optimization opportunity**: SF's query time is dominated by sparse matrix operations. GPU acceleration or approximate nearest neighbor search could reduce this to ~1s.
+**Optimization applied**: FAISS IVFFlat index reduces OOV expansion from ~30s to ~0.075s per query. Remaining bottleneck is SPLADE inference on large corpora.
 
 ## 5.7 The Competitive Landscape (2023–2025)
 

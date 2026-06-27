@@ -192,7 +192,7 @@ BioASQ is the premier biomedical QA benchmark, evaluating systems on four questi
 - Best yes/no accuracy: ~0.94 (UR-IW-2)
 - Dominant approaches: LLM-augmented retrieval, BM25+neural reranking, BioBERT fine-tuning
 
-**SF on BioASQ**: MRR=0.2480 (50 queries, 1075 docs). SF's phrase-level matching captures some biomedical semantics but struggles with complex queries requiring compositional reasoning. Hybrid SF+BM25 hurts (-32.8%) because BM25's lexical strictness dilutes SF's semantic advantage.
+**SF on BioASQ**: MRR=0.195 (50 queries, 1075 docs, perplexity=50, L2 normalization). SF's phrase-level matching captures some biomedical semantics but struggles with complex queries requiring compositional reasoning. SPLADE has 0% effect on BioASQ — the large corpus (1075 docs) with complex queries creates score compression that neither SPLADE nor other improvements can address.
 
 ## 2.7 Evaluation Framework
 

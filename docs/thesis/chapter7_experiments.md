@@ -156,7 +156,32 @@ SF can match "Green performer" to a passage, but it cannot compose the result wi
 4. FAISS-accelerated OOV expansion (~30s → 0.075s per query, 400× speedup)
 5. Per-dataset parameter registry (+1–4% across datasets via dataset-specific optimal configs)
 6. Query decomposition (+19.6% NQ-REaR, −28.8% HotpotQA — quality depends on entity extraction via spaCy NER + dependency parsing)
-7. LambdaMART re-ranking (same-dataset MRR=0.945, cross-dataset MRR=0.649 — needs larger candidate pool)
+7. LambdaMART re-ranking (proof-of-concept — MRR **decreased** from 1.000 to 0.945 due to ceiling effect and insufficient training data; see §7.3.5)
+
+### 7.3.5 LambdaMART Re-ranking: Proof-of-Concept Analysis
+
+LambdaMART was implemented as a learned re-ranking stage on top of SF's retrieval. The model extracts 35 features per (query, document) pair — binary similarity metrics (Jaccard, cosine), asymmetric features (containment, coverage), bit-density statistics, 16-block histograms, and auxiliary features (query/doc length). Training uses LambdaRank loss with LightGBM (200 trees, learning rate 0.05).
+
+**Results**: Same-dataset evaluation on Belebele (50 queries) yielded MRR=0.945, compared to the SF+SPLADE baseline of MRR=1.000. Cross-dataset transfer (train on Belebele, evaluate on NQ-REaR) yielded MRR=0.649.
+
+**Why performance decreased**:
+
+1. **Ceiling effect**: SF+SPLADE already achieves perfect MRR=1.0 on Belebele — the gold document is consistently ranked first. LambdaMART cannot improve upon perfection; any re-ranking can only degrade the perfect ordering. This is a fundamental limitation when the baseline is already optimal.
+
+2. **Candidate pool too small**: The benchmark evaluates against 20 candidate documents per query. Re-ranking is designed for scenarios where the initial retrieval returns a large pool (100–1000 docs) and the gold document is not at rank 1. With only 20 candidates and the gold document at rank 1, there is no opportunity for improvement.
+
+3. **Insufficient training data**: 50 training queries is insufficient for LambdaMART to learn generalizable patterns. Feature importance analysis shows the model overfits to cosine similarity — the same metric already used by SF's dot-product scoring. The model essentially replicates the baseline rather than learning complementary signals.
+
+4. **Missing SPLADE features**: The current feature set does not include SPLADE scores, which would provide complementary information about term importance and expansion quality.
+
+**When LambdaMART would be beneficial**:
+
+- **Large candidate pools** (>100 docs per query): When the initial retrieval returns many candidates and the gold document is not at rank 1, LambdaMART can learn to promote relevant documents using features that capture different aspects of relevance.
+- **Multi-stage retrieval pipelines**: In production systems where Stage 1 (SF) retrieves 500+ candidates and Stage 2 (LambdaMART) re-ranks to top-10, the re-ranker has genuine opportunity to improve ranking.
+- **Cross-dataset training**: Training on 500+ queries from multiple datasets would allow the model to learn generalizable patterns rather than overfitting to a single dataset's characteristics.
+- **Enriched features**: Including SPLADE scores, BM25 scores, and document metadata as features would give the model complementary signals beyond what SF's dot-product already captures.
+
+This proof-of-concept demonstrates that learned re-ranking requires specific conditions to be effective — conditions not present in the current benchmark setup but common in production retrieval systems.
 
 ## 7.4 Academic Contributions
 

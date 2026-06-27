@@ -249,7 +249,13 @@ The following improvements have been implemented and validated:
 2. **FAISS-accelerated OOV expansion** (30s → 0.075s per query): Replaced brute-force OOV lookup with FAISS IVFFlat index for approximate nearest neighbor search, reducing the OOV expansion bottleneck by 400×.
 3. **Per-dataset parameter registry** (+1–4% across datasets): Dataset-specific optimal configurations stored in a YAML registry, enabling automatic parameter selection based on dataset characteristics.
 4. **Query decomposition** (+19.6% NQ-REaR): Multi-hop queries are decomposed into sub-queries using LLM-based entity extraction, with independent retrieval and result fusion.
-5. **LambdaMART re-ranking** (implemented, +10–15% expected): Gradient-boosted decision trees trained on 35 features per (query, document) pair for learned re-ranking. Same-dataset MRR=0.945 (Belebele 50Q), cross-dataset MRR=0.649 (Belebele→NQ-REaR). Needs larger candidate pool (>20 docs) to outperform SF+SPLADE baseline.
+5. **LambdaMART re-ranking** (proof-of-concept, MRR=0.945 vs baseline 1.000): Gradient-boosted decision trees trained on 35 features per (query, document) pair. **Performance decreased** relative to the SF+SPLADE baseline (−5.5% MRR). Three factors explain the degradation:
+
+   - **Ceiling effect**: SF+SPLADE already achieves perfect MRR=1.0 on Belebele — the gold document is ranked first. LambdaMART has no room to improve and can only degrade ranking.
+   - **Insufficient candidate pool**: Only 20 documents per query. Re-ranking requires a larger pool (100+ docs) where the gold document is not already at rank 1.
+   - **Insufficient training data**: 50 training queries is too few for LambdaMART to learn generalizable patterns. The model overfits to cosine similarity (the dominant feature), which is already captured by SF's dot-product scoring.
+
+   **When LambdaMART would be beneficial**: (a) when the candidate pool is large (>100 docs) and the gold document is not at rank 1; (b) when training data is available across multiple datasets (500+ queries); (c) when SPLADE scores are included as features (currently missing). These conditions are common in production retrieval systems but not in the current benchmark setup.
 
 ### 8.8.2 Remaining Future Work
 

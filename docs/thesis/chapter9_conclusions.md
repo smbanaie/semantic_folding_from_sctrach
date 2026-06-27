@@ -134,7 +134,7 @@ The following improvements have been implemented and validated:
 2. **FAISS-accelerated OOV expansion** (30s → 0.075s per query): Replaced brute-force OOV lookup with FAISS IVFFlat index for approximate nearest neighbor search.
 3. **Per-dataset parameter registry** (+1–4% across datasets): Dataset-specific optimal configurations stored in a YAML registry.
 4. **Query decomposition** (+19.6% NQ-REaR): Multi-hop queries decomposed into sub-queries using spaCy NER + dependency parsing, with independent retrieval and result fusion via RRF.
-5. **LambdaMART re-ranking** (implemented): Gradient-boosted decision trees on 35 features for learned re-ranking. Same-dataset MRR=0.945 (Belebele 50Q), cross-dataset MRR=0.649 (Belebele→NQ-REaR). Needs larger candidate pool to outperform SF+SPLADE baseline.
+5. **LambdaMART re-ranking** (proof-of-concept): Gradient-boosted decision trees on 35 features for learned re-ranking. **Performance decreased** (MRR=0.945 vs baseline 1.000 on Belebele 50Q). The baseline already achieves perfect ranking, leaving no room for improvement. Cross-dataset transfer (Belebele→NQ-REaR) yielded MRR=0.649, confirming that LambdaMART requires larger candidate pools and more training data to be effective.
 
 ### 9.5.2 Remaining Future Work
 

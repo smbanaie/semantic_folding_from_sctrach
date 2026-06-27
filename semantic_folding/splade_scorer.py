@@ -20,6 +20,11 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Module-level singleton cache for loaded SPLADE models.
+# Keyed by model_name, stores (model, tokenizer, torch_module).
+# Multiple SPLADEScorer instances with the same model share one copy.
+_MODEL_CACHE: dict = {}
+
 
 class SPLADEScorer:
     """SPLADE-based scorer for hybrid SF+SPLADE ranking.
@@ -69,15 +74,23 @@ class SPLADEScorer:
             logger.info(f"  [SPLADE] Saved corpus vectors to {cache_path}")
 
     def _load_model(self):
+        global _MODEL_CACHE
+        if self.model_name in _MODEL_CACHE:
+            self._model, self._tokenizer, self._torch = _MODEL_CACHE[self.model_name]
+            logger.info(f"  [SPLADE] Reusing cached model: {self.model_name}")
+            return
         try:
             from transformers import AutoModelForMaskedLM, AutoTokenizer
             import torch
             logger.info(f"  [SPLADE] Loading model: {self.model_name}")
-            self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self._model = AutoModelForMaskedLM.from_pretrained(self.model_name)
-            self._model.eval()
+            tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            model = AutoModelForMaskedLM.from_pretrained(self.model_name)
+            model.eval()
+            _MODEL_CACHE[self.model_name] = (model, tokenizer, torch)
+            self._model = model
+            self._tokenizer = tokenizer
             self._torch = torch
-            logger.info(f"  [SPLADE] Model loaded")
+            logger.info(f"  [SPLADE] Model loaded and cached")
         except ImportError:
             raise ImportError("SPLADE requires 'transformers' and 'torch'.")
         except Exception as e:

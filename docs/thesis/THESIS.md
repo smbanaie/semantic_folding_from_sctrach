@@ -21,7 +21,7 @@ We make the following contributions:
 
 3. **A glossary integration mechanism** that allows domain-specific terminologies (MeSH terms, legal citations, chemical formulas) to be directly incorporated into the semantic grid, improving retrieval for specialized vocabulary without retraining.
 
-4. **A comprehensive multi-dataset benchmark** across 10 datasets demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
+4. **A comprehensive multi-dataset benchmark** across 13 datasets spanning biomedical, narrative, reading comprehension, multi-hop QA, legal, financial, and discrete reasoning domains, demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
 
 5. **A hybrid SF+SPLADE architecture** that achieves **perfect MRR=1.0** on Belebele (+13.6% over baseline), **surpassing BM25 (0.995)** — the first configuration where SF outperforms a strong lexical baseline on a standard benchmark.
 
@@ -147,9 +147,9 @@ python -m spacy download en_core_web_sm
 - Impact: +1–4% MRR across datasets
 
 **Query Decomposition:**
-- Multi-hop queries decomposed into sub-queries via LLM
+- Multi-hop queries decomposed into sub-queries via spaCy NER entity extraction
 - Independent retrieval + result fusion
-- +19.6% NQ-REaR, −28.8% HotpotQA (depends on LLM entity extraction quality)
+- +19.6% NQ-REaR, −28.8% HotpotQA (depends on NER entity extraction quality)
 
 ---
 
@@ -268,6 +268,46 @@ python -m spacy download en_core_web_sm
 - **Passages/query**: ~1075 docs
 - **SF MRR**: 0.195 (p50, L2) / 0.210 (p30, L2)
 - **Note**: Old 0.248 baseline was inflated by batched 10Q evaluation. SPLADE has 0% effect on BioASQ.
+
+### C.11 DROP
+
+- **Domain**: Discrete reasoning
+- **Task**: Counting, sorting, comparison over text passages
+- **Queries**: 50
+- **Passages/query**: ~20
+- **SF MRR**: 0.320 (L2 norm)
+- **BM25 MRR**: 0.762
+- **Note**: L2 norm provides +14.3% improvement. Requires numerical reasoning beyond phrase matching.
+
+### C.12 DocFinQA
+
+- **Domain**: Financial
+- **Task**: Financial question answering
+- **Queries**: 20
+- **Passages/query**: ~20
+- **SF MRR**: 0.250
+- **BM25 MRR**: 0.341
+- **Note**: Grid=128 used (not optimal). Both methods struggle — financial documents require numerical reasoning.
+
+### C.13 CUAD
+
+- **Domain**: Legal
+- **Task**: Legal clause extraction from contracts
+- **Queries**: 200
+- **Passages/query**: ~20
+- **SF MRR**: 0.000
+- **BM25 MRR**: 0.244
+- **Note**: Complete SF failure. Legal clause extraction requires domain-specific reasoning. Even BM25 performs poorly.
+
+### C.14 MAUD
+
+- **Domain**: Legal
+- **Task**: Legal document review
+- **Queries**: 100
+- **Passages/query**: ~20
+- **SF MRR**: 0.000
+- **BM25 MRR**: 0.649
+- **Note**: Complete SF failure. Legal queries require clause cross-referencing and conditional reasoning.
 
 ---
 

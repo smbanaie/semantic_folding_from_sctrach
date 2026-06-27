@@ -313,8 +313,7 @@ class PhraseVisualizationHandler(VisualizationHandler):
     def build_command(self, params: Dict[str, str]) -> List[str]:
         script_path = str(Path(__file__).resolve().parent.parent / "semantic_folding/phrase_visualizer.py")
         cmd = [
-            "E:\\PHD\\GraphRag-Implementations\\YaALI\\"
-            "knowledge-graph-builder\\.venv\\scripts\\python",
+            sys.executable,
             script_path
         ]
         cmd.extend(['--fingerprints', params['fingerprints']])
@@ -455,8 +454,7 @@ class DocumentVisualizationHandler(VisualizationHandler):
     def build_command(self, params: Dict[str, Any]) -> List[str]:
         script_path = str(Path(__file__).resolve().parent.parent / "semantic_folding/doc_visualizer.py")
         cmd = [
-            "E:\\PHD\\GraphRag-Implementations\\YaALI\\"
-            "knowledge-graph-builder\\.venv\\scripts\\python",
+            sys.executable,
             script_path
         ]
         cmd.extend(['--run-dir', str(params['run_dir'])])
@@ -909,8 +907,7 @@ class SemanticRunner:
     def build_command(self, step, params):
         script_path = str(Path(__file__).resolve().parent.parent / step["script"])
         cmd = [
-            "E:\\PHD\\GraphRag-Implementations\\YaALI\\"
-            "knowledge-graph-builder\\.venv\\scripts\\python",
+            sys.executable,
             script_path
         ]
         for param, value in params.items():

@@ -280,12 +280,10 @@ This project has **no automated test suite**. To verify changes:
 - **Only merge into `main` after explicit user confirmation**
 - Delete feature/fix branch after merge
 
-### Thesis Branch Rule
+### Thesis Chapter Edits
 
-- **All thesis changes** (`docs/thesis/`) MUST be pushed in the `thesis` branch
-- Create the branch: `git checkout -b thesis`
-- Never commit thesis files directly to `main`
-- Thesis branch is long-lived and persists across sessions
+- Thesis chapter edits (`docs/thesis/`) are committed directly to `main`
+- No separate thesis branch required
 
 ---
 

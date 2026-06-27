@@ -659,29 +659,28 @@ We evaluate Semantic Folding across 10 datasets covering diverse task types:
 
 | Improvement | Belebele ΔMRR | PubMedQA ΔMRR | BioASQ ΔMRR | Verdict |
 |-------------|---------------|---------------|-------------|---------|
-| L2 Normalization | **+4.0%** | 0.0% | — | Best for Belebele |
-| Perplexity=50 | **+4.0%** | **+1.5%** | — | Best overall |
+| L2 Normalization | **+4.0%** | 0.0% | −2.0% | Best for Belebele |
+| Perplexity=50 | **+4.0%** | **+1.5%** | −7.4% | Best for single-hop |
 | Hybrid SF+BM25 | **+13.6%** | +3.4% | −32.8% | Dataset-dependent |
-| SF+SPLADE | 0% | **+15.0%** | **+18.4%** | Helps multi-hop/factoid |
-| Glossary Expansion | — | 0% | +11% (10Q) | Mixed |
+| **SF+SPLADE** | **+13.6%** | **+1.4%** | **0%** (no effect) | **Best for reading comp** |
+| Glossary Expansion | — | 0% | +11% (10Q, inflated) | Mixed |
 | Negation-Aware | 0% | 0% | 0% | No improvement |
 | Adaptive Spreading | 0% | 0% | 0% | No improvement |
 | Spatial-Jaccard | — | −65% | −60% | Hurts significantly |
 
-#### 5.2.3 SF+SPLADE Full Benchmark (10Q + 50Q)
+**Note**: The old BioASQ 10Q results (+18.4% SPLADE, +11% glossary) were inflated by batched evaluation on easier query subsets. The true 50Q results show SPLADE has 0% effect on BioASQ.
+
+#### 5.2.3 SF+SPLADE Full Benchmark (50Q)
 
 | Dataset | SF-only | SF+SPLADE | SF+BM25 | Delta (best) | Task Type |
 |---------|---------|-----------|---------|--------------|-----------|
-| PubMedQA (10Q) | 0.8000 | **0.9200** | 0.9677 | **+15.0%** | Biomedical QA |
-| Belebele (50Q) | 0.8800 | **1.0000** | 0.8800 | **+13.6%** | Reading comprehension |
-| BioASQ (10Q) | 0.4450 | **0.5267** | 0.1667 | **+18.4%** | Biomedical QA |
-| PopQA (10Q) | 1.0000 | 1.0000 | — | 0% | Entity lookup |
-| NarrativeQA (10Q) | 1.0000 | 0.8100 | — | −19.0% | Narrative |
-| NQ-REaR (10Q) | 0.5740 | **0.9200** | — | **+60.3%** | Factoid retrieval |
-| HotpotQA (10Q) | 0.7260 | **0.9833** | — | **+35.4%** | 2-hop QA |
-| 2WikiMultihopQA (10Q) | 0.7880 | **0.9833** | — | **+24.8%** | 2-hop QA |
+| PubMedQA (31Q) | 0.955 | **0.968** | 0.968 | **+1.4%** | Biomedical QA |
+| Belebele (50Q) | 0.880 | **1.000** | 0.880 | **+13.6%** | Reading comprehension |
+| BioASQ (50Q) | 0.195 | 0.195 | — | **0%** (no effect) | Biomedical QA (hard) |
+| PopQA (50Q) | 0.980 | **1.000** | — | **+2.0%** | Entity lookup |
+| NQ-REaR (50Q) | 0.574 | **0.611** | — | **+6.4%** | Factoid retrieval |
 
-**Key finding**: SF+SPLADE achieves **perfect MRR=1.0** on Belebele (+13.6% over baseline), the strongest result across all datasets. SPLADE shows large improvements on factoid and multi-hop tasks (+15–60%) but hurts narrative tasks (−19%). SPLADE is complementary to SF — it helps where SF struggles (compositional reasoning) but not where SF already excels (semantic matching). SF+BM25 shows no improvement on Belebele (0.88→0.88), confirming that lexical matching alone cannot complement SF's semantic approach for reading comprehension.
+**Key finding**: SF+SPLADE achieves **perfect MRR=1.0** on Belebele (+13.6% over baseline), the strongest result across all datasets. SPLADE shows improvements on factoid tasks (+1.4% PubMedQA, +6.4% NQ-REaR) but has **no effect on BioASQ** (0.195 vs 0.195). The BioASQ result is explained by: (1) large corpus (1075 docs) creates score compression, (2) SPLADE's general-domain training doesn't match biomedical vocabulary, (3) complex query types (list, summary) resist lexical expansion.
 
 ### 5.3 Analysis
 

@@ -33,6 +33,7 @@ dependencies = [
     "scikit-learn>=1.8.0",
     "umap-learn>=0.5.11",
     "kaleido",
+    "faiss-cpu>=1.7.3",
 ]
 
 [[tool.uv.index]]

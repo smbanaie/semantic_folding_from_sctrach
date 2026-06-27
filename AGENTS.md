@@ -208,6 +208,26 @@ Each dataset has an adapter that:
   --method tsne --perplexity 30 --tsne-iter 1000
 ```
 
+### Running Benchmarks with Log Capture
+
+Use `Start-Process` to capture stdout/stderr to log files for later inspection:
+
+```powershell
+# Generic pattern
+Start-Process -NoNewWindow -FilePath ".venv\Scripts\python" `
+  -ArgumentList "-m semantic_folding.dataset_benchmark.generic_benchmark all --dataset <name> --jsonl data/<name>/converted/<name>.jsonl --max-queries 50 --query-end 50" `
+  -RedirectStandardOutput "temp/<name>_benchmark.log" `
+  -RedirectStandardError "temp/<name>_benchmark_err.log"
+
+# Example: BioASQ benchmark
+Start-Process -NoNewWindow -FilePath ".venv\Scripts\python" `
+  -ArgumentList "-m semantic_folding.dataset_benchmark.generic_benchmark all --dataset bioasq --jsonl data/bioasq/converted/bioasq.jsonl --max-queries 50 --query-end 50 --no-splade" `
+  -RedirectStandardOutput "temp/bioasq_A1.log" `
+  -RedirectStandardError "temp/bioasq_A1_err.log"
+```
+
+Use `--no-splade` to skip SPLADE embedding (faster runs). Log files go to `temp/` which is gitignored.
+
 ## Naming Conventions
 
 - Python: snake_case for functions/variables

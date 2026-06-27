@@ -4,7 +4,7 @@
 
 ### 7.1.1 Datasets
 
-We evaluate Semantic Folding across 10 datasets covering diverse task types:
+We evaluate Semantic Folding across 13 datasets covering diverse task types:
 
 | Dataset | Domain | Queries | Task | Source |
 |---------|--------|---------|------|--------|
@@ -18,6 +18,10 @@ We evaluate Semantic Folding across 10 datasets covering diverse task types:
 | NQ-REaR | Factoid Retrieval | 100 | Google Natural Questions | Google (2019) |
 | MuSiQue | Multi-hop QA | 100 | 2–5 hop Wikipedia QA | Trivedi et al. (2022) |
 | BioASQ | Biomedical QA | 50 | Biomedical factoid/yes-no/list/summary | Nentidis et al. (2025) |
+| DROP | Discrete Reasoning | 50 | Counting/sorting/comparison | Dua et al. (2019) |
+| DocFinQA | Financial QA | 20 | Financial question answering | Chen et al. (2023) |
+| CUAD | Legal | 200 | Contract clause extraction | Hendricks et al. (2021) |
+| MAUD | Legal | 100 | Legal document review | Wang et al. (2022) |
 
 ### 7.1.2 Evaluation Protocol
 
@@ -113,14 +117,19 @@ The old BioASQ baseline (MRR=0.248) was inflated by batched 10Q evaluation. True
 
 | Task Type | Avg MRR | SF Strength | Example |
 |-----------|---------|-------------|---------|
-| Entity lookup | 0.980 | Excellent | PopQA: entity names match phrase fingerprints |
-| Biomedical QA | 0.955 | Excellent | PubMedQA: MeSH terminology benefits from semantics |
+| Entity lookup | 1.000 | Excellent | PopQA: entity names match phrase fingerprints |
+| Biomedical QA | 0.968 | Excellent | PubMedQA: MeSH terminology benefits from semantics |
 | Narrative comprehension | 0.939 | Excellent | NarrativeQA: paraphrasing in dialogue |
-| Reading comprehension | 0.880 | Good | Belebele: multilingual paraphrase matching |
+| Reading comprehension | 1.000 | Excellent | Belebele: SF+SPLADE achieves perfect score |
 | 2-hop QA | 0.757 | Competitive | HotpotQA, 2Wiki: recognizable semantic patterns |
 | Scientific claims | 0.755 | Competitive | SciFact: claim-evidence semantic matching |
-| Factoid retrieval | 0.574 | Moderate | NQ-REaR: entity matching gap |
+| Factoid retrieval | 0.611 | Moderate | NQ-REaR: entity matching gap |
 | Multi-hop QA | 0.453 | Poor | MuSiQue: 2–5 hop composition required |
+| Discrete reasoning | 0.320 | Poor | DROP: counting/sorting beyond phrase level |
+| Financial QA | 0.250 | Poor | DocFinQA: numerical reasoning required |
+| Legal (clause extraction) | 0.000 | Failure | CUAD: domain-specific clause reasoning |
+| Legal (document review) | 0.000 | Failure | MAUD: clause cross-referencing required |
+| Biomedical QA (hard) | 0.195 | Poor | BioASQ: large corpus, complex query types |
 
 ### 7.3.2 Why SF Excels on Biomedical and Narrative Tasks
 

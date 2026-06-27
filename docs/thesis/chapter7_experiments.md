@@ -72,11 +72,26 @@ We evaluate Semantic Folding across 10 datasets covering diverse task types:
 
 | Improvement | Belebele ΔMRR | PubMedQA ΔMRR | BioASQ ΔMRR | Verdict |
 |-------------|---------------|---------------|-------------|---------|
-| L2 Normalization | **+4.0%** | 0.0% | — | Best for Belebele |
-| Perplexity=50 | **+4.0%** | **+1.5%** | — | Best overall |
-| **SF+SPLADE (50Q)** | **+13.6%** | +3.4% | −11.1% | **Best for reading comp** |
+| L2 Normalization | **+4.0%** | 0.0% | −2.0% | Best for Belebele |
+| Perplexity=50 | **+4.0%** | **+1.5%** | −7.4% | Best for single-hop |
+| **SF+SPLADE (50Q)** | **+13.6%** | +3.4% | **0%** (no effect) | **Best for reading comp** |
 | SF+BM25 (50Q) | 0% | +3.4% | −32.8% | Helps biomedical only |
-| Glossary Expansion | 0% | 0% | +11% (10Q) | Mixed |
+| Glossary Expansion | 0% | 0% | +11% (10Q, inflated) | Mixed |
+
+### 7.2.4 BioASQ Ablation Study
+
+The old BioASQ baseline (MRR=0.248) was inflated by batched 10Q evaluation. True 50Q results:
+
+| Config | MRR | Factor Isolated |
+|--------|-----|-----------------|
+| Old 10Q batches | 0.445 | Easier query subset |
+| Old 35Q run | 0.232 | Mixed difficulty |
+| **A1: no-splade, p50, L2** | **0.195** | Baseline |
+| **A2: no-splade, p30, L2** | **0.210** | Perplexity=30 helps +7.4% |
+| **A3: no-splade, p50, sqrt_nnz** | **0.199** | sqrt_nnz helps +2.0% |
+| Full defaults (SPLADE, p50, L2) | 0.195 | SPLADE has 0% effect |
+
+**Finding**: SPLADE has no effect on BioASQ (unlike other datasets). The large corpus (1075 docs) with complex queries creates score compression that neither SPLADE nor other improvements can address.
 | Negation-Aware | 0% | 0% | 0% | Correct but no impact |
 | Multi-resolution | 0% | — | — | No impact |
 | Adaptive Spreading | 0% | 0% | 0% | No impact |
@@ -138,6 +153,35 @@ SF can match "Green performer" to a passage, but it cannot compose the result wi
 1. L2 normalization (+4.0% MRR)
 2. Higher perplexity (+4.0% MRR)
 3. SF+SPLADE hybrid (+13.6% on Belebele, 0.8800→1.0000)
+4. FAISS-accelerated OOV expansion (~30s → 0.075s per query, 400× speedup)
+5. Per-dataset parameter registry (+1–4% across datasets via dataset-specific optimal configs)
+6. Query decomposition (+19.6% NQ-REaR, −28.8% HotpotQA — quality depends on entity extraction via spaCy NER + dependency parsing)
+7. LambdaMART re-ranking (proof-of-concept — MRR **decreased** from 1.000 to 0.945 due to ceiling effect and insufficient training data; see §7.3.5)
+
+### 7.3.5 LambdaMART Re-ranking: Proof-of-Concept Analysis
+
+LambdaMART was implemented as a learned re-ranking stage on top of SF's retrieval. The model extracts 35 features per (query, document) pair — binary similarity metrics (Jaccard, cosine), asymmetric features (containment, coverage), bit-density statistics, 16-block histograms, and auxiliary features (query/doc length). Training uses LambdaRank loss with LightGBM (200 trees, learning rate 0.05).
+
+**Results**: Same-dataset evaluation on Belebele (50 queries) yielded MRR=0.945, compared to the SF+SPLADE baseline of MRR=1.000. Cross-dataset transfer (train on Belebele, evaluate on NQ-REaR) yielded MRR=0.649.
+
+**Why performance decreased**:
+
+1. **Ceiling effect**: SF+SPLADE already achieves perfect MRR=1.0 on Belebele — the gold document is consistently ranked first. LambdaMART cannot improve upon perfection; any re-ranking can only degrade the perfect ordering. This is a fundamental limitation when the baseline is already optimal.
+
+2. **Candidate pool too small**: The benchmark evaluates against 20 candidate documents per query. Re-ranking is designed for scenarios where the initial retrieval returns a large pool (100–1000 docs) and the gold document is not at rank 1. With only 20 candidates and the gold document at rank 1, there is no opportunity for improvement.
+
+3. **Insufficient training data**: 50 training queries is insufficient for LambdaMART to learn generalizable patterns. Feature importance analysis shows the model overfits to cosine similarity — the same metric already used by SF's dot-product scoring. The model essentially replicates the baseline rather than learning complementary signals.
+
+4. **Missing SPLADE features**: The current feature set does not include SPLADE scores, which would provide complementary information about term importance and expansion quality.
+
+**When LambdaMART would be beneficial**:
+
+- **Large candidate pools** (>100 docs per query): When the initial retrieval returns many candidates and the gold document is not at rank 1, LambdaMART can learn to promote relevant documents using features that capture different aspects of relevance.
+- **Multi-stage retrieval pipelines**: In production systems where Stage 1 (SF) retrieves 500+ candidates and Stage 2 (LambdaMART) re-ranks to top-10, the re-ranker has genuine opportunity to improve ranking.
+- **Cross-dataset training**: Training on 500+ queries from multiple datasets would allow the model to learn generalizable patterns rather than overfitting to a single dataset's characteristics.
+- **Enriched features**: Including SPLADE scores, BM25 scores, and document metadata as features would give the model complementary signals beyond what SF's dot-product already captures.
+
+This proof-of-concept demonstrates that learned re-ranking requires specific conditions to be effective — conditions not present in the current benchmark setup but common in production retrieval systems.
 
 ## 7.4 Academic Contributions
 
@@ -149,6 +193,9 @@ SF can match "Green performer" to a passage, but it cannot compose the result wi
 4. **SF+BM25 shows no improvement on Belebele (50Q)** — Lexical matching alone cannot complement SF's semantic approach
 5. **Performance degrades linearly with hop count** — SF cannot compose facts across passages
 6. **SF matches DPR on SciFact** (0.755 vs 0.675) — validates unsupervised semantic matching
+7. **FAISS reduces OOV expansion by 400×** — IVFFlat index replaces brute-force lookup, reducing OOV step from ~30s to ~0.075s per query
+8. **Per-dataset parameter registry improves all datasets by +1–4%** — Dataset-specific optimal configurations stored in YAML, enabling automatic parameter selection
+9. **Query decomposition is dataset-dependent** — +19.6% on NQ-REaR but −28.8% on HotpotQA, indicating entity extraction quality (via spaCy NER) varies by domain
 
 ### 7.4.2 Dataset-Dependent Optimization
 

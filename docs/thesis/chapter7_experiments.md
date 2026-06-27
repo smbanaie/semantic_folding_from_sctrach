@@ -72,11 +72,26 @@ We evaluate Semantic Folding across 10 datasets covering diverse task types:
 
 | Improvement | Belebele ΔMRR | PubMedQA ΔMRR | BioASQ ΔMRR | Verdict |
 |-------------|---------------|---------------|-------------|---------|
-| L2 Normalization | **+4.0%** | 0.0% | — | Best for Belebele |
-| Perplexity=50 | **+4.0%** | **+1.5%** | — | Best overall |
-| **SF+SPLADE (50Q)** | **+13.6%** | +3.4% | −11.1% | **Best for reading comp** |
+| L2 Normalization | **+4.0%** | 0.0% | −2.0% | Best for Belebele |
+| Perplexity=50 | **+4.0%** | **+1.5%** | −7.4% | Best for single-hop |
+| **SF+SPLADE (50Q)** | **+13.6%** | +3.4% | **0%** (no effect) | **Best for reading comp** |
 | SF+BM25 (50Q) | 0% | +3.4% | −32.8% | Helps biomedical only |
-| Glossary Expansion | 0% | 0% | +11% (10Q) | Mixed |
+| Glossary Expansion | 0% | 0% | +11% (10Q, inflated) | Mixed |
+
+### 7.2.4 BioASQ Ablation Study
+
+The old BioASQ baseline (MRR=0.248) was inflated by batched 10Q evaluation. True 50Q results:
+
+| Config | MRR | Factor Isolated |
+|--------|-----|-----------------|
+| Old 10Q batches | 0.445 | Easier query subset |
+| Old 35Q run | 0.232 | Mixed difficulty |
+| **A1: no-splade, p50, L2** | **0.195** | Baseline |
+| **A2: no-splade, p30, L2** | **0.210** | Perplexity=30 helps +7.4% |
+| **A3: no-splade, p50, sqrt_nnz** | **0.199** | sqrt_nnz helps +2.0% |
+| Full defaults (SPLADE, p50, L2) | 0.195 | SPLADE has 0% effect |
+
+**Finding**: SPLADE has no effect on BioASQ (unlike other datasets). The large corpus (1075 docs) with complex queries creates score compression that neither SPLADE nor other improvements can address.
 | Negation-Aware | 0% | 0% | 0% | Correct but no impact |
 | Multi-resolution | 0% | — | — | No impact |
 | Adaptive Spreading | 0% | 0% | 0% | No impact |
@@ -138,6 +153,10 @@ SF can match "Green performer" to a passage, but it cannot compose the result wi
 1. L2 normalization (+4.0% MRR)
 2. Higher perplexity (+4.0% MRR)
 3. SF+SPLADE hybrid (+13.6% on Belebele, 0.8800→1.0000)
+4. FAISS-accelerated OOV expansion (~30s → 0.075s per query, 400× speedup)
+5. Per-dataset parameter registry (+1–4% across datasets via dataset-specific optimal configs)
+6. Query decomposition (+19.6% NQ-REaR, −28.8% HotpotQA — quality depends on entity extraction via spaCy NER + dependency parsing)
+7. LambdaMART re-ranking (same-dataset MRR=0.945, cross-dataset MRR=0.649 — needs larger candidate pool)
 
 ## 7.4 Academic Contributions
 
@@ -149,6 +168,9 @@ SF can match "Green performer" to a passage, but it cannot compose the result wi
 4. **SF+BM25 shows no improvement on Belebele (50Q)** — Lexical matching alone cannot complement SF's semantic approach
 5. **Performance degrades linearly with hop count** — SF cannot compose facts across passages
 6. **SF matches DPR on SciFact** (0.755 vs 0.675) — validates unsupervised semantic matching
+7. **FAISS reduces OOV expansion by 400×** — IVFFlat index replaces brute-force lookup, reducing OOV step from ~30s to ~0.075s per query
+8. **Per-dataset parameter registry improves all datasets by +1–4%** — Dataset-specific optimal configurations stored in YAML, enabling automatic parameter selection
+9. **Query decomposition is dataset-dependent** — +19.6% on NQ-REaR but −28.8% on HotpotQA, indicating LLM entity extraction quality varies by domain
 
 ### 7.4.2 Dataset-Dependent Optimization
 

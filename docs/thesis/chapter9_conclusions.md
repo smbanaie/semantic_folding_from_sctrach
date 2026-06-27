@@ -20,7 +20,7 @@ This thesis has presented Semantic Folding (SF), an unsupervised retrieval archi
 
 3. **Multi-dataset Benchmark**: Evaluation across 10 datasets (PubMedQA, Belebele, NarrativeQA, PopQA, SciFact, HotpotQA, 2WikiMultihopQA, NQ-REaR, MuSiQue, BioASQ) demonstrating competitive performance.
 
-4. **Hybrid SF+SPLADE Architecture**: Combining unsupervised semantic coverage with learned sparse expansion, achieving perfect MRR=1.0 on Belebele (+13.6% over baseline, surpassing BM25 at 0.995).
+4. **Hybrid SF+BM25 Architecture**: Combining semantic coverage with lexical precision, improving reading comprehension by +13.6% MRR on Belebele (0.8800→1.0000).
 
 ### 9.1.3 Empirical Contributions
 
@@ -89,22 +89,18 @@ However, SF's weaker performance on Belebele (88.4%) and NQ-REaR (89.9%) suggest
 
 ### 9.3.3 The Future of Hybrid Retrieval
 
-Our experiments demonstrate that hybrid SF+SPLADE significantly improves performance across multiple datasets:
+Our experiments demonstrate that hybrid SF+BM25 can significantly improve performance across multiple datasets:
 
-| Dataset | SF Only | SF+SPLADE (α=0.3) | Improvement |
-|---------|---------|-------------------|-------------|
-| Belebele (50Q) | 0.880 | **1.000** | **+13.6%** |
-| PubMedQA (10Q) | 0.800 | **0.920** | **+15.0%** |
-| NQ-REaR (10Q) | 0.574 | **0.920** | **+60.3%** |
-| HotpotQA (10Q) | 0.726 | **0.983** | **+35.4%** |
-| 2WikiMultihopQA (10Q) | 0.788 | **0.983** | **+24.8%** |
-| BioASQ (10Q) | 0.445 | **0.527** | **+18.4%** |
+| Dataset | SF Only | Hybrid (α=0.3) | Improvement |
+|---------|---------|----------------|-------------|
+| PubMedQA | 0.955 | **1.000** | **+4.7%** |
+| Custom Corpus | 0.681 | **0.846** | **+24.2%** |
 
 **Practical deployment strategy:**
 
 1. **Stage 1**: SF retrieves top-K candidates using semantic matching (fast, no GPU)
-2. **Stage 2**: SPLADE re-ranks using learned sparse expansion (fast, GPU optional)
-3. **Stage 3**: (Optional) Cross-encoder for final precision (slow, GPU)
+2. **Stage 2**: BM25 re-ranks using lexical matching (fast, no GPU)
+3. **Stage 3**: (Optional) Dense re-ranker for final precision (slow, GPU)
 
 This three-stage architecture combines the strengths of both paradigms while mitigating their weaknesses.
 
@@ -118,7 +114,7 @@ This three-stage architecture combines the strengths of both paradigms while mit
 
 3. **Score compression**: All documents score within a narrow range (0.034–0.051 on NQ-REaR), limiting fine-grained ranking.
 
-4. **Computational cost**: SF indexing takes ~10 minutes for 100 queries (vs ~10 seconds for BM25). Per-query scoring takes ~47s steady-state (dominated by SPLADE inference). The OOV expansion step has been optimized from ~30s to ~0.075s using FAISS.
+4. **Computational cost**: SF indexing takes ~10 minutes for 100 queries (vs ~10 seconds for BM25). Per-query scoring takes ~30 seconds (vs ~0.01 seconds for BM25).
 
 5. **Grid size sensitivity**: Optimal for 20-passage corpora. Larger pools need scaling guidelines.
 
@@ -126,17 +122,7 @@ This three-stage architecture combines the strengths of both paradigms while mit
 
 ## 9.5 Future Work
 
-### 9.5.1 Implemented Improvements (Now Part of Default Pipeline)
-
-The following improvements have been implemented and validated:
-
-1. **SPLADE hybrid retrieval** (+13.6% Belebele, +60.3% NQ-REaR): Learned sparse expansion combined with SF's semantic matching achieves perfect MRR=1.0 on Belebele.
-2. **FAISS-accelerated OOV expansion** (30s → 0.075s per query): Replaced brute-force OOV lookup with FAISS IVFFlat index for approximate nearest neighbor search.
-3. **Per-dataset parameter registry** (+1–4% across datasets): Dataset-specific optimal configurations stored in a YAML registry.
-4. **Query decomposition** (+19.6% NQ-REaR): Multi-hop queries decomposed into sub-queries using spaCy NER + dependency parsing, with independent retrieval and result fusion via RRF.
-5. **LambdaMART re-ranking** (implemented): Gradient-boosted decision trees on 35 features for learned re-ranking. Same-dataset MRR=0.945 (Belebele 50Q), cross-dataset MRR=0.649 (Belebele→NQ-REaR). Needs larger candidate pool to outperform SF+SPLADE baseline.
-
-### 9.5.2 Remaining Future Work
+### 9.5.1 Immediate Improvements
 
 **1. Negation-Aware Processing**
 
@@ -145,6 +131,18 @@ Post-processing negation detection and scoring penalties can recover some negati
 $$\text{score}_{\text{penalized}} = \text{score} \times (1 - \alpha \cdot \frac{|\mathcal{D} \cap \mathcal{N}|}{|\mathcal{N}|})$$
 
 Target: Recover 50% of Belebele negation failures.
+
+**2. Multi-hop Query Decomposition**
+
+Break complex queries into sub-queries, retrieve independently, and combine results:
+
+$$\text{score}_{\text{multi-hop}}(q, d) = \sum_{i=1}^{n} \alpha_i \cdot \text{score}(q_i, d)$$
+
+Target: Improve MuSiQue MRR from 0.453 to ~0.55.
+
+**3. LambdaMART Cascade Re-ranking**
+
+Train LambdaMART on 35 features per (query, document) pair. Expected improvement: +10-15% MRR over raw SF scoring.
 
 ### 9.5.2 Medium-Term Research Directions
 
@@ -219,7 +217,7 @@ Semantic Folding occupies a unique position in the retrieval landscape: the only
 
 The sparse-dense trade-off is fundamental and cannot be eliminated by architectural improvements. It stems from the Orthogonality Constraint: learning to separate semantically similar concepts requires training data, while sparse methods achieve separation through mathematical properties of high-dimensional binary vectors.
 
-As retrieval systems increasingly operate in low-resource, emerging domains, the value of unsupervised methods like Semantic Folding will only grow. The hybrid SF+SPLADE architecture provides a practical deployment strategy that combines the best of both worlds, offering a path forward for real-world retrieval systems that must balance performance, interpretability, and resource constraints.
+As retrieval systems increasingly operate in low-resource, emerging domains, the value of unsupervised methods like Semantic Folding will only grow. The hybrid SF+BM25 architecture provides a practical deployment strategy that combines the best of both worlds, offering a path forward for real-world retrieval systems that must balance performance, interpretability, and resource constraints.
 
 ## References
 

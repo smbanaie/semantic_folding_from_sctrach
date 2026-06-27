@@ -195,7 +195,7 @@ This proof-of-concept demonstrates that learned re-ranking requires specific con
 6. **SF matches DPR on SciFact** (0.755 vs 0.675) — validates unsupervised semantic matching
 7. **FAISS reduces OOV expansion by 400×** — IVFFlat index replaces brute-force lookup, reducing OOV step from ~30s to ~0.075s per query
 8. **Per-dataset parameter registry improves all datasets by +1–4%** — Dataset-specific optimal configurations stored in YAML, enabling automatic parameter selection
-9. **Query decomposition is dataset-dependent** — +19.6% on NQ-REaR but −28.8% on HotpotQA, indicating LLM entity extraction quality varies by domain
+9. **Query decomposition is dataset-dependent** — +19.6% on NQ-REaR but −28.8% on HotpotQA, indicating entity extraction quality (via spaCy NER) varies by domain
 
 ### 7.4.2 Dataset-Dependent Optimization
 

@@ -248,7 +248,7 @@ The following improvements have been implemented and validated:
 1. **SPLADE hybrid retrieval** (+13.6% Belebele, +60.3% NQ-REaR): Learned sparse expansion combined with SF's semantic matching achieves perfect MRR=1.0 on Belebele.
 2. **FAISS-accelerated OOV expansion** (30s → 0.075s per query): Replaced brute-force OOV lookup with FAISS IVFFlat index for approximate nearest neighbor search, reducing the OOV expansion bottleneck by 400×.
 3. **Per-dataset parameter registry** (+1–4% across datasets): Dataset-specific optimal configurations stored in a YAML registry, enabling automatic parameter selection based on dataset characteristics.
-4. **Query decomposition** (+19.6% NQ-REaR): Multi-hop queries are decomposed into sub-queries using LLM-based entity extraction, with independent retrieval and result fusion.
+4. **Query decomposition** (+19.6% NQ-REaR): Multi-hop queries are decomposed into sub-queries using spaCy NER + dependency parsing for entity and relation extraction, with independent retrieval and result fusion via Reciprocal Rank Fusion (RRF).
 5. **LambdaMART re-ranking** (proof-of-concept, MRR=0.945 vs baseline 1.000): Gradient-boosted decision trees trained on 35 features per (query, document) pair. **Performance decreased** relative to the SF+SPLADE baseline (−5.5% MRR). Three factors explain the degradation:
 
    - **Ceiling effect**: SF+SPLADE already achieves perfect MRR=1.0 on Belebele — the gold document is ranked first. LambdaMART has no room to improve and can only degrade ranking.

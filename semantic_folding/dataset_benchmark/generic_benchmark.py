@@ -87,6 +87,18 @@ PIPELINE_DEFAULTS = {
     "short_query_max_words": 10,
     "spreading_steps_long": 1,
     "doc_norm": "l2",
+    # New feature defaults
+    "spreading_decay": 0.5,
+    "normalize_after_spreading": False,
+    "normalization": "l2",
+    "block_size": 8,
+    "attention_temperature": 1.0,
+    "snippet_window": 3,
+    "snippet_stride": 2,
+    "snippet_ranking": False,
+    "cross_attention": False,
+    "oov_expansion": True,
+    "synonym_weight": 0.5,
 }
 
 # ============================================================================
@@ -449,6 +461,10 @@ class GenericBenchmarkRunner:
                 "--min-dist", str(self.params["umap_min_dist"]),
                 "--metric", self.params["umap_metric"],
             ])
+        elif self.params["method"] == "learned":
+            step3_args.extend([
+                "--corpus", str(corpus_path),
+            ])
         ok = run_step(STEP_SCRIPTS[3], step3_args, PROJECT_ROOT, "Step 3 semantic_space", timeout=900)
         if not ok:
             update_run_status(run_dir, self.adapter.dataset_name, "failed_step3")
@@ -649,6 +665,44 @@ class GenericBenchmarkRunner:
             step6_args.extend(["--storage", "faiss"])
             if self.params.get("faiss_path"):
                 step6_args.extend(["--faiss-path", str(self.params["faiss_path"])])
+
+        # ── Cross-attention scoring (P2.2) ────────────────────────────────────
+        if self.params.get("cross_attention", False):
+            step6_args.append("--cross-attention")
+            step6_args.extend(["--block-size", str(self.params.get("block_size", 8))])
+            step6_args.extend(["--attention-temperature", str(self.params.get("attention_temperature", 1.0))])
+
+        # ── Snippet ranking (P2.4) ────────────────────────────────────────────
+        if self.params.get("snippet_ranking", False):
+            step6_args.append("--snippet-ranking")
+            step6_args.extend(["--snippet-window", str(self.params.get("snippet_window", 3))])
+            step6_args.extend(["--snippet-stride", str(self.params.get("snippet_stride", 2))])
+            if self.params.get("snippet_dir"):
+                step6_args.extend(["--snippet-dir", self.params["snippet_dir"]])
+
+        # ── Adaptive spreading ─────────────────────────────────────────────────
+        if self.params.get("adaptive_spreading", False):
+            step6_args.append("--adaptive-spreading")
+
+        # ── Normalize after spreading ──────────────────────────────────────────
+        if self.params.get("normalize_after_spreading", False):
+            step6_args.append("--normalize-after-spreading")
+
+        # ── Spreading decay ────────────────────────────────────────────────────
+        if self.params.get("spreading_decay", 0.5) != 0.5:
+            step6_args.extend(["--spreading-decay", str(self.params["spreading_decay"])])
+
+        # ── Query normalisation ────────────────────────────────────────────────
+        if self.params.get("normalization", "l2") != "l2":
+            step6_args.extend(["--normalization", self.params["normalization"]])
+
+        # ── OOV expansion ──────────────────────────────────────────────────────
+        if not self.params.get("oov_expansion", True):
+            step6_args.append("--no-oov-expansion")
+
+        # ── Synonym weight ─────────────────────────────────────────────────────
+        if self.params.get("synonym_weight", 0.5) != 0.5:
+            step6_args.extend(["--synonym-weight", str(self.params["synonym_weight"])])
 
         # ── Single subprocess call for ALL queries ────────────────────────
         t0 = time.time()
@@ -1027,7 +1081,7 @@ def cli_main():
     p_idx.add_argument("--registry", type=Path, default=None,
                        help="Path to dataset_registry.yml for per-dataset parameter overrides")
     p_idx.add_argument("--grid-size", type=int, default=PIPELINE_DEFAULTS["grid_size"])
-    p_idx.add_argument("--method", default=PIPELINE_DEFAULTS["method"], choices=["tsne", "umap", "pca"])
+    p_idx.add_argument("--method", default=PIPELINE_DEFAULTS["method"], choices=["tsne", "umap", "pca", "learned"])
     p_idx.add_argument("--umap-n-neighbors", type=int, default=PIPELINE_DEFAULTS["umap_n_neighbors"])
     p_idx.add_argument("--umap-min-dist", type=float, default=PIPELINE_DEFAULTS["umap_min_dist"])
     p_idx.add_argument("--umap-metric", default=PIPELINE_DEFAULTS["umap_metric"])
@@ -1093,6 +1147,43 @@ def cli_main():
     p_bm.add_argument("--faiss-path", type=Path, default=None,
                         help="Path to FAISS index directory (required when --storage faiss)")
 
+    # ── Cross-attention scoring (P2.2) ────────────────────────────────
+    p_bm.add_argument("--cross-attention", dest="cross_attention", action="store_true", default=False,
+                      help="Use block-level cross-attention scoring")
+    p_bm.add_argument("--block-size", type=int, default=PIPELINE_DEFAULTS["block_size"],
+                      help="Block size for cross-attention")
+    p_bm.add_argument("--attention-temperature", type=float, default=PIPELINE_DEFAULTS["attention_temperature"],
+                      help="Temperature for softmax in cross-attention")
+
+    # ── Snippet ranking (P2.4) ───────────────────────────────────────
+    p_bm.add_argument("--snippet-ranking", dest="snippet_ranking", action="store_true", default=False,
+                      help="Use snippet-level fingerprinting with max-pooling")
+    p_bm.add_argument("--snippet-window", type=int, default=PIPELINE_DEFAULTS["snippet_window"],
+                      help="Snippet window size in sentences")
+    p_bm.add_argument("--snippet-stride", type=int, default=PIPELINE_DEFAULTS["snippet_stride"],
+                      help="Stride between snippets")
+    p_bm.add_argument("--snippet-dir", type=Path, default=None,
+                      help="Path to pre-computed snippet fingerprints")
+
+    # ── Spreading options ────────────────────────────────────────────
+    p_bm.add_argument("--adaptive-spreading", action="store_true", default=False,
+                      help="Adjust spreading radius based on query length")
+    p_bm.add_argument("--normalize-after-spreading", action="store_true", default=False,
+                      help="L2-normalise fingerprint after spreading")
+    p_bm.add_argument("--spreading-decay", type=float, default=PIPELINE_DEFAULTS["spreading_decay"],
+                      help="Decay factor per spreading step")
+
+    # ── Query normalisation ──────────────────────────────────────────
+    p_bm.add_argument("--normalization", type=str, default=PIPELINE_DEFAULTS["normalization"],
+                      choices=["l2", "l1", "binary", "none"],
+                      help="Query fingerprint normalisation method")
+
+    # ── OOV expansion ────────────────────────────────────────────────
+    p_bm.add_argument("--no-oov-expansion", dest="no_oov_expansion", action="store_true", default=False,
+                      help="Skip OOV term expansion")
+    p_bm.add_argument("--synonym-weight", type=float, default=PIPELINE_DEFAULTS["synonym_weight"],
+                      help="Weight for synonym-expanded phrases")
+
     # report
     p_rp = sub.add_parser("report", help="Phase 3: generate markdown report")
     p_rp.add_argument("--dataset", required=True)
@@ -1111,7 +1202,7 @@ def cli_main():
     p_all.add_argument("--registry", type=Path, default=None,
                        help="Path to dataset_registry.yml for per-dataset parameter overrides")
     p_all.add_argument("--grid-size", type=int, default=PIPELINE_DEFAULTS["grid_size"])
-    p_all.add_argument("--method", default=PIPELINE_DEFAULTS["method"], choices=["tsne", "umap", "pca"])
+    p_all.add_argument("--method", default=PIPELINE_DEFAULTS["method"], choices=["tsne", "umap", "pca", "learned"])
     p_all.add_argument("--umap-n-neighbors", type=int, default=PIPELINE_DEFAULTS["umap_n_neighbors"])
     p_all.add_argument("--umap-min-dist", type=float, default=PIPELINE_DEFAULTS["umap_min_dist"])
     p_all.add_argument("--umap-metric", default=PIPELINE_DEFAULTS["umap_metric"])
@@ -1168,6 +1259,41 @@ def cli_main():
     p_all.add_argument("--negation-aware", action="store_true", help="Apply negation penalty to matching documents")
     p_all.add_argument("--negation-penalty", type=float, default=0.5, help="Negation penalty weight (0-1)")
     p_all.add_argument("--negation-boost", type=float, default=0.3, help="Boost for properly negated docs (0-1)")
+
+    # ── Cross-attention scoring (P2.2) ────────────────────────────────
+    p_all.add_argument("--cross-attention", dest="cross_attention", action="store_true", default=False,
+                       help="Use block-level cross-attention scoring")
+    p_all.add_argument("--block-size", type=int, default=PIPELINE_DEFAULTS["block_size"],
+                       help="Block size for cross-attention")
+    p_all.add_argument("--attention-temperature", type=float, default=PIPELINE_DEFAULTS["attention_temperature"],
+                       help="Temperature for softmax in cross-attention")
+
+    # ── Snippet ranking (P2.4) ───────────────────────────────────────
+    p_all.add_argument("--snippet-ranking", dest="snippet_ranking", action="store_true", default=False,
+                       help="Use snippet-level fingerprinting with max-pooling")
+    p_all.add_argument("--snippet-window", type=int, default=PIPELINE_DEFAULTS["snippet_window"],
+                       help="Snippet window size in sentences")
+    p_all.add_argument("--snippet-stride", type=int, default=PIPELINE_DEFAULTS["snippet_stride"],
+                       help="Stride between snippets")
+    p_all.add_argument("--snippet-dir", type=Path, default=None,
+                       help="Path to pre-computed snippet fingerprints")
+
+    # ── Spreading options ────────────────────────────────────────────
+    p_all.add_argument("--normalize-after-spreading", action="store_true", default=False,
+                       help="L2-normalise fingerprint after spreading")
+    p_all.add_argument("--spreading-decay", type=float, default=PIPELINE_DEFAULTS["spreading_decay"],
+                       help="Decay factor per spreading step")
+
+    # ── Query normalisation ──────────────────────────────────────────
+    p_all.add_argument("--normalization", type=str, default=PIPELINE_DEFAULTS["normalization"],
+                       choices=["l2", "l1", "binary", "none"],
+                       help="Query fingerprint normalisation method")
+
+    # ── OOV expansion ────────────────────────────────────────────────
+    p_all.add_argument("--no-oov-expansion", dest="no_oov_expansion", action="store_true", default=False,
+                       help="Skip OOV term expansion")
+    p_all.add_argument("--synonym-weight", type=float, default=PIPELINE_DEFAULTS["synonym_weight"],
+                       help="Weight for synonym-expanded phrases")
 
     args = parser.parse_args()
     if not args.command:
@@ -1256,6 +1382,28 @@ def cli_main():
     if hasattr(args, "tfidf_rerank"):
         params["tfidf_rerank"] = args.tfidf_rerank
         params["tfidf_alpha"] = args.tfidf_alpha
+    if hasattr(args, "cross_attention"):
+        params["cross_attention"] = args.cross_attention
+        params["block_size"] = args.block_size
+        params["attention_temperature"] = args.attention_temperature
+    if hasattr(args, "snippet_ranking"):
+        params["snippet_ranking"] = args.snippet_ranking
+        params["snippet_window"] = args.snippet_window
+        params["snippet_stride"] = args.snippet_stride
+    if hasattr(args, "snippet_dir") and args.snippet_dir:
+        params["snippet_dir"] = str(args.snippet_dir)
+    if hasattr(args, "adaptive_spreading"):
+        params["adaptive_spreading"] = args.adaptive_spreading
+    if hasattr(args, "normalize_after_spreading"):
+        params["normalize_after_spreading"] = args.normalize_after_spreading
+    if hasattr(args, "spreading_decay"):
+        params["spreading_decay"] = args.spreading_decay
+    if hasattr(args, "normalization"):
+        params["normalization"] = args.normalization
+    if hasattr(args, "no_oov_expansion"):
+        params["oov_expansion"] = not args.no_oov_expansion
+    if hasattr(args, "synonym_weight"):
+        params["synonym_weight"] = args.synonym_weight
     if hasattr(args, "corpus") and args.corpus:
         params["corpus_path"] = str(args.corpus)
     elif args.command == "benchmark" and hasattr(args, "run_dir"):

@@ -23,6 +23,19 @@ defaults:
   use_morton: true
   splade: true
   splade_alpha: 0.3
+  # New feature defaults
+  cross_attention: false
+  block_size: 8
+  attention_temperature: 1.0
+  snippet_ranking: false
+  snippet_window: 3
+  snippet_stride: 2
+  adaptive_spreading: false
+  normalize_after_spreading: false
+  spreading_decay: 0.5
+  normalization: l2
+  oov_expansion: true
+  synonym_weight: 0.5
 
 # ============================================================
 # PER-DATASET OVERRIDES

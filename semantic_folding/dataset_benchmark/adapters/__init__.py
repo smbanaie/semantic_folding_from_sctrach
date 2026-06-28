@@ -7,7 +7,6 @@ from .base_adapter import BaseDatasetAdapter
 from .pubmedqa_adapter import PubMedQAAdapter
 from .belebele_adapter import BelebeleAdapter
 from .bioasq_adapter import BioASQAdapter
-from .maud_adapter import MaudAdapter
 from .popqa_adapter import PopQAAdapter
 from .nq_rear_adapter import NQRearAdapter
 from .narrativeqa_adapter import NarrativeQAAdapter
@@ -22,7 +21,6 @@ from ._stubs import (
     DropAdapter,
     MultiMedQAAdapter,
     DocFinQAAdapter,
-    CuadAdapter,
     MedReadMeAdapter,
     CflueAdapter,
 )
@@ -36,7 +34,6 @@ ADAPTER_REGISTRY = {
     "bioasq": BioASQAdapter,
     "multimedqa": MultiMedQAAdapter,
     "docfinqa": DocFinQAAdapter,
-    "cuad": CuadAdapter,
     "maud": MaudAdapter,
     "medreadme": MedReadMeAdapter,
     "cflue": CflueAdapter,
@@ -86,7 +83,6 @@ __all__ = [
     "BioASQAdapter",
     "MultiMedQAAdapter",
     "DocFinQAAdapter",
-    "CuadAdapter",
     "MaudAdapter",
     "MedReadMeAdapter",
     "CflueAdapter",

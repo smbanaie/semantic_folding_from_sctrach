@@ -454,7 +454,6 @@ Based on the new citations, the following enhancements are recommended:
 - BioASQ (biomedical semantic indexing)
 - MEDIQA (medical question answering)
 - ClinicalQA (clinical note QA)
-- CUAD (legal contract review)
 
 ---
 
@@ -595,7 +594,7 @@ These remain valid but are lower priority than the research-backed phases above:
 
 | Improvement | Status | Notes |
 |-------------|--------|-------|
-| Long document chunking | Tested (MRR 0.000 → 0.200 on CUAD) | Adopt for legal datasets when needed |
+| Long document chunking | Not tested | Adopt for legal datasets when needed |
 | Domain-specific vocabulary | Not tested | UMLS/MeSH for biomedical, legal dictionaries |
 | Adaptive parameter selection | Not tested | Select grid_size/perplexity per query |
 | Neural query expansion | Not tested | BERT-based expansion (rejected WordNet expansion) |

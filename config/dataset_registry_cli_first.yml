@@ -1,0 +1,17 @@
+# Registry where CLI flags always win.
+# Only contains non-overridable params (grid_size, method, etc.)
+# splade, doc_norm, perplexity are NOT in defaults so CLI flags always apply.
+defaults:
+  grid_size: 64
+  smoothing_sigma: 1.5
+  method: tsne
+  spreading_steps: 1
+  top_percent: 0.10
+  weighting: idf
+  use_morton: true
+
+# Stub entries
+maud:
+  # MAUD legal contracts: keep discriminative phrases
+  min_freq: 2
+  max_doc_freq: 20

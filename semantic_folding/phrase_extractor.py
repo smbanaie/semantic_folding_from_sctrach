@@ -352,6 +352,7 @@ def process_corpus_with_expansion(
     corpus_path: Path,
     use_spacy: bool = True,
     min_freq: int = 2,
+    max_doc_freq: int = 0,
     filter_generic: bool = True,
     min_word_length: int = 3,
     keep_verbs: bool = True,
@@ -476,17 +477,17 @@ def process_corpus_with_expansion(
     dropped = 0
     for phrase, ctx_set in raw_phrase_contexts.items():
         doc_freq = len(ctx_set)
-        if doc_freq >= min_freq:
+        if doc_freq >= min_freq and (max_doc_freq == 0 or doc_freq <= max_doc_freq):
             final_vocabulary[phrase] = doc_freq
             final_mapping[phrase] = sorted(list(ctx_set))
             logger.debug(f"[FREQ][KEEP] '{phrase}'  freq={doc_freq}")
         else:
             dropped += 1
-            logger.debug(f"[FREQ][DROP] '{phrase}'  freq={doc_freq} < min={min_freq}")
+            logger.debug(f"[FREQ][DROP] '{phrase}'  freq={doc_freq} range=[{min_freq},{max_doc_freq}]")
 
     logger.info(
         f"[FREQ] Kept {len(final_vocabulary)} phrases, "
-        f"dropped {dropped} below min_freq={min_freq}"
+        f"dropped {dropped} (min_freq={min_freq}, max_doc_freq={max_doc_freq})"
     )
 
     return final_vocabulary, final_mapping
@@ -654,6 +655,10 @@ def main() -> None:
         help='Sparsity filter threshold $min\\_freq$ (default: 2)',
     )
     parser.add_argument(
+        '--max-doc-freq', type=int, default=0,
+        help='Upper bound on document frequency (0=no limit). Phrases in more docs are dropped.',
+    )
+    parser.add_argument(
         '--stats', action='store_true',
         help='Print detailed distributional statistics after extraction',
     )
@@ -675,6 +680,7 @@ def main() -> None:
     logger.info(f"  Extractor:       {'spaCy' if use_spacy and SPACY_AVAILABLE else 'NLTK fallback'}")
     logger.info(f"  Filter generic:  {filter_generic}")
     logger.info(f"  Min freq:        {args.min_freq}")
+    logger.info(f"  Max doc freq:    {args.max_doc_freq or 'unlimited'}")
     logger.info(f"  Min word length: {args.min_word_length}")
     logger.info(f"  Keep verbs:      {args.keep_verbs}")
     logger.info("──────────────────────────────────────────────────────────")
@@ -683,6 +689,7 @@ def main() -> None:
         corpus_path=args.corpus,
         use_spacy=use_spacy,
         min_freq=args.min_freq,
+        max_doc_freq=args.max_doc_freq,
         filter_generic=filter_generic,
         min_word_length=args.min_word_length,
         keep_verbs=args.keep_verbs,

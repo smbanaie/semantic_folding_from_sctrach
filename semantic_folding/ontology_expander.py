@@ -6,6 +6,8 @@ Enhances query expansion using MeSH/UMLS-style ontologies by:
 2. Multi-word term expansion (expand phrases as units)
 3. MeSH tree-based expansion (find related terms via hierarchy)
 4. Context-aware expansion (only expand semantically relevant terms)
+5. Corpus-level glossary injection (append synonyms to corpus for indexing)
+6. Query-time phrase normalization (map synonyms to canonical before vocab lookup)
 
 Author: [Your Name]
 Date: 2026-06-18
@@ -30,6 +32,7 @@ class OntologyExpander:
         self.glossary: Dict[str, List[str]] = {}
         self.term_weights: Dict[str, float] = {}
         self.mesh_tree: Dict[str, List[str]] = {}  # parent -> children mapping
+        self._syn_to_canon: Optional[Dict[str, str]] = None
 
         if glossary_path:
             self.load_glossary(glossary_path)
@@ -204,6 +207,105 @@ class OntologyExpander:
 
         return weights
 
+    # ------------------------------------------------------------------
+    # P1.3: Corpus-level glossary injection + query normalization
+    # ------------------------------------------------------------------
+
+    def build_synonym_to_canonical(self) -> Dict[str, str]:
+        """Build reverse mapping: synonym -> canonical term.
+
+        This is used to normalize query phrases to their canonical form
+        before vocabulary lookup.
+        """
+        mapping = {}
+        for canonical, synonyms in self.glossary.items():
+            mapping[canonical] = canonical
+            for syn in synonyms:
+                # Only map if synonym doesn't conflict with another canonical
+                if syn not in self.glossary:
+                    mapping[syn] = canonical
+        return mapping
+
+    def normalize_phrase_through_glossary(self, phrase: str) -> str:
+        """Normalize a phrase by mapping synonyms to canonical form.
+
+        E.g., 'heart attack' -> 'myocardial infarction'
+              'mirna' -> 'microrna'
+        """
+        phrase_lower = phrase.lower()
+        if self._syn_to_canon is None:
+            self._syn_to_canon = self.build_synonym_to_canonical()
+        if phrase_lower in self._syn_to_canon:
+            return self._syn_to_canon[phrase_lower]
+        return phrase
+
+    def normalize_query_phrases(self, phrases: List[str]) -> List[str]:
+        """Normalize a list of query phrases through the glossary.
+
+        Maps each synonym to its canonical form. If the canonical form
+        is in the phrase vocabulary, it will match; the synonym may not be.
+        """
+        if not self.glossary:
+            return phrases
+        return [self.normalize_phrase_through_glossary(p) for p in phrases]
+
+    def expand_corpus_with_glossary(self, corpus_lines: List[str]) -> List[str]:
+        """Append glossary synonyms to each corpus line where canonical terms appear.
+
+        For each line, if a canonical term or its synonyms appear in the text,
+        append all other forms (synonyms or canonical) to the end of the line.
+        This ensures all synonym variants get picked up by phrase extraction
+        and receive fingerprints in the semantic grid.
+
+        Args:
+            corpus_lines: List of corpus lines (doc_id, title text)
+
+        Returns:
+            Expanded corpus lines with appended synonyms
+        """
+        if not self.glossary:
+            return corpus_lines
+
+        # Build a combined mapping: every variant -> set of all other variants
+        variant_groups = []
+        for canonical, synonyms in self.glossary.items():
+            all_variants = {canonical} | set(synonyms)
+            variant_groups.append(all_variants)
+
+        expanded_lines = []
+        total_injections = 0
+
+        for line in corpus_lines:
+            line_lower = line.lower()
+            append_terms = []
+
+            for variants in variant_groups:
+                # Check if any variant appears in the line
+                found_variant = None
+                for v in variants:
+                    if v in line_lower:
+                        found_variant = v
+                        break
+
+                if found_variant:
+                    # Append all OTHER variants that aren't in the text
+                    for v in variants:
+                        if v != found_variant and v not in line_lower and v not in append_terms:
+                            append_terms.append(v)
+
+            if append_terms:
+                expanded_line = line + " " + " ".join(append_terms)
+                expanded_lines.append(expanded_line)
+                total_injections += len(append_terms)
+            else:
+                expanded_lines.append(line)
+
+        logger.info(
+            f"  [ONTOLOGY] corpus expansion: {total_injections} synonym injections "
+            f"across {len(corpus_lines)} lines"
+        )
+        return expanded_lines
+
 
 # Global instance
 _ontology_expander = None
@@ -215,3 +317,9 @@ def get_ontology_expander(glossary_path: Optional[str] = None) -> OntologyExpand
     if _ontology_expander is None or glossary_path:
         _ontology_expander = OntologyExpander(glossary_path)
     return _ontology_expander
+
+
+def expand_corpus_with_glossary(corpus_lines: List[str], glossary_path: str) -> List[str]:
+    """Module-level convenience function for corpus expansion."""
+    expander = get_ontology_expander(glossary_path)
+    return expander.expand_corpus_with_glossary(corpus_lines)

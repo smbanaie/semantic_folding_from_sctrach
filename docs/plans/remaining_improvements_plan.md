@@ -104,7 +104,7 @@ Before making ontology expansion a default, must test on:
 
 ### Phase 2: P1.5 — FAISS-based Fingerprint Storage (Branch: feature/lancedb-storage)
 
-**Problem**: Fingerprints are currently stored as individual JSON/numpy files on disk. For large corpora (BioASQ 1075 docs, CUAD 500+ docs), loading is slow and memory-heavy.
+**Problem**: Fingerprints are currently stored as individual JSON/numpy files on disk. For large corpora (BioASQ 1075 docs, MAUD 200+ docs), loading is slow and memory-heavy.
 
 **Solution**: Use FAISS for fingerprint storage (already integrated for OOV expansion).
 
@@ -278,11 +278,11 @@ Before making ontology expansion a default, must test on:
 
 4. **Benchmark**:
    - BioASQ (50Q): doc-only vs snippet — measure MRR (large corpus, complex docs)
-   - CUAD (50Q): doc-only vs snippet — measure MRR (legal contracts, long docs)
+   - MAUD (50Q): doc-only vs snippet — measure MRR (legal contracts, long docs)
    - NarrativeQA (50Q): doc-only vs snippet — measure MRR (narrative passages)
    - If >3% improvement: expand to all datasets
 
-**Expected impact**: +5-10% MRR on long-document datasets (BioASQ, CUAD, MAUD). Short documents (Belebele 20-passage) won't benefit since they're already paragraph-sized.
+**Expected impact**: +5-10% MRR on long-document datasets (BioASQ, MAUD). Short documents (Belebele 20-passage) won't benefit since they're already paragraph-sized.
 
 **Files to create/modify**:
 - `semantic_folding/snippet_fingerprinter.py` — new file
@@ -468,7 +468,7 @@ For complete parameter guidance, see the Dataset Decision Table in the project d
 4. **P2.3 Multi-resolution** → document in thesis (no code needed) → commit docs
 5. **P2.1 Learned grid** → implement → benchmark Belebele+BioASQ → merge if >3%
 6. **P2.2 Cross-attention** → implement → benchmark NQ-REaR+BioASQ+MuSiQue → merge if >3%
-7. **P2.4 Snippet ranking** → implement → benchmark BioASQ+CUAD+NarrativeQA → merge if >3%
+7. **P2.4 Snippet ranking** → implement → benchmark BioASQ+MAUD+NarrativeQA → merge if >3%
 8. **P3.1 Dataset decision table** → analyze registry → create decision table → document CLI flags → update thesis ch.4 + paper §4.5 + datasets.md
 
 **Post-implementation**: After all features are done, decide how to proceed:
@@ -484,7 +484,7 @@ For complete parameter guidance, see the Dataset Decision Table in the project d
 - **NQ-REaR** (50Q): Score compression test — moderate MRR (0.611)
 
 ### Full Benchmark (if test shows improvement):
-All 13 datasets: Belebele, PopQA, PubMedQA, NQ-REaR, BioASQ, NarrativeQA, 2WikiMultihopQA, HotpotQA, MuSiQue, DROP, DocFinQA, CUAD, MAUD
+All 12 datasets: Belebele, PopQA, PubMedQA, NQ-REaR, BioASQ, NarrativeQA, 2WikiMultihopQA, HotpotQA, MuSiQue, DROP, DocFinQA, MAUD
 
 ### Benchmark Protocol:
 1. Run baseline (current defaults) — record MRR, AP, P@1, load time, peak memory

@@ -228,6 +228,19 @@ Start-Process -NoNewWindow -FilePath ".venv\Scripts\python" `
 
 Use `--no-splade` to skip SPLADE embedding (faster runs). Log files go to `temp/` which is gitignored.
 
+### Batch Query Processing (March 2025+)
+
+`phase2_benchmark` in `generic_benchmark.py` uses **batch query processing** via `--query-file` internally. Instead of calling `query_processor.py` once per query (reloading fingerprints, IDF, spaCy, and models each time), all gold-bearing queries are written to a `queries.txt` file and processed in a single subprocess call. Results are saved to `all_results.json` and split back per-query for metrics.
+
+**Performance gain**: For 10 queries, batch processing saves ~N× fingerprint/IDF loading overhead (1-2 min per query → 1-2 min total). For SPLADE configs, the model loads once and caches per query, saving ~80s/query startup.
+
+**What changed**:
+- Index phase is unchanged (Steps 1-5 run sequentially)
+- Benchmark phase now writes `queries.txt` + single `--query-file` call + `--output all_results.json`
+- CSV and per-query files retain the same format
+- `elapsed_s` in CSV is averaged across all queries in the batch
+- `summary.json` includes `batch_elapsed_s` for total batch wall time
+
 ## Naming Conventions
 
 - Python: snake_case for functions/variables

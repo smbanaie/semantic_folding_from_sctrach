@@ -1,0 +1,14 @@
+# Registry for perplexity=30 experiments (CLI flags override splade/doc_norm)
+defaults:
+  grid_size: 64
+  smoothing_sigma: 1.5
+  method: tsne
+  tsne_perplexity: 30
+  spreading_steps: 1
+  top_percent: 0.10
+  weighting: idf
+  use_morton: true
+
+maud:
+  min_freq: 2
+  max_doc_freq: 20

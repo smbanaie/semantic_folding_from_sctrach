@@ -69,9 +69,9 @@ PIPELINE_DEFAULTS = {
     "min_word_length": 3,
     "min_freq": 1,
     "morton": True,
-    "tsne_perplexity": 50,
+    "tsne_perplexity": 30,
     "tsne_iter": 1000,
-    "splade": True,
+    "splade": False,
     "hybrid_alpha": 0.3,
     "doc_norm": "l2",
 }
@@ -430,29 +430,30 @@ def phase2_benchmark(run_dir: Path, entries: List[dict], query_start: int,
     all_metrics = []
     results_log = bench_dir / "results_log.csv"
     failed = 0
+    skipped = 0
 
-    for i, q_idx in enumerate(range(query_start, query_end)):
-        q_idx_str = str(q_idx)
-        entry = entries[q_idx]
-        query_text = entry["question"]
-        candidate_ids = query_doc_map.get(q_idx_str, [])
-        gold_ids = query_gold.get(q_idx_str, [])
+    # ── Batch all queries: write to query file, run one process ────────────
+    query_file_path = bench_dir / "queries.txt"
+    query_indices = []
+    with open(query_file_path, "w", encoding="utf-8") as qf:
+        for q_idx in range(query_start, query_end):
+            q_idx_str = str(q_idx)
+            entry = entries[q_idx]
+            gold_ids = query_gold.get(q_idx_str, [])
+            if not gold_ids:
+                logger.debug(f"  [{q_idx}] no gold passages, skipping")
+                skipped += 1
+                continue
+            query_indices.append(q_idx)
+            qf.write(entry["question"] + "\n")
 
-        if not gold_ids:
-            logger.debug(f"  [{q_idx}] no gold passages, skipping")
-            continue
-
-        query_out_dir = per_query_dir / f"{q_idx:04d}"
-        query_out_dir.mkdir(exist_ok=True)
-
-        cand_path = query_out_dir / "candidate_docs.json"
-        with open(cand_path, "w") as f:
-            json.dump({"candidate_ids": candidate_ids, "gold_ids": gold_ids}, f, indent=2)
-
-        result_json = query_out_dir / "query_results.json"
+    if not query_indices:
+        logger.warning("No queries with gold passages — nothing to benchmark.")
+    else:
+        all_results_json = bench_dir / "all_results.json"
         t0 = time.time()
-        ok = run_step(STEP_SCRIPTS[6], [
-            "--query", query_text,
+        step6_args = [
+            "--query-file", str(query_file_path),
             "--fingerprints", str(run_dir / "phrase_fingerprints"),
             "--doc-fingerprints", str(run_dir / "doc_fingerprints"),
             "--idf-weights", str(run_dir / "term_context_matrix" / "idf_weights.json"),
@@ -461,53 +462,84 @@ def phase2_benchmark(run_dir: Path, entries: List[dict], query_start: int,
             "--weighting", params["weighting"],
             "--spreading-steps", str(params["spreading_steps"]),
             "--doc-norm", params["doc_norm"],
-            "--splade", "--splade-model", "naver/splade-cocondenser-ensembledistil",
             "--hybrid-alpha", str(params["hybrid_alpha"]),
-            "--output", str(result_json),
+            "--output", str(all_results_json),
             "--keep-verbs", "--min-word-length", str(params["min_word_length"]),
-        ], PROJECT_ROOT, "Step 6 query_processor", timeout=120)
-        elapsed = time.time() - t0
+            "--no-oov-expansion",
+        ]
+        if params.get("splade", False):
+            step6_args.extend(["--splade", "--splade-model", "naver/splade-cocondenser-ensembledistil"])
+        else:
+            step6_args.append("--no-splade")
+        ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT,
+                      "Step 6 query_processor", timeout=600)
+        batch_elapsed = time.time() - t0
 
         if not ok:
-            logger.error(f"  [{q_idx}] query processor FAILED ({elapsed:.0f}s)")
-            failed += 1
-            continue
+            logger.error(f"Batch query processor FAILED after {batch_elapsed:.0f}s")
+            failed = len(query_indices)
+        else:
+            batched_results = load_query_results(all_results_json)
+            logger.info(f"Batch processed {len(batched_results)} queries in {batch_elapsed:.0f}s")
 
-        raw_results = load_query_results(result_json)
-        full_results = raw_results[0]["results"] if raw_results else []
-        candidate_results = filter_results_to_candidates(full_results, candidate_ids)
+            for i, q_idx in enumerate(query_indices):
+                q_idx_str = str(q_idx)
+                entry = entries[q_idx]
+                query_text = entry["question"]
+                candidate_ids = query_doc_map.get(q_idx_str, [])
+                gold_ids = query_gold.get(q_idx_str, [])
 
-        with open(query_out_dir / "filtered_results.json", "w") as f:
-            json.dump({
-                "query_idx": q_idx,
-                "query": query_text,
-                "gold": gold_ids,
-                "candidates": candidate_ids,
-                "filtered_ranked": [(doc_id, float(score)) for doc_id, score in candidate_results],
-                "full_top10": [(doc_id, float(score)) for doc_id, score in full_results[:10]],
-                "elapsed_s": round(elapsed, 1),
-            }, f, indent=2)
+                raw = batched_results[i] if i < len(batched_results) else None
+                if raw is None:
+                    logger.error(f"  [{q_idx}] no result in batch output")
+                    failed += 1
+                    continue
 
-        metrics = compute_metrics(candidate_results, gold_ids,
-                                  top_k_list=[1, 2, 3, 5, params["top_k"]])
-        all_metrics.append(metrics)
+                full_results = raw.get("results", [])
 
-        logger.info(f"  [{q_idx:04d}] MRR={metrics['mrr']:.3f} AP={metrics['ap']:.3f} "
-                    f"P@2={metrics['p@2']:.3f} [{elapsed:.0f}s]")
+                query_out_dir = per_query_dir / f"{q_idx:04d}"
+                query_out_dir.mkdir(exist_ok=True)
 
-        with open(results_log, "a", newline="", encoding="utf-8") as csv_f:
-            writer = csv.writer(csv_f)
-            if i == 0:
-                writer.writerow(["query_idx", "query", "mrr", "ap", "p@1", "p@2",
-                                 "p@3", "p@5", "r@2", "ndcg@2", "found_at", "elapsed_s"])
-            writer.writerow([
-                q_idx, query_text[:60],
-                f"{metrics['mrr']:.4f}", f"{metrics['ap']:.4f}",
-                f"{metrics['p@1']:.4f}", f"{metrics['p@2']:.4f}",
-                f"{metrics['p@3']:.4f}", f"{metrics['p@5']:.4f}",
-                f"{metrics['r@2']:.4f}", f"{metrics['ndcg@2']:.4f}",
-                metrics.get("found_at", "none"), f"{elapsed:.1f}",
-            ])
+                cand_path = query_out_dir / "candidate_docs.json"
+                with open(cand_path, "w") as f:
+                    json.dump({"candidate_ids": candidate_ids, "gold_ids": gold_ids}, f, indent=2)
+
+                with open(query_out_dir / "query_results.json", "w") as f:
+                    json.dump([raw], f, indent=2)
+
+                candidate_results = filter_results_to_candidates(full_results, candidate_ids)
+
+                with open(query_out_dir / "filtered_results.json", "w") as f:
+                    json.dump({
+                        "query_idx": q_idx,
+                        "query": query_text,
+                        "gold": gold_ids,
+                        "candidates": candidate_ids,
+                        "filtered_ranked": [(doc_id, float(score)) for doc_id, score in candidate_results],
+                        "full_top10": [(doc_id, float(score)) for doc_id, score in full_results[:10]],
+                        "elapsed_s": round(batch_elapsed, 1),
+                    }, f, indent=2)
+
+                metrics = compute_metrics(candidate_results, gold_ids,
+                                          top_k_list=[1, 2, 3, 5, params["top_k"]])
+                all_metrics.append(metrics)
+
+                logger.info(f"  [{q_idx:04d}] MRR={metrics['mrr']:.3f} AP={metrics['ap']:.3f} "
+                            f"P@2={metrics['p@2']:.3f}")
+
+                with open(results_log, "a", newline="", encoding="utf-8") as csv_f:
+                    writer = csv.writer(csv_f)
+                    if i == 0:
+                        writer.writerow(["query_idx", "query", "mrr", "ap", "p@1", "p@2",
+                                         "p@3", "p@5", "r@2", "ndcg@2", "found_at", "elapsed_s"])
+                    writer.writerow([
+                        q_idx, query_text[:60],
+                        f"{metrics['mrr']:.4f}", f"{metrics['ap']:.4f}",
+                        f"{metrics['p@1']:.4f}", f"{metrics['p@2']:.4f}",
+                        f"{metrics['p@3']:.4f}", f"{metrics['p@5']:.4f}",
+                        f"{metrics['r@2']:.4f}", f"{metrics['ndcg@2']:.4f}",
+                        metrics.get("found_at", "none"), round(batch_elapsed, 1),
+                    ])
 
     if all_metrics:
         agg = defaultdict(list)

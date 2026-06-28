@@ -408,6 +408,53 @@ class LanceStorage:
         except Exception as e:
             logger.warning(f"Error closing LanceDB connection: {e}")
 
+    def load_phrase_fingerprints(self) -> Dict[str, np.ndarray]:
+        """
+        Load all phrase fingerprints as a dict (compatible with load_phrase_fingerprints_sparse).
+
+        Returns:
+            Dict mapping phrase -> fingerprint matrix
+        """
+        from scipy.sparse import csr_matrix
+
+        table = self.db.open_table(self.phrase_table_name)
+        df = table.to_pandas()
+
+        fingerprints = {}
+        for _, row in df.iterrows():
+            phrase = row['phrase']
+            fingerprint_vector = np.array(row['fingerprint_vector'])
+            grid_size = int(row['grid_size'])
+            fingerprints[phrase] = fingerprint_vector.reshape((grid_size, grid_size))
+
+        logger.info(f"Loaded {len(fingerprints)} phrase fingerprints from LanceDB")
+        return fingerprints
+
+    def load_document_fingerprints(self) -> Tuple[Dict[str, csr_matrix], Dict]:
+        """
+        Load all document fingerprints as a dict (compatible with load_document_fingerprints).
+
+        Returns:
+            Tuple of (doc_fingerprints, metadata) where:
+                - doc_fingerprints: Dict mapping context_id -> csr_matrix
+                - metadata: Dict with grid_size, use_morton, etc.
+        """
+        table = self.db.open_table(self.doc_table_name)
+        df = table.to_pandas()
+
+        doc_fingerprints = {}
+        metadata = {"grid_size": 64, "use_morton": True, "num_docs": len(df)}
+
+        for _, row in df.iterrows():
+            context_id = row['context_id']
+            fingerprint_vector = np.array(row['fingerprint_vector'])
+            grid_size = int(row['grid_size'])
+            fp_dense = fingerprint_vector.reshape((grid_size, grid_size))
+            doc_fingerprints[context_id] = csr_matrix(fp_dense)
+
+        logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints from LanceDB")
+        return doc_fingerprints, metadata
+
 
 def create_storage(db_path: Union[str, Path], connection_uri: Optional[str] = None) -> LanceStorage:
     """

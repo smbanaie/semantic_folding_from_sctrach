@@ -483,7 +483,6 @@ where $\alpha$ controls the weight of semantic folding (0 = pure BM25, 1 = pure 
 | PubMedQA | Biomedical QA | **0.969** | 1.000 | -0.031 |
 | Belebele | Reading Comp | **0.880** | 0.995 | -0.115 |
 | DROP | Reading Comp | **0.320** | 0.752 | -0.432 |
-| CUAD | Legal Contract | 0.000 | — | SF fails |
 
 **Pattern:** SF struggles on reading comprehension and legal tasks. L2 normalization helps but doesn't close the gap.
 
@@ -590,14 +589,17 @@ BM25's lexical matching is more effective for general knowledge queries.
 
 **Configuration**: grid=64, spread=1, top%=0.10, IDF, L2 norm, morton, smoothing=1.5, perplexity=30
 
-| Metric | SF | BM25 | Delta |
-|--------|-----|------|-------|
-| **MRR** | 0.453 | 0.672 | -32.6% |
-| **AP** | 0.272 | 0.482 | -43.7% |
-| **P@1** | 0.395 | 0.563 | -29.8% |
-| **P@2** | 0.221 | 0.362 | -39.0% |
+| Metric | SF (v1, per-query) | SF (v3, batch) | BM25 | Delta (v3 vs BM25) |
+|--------|-------------------|----------------|------|--------------------|
+| **MRR** | 0.453 | **0.554** | 0.672 | -17.6% |
+| **AP** | 0.272 | 0.316 | 0.482 | -34.4% |
+| **P@1** | 0.395 | **0.432** | 0.563 | -23.3% |
+| **P@2** | 0.221 | **0.352** | 0.362 | -2.8% |
 
-**Analysis**: MuSiQue requires composing facts across 2-5 hops. BM25's lexical matching significantly outperforms SF's semantic approach. 47.7% of SF queries had no gold passage in top results.
+**v1**: 56 gold queries, per-query subprocesses (~25s/q), 1862 docs
+**v3**: 44 gold queries from Q0-49, **batch processing (63s total, ~25x speedup)**, 954 docs, snippet-ranking features
+
+**Analysis**: MuSiQue requires composing facts across 2-5 hops. The v3 improvement (+22.3% MRR) comes partly from snippet-ranking features and partly from the query subset difference. **Critical architecture change**: batched query processing eliminates per-query subprocess overhead — spaCy, phrase fingerprints, IDF weights, and FAISS OOV index are all loaded once per batch instead of once per query.
 
 ### 10.5 Cross-Dataset Summary
 

@@ -1,0 +1,14 @@
+# Minimal registry with NO per-dataset overrides.
+# CLI flags always take precedence when using this registry.
+defaults:
+  grid_size: 64
+  smoothing_sigma: 1.5
+  method: tsne
+  perplexity: 50
+  spreading_steps: 1
+  top_percent: 0.10
+  weighting: idf
+  doc_norm: l2
+  use_morton: true
+  splade: true
+  splade_alpha: 0.3

@@ -536,7 +536,9 @@ class GenericBenchmarkRunner:
         failed = 0
         total = query_end - query_start
 
-        for i, q_idx in enumerate(range(query_start, query_end)):
+        # ── Pass 1: collect gold-bearing queries for batch processing ─────
+        batch_entries = []
+        for q_idx in range(query_start, query_end):
             q_idx_str = str(q_idx)
             entry = entries[q_idx]
             query_text = entry["question"]
@@ -547,7 +549,6 @@ class GenericBenchmarkRunner:
                 logger.debug(f"  [{q_idx}] no gold passages, skipping")
                 continue
 
-            # Per-query parameter override: dynamic spreading
             n_words = len(query_text.split())
             if self.params.get("dynamic_spreading", False):
                 if n_words <= self.params.get("short_query_max_words", 10):
@@ -563,78 +564,129 @@ class GenericBenchmarkRunner:
             query_out_dir = per_query_dir / f"{q_idx:04d}"
             query_out_dir.mkdir(exist_ok=True)
 
-            cand_path = query_out_dir / "candidate_docs.json"
-            with open(cand_path, "w") as f:
+            with open(query_out_dir / "candidate_docs.json", "w") as f:
                 json.dump({"candidate_ids": candidate_ids, "gold_ids": gold_ids}, f, indent=2)
 
+            batch_entries.append({
+                "q_idx": q_idx,
+                "entry": entry,
+                "query_text": query_text,
+                "n_words": n_words,
+                "spread": spread,
+                "spread_reason": spread_reason,
+                "candidate_ids": candidate_ids,
+                "gold_ids": gold_ids,
+                "query_out_dir": query_out_dir,
+            })
+
+        if not batch_entries:
+            logger.error("No queries with gold passages to benchmark!")
+            update_run_status(bench_dir, self.adapter.dataset_name, "failed_no_gold")
+            return None
+
+        # ── Write query file for batch processing ─────────────────────────
+        query_file = bench_dir / "queries.txt"
+        with open(query_file, "w", encoding="utf-8") as f:
+            for be in batch_entries:
+                f.write(be["query_text"] + "\n")
+        logger.info(f"Batch: {len(batch_entries)} queries written to {query_file}")
+
+        # ── Build step6 args (shared across all queries) ──────────────────
+        batch_output = bench_dir / "all_results.json"
+        step6_args = [
+            "--query-file", str(query_file),
+            "--fingerprints", str(run_dir / "phrase_fingerprints"),
+            "--doc-fingerprints", str(run_dir / "doc_fingerprints"),
+            "--idf-weights", str(run_dir / "term_context_matrix" / "idf_weights.json"),
+            "--grid-size", str(self.params["grid_size"]),
+            "--top-k", str(self.params["top_k"]),
+            "--weighting", self.params["weighting"],
+            "--spreading-steps", str(self.params["spreading_steps"]),
+            "--output", str(batch_output),
+            "--keep-verbs", "--min-word-length", str(self.params["min_word_length"]),
+        ]
+        if self.params.get("geometric", False):
+            step6_args.append("--geometric")
+        if self.params.get("hybrid", False):
+            step6_args.extend(["--hybrid", "--hybrid-alpha", str(self.params.get("hybrid_alpha", 0.5))])
+            if self.params.get("corpus_path"):
+                step6_args.extend(["--corpus", self.params["corpus_path"]])
+        if self.params.get("splade", False):
+            step6_args.extend(["--splade", "--splade-model", self.params.get("splade_model", "naver/splade-cocondenser-ensembledistil")])
+            if self.params.get("corpus_path"):
+                step6_args.extend(["--corpus", self.params["corpus_path"]])
+        if self.params.get("doc_norm", "sqrt_nnz") != "sqrt_nnz":
+            step6_args.extend(["--doc-norm", self.params["doc_norm"]])
+        if self.params.get("sim_metric", "cosine") != "cosine":
+            step6_args.extend(["--sim-metric", self.params["sim_metric"]])
+        if self.params.get("asymmetric", False):
+            step6_args.append("--asymmetric")
+            step6_args.extend(["--asym-alpha", str(self.params.get("asym_alpha", 0.7))])
+        if self.params.get("score_norm", "none") != "none":
+            step6_args.extend(["--score-norm", self.params["score_norm"]])
+        if self.params.get("rerank", False):
+            step6_args.append("--rerank")
+            if self.params.get("rerank_model"):
+                step6_args.extend(["--rerank-model", str(self.params["rerank_model"])])
+            step6_args.extend(["--rerank-top-k", str(self.params.get("rerank_top_k", 100))])
+        if self.params.get("negation_aware", False):
+            step6_args.append("--negation-aware")
+            step6_args.extend(["--negation-penalty", str(self.params.get("negation_penalty", 0.5))])
+            step6_args.extend(["--negation-boost", str(self.params.get("negation_boost", 0.3))])
+        if self.params.get("expand_synonyms", False):
+            step6_args.append("--expand-synonyms")
+            if self.params.get("glossary_path"):
+                step6_args.extend(["--glossary", self.params["glossary_path"]])
+        if self.params.get("tfidf_rerank", False):
+            step6_args.extend(["--tfidf-rerank", "--tfidf-alpha", str(self.params.get("tfidf_alpha", 0.3))])
+            if self.params.get("corpus_path"):
+                step6_args.extend(["--corpus", self.params["corpus_path"]])
+        if self.params.get("decompose", False):
+            step6_args.append("--decompose")
+        if self.params.get("multi_resolution", False):
+            step6_args.append("--multi-resolution")
+        if self.params.get("storage", "file") == "faiss":
+            step6_args.extend(["--storage", "faiss"])
+            if self.params.get("faiss_path"):
+                step6_args.extend(["--faiss-path", str(self.params["faiss_path"])])
+
+        # ── Single subprocess call for ALL queries ────────────────────────
+        t0 = time.time()
+        ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor (batch)")
+        batch_elapsed = time.time() - t0
+
+        if not ok:
+            logger.error(f"Batch query processor FAILED after {batch_elapsed:.0f}s — {len(batch_entries)} queries lost")
+            failed = len(batch_entries)
+            update_run_status(bench_dir, self.adapter.dataset_name, "failed_batch")
+            return bench_dir
+
+        logger.info(f"Batch query processor completed in {batch_elapsed:.0f}s ({len(batch_entries)} queries)")
+
+        # ── Read batch results ────────────────────────────────────────────
+        with open(batch_output, encoding="utf-8") as f:
+            all_query_results = json.load(f)
+
+        # ── Pass 2: split results back per-query, compute metrics ────────
+        for i, be in enumerate(batch_entries):
+            q_idx = be["q_idx"]
+            query_text = be["query_text"]
+            n_words = be["n_words"]
+            spread = be["spread"]
+            spread_reason = be["spread_reason"]
+            candidate_ids = be["candidate_ids"]
+            gold_ids = be["gold_ids"]
+            query_out_dir = be["query_out_dir"]
+
             result_json = query_out_dir / "query_results.json"
-            t0 = time.time()
-            step6_args = [
-                "--query", query_text,
-                "--fingerprints", str(run_dir / "phrase_fingerprints"),
-                "--doc-fingerprints", str(run_dir / "doc_fingerprints"),
-                "--idf-weights", str(run_dir / "term_context_matrix" / "idf_weights.json"),
-                "--grid-size", str(self.params["grid_size"]),
-                "--top-k", str(self.params["top_k"]),
-                "--weighting", self.params["weighting"],
-                "--spreading-steps", str(spread),
-                "--output", str(result_json),
-                "--keep-verbs", "--min-word-length", str(self.params["min_word_length"]),
-            ]
-            if self.params.get("geometric", False):
-                step6_args.append("--geometric")
-            if self.params.get("hybrid", False):
-                step6_args.extend(["--hybrid", "--hybrid-alpha", str(self.params.get("hybrid_alpha", 0.5))])
-                if self.params.get("corpus_path"):
-                    step6_args.extend(["--corpus", self.params["corpus_path"]])
-            if self.params.get("splade", False):
-                step6_args.extend(["--splade", "--splade-model", self.params.get("splade_model", "naver/splade-cocondenser-ensembledistil")])
-                if self.params.get("corpus_path"):
-                    step6_args.extend(["--corpus", self.params["corpus_path"]])
-            if self.params.get("doc_norm", "sqrt_nnz") != "sqrt_nnz":
-                step6_args.extend(["--doc-norm", self.params["doc_norm"]])
-            if self.params.get("sim_metric", "cosine") != "cosine":
-                step6_args.extend(["--sim-metric", self.params["sim_metric"]])
-            if self.params.get("asymmetric", False):
-                step6_args.append("--asymmetric")
-                step6_args.extend(["--asym-alpha", str(self.params.get("asym_alpha", 0.7))])
-            if self.params.get("score_norm", "none") != "none":
-                step6_args.extend(["--score-norm", self.params["score_norm"]])
-            if self.params.get("rerank", False):
-                step6_args.append("--rerank")
-                if self.params.get("rerank_model"):
-                    step6_args.extend(["--rerank-model", str(self.params["rerank_model"])])
-                step6_args.extend(["--rerank-top-k", str(self.params.get("rerank_top_k", 100))])
-            if self.params.get("negation_aware", False):
-                step6_args.append("--negation-aware")
-                step6_args.extend(["--negation-penalty", str(self.params.get("negation_penalty", 0.5))])
-                step6_args.extend(["--negation-boost", str(self.params.get("negation_boost", 0.3))])
-            if self.params.get("expand_synonyms", False):
-                step6_args.append("--expand-synonyms")
-                if self.params.get("glossary_path"):
-                    step6_args.extend(["--glossary", self.params["glossary_path"]])
-            if self.params.get("tfidf_rerank", False):
-                step6_args.extend(["--tfidf-rerank", "--tfidf-alpha", str(self.params.get("tfidf_alpha", 0.3))])
-                if self.params.get("corpus_path"):
-                    step6_args.extend(["--corpus", self.params["corpus_path"]])
-            if self.params.get("decompose", False):
-                step6_args.append("--decompose")
-            if self.params.get("multi_resolution", False):
-                step6_args.append("--multi-resolution")
-            if self.params.get("storage", "file") == "faiss":
-                step6_args.extend(["--storage", "faiss"])
-                if self.params.get("faiss_path"):
-                    step6_args.extend(["--faiss-path", str(self.params["faiss_path"])])
-            ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor", timeout=900)
-            elapsed = time.time() - t0
 
-            if not ok:
-                logger.error(f"  [{q_idx}] query processor FAILED ({elapsed:.0f}s)")
-                failed += 1
-                continue
+            raw = all_query_results[i] if i < len(all_query_results) else {"results": []}
+            full_results = raw.get("results", [])
 
-            raw_results = load_query_results(result_json)
-            full_results = raw_results[0]["results"] if raw_results else []
+            # Save raw per-query result
+            with open(result_json, "w") as f:
+                json.dump([raw], f, indent=2)
+
             candidate_results = filter_results_to_candidates(full_results, candidate_ids)
 
             with open(query_out_dir / "filtered_results.json", "w") as f:
@@ -648,7 +700,7 @@ class GenericBenchmarkRunner:
                     "candidates": candidate_ids,
                     "filtered_ranked": [(doc_id, float(score)) for doc_id, score in candidate_results],
                     "full_top10": [(doc_id, float(score)) for doc_id, score in full_results[:10]],
-                    "elapsed_s": round(elapsed, 1),
+                    "elapsed_s": round(batch_elapsed / len(batch_entries), 1),
                 }, f, indent=2)
 
             metrics = compute_metrics(candidate_results, gold_ids,
@@ -656,24 +708,24 @@ class GenericBenchmarkRunner:
             metrics["spreading_steps"] = spread
             all_metrics.append(metrics)
 
-            if (i + 1) % 10 == 0 or i == 0 or i == total - 1:
-                logger.info(f"  [{q_idx:04d}/{query_end - 1}] MRR={metrics['mrr']:.3f} AP={metrics['ap']:.3f} "
-                            f"P@2={metrics['p@2']:.3f} spread={spread}[{spread_reason[:5]}] [{elapsed:.0f}s]  ({i+1}/{total})")
+            logger.info(f"  [{q_idx:04d}/{query_end - 1}] MRR={metrics['mrr']:.3f} AP={metrics['ap']:.3f} "
+                        f"P@2={metrics['p@2']:.3f} spread={spread}[{spread_reason[:5]}]  ({i+1}/{len(batch_entries)})")
 
-            with open(results_log, "a", newline="", encoding="utf-8") as csv_f:
-                writer = csv.writer(csv_f)
-                if i == 0:
-                    header = ["query_idx", "query", "n_words", "spread", "spread_reason",
-                              "mrr", "ap", "p@1", "p@2", "p@3", "p@5", "r@2", "ndcg@2",
-                              "found_at", "elapsed_s"]
-                    writer.writerow(header)
+        # ── Write CSV ────────────────────────────────────────────────────
+        with open(results_log, "w", newline="", encoding="utf-8") as csv_f:
+            writer = csv.writer(csv_f)
+            header = ["query_idx", "query", "n_words", "spread", "spread_reason",
+                      "mrr", "ap", "p@1", "p@2", "p@3", "p@5", "r@2", "ndcg@2",
+                      "found_at", "elapsed_s"]
+            writer.writerow(header)
+            for be, metrics in zip(batch_entries, all_metrics):
                 writer.writerow([
-                    q_idx, query_text[:60], n_words, spread, spread_reason,
+                    be["q_idx"], be["query_text"][:60], be["n_words"], be["spread"], be["spread_reason"],
                     f"{metrics['mrr']:.4f}", f"{metrics['ap']:.4f}",
                     f"{metrics['p@1']:.4f}", f"{metrics['p@2']:.4f}",
                     f"{metrics['p@3']:.4f}", f"{metrics['p@5']:.4f}",
                     f"{metrics['r@2']:.4f}", f"{metrics['ndcg@2']:.4f}",
-                    metrics.get("found_at", "none"), f"{elapsed:.1f}",
+                    metrics.get("found_at", "none"), f"{batch_elapsed / len(batch_entries):.1f}",
                 ])
 
         if all_metrics:
@@ -687,6 +739,7 @@ class GenericBenchmarkRunner:
                 "display_name": self.adapter.display_name,
                 "num_queries": len(all_metrics),
                 "failed": failed,
+                "batch_elapsed_s": round(batch_elapsed, 1),
             }
             for k, vals in agg.items():
                 summary[f"mean_{k}"] = sum(vals) / len(vals)

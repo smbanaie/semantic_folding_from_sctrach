@@ -126,17 +126,6 @@ docfinqa:
   perplexity: 50
   doc_norm: l2
 
-cuad:
-  description: "Legal contract review (CUAD)"
-  max_queries: 200
-  # Legal domain — SPLADE may help with terminology
-  splade: true
-  splade_alpha: 0.3
-  perplexity: 50
-  doc_norm: l2
-  # NOTE: CUAD currently at MRR 0.000 — needs domain-specific tuning
-  # Consider: longer chunks, legal-specific preprocessing
-
 maud:
   description: "Merger Agreement Understanding Dataset (legal review)"
   max_queries: 200

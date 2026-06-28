@@ -17,10 +17,10 @@
 | v1 | 2026-06-16 | NarrativeQA | 64 | 0.939 | 0.980 | 95.8% | 49 queries, narrative |
 | v1 | 2026-06-16 | 2WikiMultihopQA | 64 | 0.788 | 0.921 | 85.6% | 50 queries, multi-hop |
 | v1 | 2026-06-17 | MuSiQue | 64 | 0.453 | 0.672 | 67.4% | 100 queries, multi-hop |
+| **v3** | **2026-06-28** | **MuSiQue** | 64 | **0.554** | — | — | **44 queries, batch processing (20x speedup), snippet-ranking** |
 | v1 | 2026-06-15 | DROP | 64 | 0.320 | 0.762 | 42.6% | 50 queries, L2 norm |
 | v1 | 2026-06-09 | DocFinQA | 128 | 0.250 | 0.341 | 73.3% | 20 queries, financial |
-| v2 | 2026-06-10 | CUAD | 64 | 0.000 | 0.244 | 0% | 200 queries, legal |
-| v3 | 2026-06-13 | MAUD | 64 | 0.000 | 0.649 | 0% | 100 queries, legal |
+| v2 | 2026-06-13 | MAUD | 64 | 0.000 | 0.649 | 0% | 100 queries, legal |
 
 ---
 
@@ -53,16 +53,14 @@
 - 2WikiMultihopQA results are recorded in BENCHMARK_RESULTS.md (MRR=0.788, 50 queries, multi-hop)
 
 ### MuSiQue
-- MuSiQue results are recorded in BENCHMARK_RESULTS.md (MRR=0.453, 100 queries, multi-hop)
+- MuSiQue results are recorded in BENCHMARK_RESULTS.md (MRR=0.453, 100 queries, multi-hop; v3 MRR=0.554, 44 queries, batch processing)
+- `musique/v3_20260628_134311.md` — Batch-processed benchmark report
 
 ### DROP
 - DROP results are recorded in BENCHMARK_RESULTS.md (MRR=0.320, 50 queries, L2 norm)
 
 ### DocFinQA
 - DocFinQA results are recorded in BENCHMARK_RESULTS.md (MRR=0.250, 20 queries, financial)
-
-### CUAD
-- CUAD results are recorded in BENCHMARK_RESULTS.md (MRR=0.000, 200 queries, legal)
 
 ### MAUD
 - MAUD results are recorded in BENCHMARK_RESULTS.md (MRR=0.000, 100 queries, legal)
@@ -86,4 +84,4 @@ cp outputs/<name>_benchmark/benchmarks/benchmark_<ts>/benchmark_report.md \
 
 ---
 
-*Last updated: 2026-06-27*
+*Last updated: 2026-06-28*

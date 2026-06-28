@@ -95,13 +95,18 @@ nq_rear:
   doc_norm: l2
 
 bioasq:
-  description: "Biomedical semantic QA"
+  description: "Biomedical semantic QA (1075 docs, complex queries)"
   max_queries: 200
-  # SPLADE helps (+18.4%)
-  splade: true
-  splade_alpha: 0.3
-  perplexity: 50
+  # SPLADE has 0% effect on BioASQ (large corpus + domain mismatch)
+  # Old 0.248 baseline was inflated by batched 10Q evaluation
+  splade: false
+  perplexity: 30
   doc_norm: l2
+  # P1.3: Ontology-guided retrieval — inject MeSH glossary synonyms into
+  # corpus at indexing time, and normalize query phrases through glossary
+  glossary_path: "config/glossary_bioasq.json"
+  glossary_corpus_expansion: true
+  expand_synonyms: true
 
 drop:
   description: "Discrete reasoning over paragraphs"
@@ -131,6 +136,14 @@ cuad:
   doc_norm: l2
   # NOTE: CUAD currently at MRR 0.000 — needs domain-specific tuning
   # Consider: longer chunks, legal-specific preprocessing
+
+maud:
+  description: "Merger Agreement Understanding Dataset (legal review)"
+  max_queries: 200
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
 
 twowikimultihopqa:
   description: "Multi-hop QA across Wikipedia"

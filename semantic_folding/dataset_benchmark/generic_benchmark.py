@@ -73,6 +73,7 @@ PIPELINE_DEFAULTS = {
     "keep_verbs": True,
     "min_word_length": 3,
     "min_freq": 1,
+    "max_doc_freq": 0,
     "morton": True,
     "method": "tsne",
     "tsne_perplexity": 50,
@@ -213,7 +214,7 @@ def load_entries(jsonl_path: Path) -> List[dict]:
 # Run step helper
 # ============================================================================
 def run_step(script: Path, args: List[str], workdir: Path, step_name: str,
-             timeout: int = 600) -> bool:
+             timeout: int = 1800) -> bool:
     args = [a for a in args if a]
     cmd = [sys.executable, str(script)] + args
     logger.info(f"  [{step_name}] starting...")
@@ -359,6 +360,14 @@ class GenericBenchmarkRunner:
 
         # Build combined corpus
         corpus_lines, query_doc_map, query_gold = build_combined_corpus(entries)
+
+        # P1.3: Corpus-level glossary expansion — append synonyms to corpus
+        # lines so phrase extraction picks them up and creates fingerprints
+        glossary_path = self.params.get("glossary_path")
+        if self.params.get("glossary_corpus_expansion", False) and glossary_path:
+            from ontology_expander import expand_corpus_with_glossary
+            corpus_lines = expand_corpus_with_glossary(corpus_lines, glossary_path)
+
         corpus_path = run_dir / "corpus.txt"
         with open(corpus_path, "w", encoding="utf-8") as f:
             for line in corpus_lines:
@@ -403,6 +412,7 @@ class GenericBenchmarkRunner:
             "--corpus", str(corpus_path), "--output", str(out),
             "--keep-verbs", "--min-word-length", str(self.params["min_word_length"]),
             "--min-freq", str(self.params["min_freq"]),
+            "--max-doc-freq", str(self.params.get("max_doc_freq", 0)),
         ], PROJECT_ROOT, "Step 1 phrase_extractor")
         if not ok:
             update_run_status(run_dir, self.adapter.dataset_name, "failed_step1")
@@ -611,6 +621,10 @@ class GenericBenchmarkRunner:
                 step6_args.append("--decompose")
             if self.params.get("multi_resolution", False):
                 step6_args.append("--multi-resolution")
+            if self.params.get("storage", "file") == "faiss":
+                step6_args.extend(["--storage", "faiss"])
+                if self.params.get("faiss_path"):
+                    step6_args.extend(["--faiss-path", str(self.params["faiss_path"])])
             ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor", timeout=900)
             elapsed = time.time() - t0
 
@@ -969,6 +983,9 @@ def cli_main():
     p_idx.add_argument("--weighting", default=PIPELINE_DEFAULTS["weighting"])
     p_idx.add_argument("--smoothing-sigma", type=float, default=PIPELINE_DEFAULTS["smoothing_sigma"])
     p_idx.add_argument("--no-morton", action="store_true")
+    p_idx.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
+    p_idx.add_argument("--glossary-corpus-expansion", action="store_true",
+                       help="Inject glossary synonyms into corpus at indexing time (P1.3)")
 
     # benchmark
     p_bm = sub.add_parser("benchmark", help="Phase 2: run Step 6 per query")
@@ -1018,6 +1035,10 @@ def cli_main():
     p_bm.add_argument("--negation-boost", type=float, default=0.3, help="Boost for properly negated docs (0-1)")
     p_bm.add_argument("--decompose", action="store_true",
                         help="Enable multi-hop query decomposition")
+    p_bm.add_argument("--storage", type=str, default="file", choices=["file", "faiss"],
+                        help="Storage backend for fingerprints (default: file)")
+    p_bm.add_argument("--faiss-path", type=Path, default=None,
+                        help="Path to FAISS index directory (required when --storage faiss)")
 
     # report
     p_rp = sub.add_parser("report", help="Phase 3: generate markdown report")
@@ -1067,6 +1088,8 @@ def cli_main():
     p_all.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
     p_all.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
     p_all.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
+    p_all.add_argument("--glossary-corpus-expansion", action="store_true",
+                        help="Inject glossary synonyms into corpus at indexing time (P1.3)")
     p_all.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_all.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_all.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
@@ -1077,6 +1100,10 @@ def cli_main():
                         help="Adjust spreading radius based on query length")
     p_all.add_argument("--decompose", action="store_true",
                         help="Enable multi-hop query decomposition")
+    p_all.add_argument("--storage", type=str, default="file", choices=["file", "faiss"],
+                        help="Storage backend for fingerprints (default: file)")
+    p_all.add_argument("--faiss-path", type=Path, default=None,
+                        help="Path to FAISS index directory (required when --storage faiss)")
     p_all.add_argument("--asymmetric", action="store_true", help="Use asymmetric containment/coverage scoring")
     p_all.add_argument("--asym-alpha", type=float, default=0.7, help="Containment weight in asymmetric mode")
     p_all.add_argument("--score-norm", type=str, default="none",
@@ -1118,6 +1145,10 @@ def cli_main():
         params["weighting"] = registry_params.get("weighting", args.weighting)
         params["smoothing_sigma"] = registry_params.get("smoothing_sigma", args.smoothing_sigma)
         params["morton"] = registry_params.get("use_morton", not args.no_morton)
+        params["tsne_perplexity"] = registry_params.get("tsne_perplexity", PIPELINE_DEFAULTS["tsne_perplexity"])
+        params["min_freq"] = registry_params.get("min_freq", PIPELINE_DEFAULTS["min_freq"])
+        params["max_doc_freq"] = registry_params.get("max_doc_freq", PIPELINE_DEFAULTS["max_doc_freq"])
+        params["keep_verbs"] = registry_params.get("keep_verbs", PIPELINE_DEFAULTS["keep_verbs"])
     if hasattr(args, "dynamic_spreading"):
         params["dynamic_spreading"] = args.dynamic_spreading
         params["spreading_steps_long"] = args.spreading_steps_long
@@ -1154,10 +1185,21 @@ def cli_main():
         params["negation_boost"] = args.negation_boost
     if hasattr(args, "decompose"):
         params["decompose"] = args.decompose
+    if hasattr(args, "storage"):
+        params["storage"] = args.storage
+    if hasattr(args, "faiss_path") and args.faiss_path:
+        params["faiss_path"] = str(args.faiss_path)
     if hasattr(args, "expand_synonyms"):
         params["expand_synonyms"] = args.expand_synonyms
+    if hasattr(args, "glossary_corpus_expansion"):
+        params["glossary_corpus_expansion"] = args.glossary_corpus_expansion
     if hasattr(args, "glossary") and args.glossary:
         params["glossary_path"] = args.glossary
+    # Also check registry for glossary_path
+    if "glossary_path" not in params and "glossary_path" in registry_params:
+        params["glossary_path"] = registry_params["glossary_path"]
+    if "glossary_corpus_expansion" not in params and "glossary_corpus_expansion" in registry_params:
+        params["glossary_corpus_expansion"] = registry_params["glossary_corpus_expansion"]
     if hasattr(args, "tfidf_rerank"):
         params["tfidf_rerank"] = args.tfidf_rerank
         params["tfidf_alpha"] = args.tfidf_alpha

@@ -1699,6 +1699,11 @@ def rank_documents(
             query_fp = apply_geometric_kernel(query_fp, grid_size, use_morton)
             logger.info(f"  [GEOMETRIC] kernel applied, new nnz={query_fp.nnz}")
 
+    # Cross-attention scoring (alternative to cosine)
+    cross_attention = kwargs.get("cross_attention", False)
+    block_size = kwargs.get("block_size", 8)
+    attention_temperature = kwargs.get("attention_temperature", 1.0)
+
     # Precompute query L2 norm once — reused for every document
     query_norm = np.sqrt(query_fp.power(2).sum())
     if query_norm < 1e-9:
@@ -1756,6 +1761,14 @@ def rank_documents(
                 score = weighted_intersection / len(union)
             else:
                 score = 0.0
+        elif cross_attention:
+            # Block-level cross-attention scoring
+            from cross_attention_scorer import block_cross_attention_score
+            query_dense = query_fp.toarray().ravel()
+            doc_dense = doc_fp.toarray().ravel()
+            score = block_cross_attention_score(
+                query_dense, doc_dense, grid_size, block_size, attention_temperature
+            )
         else:
             score = raw_dot / (query_norm * doc_norm_factor)
 
@@ -2379,10 +2392,49 @@ def process_query(
         use_morton=use_morton,
         doc_norm=getattr(args, "doc_norm", "sqrt_nnz"),
         sim_metric=getattr(args, "sim_metric", "cosine"),
+        cross_attention=getattr(args, "cross_attention", False),
+        block_size=getattr(args, "block_size", 8),
+        attention_temperature=getattr(args, "attention_temperature", 1.0),
     )
 
     # Initialize sf_scores from results (used by hybrid and TF-IDF blocks)
     sf_scores = {doc_id: score for doc_id, score in results}
+
+    # ── Stage 4a: Snippet ranking (optional) ──────────────────────────────────
+    snippet_ranking = getattr(args, "snippet_ranking", False)
+    if snippet_ranking and results:
+        snippet_dir = getattr(args, "snippet_dir", None)
+        if snippet_dir and snippet_dir.exists():
+            from snippet_fingerprinter import max_pool_snippet_scores
+            
+            logger.info(f"  [SNIPPET] re-ranking with snippet max-pooling from {snippet_dir}")
+            
+            # Re-rank results using snippet fingerprints
+            snippet_results = []
+            for doc_id, score in results:
+                snippet_files = list(snippet_dir.glob(f"{doc_id}_snippet_*.npy"))
+                if snippet_files:
+                    snippet_fps = []
+                    for sf in snippet_files:
+                        snippet_fp = np.load(sf)
+                        snippet_fps.append((sf.stem, csr_matrix(snippet_fp)))
+                    
+                    # Compute max snippet score
+                    snippet_score = max_pool_snippet_scores(
+                        doc_id, query_fp, snippet_fps
+                    )
+                    # Combine original score with snippet score
+                    combined_score = 0.7 * score + 0.3 * snippet_score
+                    snippet_results.append((doc_id, combined_score))
+                else:
+                    snippet_results.append((doc_id, score))
+            
+            # Re-sort by combined score
+            snippet_results.sort(key=lambda x: x[1], reverse=True)
+            results = snippet_results[:getattr(args, "top_k", 10)]
+            sf_scores = {doc_id: score for doc_id, score in results}
+            
+            logger.info(f"  [SNIPPET] re-ranked {len(results)} results")
 
     # ── Stage 4b: hybrid SF+BM25/SPLADE scoring ────────────────────────────────
     hybrid_enabled = getattr(args, "hybrid", False)
@@ -2603,6 +2655,15 @@ def parse_args() -> argparse.Namespace:
         "--doc-fingerprints", dest="doc_fp_dir", type=Path, required=True,
         help="Step 5 document fingerprint directory.",
     )
+    parser.add_argument(
+        "--storage", dest="storage", type=str, default="file",
+        choices=["file", "faiss"],
+        help="Storage backend for fingerprints (default: file).",
+    )
+    parser.add_argument(
+        "--faiss-path", dest="faiss_path", type=Path, default=None,
+        help="Path to FAISS index directory (required when --storage faiss).",
+    )
 
     # ── Optional inputs ───────────────────────────────────────────────────────
     parser.add_argument(
@@ -2701,6 +2762,40 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--short-query-max-words", dest="short_query_max_words", type=int, default=10,
         help="Maximum word count for a query to be considered 'short' in adaptive spreading.",
+    )
+
+    # ── Cross-attention scoring ──────────────────────────────────────────────
+    parser.add_argument(
+        "--cross-attention", dest="cross_attention", action="store_true",
+        default=False,
+        help="Use block-level cross-attention scoring instead of cosine similarity.",
+    )
+    parser.add_argument(
+        "--block-size", dest="block_size", type=int, default=8,
+        help="Block size for cross-attention (default: 8 for 64x64 grid = 64 blocks).",
+    )
+    parser.add_argument(
+        "--attention-temperature", dest="attention_temperature", type=float, default=1.0,
+        help="Temperature for softmax in cross-attention (lower = sharper).",
+    )
+
+    # ── Snippet ranking ──────────────────────────────────────────────────────
+    parser.add_argument(
+        "--snippet-ranking", dest="snippet_ranking", action="store_true",
+        default=False,
+        help="Use snippet-level fingerprinting with max-pooling for document scoring.",
+    )
+    parser.add_argument(
+        "--snippet-window", dest="snippet_window", type=int, default=3,
+        help="Snippet window size in sentences (default: 3).",
+    )
+    parser.add_argument(
+        "--snippet-stride", dest="snippet_stride", type=int, default=2,
+        help="Stride between snippets (default: 2).",
+    )
+    parser.add_argument(
+        "--snippet-dir", dest="snippet_dir", type=Path, default=None,
+        help="Directory containing pre-computed snippet fingerprints.",
     )
 
     # ── Multi-resolution spreading ──────────────────────────────────────────
@@ -2873,16 +2968,36 @@ def main() -> None:
     )
 
     # ── Load phrase fingerprints ───────────────────────────────────────────────
-    logger.debug(
-        f"  [MAIN LOAD] loading phrase fingerprints from {args.phrase_fp_dir}"
-    )
-    try:
-        phrase_fingerprints = load_phrase_fingerprints_sparse(
-            args.phrase_fp_dir, args.grid_size
+    if args.storage == "faiss" and args.faiss_path:
+        logger.info(f"  [MAIN LOAD] loading phrase fingerprints from FAISS: {args.faiss_path}")
+        try:
+            import faiss
+            import json as _json
+            # Load FAISS index
+            index = faiss.read_index(str(args.faiss_path / "phrase_index.faiss"))
+            # Load phrase mapping from JSON
+            with open(args.faiss_path / "phrase_map.json", "r") as f:
+                phrase_map = _json.load(f)
+            # Reconstruct fingerprints as dict
+            phrase_fingerprints = {}
+            for phrase, row_idx in phrase_map.items():
+                vec = faiss.rev_swig_vector(index.reconstruct(row_idx))
+                phrase_fingerprints[phrase] = np.array(vec).reshape(args.grid_size, args.grid_size)
+            logger.info(f"Loaded {len(phrase_fingerprints)} phrase fingerprints from FAISS")
+        except Exception as exc:
+            logger.error(f"Failed to load phrase fingerprints from FAISS: {exc}")
+            sys.exit(1)
+    else:
+        logger.debug(
+            f"  [MAIN LOAD] loading phrase fingerprints from {args.phrase_fp_dir}"
         )
-    except (FileNotFoundError, ValueError) as exc:
-        logger.error(f"Failed to load phrase fingerprints: {exc}")
-        sys.exit(1)
+        try:
+            phrase_fingerprints = load_phrase_fingerprints_sparse(
+                args.phrase_fp_dir, args.grid_size
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            logger.error(f"Failed to load phrase fingerprints: {exc}")
+            sys.exit(1)
 
     if not phrase_fingerprints:
         logger.error("Phrase fingerprints dict is empty — check Step 4 output.")
@@ -2920,14 +3035,38 @@ def main() -> None:
             args.weighting = "uniform"
 
     # ── Load document fingerprints ─────────────────────────────────────────────
-    logger.debug(
-        f"  [MAIN LOAD] loading document fingerprints from {args.doc_fp_dir}"
-    )
-    try:
-        doc_fingerprints, doc_metadata = load_document_fingerprints(args.doc_fp_dir)
-    except (FileNotFoundError, ValueError) as exc:
-        logger.error(f"Failed to load document fingerprints: {exc}")
-        sys.exit(1)
+    if args.storage == "faiss" and args.faiss_path:
+        logger.info(f"  [MAIN LOAD] loading document fingerprints from FAISS: {args.faiss_path}")
+        try:
+            import faiss
+            import json as _json
+            from scipy.sparse import csr_matrix
+            # Load FAISS index
+            index = faiss.read_index(str(args.faiss_path / "doc_index.faiss"))
+            # Load doc mapping from JSON
+            with open(args.faiss_path / "doc_map.json", "r") as f:
+                doc_map = _json.load(f)
+            # Reconstruct fingerprints as dict
+            doc_fingerprints = {}
+            for doc_id, row_idx in doc_map.items():
+                vec = faiss.rev_swig_vector(index.reconstruct(row_idx))
+                doc_fingerprints[doc_id] = csr_matrix(np.array(vec).reshape(1, -1))
+            # Load metadata
+            with open(args.faiss_path / "doc_metadata.json", "r") as f:
+                doc_metadata = _json.load(f)
+            logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints from FAISS")
+        except Exception as exc:
+            logger.error(f"Failed to load document fingerprints from FAISS: {exc}")
+            sys.exit(1)
+    else:
+        logger.debug(
+            f"  [MAIN LOAD] loading document fingerprints from {args.doc_fp_dir}"
+        )
+        try:
+            doc_fingerprints, doc_metadata = load_document_fingerprints(args.doc_fp_dir)
+        except (FileNotFoundError, ValueError) as exc:
+            logger.error(f"Failed to load document fingerprints: {exc}")
+            sys.exit(1)
 
     if not doc_fingerprints:
         logger.error(

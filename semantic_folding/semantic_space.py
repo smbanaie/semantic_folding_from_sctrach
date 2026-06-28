@@ -1087,7 +1087,7 @@ def main() -> int:
     # Reduction method
     parser.add_argument(
         "--method",
-        choices=["tsne", "umap", "pca"],
+        choices=["tsne", "umap", "pca", "learned"],
         default="tsne",
         help="Dimensionality reduction method.",
     )
@@ -1204,6 +1204,12 @@ def main() -> int:
         dest="show_density",
         help="Colour scatter points by KDE density in the continuous plot.",
     )
+    parser.add_argument(
+        "--corpus",
+        type=str,
+        default=None,
+        help="Corpus file path (required for --method learned).",
+    )
 
     args = parser.parse_args()
 
@@ -1256,6 +1262,32 @@ def main() -> int:
             args.n_jobs,
             args.random_seed,
         )
+    elif args.method == "learned":
+        # Use learned grid mapping
+        from learned_grid_mapper import train_grid_mapper, apply_grid_mapping, extract_cooccurrence_pairs
+        
+        # Extract co-occurrence pairs from corpus
+        corpus_path = getattr(args, "corpus", None)
+        if corpus_path and Path(corpus_path).exists():
+            cooccurrence_pairs = extract_cooccurrence_pairs(str(corpus_path))
+        else:
+            # Generate random pairs as fallback
+            n = len(vectors)
+            cooccurrence_pairs = [(np.random.randint(n), np.random.randint(n)) for _ in range(min(1000, n))]
+            logger.warning("No corpus provided for co-occurrence extraction. Using random pairs.")
+        
+        # Train and apply learned mapping
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model, train_info = train_grid_mapper(
+            vectors, list(range(len(vectors))), cooccurrence_pairs,
+            grid_size=args.grid_size,
+            hidden_dim=128,
+            num_epochs=100,
+            learning_rate=0.001,
+            device=device,
+        )
+        coords = apply_grid_mapping(model, vectors, list(range(len(vectors))), args.grid_size, device)
+        logger.info(f"Learned grid mapping: {train_info}")
     else:
         coords = reduce_dimensions_pca(vectors)
 

@@ -308,6 +308,69 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\musique_benchmark\benchmarks\benchmark_20260628_134311
     status: completed
     type: benchmark
+  benchmark_20260628_142645:
+    created_at: '2026-06-28T14:26:45.854812'
+    params:
+      doc_norm: l2
+      grid_size: '64'
+      hybrid_alpha: '0.3'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      smoothing_sigma: '1.5'
+      splade: 'True'
+      spreading_steps: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\musique_benchmark\benchmarks\benchmark_20260628_142645
+    status: completed
+    type: benchmark
+  benchmark_20260628_145242:
+    created_at: '2026-06-28T14:52:42.350281'
+    params:
+      doc_norm: l2
+      grid_size: '64'
+      hybrid_alpha: '0.3'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      smoothing_sigma: '1.5'
+      splade: 'True'
+      spreading_steps: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\musique_benchmark\benchmarks\benchmark_20260628_145242
+    status: failed
+    type: benchmark
+  benchmark_20260628_151300:
+    created_at: '2026-06-28T15:13:00.483487'
+    params:
+      doc_norm: l2
+      grid_size: '64'
+      hybrid_alpha: '0.3'
+      keep_verbs: 'True'
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      smoothing_sigma: '1.5'
+      splade: 'True'
+      spreading_steps: '1'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '30'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\musique_benchmark\benchmarks\benchmark_20260628_151300
+    status: completed
+    type: benchmark
   run_20260617_022257:
     created_at: '2026-06-17T02:22:58.033385'
     params:

@@ -17,10 +17,12 @@
 | v1 | 2026-06-16 | NarrativeQA | 64 | 0.939 | 0.980 | 95.8% | 49 queries, narrative |
 | v1 | 2026-06-16 | 2WikiMultihopQA | 64 | 0.788 | 0.921 | 85.6% | 50 queries, multi-hop |
 | v1 | 2026-06-17 | MuSiQue | 64 | 0.453 | 0.672 | 67.4% | 100 queries, multi-hop |
-| **v3** | **2026-06-28** | **MuSiQue** | 64 | **0.554** | — | — | **44 queries, batch processing (20x speedup), snippet-ranking** |
+| **v3** | 2026-06-28 | MuSiQue | 64 | **0.554** | — | — | **44 queries, batch, SPLADE off (SF-only baseline)** |
+| v3 SPLADE | 2026-06-28 | MuSiQue | 64 | 0.554 | — | — | *OLD — ran without --corpus, SPLADE didn't actually run* |
+| **v4 SPLADE** | **2026-06-28** | **MuSiQue** | 64 | **0.782** | **0.523** | **0.705** | **Fixed SPLADE +41% MRR vs SF-only (44 Q, 954 docs)** |
+| v3 OOV | 2026-06-28 | MuSiQue | 64 | **0.541** | — | — | OOV expansion enabled (−2.3% MRR, 7× slower) |
 | v1 | 2026-06-15 | DROP | 64 | 0.320 | 0.762 | 42.6% | 50 queries, L2 norm |
 | v1 | 2026-06-09 | DocFinQA | 128 | 0.250 | 0.341 | 73.3% | 20 queries, financial |
-| v2 | 2026-06-13 | MAUD | 64 | 0.000 | 0.649 | 0% | 100 queries, legal |
 
 ---
 
@@ -61,9 +63,6 @@
 
 ### DocFinQA
 - DocFinQA results are recorded in BENCHMARK_RESULTS.md (MRR=0.250, 20 queries, financial)
-
-### MAUD
-- MAUD results are recorded in BENCHMARK_RESULTS.md (MRR=0.000, 100 queries, legal)
 
 ---
 

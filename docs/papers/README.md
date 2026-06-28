@@ -61,13 +61,13 @@ Three candidate structures were evaluated for the Semantic Folding paper. Each i
 3. Related Work (IR foundations, dense retrieval, sparse representations, closed-domain QA)
 4. The Semantic Folding Pipeline (concise — 6 stages with math)
 5. Theoretical Foundation: The Orthogonality Constraint
-6. Experiments (13 datasets, setup, results tables, task-type taxonomy)
-7. Analysis: When SF Wins and When It Fails (the boundary — CUAD/MAUD = 0.0)
+6. Experiments (11 datasets, setup, results tables, task-type taxonomy)
+7. Analysis: When SF Wins and When It Fails
 8. The SF+SPLADE Hybrid Architecture (the winning configuration)
 9. Discussion (limitations, implications)
 10. Conclusion
 11. References
-12. Appendix A: Reproduction, B: Math Notation, C: Dataset Details (all 13 datasets)
+12. Appendix A: Reproduction, B: Math Notation, C: Dataset Details (all 11 datasets)
 
 **Narrative:** "Can unsupervised sparse beat BM25? On reading comprehension — yes, perfectly. On multi-hop — no. Here is why, grounded in theory and 13 datasets."
 
@@ -91,7 +91,7 @@ Three candidate structures were evaluated for the Semantic Folding paper. Each i
 
 ## Option C: Trade-off Paper — "The Sparse-Dense Trade-off for Domain-Specific QA"
 
-**Focus:** SF as a lens to study when unsupervised sparse methods suffice for closed-domain QA. The 13-dataset benchmark maps the boundary. Theory (Orthogonality) + practice (hybrid). Honest about where SF completely fails (CUAD/MAUD = 0.000).
+**Focus:** SF as a lens to study when unsupervised sparse methods suffice for closed-domain QA. The 11-dataset benchmark maps the boundary. Theory (Orthogonality) + practice (hybrid). Honest about where SF fails and where it succeeds.
 
 **Structure:**
 1. Introduction (the trade-off)
@@ -125,6 +125,5 @@ Three candidate structures were evaluated for the Semantic Folding paper. Each i
 
 ## Expert Verdict
 
-**Option B (67/80) wins.** It has the strongest narrative arc — "can unsupervised sparse beat BM25?" is a yes/no question that drives the reader through the entire paper. The answer creates tension ("yes on Belebele, no on MuSiQue") and resolution. It matches the structure of highly-cited IR papers: DPR ("can dense beat BM25?"), ColBERT ("can late interaction match cross-encoders?"), SPLADE ("can learned sparse beat dense?"). Option C's strength — honest failure analysis (CUAD/MAUD = 0.000) — is incorporated as a dedicated subsection in Option B ("Analysis: When SF Wins and When It Fails").
-
+**Option B (67/80) wins.** It has the strongest narrative arc — "can unsupervised sparse beat BM25?" is a yes/no question that drives the reader through the entire paper. The answer creates tension ("yes on Belebele, no on MuSiQue") and resolution. It matches the structure of highly-cited IR papers: DPR ("can dense beat BM25?"), ColBERT ("can late interaction match cross-encoders?"), SPLADE ("can learned sparse beat dense?"). Option C's strength — honest failure analysis — is incorporated as a dedicated subsection in Option B ("Analysis: When SF Wins and When It Fails").
 Option A is too broad and reads like a compressed thesis. Option B is the most publishable structure for a top IR/NLP venue.

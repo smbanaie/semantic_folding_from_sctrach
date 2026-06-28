@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Semantic Folding (SF) excels on datasets where **domain-specific vocabulary** and **semantic similarity** matter more than exact lexical matching. Our benchmarks across 12 datasets show SF achieves ≥85% of BM25 performance on **biomedical QA, narrative comprehension, entity lookup, and reading comprehension**. SF struggles on tasks requiring **compositional reasoning, discrete logic, or legal/financial domain expertise**.
+Semantic Folding (SF) excels on datasets where **domain-specific vocabulary** and **semantic similarity** matter more than exact lexical matching. Our benchmarks across 11 datasets show SF achieves ≥85% of BM25 performance on **biomedical QA, narrative comprehension, entity lookup, and reading comprehension**. SF struggles on tasks requiring **compositional reasoning, discrete logic, or domain-specific financial expertise**.
 
 **Key finding**: SF's strength is **phrase-level semantic matching** — it matches concepts, not words. This makes it competitive with BM25 on datasets where paraphrasing and synonymy dominate, but weak on datasets requiring multi-hop reasoning or negation handling.
 
@@ -121,15 +121,6 @@ Semantic Folding (SF) excels on datasets where **domain-specific vocabulary** an
 
 **Why SF fails**: DROP requires counting, sorting, and comparison operations. SF's phrase matching cannot perform arithmetic or logical reasoning.
 
-### 3.3 Legal — CUAD (SF/BM25 = 0%), MAUD (SF/BM25 = 0%)
-
-| Dataset | SF MRR | BM25 MRR |
-|---------|--------|----------|
-| CUAD | 0.000 | 0.244 |
-| MAUD | 0.000 | 0.649 |
-
-**Why SF fails**: Legal documents require clause-level reasoning, cross-referencing, and domain-specific interpretation. SF's phrase-level approach cannot capture legal semantics. Even BM25 performs poorly on CUAD.
-
 ---
 
 ## 4. Dataset Characteristics That Favor SF
@@ -153,7 +144,6 @@ Based on our analysis, SF performs best when datasets have:
 | **Negation handling** | SF treats negated phrases identically to affirmative | Belebele (50% of failures) |
 | **Numerical reasoning** | SF cannot perform arithmetic | DROP, DocFinQA |
 | **Large candidate pools** | Score compression dilutes signal | NQ-REaR (~10/query) |
-| **Legal/financial jargon** | Domain-specific clause reasoning beyond phrase matching | CUAD, MAUD |
 | **Discrete logic** | Counting, sorting, comparison | DROP |
 
 ---
@@ -182,7 +172,6 @@ Based on published results and our benchmarks:
 | Narrative comprehension | ★★★★★ | ★★★★☆ | ★★★ | ★★★★ | ★★★★ |
 | Multi-hop QA | ★★★★ | ★★★ | ★★★★ | ★★★★ | ★★★★ |
 | Discrete reasoning | ★★★★ | ★★ | ★★★ | ★★★ | ★★★★ |
-| Legal/financial | ★★★ | ★ | ★★★ | ★★★ | ★★★★ |
 
 ### 5.3 SF's Unique Advantages
 

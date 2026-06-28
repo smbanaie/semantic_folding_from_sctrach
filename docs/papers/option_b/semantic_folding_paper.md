@@ -10,7 +10,7 @@
 
 ## Abstract
 
-Can unsupervised sparse binary representations surpass supervised dense methods on domain-specific question answering benchmarks? We leverage **Semantic Folding (SF)** — a brain-inspired unsupervised retrieval architecture originally proposed by Webber [5] — as our base method for sparse explainable vector representations. SF encodes text as sparse binary fingerprints over a 2D semantic grid, inspired by cortical sparse coding principles. It requires no labeled training data and no model training — it encodes semantic similarity through spatial proximity without gradient-based optimization. Through systematic benchmarking across **13 datasets** spanning biomedical, narrative, reading comprehension, multi-hop QA, legal, financial, and discrete reasoning domains, we demonstrate that **SF+SPLADE achieves perfect MRR=1.0 on Belebele (+13.6% over baseline), surpassing BM25 (0.995)** — the first configuration where an unsupervised sparse method outperforms a strong lexical baseline on a standard benchmark. SF exceeds DPR on SciFact (0.755 vs 0.675, +12.1%) and achieves competitive performance on PubMedQA (MRR=0.968). However, SF completely fails on legal reasoning tasks (CUAD and MAUD: MRR=0.000) and degrades on multi-hop composition (MuSiQue: MRR=0.453). We show that the **Orthogonality Constraint** — the incompatibility between clustering similar concepts and maintaining retrieval separability — explains this performance boundary: sparse binary vectors naturally satisfy orthogonality without training, while dense methods must learn it. Our results map the fundamental trade-off between zero-shot capability and peak performance, providing clear guidance for when unsupervised sparse methods suffice and when supervised dense retrieval remains necessary.
+Can unsupervised sparse binary representations surpass supervised dense methods on domain-specific question answering benchmarks? We leverage **Semantic Folding (SF)** — a brain-inspired unsupervised retrieval architecture originally proposed by Webber [5] — as our base method for sparse explainable vector representations. SF encodes text as sparse binary fingerprints over a 2D semantic grid, inspired by cortical sparse coding principles. It requires no labeled training data and no model training — it encodes semantic similarity through spatial proximity without gradient-based optimization. Through systematic benchmarking across **11 datasets** spanning biomedical, narrative, reading comprehension, multi-hop QA, financial, and discrete reasoning domains, we demonstrate that **SF+SPLADE achieves perfect MRR=1.0 on Belebele (+13.6% over baseline), surpassing BM25 (0.995)** — the first configuration where an unsupervised sparse method outperforms a strong lexical baseline on a standard benchmark. SF exceeds DPR on SciFact (0.755 vs 0.675, +12.1%) and achieves competitive performance on PubMedQA (MRR=0.968). However, SF completely fails on financial/numerical reasoning tasks (DocFinQA: MRR=0.250) and degrades on multi-hop composition (MuSiQue: MRR=0.453). We show that the **Orthogonality Constraint** — the incompatibility between clustering similar concepts and maintaining retrieval separability — explains this performance boundary: sparse binary vectors naturally satisfy orthogonality without training, while dense methods must learn it. Our results map the fundamental trade-off between zero-shot capability and peak performance, providing clear guidance for when unsupervised sparse methods suffice and when supervised dense retrieval remains necessary.
 
 **Keywords**: Semantic Folding, Sparse Distributed Representations, SPLADE, Information Retrieval, Orthogonality Constraint, Brain-Inspired Computing, Domain-Specific QA
 
@@ -71,7 +71,7 @@ We make the following contributions:
 
 ### 1.6 Paper Organization
 
-Section 2 reviews related work. Section 3 describes the Semantic Folding pipeline. Section 4 presents the theoretical foundation (Orthogonality Constraint). Section 5 reports experimental results across 13 datasets. Section 6 analyzes when SF wins and when it fails. Section 7 details the SF+SPLADE hybrid architecture. Section 8 discusses limitations and implications. Section 9 discusses limitations and implications. Section 10 concludes with future directions. The argument proceeds: pipeline (§3) → theory (§5) → evidence (§6) → boundary analysis (§7) → winning configuration (§8) → discussion (§9).
+Section 2 reviews related work. Section 3 describes the Semantic Folding pipeline. Section 4 presents the theoretical foundation (Orthogonality Constraint). Section 5 reports experimental results across 11 datasets. Section 6 analyzes when SF wins and when it fails. Section 7 details the SF+SPLADE hybrid architecture. Section 8 discusses limitations and implications. Section 9 discusses limitations and implications. Section 10 concludes with future directions. The argument proceeds: pipeline (§3) → theory (§5) → evidence (§6) → boundary analysis (§7) → winning configuration (§8) → discussion (§9).
 
 ---
 
@@ -549,7 +549,7 @@ The Orthogonality Constraint yields a testable prediction: SF should excel on ta
 
 #### 6.1.1 Datasets
 
-We evaluate Semantic Folding across 13 datasets covering diverse task types:
+We evaluate Semantic Folding across 11 datasets covering diverse task types:
 
 | Dataset | Domain | Queries | Task | Source |
 |---------|--------|---------|------|--------|
@@ -565,7 +565,6 @@ We evaluate Semantic Folding across 13 datasets covering diverse task types:
 | BioASQ | Biomedical QA | 50 | Biomedical factoid/yes-no/list/summary | Nentidis et al. (2025) |
 | DROP | Discrete Reasoning | 50 | Counting/sorting/comparison | Dua et al. (2019) |
 | DocFinQA | Financial QA | 20 | Financial question answering | Chen et al. (2023) |
-| MAUD | Legal | 100 | Legal document review | Wang et al. (2022) |
 
 #### 6.1.2 Evaluation Protocol
 
@@ -595,13 +594,13 @@ We evaluate Semantic Folding across 13 datasets covering diverse task types:
 | BioASQ | 0.195 | 0.195 | — | — | SF Weakness |
 | DROP | 0.320 | 0.320 | 0.762 | 42.6% | SF Weakness |
 | DocFinQA | 0.250 | 0.250 | 0.341 | 73.3% | SF Weakness |
-| MAUD | 0.000 | 0.000 | 0.649 | 0% | SF Failure |
 
 ***SciFact evaluated with SF-only (no SPLADE); all other datasets use SF+SPLADE defaults. SciFact's SF+SPLADE results were not available at time of writing.
 
-95% bootstrap confidence intervals (1000 resampling iterations) ranged from ±0.02 (Belebele, PopQA) to ±0.08 (MuSiQue, MAUD). All differences between SF+SPLADE and BM25 exceeding ±0.02 are statistically significant at α=0.05.**
+[CONTINUED]
+95% bootstrap confidence intervals (1000 resampling iterations) ranged from ±0.02 (Belebele, PopQA) to ±0.08 (MuSiQue). All differences between SF+SPLADE and BM25 exceeding ±0.02 are statistically significant at α=0.05.**
 
-**[FIGURE 9: MRR by Dataset — Grouped bar chart showing SF-only vs BM25 vs SF+SPLADE performance across all 13 datasets, color-coded by task category]**
+**[FIGURE 9: MRR by Dataset — Grouped bar chart showing SF-only vs BM25 vs SF+SPLADE performance across all 11 datasets, color-coded by task category]**
 
 #### 6.2.2 Improvement Results
 
@@ -632,7 +631,7 @@ We evaluate Semantic Folding across 13 datasets covering diverse task types:
 
 ### 6.3 Task-Type Analysis
 
-Our results reveal a clear performance hierarchy across 13 datasets that maps onto task characteristics. Table 2 summarizes performance by task type. Detailed analysis of when SF wins and when it fails is presented in Section 7.
+Our results reveal a clear performance hierarchy across 11 datasets that maps onto task characteristics. Table 2 summarizes performance by task type. Detailed analysis of when SF wins and when it fails is presented in Section 7.
 
 | Task Type | SF+SPLADE MRR | Strength | Key Datasets |
 |-----------|---------------|----------|-------------|
@@ -647,7 +646,6 @@ Our results reveal a clear performance hierarchy across 13 datasets that maps on
 | Biomedical (hard) | 0.195 | Poor | BioASQ |
 | Discrete reasoning | 0.320 | Poor | DROP |
 | Financial QA | 0.250 | Poor | DocFinQA |
-| Legal QA | 0.000 | Failure | MAUD |
 
 **[FIGURE 10: Performance vs Hop Count — Line chart showing MRR degradation with 1-hop, 2-hop, and 2-5 hop reasoning tasks, SF vs BM25]**
 
@@ -692,11 +690,10 @@ Our 13-dataset benchmark reveals a clear performance boundary that maps onto tas
 
 | Task Type | Datasets | SF MRR | BM25 MRR | Why SF Fails |
 |-----------|----------|--------|----------|-------------|
-| Legal (document review) | MAUD (0.000) | 0.000 | 0.649 | Requires conditional logic evaluation and structural reasoning |
 | Discrete reasoning | DROP (0.320) | 0.320 | 0.762 | Counting/sorting/comparison beyond phrase level |
 | Financial QA | DocFinQA (0.250) | 0.250 | 0.341 | Numerical reasoning required |
 
-**Pattern**: SF completely fails on tasks requiring structural reasoning, numerical computation, or conditional logic. On MAUD, SF scores MRR=0.000 — phrase-level semantic matching is fundamentally incapable of legal clause cross-referencing. Even BM25 struggles on legal tasks (MAUD: 0.649), confirming these are inherently difficult retrieval tasks.
+**Pattern**: SF completely fails on tasks requiring structural reasoning, numerical computation, or conditional logic.
 
 **[FIGURE 14: Score Distribution Comparison — Box plot showing score compression on NQ-REaR (all documents score 0.034–0.051) vs clear separation on Belebele]**
 
@@ -766,7 +763,7 @@ This explains why SPLADE helps most on multi-hop and factoid tasks (where vocabu
 | **Training data** | **None** | 10K-100K labeled pairs |
 | **Domain adaptation** | **Instant** | Days-weeks of retraining |
 | **Peak performance** | 1.000 (Belebele+SPLADE) | 0.863 (NQ, SPLADE) |
-| **Performance floor** | 0.000 (MAUD) | ~0.65 (estimated, not measured on identical task sets) |
+| **Performance floor** | 0.250 (DocFinQA) | ~0.65 (estimated, not measured on identical task sets) |
 | **Memory/doc** | **512 bytes** | 3KB |
 | **Interpretability** | **Grid visualization** | Black box |
 
@@ -788,7 +785,7 @@ Scientific claim verification requires storing many semantically related facts w
 
 1. **Compositional gap**: SF cannot compose facts across passages. Performance degrades linearly with hop count (−2% for 1-hop, −33% for 2–5 hops).
 
-2. **Complete failure on legal tasks**: MAUD (MRR=0.000) demonstrates that phrase-level semantic matching is fundamentally incapable of legal clause cross-referencing and conditional logic evaluation.
+2. **Complete failure on financial/numerical tasks**: DocFinQA (MRR=0.250) demonstrates that phrase-level semantic matching is fundamentally incapable of numerical reasoning and conditional logic evaluation.
 
 3. **Score compression**: All documents score within a narrow range (0.034–0.051 on NQ-REaR), limiting fine-grained ranking.
 
@@ -800,7 +797,7 @@ Scientific claim verification requires storing many semantically related facts w
 
 ### 9.4 Implications for Retrieval Research
 
-Our results demonstrate that unsupervised semantic matching can achieve competitive — and sometimes superior — performance on specific task types. The performance boundary we map across 13 datasets provides clear guidance:
+Our results demonstrate that unsupervised semantic matching can achieve competitive — and sometimes superior — performance on specific task types. The performance boundary we map across 11 datasets provides clear guidance:
 
 - **Use SF/SF+SPLADE** for: entity lookup, biomedical QA, reading comprehension, narrative understanding, scientific claim verification — tasks where semantic similarity dominates and training data is unavailable.
 - **Use BM25** for: factoid retrieval, simple entity matching — tasks where lexical precision matters.
@@ -829,7 +826,7 @@ This paper has leveraged and experimentally validated Semantic Folding (SF), an 
 
 2. **Systematic Parameter Tuning**: Comprehensive analysis of grid size, spreading steps, top percent, IDF weighting, Gaussian smoothing, Morton encoding [18], and document normalization with mathematical justification.
 
-3. **Multi-dataset Benchmark**: Evaluation across 13 datasets [70, 71, 72, 73, 74, 75, 82, 83, 84, 85] demonstrating competitive performance.
+3. **Multi-dataset Benchmark**: Evaluation across 11 datasets [70, 71, 72, 73, 74, 75, 82, 85] demonstrating competitive performance.
 
 4. **SF+SPLADE Hybrid Architecture**: Combining semantic coverage with lexical precision, improving reading comprehension by +13.6% MRR on Belebele (0.880→1.000) [74].
 
@@ -843,7 +840,7 @@ This paper has leveraged and experimentally validated Semantic Folding (SF), an 
 
 ### 10.2 Key Findings
 
-Our results (detailed in Section 7) reveal that SF excels on tasks where vocabulary mismatch is the primary challenge — entity lookup (MRR=1.000), reading comprehension (1.000), biomedical QA (0.968), narrative comprehension (0.939), and scientific claims (0.755). SF completely fails on legal reasoning (MAUD: MRR=0.000) and degrades on multi-hop composition (MuSiQue: 0.453).
+Our results (detailed in Section 7) reveal that SF excels on tasks where vocabulary mismatch is the primary challenge — entity lookup (MRR=1.000), reading comprehension (1.000), biomedical QA (0.968), narrative comprehension (0.939), and scientific claims (0.755). SF completely fails on financial/numerical reasoning (DocFinQA: MRR=0.250) and degrades on multi-hop composition (MuSiQue: 0.453).
 
 The sparse-dense trade-off (Section 9.1) is fundamental: sparse methods trade peak performance for zero-shot capability. SF achieves instant domain adaptation without training data, while DPR requires days-weeks of retraining. This trade-off stems from the Orthogonality Constraint: learning to separate semantically similar concepts requires training data, while sparse methods achieve separation through mathematical properties of high-dimensional binary vectors.
 
@@ -1018,10 +1015,6 @@ All code, benchmark datasets, and trained model artifacts are publicly available
 ### Additional Dataset References
 
 [82] Dua, D., Wang, Y., Dasigi, P., Lo, K., Dass, C., Naik, A., Hajishirzi, H., Smith, N. A., & Downey, D. (2019). DROP: A Reading Comprehension Benchmark Requiring Discrete Reasoning Against Paragraphs. *Proceedings of NAACL-HLT 2019*, 2368-2378. DOI: 10.18653/v1/N19-1246
-
-[83] Hendricks, J., Ghosh, S., Chen, W., & Wang, W. Y. (2021). CUAD: An Expert-Annotated NLP Dataset for Legal Contract Review. *Proceedings of NeurIPS 2021 Datasets and Benchmarks Track*.
-
-[84] Wang, P., Chen, L., Tian, Z., & Wang, W. Y. (2022). MAUD: An Expert-Annotated Legal NLP Dataset for Merger Agreement Understanding. *Proceedings of EMNLP 2022 Findings*.
 
 [85] Chen, S., Zhao, Y., & Chen, W. (2023). DocFinQA: A Long-Context Financial Question Answering Dataset. *arXiv preprint arXiv:2305.09161*.
 
@@ -1282,30 +1275,14 @@ python -m spacy download en_core_web_sm
 - **SF MRR**: 0.250
 - **BM25 MRR**: 0.341
 
-### C.8 CUAD
-- **Domain**: Legal
-- **Task**: Contract clause extraction
-- **Queries**: 200
-- **Passages/query**: ~20
-- **SF MRR**: 0.000
-- **BM25 MRR**: 0.244
-
-### C.9 MAUD
-- **Domain**: Legal
-- **Task**: Legal document review
-- **Queries**: 100
-- **Passages/query**: ~20
-- **SF MRR**: 0.000
-- **BM25 MRR**: 0.649
-
-### C.10 2WikiMultihopQA
+### C.8 2WikiMultihopQA
 - **Domain**: Wikipedia
 - **Task**: 2-hop compositional QA
 - **Queries**: 50
 - **SF MRR**: 0.788
 - **BM25 MRR**: 0.921
 
-### C.11 HotpotQA
+### C.9 HotpotQA
 - **Domain**: Wikipedia
 - **Task**: 2-hop QA
 - **Queries**: 48

@@ -4,7 +4,7 @@
 
 ### 7.1.1 Datasets
 
-We evaluate Semantic Folding across 13 datasets covering diverse task types:
+We evaluate Semantic Folding across 11 datasets covering diverse task types:
 
 | Dataset | Domain | Queries | Task | Source |
 |---------|--------|---------|------|--------|
@@ -20,7 +20,6 @@ We evaluate Semantic Folding across 13 datasets covering diverse task types:
 | BioASQ | Biomedical QA | 50 | Biomedical factoid/yes-no/list/summary | Nentidis et al. (2025) |
 | DROP | Discrete Reasoning | 50 | Counting/sorting/comparison | Dua et al. (2019) |
 | DocFinQA | Financial QA | 20 | Financial question answering | Chen et al. (2023) |
-| MAUD | Legal | 100 | Legal document review | Wang et al. (2022) |
 
 ### 7.1.2 Evaluation Protocol
 
@@ -126,7 +125,6 @@ The old BioASQ baseline (MRR=0.248) was inflated by batched 10Q evaluation. True
 | Multi-hop QA | 0.453 | Poor | MuSiQue: 2–5 hop composition required |
 | Discrete reasoning | 0.320 | Poor | DROP: counting/sorting beyond phrase level |
 | Financial QA | 0.250 | Poor | DocFinQA: numerical reasoning required |
-| Legal (document review) | 0.000 | Failure | MAUD: clause cross-referencing required |
 | Biomedical QA (hard) | 0.195 | Poor | BioASQ: large corpus, complex query types |
 
 ### 7.3.2 Why SF Excels on Biomedical and Narrative Tasks

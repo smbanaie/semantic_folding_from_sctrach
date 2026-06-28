@@ -145,7 +145,7 @@ These are the **verified optimal defaults** — use for all datasets unless evid
 - Generic runner: `semantic_folding/dataset_benchmark/generic_benchmark.py`
 - BM25 baseline: `semantic_folding/dataset_benchmark/bm25_benchmark.py`
 - Adapters: `semantic_folding/dataset_benchmark/adapters/`
-- Datasets: PubMedQA, Belebele, BioASQ, DROP, DocFinQA, CUAD
+- Datasets: PubMedQA, Belebele, BioASQ, DROP, DocFinQA
 
 ### Reporting Rule (MANDATORY)
 

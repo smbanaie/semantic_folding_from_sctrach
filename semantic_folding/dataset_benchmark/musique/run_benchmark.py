@@ -468,11 +468,14 @@ def phase2_benchmark(run_dir: Path, entries: List[dict], query_start: int,
             "--no-oov-expansion",
         ]
         if params.get("splade", False):
-            step6_args.extend(["--splade", "--splade-model", "naver/splade-cocondenser-ensembledistil"])
+            step6_args.extend(["--splade", "--splade-model", "naver/splade-cocondenser-ensembledistil",
+                               "--corpus", str(run_dir / "corpus.txt")])
         else:
             step6_args.append("--no-splade")
+        # Longer timeout for SPLADE (corpus encoding is slow on CPU)
+        splade_timeout = 1800 if params.get("splade", False) else 600
         ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT,
-                      "Step 6 query_processor", timeout=600)
+                      "Step 6 query_processor", timeout=splade_timeout)
         batch_elapsed = time.time() - t0
 
         if not ok:

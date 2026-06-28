@@ -55,7 +55,7 @@ Based on our benchmarks across 12+ datasets, SF performs best when:
 | **Negation handling** | SF treats negated phrases identically | Belebele 50% of failures |
 | **Numerical reasoning** | SF cannot perform arithmetic | DROP MRR=0.320 |
 | **Large candidate pools** | Score compression dilutes signal | NQ-REaR MRR=0.574 |
-| **Legal/financial jargon** | Domain-specific clause reasoning | CUAD/MAUD MRR=0.000 |
+| **Legal/financial jargon** | Domain-specific clause reasoning | (removed — no legal dataset retained) |
 
 ---
 

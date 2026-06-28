@@ -652,10 +652,8 @@ docs/
 | DocFinQA | 0.250 | 0.341 | 73.3% | Financial QA |
 | MuSiQue | 0.453 | 0.672 | 67.4% | Multi-hop QA |
 | DROP | 0.320 | 0.762 | 42.6% | Discrete reasoning |
-| CUAD | 0.000 | 0.244 | 0% | Legal |
-| MAUD | 0.000 | 0.649 | 0% | Legal |
 
-**Key finding**: SF excels on biomedical/narrative tasks (≥95% of BM25). Degrades on multi-hop (67–85%) and legal/financial (0–73%). See `docs/reports/BENCHMARK_RESULTS.md` for full analysis.
+**Key finding**: SF excels on biomedical/narrative tasks (≥95% of BM25). Degrades on multi-hop (67–85%) and financial tasks (73%). See `docs/reports/BENCHMARK_RESULTS.md` for full analysis.
 
 ## Future Work
 

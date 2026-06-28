@@ -94,7 +94,7 @@ Joint document-snippet ranking models (e.g., PDRMM-based) are competitive with B
 - **No direct BioASQ evaluation**: SF has not been run on BioASQ Task 12b. The analysis extrapolates from PubMedQA (factoid-only) and general QA benchmarks.
 - **Orthogonality Constraint scope**: The theoretical result [0] is limited to online episodic memory (not pretraining). Its applicability to fine-tuned dense retrievers (e.g., ColBERT trained on MS MARCO) is implied but not directly demonstrated.
 - **Query perturbation resilience**: BMQExpander's resilience result [5] applies to paraphrase perturbation, not adversarial attacks or domain-specific query formulations. SF's resilience is inferred, not measured.
-- **Legal domain**: SF achieves 0% on CUAD and MAUD (legal QA). The analysis cannot claim SF is suitable for legal factoid extraction despite the theoretical advantage of phrase-level matching — the benchmark data contradicts this.
+- **Financial domain**: SF achieves MRR=0.250 on DocFinQA (financial QA). The analysis cannot claim SF is suitable for financial factoid extraction despite the theoretical advantage of phrase-level matching — the benchmark data contradicts this.
 
 ### What Went Stale
 

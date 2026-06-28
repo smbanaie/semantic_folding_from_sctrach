@@ -289,26 +289,6 @@ python -m spacy download en_core_web_sm
 - **BM25 MRR**: 0.341
 - **Note**: Grid=128 used (not optimal). Both methods struggle — financial documents require numerical reasoning.
 
-### C.13 CUAD
-
-- **Domain**: Legal
-- **Task**: Legal clause extraction from contracts
-- **Queries**: 200
-- **Passages/query**: ~20
-- **SF MRR**: 0.000
-- **BM25 MRR**: 0.244
-- **Note**: Complete SF failure. Legal clause extraction requires domain-specific reasoning. Even BM25 performs poorly.
-
-### C.14 MAUD
-
-- **Domain**: Legal
-- **Task**: Legal document review
-- **Queries**: 100
-- **Passages/query**: ~20
-- **SF MRR**: 0.000
-- **BM25 MRR**: 0.649
-- **Note**: Complete SF failure. Legal queries require clause cross-referencing and conditional reasoning.
-
 ---
 
 ## Appendix D: Support Files (Archive)

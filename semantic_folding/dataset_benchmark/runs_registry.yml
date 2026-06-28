@@ -6858,13 +6858,10 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\benchmarks\benchmark_20260624_000922
     status: completed
     type: benchmark
-  maud__benchmark_20260628_124410:
     created_at: '2026-06-28T12:44:14.110489'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_121656\corpus.txt
       decompose: 'False'
       doc_norm: sqrt_nnz
       dynamic_spreading: 'False'
@@ -6906,16 +6903,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_124410
     status: running
     type: benchmark
-  maud__benchmark_20260628_125140:
     created_at: '2026-06-28T12:51:45.059668'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_123955\corpus.txt
       decompose: 'False'
       doc_norm: sqrt_nnz
       dynamic_spreading: 'False'
@@ -6956,16 +6949,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_125140
     status: running
     type: benchmark
-  maud__benchmark_20260628_130638:
     created_at: '2026-06-28T13:06:41.814078'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_123955\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7006,16 +6995,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_130638
     status: running
     type: benchmark
-  maud__benchmark_20260628_131142:
     created_at: '2026-06-28T13:11:45.252595'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_123955\corpus.txt
       decompose: 'False'
       doc_norm: sqrt_nnz
       dynamic_spreading: 'False'
@@ -7056,16 +7041,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_131142
     status: running
     type: benchmark
-  maud__benchmark_20260628_132128:
     created_at: '2026-06-28T13:21:31.630791'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_123955\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7106,16 +7087,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_132128
     status: running
     type: benchmark
-  maud__benchmark_20260628_133437:
     created_at: '2026-06-28T13:34:37.953259'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242\corpus.txt
       decompose: 'False'
       doc_norm: sqrt_nnz
       dynamic_spreading: 'False'
@@ -7156,16 +7133,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_133437
     status: completed
     type: benchmark
-  maud__benchmark_20260628_133501:
     created_at: '2026-06-28T13:35:02.145121'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7206,16 +7179,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_133501
     status: completed
     type: benchmark
-  maud__benchmark_20260628_133529:
     created_at: '2026-06-28T13:35:29.944021'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7256,16 +7225,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_133529
     status: completed
     type: benchmark
-  maud__benchmark_20260628_133551:
     created_at: '2026-06-28T13:35:52.191653'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242\corpus.txt
       decompose: 'True'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7306,16 +7271,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_133551
     status: completed
     type: benchmark
-  maud__benchmark_20260628_133617:
     created_at: '2026-06-28T13:36:18.102225'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7356,16 +7317,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_133617
     status: failed_batch
     type: benchmark
-  maud__benchmark_20260628_133635:
     created_at: '2026-06-28T13:36:36.756201'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7406,16 +7363,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_133635
     status: completed
     type: benchmark
-  maud__benchmark_20260628_133701:
     created_at: '2026-06-28T13:37:02.714906'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7456,16 +7409,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\benchmarks\benchmark_20260628_133701
     status: completed
     type: benchmark
-  maud__run_20260628_121656:
     created_at: '2026-06-28T12:16:59.733151'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_121656\corpus.txt
       decompose: 'False'
       doc_norm: sqrt_nnz
       dynamic_spreading: 'False'
@@ -7507,14 +7456,10 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_121656
     status: completed
     type: index
-  maud__run_20260628_122342:
     created_at: '2026-06-28T12:23:46.843574'
-    dataset: maud
     params:
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_122342\corpus.txt
       doc_norm: l2
       dynamic_spreading: 'False'
       glossary_corpus_expansion: 'False'
@@ -7537,14 +7482,10 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_122342
     status: indexing
     type: index
-  maud__run_20260628_123955:
     created_at: '2026-06-28T12:40:04.176070'
-    dataset: maud
     params:
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_123955\corpus.txt
       doc_norm: l2
       dynamic_spreading: 'False'
       glossary_corpus_expansion: 'False'
@@ -7567,16 +7508,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_123955
     status: completed
     type: index
-  maud__run_20260628_131109:
     created_at: '2026-06-28T13:11:15.942270'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_131109\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7618,16 +7555,12 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_131109
     status: failed_step1
     type: index
-  maud__run_20260628_131519:
     created_at: '2026-06-28T13:15:24.599046'
-    dataset: maud
     params:
       asym_alpha: '0.7'
       asymmetric: 'False'
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_131519\corpus.txt
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
@@ -7669,14 +7602,10 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_131519
     status: indexing
     type: index
-  maud__run_20260628_133242:
     created_at: '2026-06-28T13:32:43.444379'
-    dataset: maud
     params:
-      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242\corpus.txt
       doc_norm: l2
       dynamic_spreading: 'False'
       glossary_corpus_expansion: 'False'
@@ -7699,7 +7628,6 @@ runs:
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
-    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\maud_benchmark\runs\run_20260628_133242
     status: completed
     type: index
   nq_rear__benchmark_20260623_235004:

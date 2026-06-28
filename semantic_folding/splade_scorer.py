@@ -97,9 +97,9 @@ class SPLADEScorer:
             raise RuntimeError(f"Failed to load SPLADE model: {e}")
 
     def _encode(self, texts: List[str]) -> np.ndarray:
-        import torch
+        import torch, gc
         all_vectors = []
-        batch_size = 32
+        batch_size = 4
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
             encoded = self._tokenizer(batch, padding=True, truncation=True,
@@ -111,6 +111,9 @@ class SPLADEScorer:
             log_relu = torch.log1p(relu_logits)
             pooled = log_relu.max(dim=1).values
             all_vectors.append(pooled.cpu().numpy())
+            del output, logits, relu_logits, log_relu, pooled, encoded
+            if i % 32 == 0:
+                gc.collect()
         return np.vstack(all_vectors)
 
     def _encode_corpus(self):

@@ -104,7 +104,7 @@ Before making ontology expansion a default, must test on:
 
 ### Phase 2: P1.5 — FAISS-based Fingerprint Storage (Branch: feature/lancedb-storage)
 
-**Problem**: Fingerprints are currently stored as individual JSON/numpy files on disk. For large corpora (BioASQ 1075 docs, MAUD 200+ docs), loading is slow and memory-heavy.
+**Problem**: Fingerprints are currently stored as individual JSON/numpy files on disk. For large corpora (BioASQ 1075 docs), loading is slow and memory-heavy.
 
 **Solution**: Use FAISS for fingerprint storage (already integrated for OOV expansion).
 
@@ -278,11 +278,10 @@ Before making ontology expansion a default, must test on:
 
 4. **Benchmark**:
    - BioASQ (50Q): doc-only vs snippet — measure MRR (large corpus, complex docs)
-   - MAUD (50Q): doc-only vs snippet — measure MRR (legal contracts, long docs)
    - NarrativeQA (50Q): doc-only vs snippet — measure MRR (narrative passages)
    - If >3% improvement: expand to all datasets
 
-**Expected impact**: +5-10% MRR on long-document datasets (BioASQ, MAUD). Short documents (Belebele 20-passage) won't benefit since they're already paragraph-sized.
+**Expected impact**: +5-10% MRR on long-document datasets (BioASQ). Short documents (Belebele 20-passage) won't benefit since they're already paragraph-sized.
 
 **Files to create/modify**:
 - `semantic_folding/snippet_fingerprinter.py` — new file
@@ -345,20 +344,20 @@ Before making ontology expansion a default, must test on:
 **Registry Analysis (Current State)**:
 
 ```yaml
-# Example: CUAD vs Belebele differences
-cuad:
+# Example: dataset registry configuration
+bioasq:
   grid_size: 64        # same
   smoothing_sigma: 1.5 # same
   method: tsne         # same
-  min_freq: 2          # DIFFERS (Belebele: 1)
+  min_freq: 1          # standard
   max_doc_freq: 20     # same
-  # Key insight: legal docs benefit from min_freq=2 (noise reduction)
+  # Key insight: domain-specific params differ per dataset type
 
 belebele:
   grid_size: 64
   smoothing_sigma: 1.5
   method: tsne
-  min_freq: 1          # DIFFERS (CUAD: 2)
+  min_freq: 1          # standard
   max_doc_freq: 20
 ```
 
@@ -393,7 +392,6 @@ for each dataset type based on our empirical analysis.
 | Dataset Type | grid_size | method | top_percent | min_freq | smoothing_sigma | Rationale |
 |--------------|-----------|--------|-------------|----------|-----------------|-----------|
 | Biomedical (PubMedQA) | 64 | tsne | 0.10 | 1 | 1.5 | Domain vocabulary is distinct; standard params suffice |
-| Legal (CUAD) | 64 | tsne | 0.10 | **2** | 1.5 | Higher min_freq reduces noise from repetitive clauses |
 | Multi-hop QA | 64 | tsne | 0.10 | 1 | 1.5 | Standard; SF limitation is compositional, not parametric |
 | Entity Lookup (PopQA) | 64 | tsne | 0.10 | 1 | 1.5 | Small candidate pool; params don't matter much |
 | Reading Comp (Belebele) | 64 | tsne | 0.10 | 1 | 1.5 | Ceiling effect; standard params optimal |
@@ -441,14 +439,13 @@ For detailed parameter interactions, see Appendix A (available at [repository UR
 ```markdown
 ### 2.3 Recommended Parameters by Dataset Type
 
-Based on our benchmark results across 13 datasets, we provide parameter recommendations 
+Based on our benchmark results across 11 datasets, we provide parameter recommendations 
 for common dataset categories. These are documented in detail in Chapter 4 §4.5 and the 
 DATASET_DECISION_TABLE.md.
 
 | Dataset Type | Key Parameter | Recommendation | Evidence |
 |--------------|---------------|----------------|----------|
 | Biomedical | smoothing_sigma | 1.5 (default) | PubMedQA MRR=0.955 |
-| Legal | min_freq | 2 | CUAD registry override |
 | Multi-hop | spreading_steps | 1 (default) | MuSiQue limitation is compositional |
 | Entity lookup | top_percent | 0.10 | PopQA MRR=0.980 |
 | Large corpus | method | umap | Speed: 10-100x faster than t-SNE |
@@ -468,7 +465,7 @@ For complete parameter guidance, see the Dataset Decision Table in the project d
 4. **P2.3 Multi-resolution** → document in thesis (no code needed) → commit docs
 5. **P2.1 Learned grid** → implement → benchmark Belebele+BioASQ → merge if >3%
 6. **P2.2 Cross-attention** → implement → benchmark NQ-REaR+BioASQ+MuSiQue → merge if >3%
-7. **P2.4 Snippet ranking** → implement → benchmark BioASQ+MAUD+NarrativeQA → merge if >3%
+7. **P2.4 Snippet ranking** → implement → benchmark BioASQ+NarrativeQA → merge if >3%
 8. **P3.1 Dataset decision table** → analyze registry → create decision table → document CLI flags → update thesis ch.4 + paper §4.5 + datasets.md
 
 **Post-implementation**: After all features are done, decide how to proceed:
@@ -484,7 +481,7 @@ For complete parameter guidance, see the Dataset Decision Table in the project d
 - **NQ-REaR** (50Q): Score compression test — moderate MRR (0.611)
 
 ### Full Benchmark (if test shows improvement):
-All 12 datasets: Belebele, PopQA, PubMedQA, NQ-REaR, BioASQ, NarrativeQA, 2WikiMultihopQA, HotpotQA, MuSiQue, DROP, DocFinQA, MAUD
+All 12 datasets: Belebele, PopQA, PubMedQA, NQ-REaR, BioASQ, NarrativeQA, 2WikiMultihopQA, HotpotQA, MuSiQue, DROP, DocFinQA
 
 ### Benchmark Protocol:
 1. Run baseline (current defaults) — record MRR, AP, P@1, load time, peak memory

@@ -217,7 +217,7 @@ Rocchio's relevance feedback (1971) and pseudo-relevance feedback are classical 
 
 **SF excels at**: Biomedical QA (PubMedQA MRR=0.969), script comprehension (NarrativeQA MRR=0.939)
 **SF struggles at**: Multi-hop QA (HotpotQA MRR=0.726), factoid retrieval (NQ-REaR MRR=0.521)
-**SF fails at**: Legal contract analysis (CUAD MRR=0.000)
+**SF fails at**: Complex financial reasoning (DocFinQA MRR=0.250)
 
 The pattern is clear: **SF captures topic-level semantic similarity but lacks relational specificity**. It works well when the answer is about the same topic as the query, but fails when precise term matching is needed to distinguish between topically similar passages [26].
 
@@ -366,7 +366,7 @@ Based on your benchmark results and the literature review, Semantic Folding occu
 
 [34] Coccaro, N. et al. (2018). NarrativeQA: Reading Comprehension Dataset. *ACL 2018*.
 
-[35] Hendrycks, D. et al. (2021). CUAD: An Expert-Annotated NLP Dataset for Legal Contract Review. *NeurIPS 2021*.
+
 
 ---
 

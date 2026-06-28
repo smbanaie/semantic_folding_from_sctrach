@@ -8,7 +8,3 @@ defaults:
   top_percent: 0.10
   weighting: idf
   use_morton: true
-
-maud:
-  min_freq: 2
-  max_doc_freq: 20

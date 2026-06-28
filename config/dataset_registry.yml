@@ -126,14 +126,6 @@ docfinqa:
   perplexity: 50
   doc_norm: l2
 
-maud:
-  description: "Merger Agreement Understanding Dataset (legal review)"
-  max_queries: 200
-  splade: true
-  splade_alpha: 0.3
-  perplexity: 50
-  doc_norm: l2
-
 twowikimultihopqa:
   description: "Multi-hop QA across Wikipedia"
   max_queries: 200

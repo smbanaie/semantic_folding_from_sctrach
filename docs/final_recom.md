@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-Semantic Folding (SF) achieves strong results on single-hop semantic tasks (PopQA 98%, PubMedQA 95.5%, NarrativeQA 95.8%) but degrades on compositional, numerical, and legal tasks (MuSiQue 67.4%, DROP 42.6%, CUAD 0%). The pipeline has been extended with 10+ experimental features, most of which showed **zero or negative impact** at benchmark time — the core pipeline is already well-tuned for current datasets.
+Semantic Folding (SF) achieves strong results on single-hop semantic tasks (PopQA 98%, PubMedQA 95.5%, NarrativeQA 95.8%) but degrades on compositional, numerical, and multi-hop tasks (MuSiQue 67.4%, DROP 42.6%). The pipeline has been extended with 10+ experimental features, most of which showed **zero or negative impact** at benchmark time — the core pipeline is already well-tuned for current datasets.
 
 **The single highest-impact improvement found**: SF+SPLADE hybrid → **MRR 1.0 on Belebele** (+13.6%), **+60.3% on NQ-REaR**, **+35.4% on HotpotQA**.
 
@@ -243,7 +243,7 @@ Hard                │ Learned grid mapping (R2)    │ Joint doc-snippet (R10)
 | Gap | Issue | Impact | Action |
 |-----|-------|--------|--------|
 | No BioASQ Tier 1 comparison | SF MRR=0.248 vs SOTA unknown | Cannot position against biomedical SOTA | Run BioASQ Task 12b evaluation |
-| No CUAD/MAUD param tuning | Legal datasets at default parameters | MRR=0.000 may improve with tuning | Try long-doc chunking + domain-specific params |
+| No long-doc parameter tuning | Large corpus datasets at default parameters | May improve with tuning | Try long-doc chunking + domain-specific params |
 | No cross-encoder comparison | Only compared against BM25 | Misses SOTA comparison | Compare against MiniLM/L-6 cross-encoders |
 | Large variance in query count | 20-200 queries per dataset | Some results are statistically weak | Run all datasets at 200+ queries |
 | No statistical significance tests | No confidence intervals | Results may be noise | Bootstrap CI for MRR estimates |

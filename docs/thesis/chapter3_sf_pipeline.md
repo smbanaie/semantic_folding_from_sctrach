@@ -2,7 +2,7 @@
 
 ## 3.1 Overview
 
-Semantic Folding is an unsupervised retrieval architecture that represents words, phrases, and documents as sparse binary vectors (Sparse Distributed Representations, SDRs) over a fixed 2D semantic grid. The pipeline proceeds through six stages, each grounded in established theoretical frameworks from distributional semantics, dimensionality reduction, and sparse coding.
+Semantic Folding is an unsupervised retrieval architecture that represents words, phrases, and documents as sparse binary vectors (Sparse Distributed Representations, SDRs) over a fixed 2D semantic grid. The core SF pipeline proceeds through six fully unsupervised stages. An optional hybrid scoring stage (Stage 6b) combines SF with off-the-shelf pre-trained SPLADE (Formal et al., 2021) via a linear weight α ∈ [0,1]. The SF component is fully unsupervised; the hybrid inherits SPLADE's supervised pre-training on MS MARCO.
 
 **Pipeline Architecture:**
 

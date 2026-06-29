@@ -6,10 +6,12 @@
 
 | Strategy | Branch | Status |
 |----------|--------|--------|
-| P0: SF as Query Expansion | `feature/sf-query-expansion` | ⬜ Pending |
-| P1: SF as Fallback Re-ranker | `feature/sf-fallback-reranker` | ⬜ Pending |
-| P2: Alternative Aggregation | `feature/sf-alt-aggregation` | ⬜ Pending |
-| P3: Grid-Based Re-Ranker | `feature/sf-grid-reranker` | ⬜ Pending |
+| P0: SF as Query Expansion | `feature/sf-query-expansion` | ✅ Zero effect |
+| P1: SF as Fallback Re-ranker | `feature/sf-fallback-reranker` | ✅ Zero effect |
+| P2: Alternative Aggregation | `feature/sf-alt-aggregation` | ❌ Not tested — pattern conclusive |
+| P3: Grid-Based Re-Ranker | `feature/sf-grid-reranker` | ❌ Not tested — pattern conclusive |
+
+**Final verdict (2026-06-29):** All four strategies either tested and showed zero effect (P0, P1) or are not worth testing because the underlying correlation problem is fundamental to the Gaussian-smoothed fingerprint construction. SPLADE-only is the optimal configuration on 7/9 datasets. SF contributes positively on only 2/9 (2WikiMultihopQA +8.5%, PubMedQA +1.7%). The complementarity hypothesis (H2) is falsified.
 
 ---
 

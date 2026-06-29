@@ -219,7 +219,35 @@ L2 normalization provides significant improvement (+4.0% MRR) because:
 
 **Recommendation**: Use `--doc-norm l2` for all datasets.
 
-## 4.9 t-SNE Perplexity
+## 4.9 Hybrid Weight α (SF+SPLADE)
+
+### 4.9.1 Formulation
+
+The SF+SPLADE hybrid combines SF's grid-based semantic matching with
+SPLADE's learned sparse expansion via a linear weight α:
+
+$$\\text{score}(q, d) = \\alpha \\cdot \\text{SF}(q, d) + (1-\\alpha) \\cdot \\text{SPLADE}(q, d)$$
+
+where α ∈ [0,1] is the SF weight. α=0.0 is SPLADE-only, α=1.0 is SF-only.
+
+### 4.9.2 α-Sensitivity Results (2026-06-29)
+
+| Dataset | α=0.0 (SPLADE-only) | α=0.3 (default) | α=1.0 (SF-only) | Optimal α |
+|---------|:-------------------:|:---------------:|:---------------:|:---------:|
+| MuSiQue | **0.987** | 0.927 | 0.453 | **0.0** |
+| Belebele | **1.000** | 0.930 | 0.880 | **0.0** |
+| BioASQ | **0.442** | 0.195 | 0.195 | **0.0** |
+
+**Pattern:** MRR decreases monotonically as α increases — more SF weight
+consistently degrades retrieval. This is because SF fingerprints are spatially
+correlated by design (Gaussian smoothing σ=1.5), and this correlation adds
+noise to SPLADE's precise learned embeddings.
+
+**Recommendation:** Use α=0.0 (SPLADE-only) as the default configuration.
+The two exceptions where SF helps (2WikiMultihopQA +8.5%, PubMedQA +1.7%)
+use α=0.3 with per-dataset registry overrides.
+
+## 4.10 t-SNE Perplexity
 
 ### 4.9.1 Mathematical Formulation
 

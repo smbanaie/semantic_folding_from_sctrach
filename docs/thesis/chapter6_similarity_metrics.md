@@ -69,6 +69,34 @@ $$\text{sim}_{\cos}(\mathbf{q}, \mathbf{d}) = \frac{\mathbf{q} \cdot \mathbf{d}}
 
 **Conclusion**: Cosine is preferred for float-valued SF fingerprints at ~7.8% density.
 
+### 6.3.6 Fingerprint Correlation and the Orthogonality Constraint (Added 2026-06-29)
+
+The Orthogonality Constraint (Zahn et al., 2026) states that reliable retrieval
+requires orthogonal representations. For *independent random* binary vectors
+with dimension d=4096 and density ρ=0.10:
+
+$$\\text{Var}[\\cos(\\mathbf{x}, \\mathbf{y})] = \\frac{\
+ho(1-\
+ho)}{d} \\approx 2.2 \\times 10^{-5}$$
+
+This implies 99.9% of random pairs have cosine < 0.15 — near-orthogonal.
+
+**Caveat:** This formula assumes *independent random* bits. SF fingerprints are
+**not** independent — they are spatially correlated by design (Gaussian smoothing
+σ=1.5, Morton encoding, IDF-weighted aggregation). The actual pairwise cosine
+distribution has higher mean and higher variance than the random-SDR prediction.
+
+**Empirical consequence:** SF fingerprints produce cosine scores that are
+highly correlated with SPLADE's sparse embeddings. When combined linearly
+(SF+SPLADE hybrid), the correlated SF signal adds noise rather than
+complementary information. This explains why α-sensitivity shows monotonic
+degradation (see §4.9) — more SF weight = more correlated noise = lower MRR.
+
+**Recommendation:** Future work should report empirical pairwise cosine
+distributions of SF fingerprints before invoking the Orthogonality Constraint
+as a theoretical foundation. For the current pipeline, SPLADE-only (α=0.0)
+is the optimal configuration on 7/9 datasets.
+
 ## 6.4 Dice Coefficient (Sørensen–Dice)
 
 ### 6.4.1 Formulation

@@ -38,6 +38,11 @@ from .generic_benchmark import (
 )
 from .bm25_benchmark import BM25Scorer
 from .adapters import get_adapter
+from .sf_reranker import (
+    load_document_fingerprints,
+    load_phrase_fingerprints,
+    rerank_candidates_with_sf,
+)
 
 logger = get_logger("two_stage")
 
@@ -101,23 +106,18 @@ def run_two_stage_benchmark(
         return None
     
     logger.info(f"Loading document fingerprints from {doc_fp_dir}...")
-    doc_fingerprints = {}
-    doc_id_to_idx = {gid: i for i, gid in enumerate(doc_ids)}
-    
-    for fp_file in doc_fp_dir.glob("*.json"):
-        with open(fp_file) as f:
-            data = json.load(f)
-        doc_id = data.get("doc_id", fp_file.stem)
-        active_bits = data.get("active_bits", [])
-        grid_size = data.get("grid_size", 64)
-        dim = grid_size * grid_size
-        
-        # Convert to sparse vector
-        vec = sparse.csr_matrix((1, dim))
-        vec[0, active_bits] = 1.0
-        doc_fingerprints[doc_id] = vec
-    
+    doc_fingerprints = load_document_fingerprints(doc_fp_dir, grid_size=64)
     logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints")
+    
+    # === LOAD PHRASE FINGERPRINTS ===
+    phrase_fp_dir = run_dir / "phrase_fingerprints"
+    phrase_fingerprints = {}
+    if phrase_fp_dir.exists():
+        logger.info(f"Loading phrase fingerprints from {phrase_fp_dir}...")
+        phrase_fingerprints = load_phrase_fingerprints(phrase_fp_dir, grid_size=64)
+        logger.info(f"Loaded {len(phrase_fingerprints)} phrase fingerprints")
+    else:
+        logger.warning(f"Phrase fingerprints not found: {phrase_fp_dir}")
     
     # === SAVE CONFIG ===
     bench_config = {
@@ -183,13 +183,26 @@ def run_two_stage_benchmark(
         top_k_candidates = [doc_id for doc_id, _ in bm25_results[:pool_size]]
         
         # === STAGE 2: SF RE-RANKING (CANDIDATES ONLY) ===
-        # Build query fingerprint (simplified - use BM25 scores as placeholder)
-        # TODO: Implement actual SF re-ranking using query_processor.py logic
+        t1 = time.time()
         
-        # For now, return BM25 results as baseline
-        candidate_results = [(doc_id, score) for doc_id, score in bm25_results if doc_id in set(top_k_candidates)]
+        # Use SF to re-rank BM25 candidates
+        if len(phrase_fingerprints) > 0:
+            candidate_results = rerank_candidates_with_sf(
+                query=query_text,
+                candidates=bm25_results[:pool_size],
+                doc_fingerprints=doc_fingerprints,
+                phrase_fingerprints=phrase_fingerprints,
+                grid_size=64,
+                top_k=top_k,
+            )
+            logger.debug(f"  [{q_idx}] SF re-ranked {len(candidate_results)} candidates")
+        else:
+            # Fall back to BM25 order if phrase fingerprints not available
+            logger.warning(f"  [{q_idx}] No phrase fingerprints, using BM25 order")
+            candidate_results = [(doc_id, score) for doc_id, score in bm25_results[:top_k]]
         
-        elapsed = stage1_elapsed  # Simplified timing
+        stage2_elapsed = time.time() - t1
+        elapsed = stage1_elapsed + stage2_elapsed
         
         # Save results
         with open(query_out_dir / "query_results.json", "w") as f:

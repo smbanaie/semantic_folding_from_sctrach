@@ -11,6 +11,7 @@
 | **v3** | **2026-06-24** | **Belebele** | 64 | **1.000** (SPLADE) | 0.995 | **100.5%** | **SF+SPLADE surpasses BM25** |
 | v2 | 2026-06-17 | Belebele | 64 | 0.880 | 0.995 | 88.4% | Comprehensive (47 runs) |
 | v1 | 2026-06-17 | BioASQ | 64 | 0.195 | — | — | 50 queries, biomedical QA (hard) |
+| v2 | 2026-06-29 | BioASQ | 128 | **0.250** | — | — | **10 queries, LLM phrase extraction (biomedical domain), no SPLADE** |
 | v1 | 2026-06-15 | PopQA | 64 | 0.980 | 1.000 | 98.0% | 100 queries, HippoRAG2 |
 | v2 | 2026-06-17 | NQ-REaR | 64 | 0.521 | 0.638 | 83.4% | Comprehensive (85 runs) |
 | v1 | 2026-06-16 | HotpotQA | 64 | 0.726 | 0.869 | 83.5% | 48 queries, multi-hop |
@@ -41,6 +42,7 @@
 ### BioASQ
 - BioASQ results are recorded in BENCHMARK_RESULTS.md (MRR=0.195, 50 queries, biomedical QA — hard)
 - Ablation study details in BENCHMARK_RESULTS.md Section 3.2
+- `bioasq/v1_20260629_184758.md` — LLM phrase extraction (biomedical domain), grid=128, MRR=0.250, 10 queries
 
 ### NQ-REaR
 - NQ-REaR results are recorded in BENCHMARK_RESULTS.md (MRR=0.521, comprehensive 85 runs)

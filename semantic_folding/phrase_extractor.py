@@ -359,6 +359,9 @@ def process_corpus_with_expansion(
     use_llm: bool = False,
     llm_model: str = "gpt-3.5-turbo",
     llm_domain: str = "biomedical",
+    llm_api_key: Optional[str] = None,
+    llm_api_base: Optional[str] = None,
+    llm_prompt_path: Optional[str] = None,
 ) -> Tuple[CounterType[str], Dict[str, List[str]]]:
     """
     Full pipeline: raw extraction → expansion → normalization → frequency filter.
@@ -398,6 +401,7 @@ def process_corpus_with_expansion(
         phrase → sorted list of context IDs it appeared in.
     """
     raw_phrase_contexts: Dict[str, Set[str]] = defaultdict(set)
+    llm_extractor = None  # Lazy init for LLM extractor
 
     logger.info(f"Opening corpus: {corpus_path}")
 
@@ -435,14 +439,55 @@ def process_corpus_with_expansion(
 
             # ── Stage 1: raw candidate extraction ──────────────────────────
             if use_llm:
-                # LLM-based phrase extraction
+                # LLM-based phrase extraction (batch mode for efficiency)
                 if llm_extractor is None:
                     from llm_phrase_extractor import LLMPhraseExtractor
-                    llm_extractor = LLMPhraseExtractor(model=llm_model, domain=llm_domain)
+                    llm_extractor = LLMPhraseExtractor(
+                        model=llm_model, domain=llm_domain,
+                        api_key=llm_api_key, api_base=llm_api_base,
+                        prompt_path=llm_prompt_path,
+                        # Don't set force_domain_only - use API for better quality
+                    )
                 
-                raw_phrases = llm_extractor.extract_phrases(text_clean, domain=llm_domain)
-                raw_phrases = set(raw_phrases)  # Convert to set for consistency
-                logger.debug(f"[LLM] Extracted {len(raw_phrases)} phrases from line {i}")
+                # Batch extraction: collect all texts first, then extract in batch
+                if not hasattr(llm_extractor, '_batch_texts'):
+                    llm_extractor._batch_texts = []
+                    llm_extractor._batch_indices = []
+                
+                llm_extractor._batch_texts.append(text_clean)
+                llm_extractor._batch_indices.append(i)
+                
+                # Process batch every 20 texts (or at the end)
+                if len(llm_extractor._batch_texts) >= 20 or i == len(lines) - 1:
+                    logger.info(f"[LLM] Processing batch of {len(llm_extractor._batch_texts)} texts...")
+                    batch_results = llm_extractor.extract_phrases_batch(
+                        llm_extractor._batch_texts,
+                        domain=llm_domain
+                    )
+                    
+                    # Assign results back to individual lines
+                    for idx, (text, result) in enumerate(zip(llm_extractor._batch_texts, batch_results.values())):
+                        line_idx = llm_extractor._batch_indices[idx]
+                        raw_phrases = set(result)
+                        logger.debug(f"[LLM] Extracted {len(raw_phrases)} phrases from line {line_idx}")
+                        
+                        # Process this line's phrases
+                        if raw_phrases:
+                            valid_sub_phrases = expand_phrases(
+                                list(raw_phrases),
+                                context_text=text,
+                                filter_generic=filter_generic,
+                                min_word_length=min_word_length,
+                            )
+                            
+                            for phrase in valid_sub_phrases:
+                                raw_phrase_contexts[phrase].add(ctx_id_map[line_idx])
+                        
+                    # Reset batch
+                    llm_extractor._batch_texts = []
+                    llm_extractor._batch_indices = []
+                
+                continue  # Skip individual extraction, will be done in batch
             
             elif use_spacy and SPACY_AVAILABLE:
                 doc = nlp(text_clean)          # spaCy sees hyphen-free text
@@ -687,6 +732,26 @@ def main() -> None:
         '--llm-domain', type=str, default='biomedical',
         help='Domain context for LLM phrase extraction (default: biomedical)',
     )
+    parser.add_argument(
+        '--llm-api-key', type=str, default=None,
+        help='API key for LLM endpoint (or OPENAI_API_KEY env var)',
+    )
+    parser.add_argument(
+        '--llm-api-base', type=str, default=None,
+        help='Base URL for OpenAI-compatible API (or OPENAI_API_BASE env var)',
+    )
+    parser.add_argument(
+        '--llm-prompt-path', type=str, default=None,
+        help='Path to custom prompt file for LLM phrase extraction. '
+             'If not provided, auto-detects from data/<dataset>/llm_prompt.txt '
+             'or uses a built-in default.',
+    )
+    parser.add_argument(
+        '--llm-corpus-path', type=str, default=None,
+        help='Path to pre-extracted LLM phrases for corpus (JSON file). '
+             'If provided, skip LLM extraction for corpus and use these phrases. '
+             'Ensures vocabulary consistency between corpus and queries.',
+    )
 
     args = parser.parse_args()
 
@@ -712,6 +777,10 @@ def main() -> None:
     if args.use_llm_phrases:
         logger.info(f"  LLM model:      {args.llm_model}")
         logger.info(f"  LLM domain:     {args.llm_domain}")
+        if args.llm_api_base:
+            logger.info(f"  LLM API base:   {args.llm_api_base}")
+        if args.llm_prompt_path:
+            logger.info(f"  LLM prompt:     {args.llm_prompt_path}")
     logger.info("─────────────────────────────────────────────────────")
 
     phrase_counts, phrase_to_contexts = process_corpus_with_expansion(
@@ -725,6 +794,9 @@ def main() -> None:
         use_llm=args.use_llm_phrases,
         llm_model=args.llm_model,
         llm_domain=args.llm_domain,
+        llm_api_key=args.llm_api_key,
+        llm_api_base=args.llm_api_base,
+        llm_prompt_path=args.llm_prompt_path,
     )
 
     output_vocab_path = args.output_dir / 'vocabulary'

@@ -420,12 +420,24 @@ class GenericBenchmarkRunner:
         # Run steps 1-5
         # Step 1
         out = run_dir / "extracted_phrases"
-        ok = run_step(STEP_SCRIPTS[1], [
+        step1_args = [
             "--corpus", str(corpus_path), "--output", str(out),
             "--keep-verbs", "--min-word-length", str(self.params["min_word_length"]),
             "--min-freq", str(self.params["min_freq"]),
             "--max-doc-freq", str(self.params.get("max_doc_freq", 0)),
-        ], PROJECT_ROOT, "Step 1 phrase_extractor")
+        ]
+        # Add LLM phrase extraction flags if enabled
+        if self.params.get("use_llm_phrases", False):
+            step1_args.append("--use-llm-phrases")
+            step1_args.extend(["--llm-model", str(self.params["llm_model"])])
+            step1_args.extend(["--llm-domain", str(self.params["llm_domain"])])
+            if self.params.get("llm_api_key"):
+                step1_args.extend(["--llm-api-key", str(self.params["llm_api_key"])])
+            if self.params.get("llm_api_base"):
+                step1_args.extend(["--llm-api-base", str(self.params["llm_api_base"])])
+            if self.params.get("llm_prompt_path"):
+                step1_args.extend(["--llm-prompt-path", str(self.params["llm_prompt_path"])])
+        ok = run_step(STEP_SCRIPTS[1], step1_args, PROJECT_ROOT, "Step 1 phrase_extractor")
         if not ok:
             update_run_status(run_dir, self.adapter.dataset_name, "failed_step1")
             return None
@@ -706,6 +718,17 @@ class GenericBenchmarkRunner:
         if self.params.get("synonym_weight", 0.5) != 0.5:
             step6_args.extend(["--synonym-weight", str(self.params["synonym_weight"])])
 
+        # ── LLM query extraction flags ─────────────────────────────────────
+        if self.params.get("use_llm_phrases", False):
+            step6_args.append("--use-llm-phrases")
+            step6_args.extend(["--llm-model", str(self.params.get("llm_model", "gpt-3.5-turbo"))])
+            step6_args.extend(["--llm-domain", str(self.params.get("llm_domain", "biomedical"))])
+            # Determine query prompt path: CLI-specified or auto-detect per-dataset
+            llm_qp = self.params.get("llm_query_prompt_path", "") or \
+                     Path("data") / self.adapter.dataset_name / "llm_prompt_query.txt"
+            if Path(llm_qp).exists():
+                step6_args.extend(["--llm-query-prompt-path", str(llm_qp)])
+ 
         # ── Single subprocess call for ALL queries ────────────────────────
         t0 = time.time()
         ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor (batch)", timeout=3600)
@@ -1095,6 +1118,20 @@ def cli_main():
     p_idx.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_idx.add_argument("--glossary-corpus-expansion", action="store_true",
                        help="Inject glossary synonyms into corpus at indexing time (P1.3)")
+    p_idx.add_argument("--use-llm-phrases", action="store_true", default=False,
+                       help="Use LLM for phrase extraction instead of spaCy")
+    p_idx.add_argument("--llm-model", type=str, default="gpt-3.5-turbo",
+                       help="LLM model for phrase extraction")
+    p_idx.add_argument("--llm-domain", type=str, default="biomedical",
+                       help="Domain for LLM phrase extraction")
+    p_idx.add_argument("--llm-api-key", type=str, default=None,
+                       help="API key for LLM endpoint")
+    p_idx.add_argument("--llm-api-base", type=str, default=None,
+                       help="Base URL for OpenAI-compatible API")
+    p_idx.add_argument("--llm-prompt-path", type=str, default=None,
+                       help="Path to custom prompt file for LLM extraction")
+    p_idx.add_argument("--llm-query-prompt-path", type=str, default=None,
+                       help="Path to per-dataset query prompt file")
 
     # benchmark
     p_bm = sub.add_parser("benchmark", help="Phase 2: run Step 6 per query")
@@ -1186,6 +1223,20 @@ def cli_main():
                       help="Skip OOV term expansion")
     p_bm.add_argument("--synonym-weight", type=float, default=PIPELINE_DEFAULTS["synonym_weight"],
                       help="Weight for synonym-expanded phrases")
+    p_bm.add_argument("--use-llm-phrases", action="store_true", default=False,
+                      help="Use LLM for query phrase extraction")
+    p_bm.add_argument("--llm-model", type=str, default="gpt-3.5-turbo",
+                      help="LLM model for query phrase extraction")
+    p_bm.add_argument("--llm-domain", type=str, default="biomedical",
+                      help="Domain for LLM query phrase extraction")
+    p_bm.add_argument("--llm-api-key", type=str, default=None,
+                      help="API key for LLM endpoint")
+    p_bm.add_argument("--llm-api-base", type=str, default=None,
+                      help="Base URL for OpenAI-compatible API")
+    p_bm.add_argument("--llm-prompt-path", type=str, default=None,
+                      help="Path to custom prompt file for LLM extraction")
+    p_bm.add_argument("--llm-query-prompt-path", type=str, default=None,
+                      help="Path to per-dataset query prompt file (e.g. data/bioasq/llm_prompt_query.txt)")
 
     # report
     p_rp = sub.add_parser("report", help="Phase 3: generate markdown report")
@@ -1299,6 +1350,22 @@ def cli_main():
     p_all.add_argument("--synonym-weight", type=float, default=PIPELINE_DEFAULTS["synonym_weight"],
                        help="Weight for synonym-expanded phrases")
 
+    # ── LLM Phrase Extraction ─────────────────────────────────────────
+    p_all.add_argument("--use-llm-phrases", action="store_true", default=False,
+                       help="Use LLM (or built-in domain extractor) for phrase extraction instead of spaCy")
+    p_all.add_argument("--llm-model", type=str, default="gpt-3.5-turbo",
+                       help="LLM model for phrase extraction (default: gpt-3.5-turbo)")
+    p_all.add_argument("--llm-domain", type=str, default="biomedical",
+                       help="Domain for LLM phrase extraction (default: biomedical)")
+    p_all.add_argument("--llm-api-key", type=str, default=None,
+                       help="API key for LLM endpoint (or OPENAI_API_KEY env var)")
+    p_all.add_argument("--llm-api-base", type=str, default=None,
+                       help="Base URL for OpenAI-compatible API (or OPENAI_API_BASE env var)")
+    p_all.add_argument("--llm-prompt-path", type=str, default=None,
+                       help="Path to custom prompt file for LLM phrase extraction")
+    p_all.add_argument("--llm-query-prompt-path", type=str, default=None,
+                       help="Path to per-dataset query prompt file")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -1408,6 +1475,15 @@ def cli_main():
         params["oov_expansion"] = not args.no_oov_expansion
     if hasattr(args, "synonym_weight"):
         params["synonym_weight"] = args.synonym_weight
+    if hasattr(args, "use_llm_phrases"):
+        params["use_llm_phrases"] = args.use_llm_phrases
+        params["llm_model"] = args.llm_model
+        params["llm_domain"] = args.llm_domain
+        params["llm_api_key"] = args.llm_api_key
+        params["llm_api_base"] = args.llm_api_base
+        params["llm_prompt_path"] = args.llm_prompt_path
+    if hasattr(args, "llm_query_prompt_path") and args.llm_query_prompt_path:
+        params["llm_query_prompt_path"] = args.llm_query_prompt_path
     if hasattr(args, "corpus") and args.corpus:
         params["corpus_path"] = str(args.corpus)
     elif args.command == "benchmark" and hasattr(args, "run_dir"):

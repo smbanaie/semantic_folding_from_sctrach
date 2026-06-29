@@ -2106,11 +2106,16 @@ def process_query(
     use_llm = getattr(args, "use_llm_phrases", False)
     llm_model = getattr(args, "llm_model", "gpt-3.5-turbo")
     llm_domain = getattr(args, "llm_domain", "biomedical")
+    llm_query_prompt_path = getattr(args, "llm_query_prompt_path", None)
     
     if use_llm:
         # Use LLM for query phrase extraction (consistent with Step 1)
         from llm_phrase_extractor import LLMPhraseExtractor
-        llm_extractor = LLMPhraseExtractor(model=llm_model, domain=llm_domain)
+        llm_extractor = LLMPhraseExtractor(
+            model=llm_model, domain=llm_domain,
+            prompt_path=llm_query_prompt_path,  # Per-dataset query prompt
+            force_domain_only=True,  # Use built-in extractor (consistent with corpus)
+        )
         
         llm_phrases = llm_extractor.extract_phrases(query, domain=llm_domain)
         matched_phrases = set(llm_phrases) & phrase_vocab  # Keep only vocab hits
@@ -2719,6 +2724,25 @@ def parse_args() -> argparse.Namespace:
         help="Minimum token character length kept after expansion.",
     )
 
+    # ── LLM phrase extraction ──────────────────────────────────────────
+    parser.add_argument(
+        "--use-llm-phrases", dest="use_llm_phrases", action="store_true",
+        default=False, help="Use LLM for phrase extraction for query analysis",
+    )
+    parser.add_argument(
+        "--llm-model", dest="llm_model", type=str, default="gpt-3.5-turbo",
+        help="LLM model for extraction",
+    )
+    parser.add_argument(
+        "--llm-domain", dest="llm_domain", type=str, default="biomedical",
+        help="Domain context for extraction",
+    )
+    parser.add_argument(
+        "--llm-query-prompt-path", dest="llm_query_prompt_path", type=str, default=None,
+        help="Path to per-dataset LLM prompt file for query processing "
+             "(e.g. data/bioasq/llm_prompt_query.txt)",
+    )
+
     # ── Weighting / normalisation ──────────────────────────────────────────────
     parser.add_argument(
         "--weighting", type=str, default="uniform",
@@ -2927,19 +2951,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--verbose", action="store_true",
         help="Print detailed query analysis and corpus statistics.",
-    )
-    # ── LLM-based phrase extraction (must match Step 1) ──────────────────
-    parser.add_argument(
-        "--use-llm-phrases", action="store_true",
-        help="Use LLM for query phrase extraction (must match Step 1 setting)",
-    )
-    parser.add_argument(
-        "--llm-model", type=str, default="gpt-3.5-turbo",
-        help="LLM model to use for query phrase extraction (default: gpt-3.5-turbo)",
-    )
-    parser.add_argument(
-        "--llm-domain", type=str, default="biomedical",
-        help="Domain context for LLM query phrase extraction (default: biomedical)",
     )
 
     return parser.parse_args()

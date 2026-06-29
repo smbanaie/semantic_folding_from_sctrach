@@ -3603,6 +3603,160 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_021510
     status: completed
     type: bm25_benchmark
+  bioasq__benchmark_20260630_022111:
+    created_at: '2026-06-30T02:21:11.619664'
+    dataset: bioasq
+    params:
+      alpha: '0.0'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022111
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022118:
+    created_at: '2026-06-30T02:21:18.506338'
+    dataset: bioasq
+    params:
+      alpha: '0.2'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022118
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022125:
+    created_at: '2026-06-30T02:21:26.005815'
+    dataset: bioasq
+    params:
+      alpha: '0.4'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022125
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022132:
+    created_at: '2026-06-30T02:21:32.929834'
+    dataset: bioasq
+    params:
+      alpha: '0.6'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022132
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022139:
+    created_at: '2026-06-30T02:21:39.864003'
+    dataset: bioasq
+    params:
+      alpha: '0.8'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022139
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022148:
+    created_at: '2026-06-30T02:21:48.717657'
+    dataset: bioasq
+    params:
+      alpha: '1.0'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022148
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022207:
+    created_at: '2026-06-30T02:22:08.394940'
+    dataset: bioasq
+    params:
+      alpha: '0.0'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022207
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022215:
+    created_at: '2026-06-30T02:22:16.389401'
+    dataset: bioasq
+    params:
+      alpha: '0.2'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022215
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022224:
+    created_at: '2026-06-30T02:22:24.811597'
+    dataset: bioasq
+    params:
+      alpha: '0.4'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022224
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022231:
+    created_at: '2026-06-30T02:22:31.853326'
+    dataset: bioasq
+    params:
+      alpha: '0.5'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022231
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022238:
+    created_at: '2026-06-30T02:22:38.790574'
+    dataset: bioasq
+    params:
+      alpha: '0.6'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022238
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022247:
+    created_at: '2026-06-30T02:22:47.930811'
+    dataset: bioasq
+    params:
+      alpha: '0.8'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022247
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022256:
+    created_at: '2026-06-30T02:22:57.331038'
+    dataset: bioasq
+    params:
+      alpha: '1.0'
+      n_queries: '20'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022256
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260630_022339:
+    created_at: '2026-06-30T02:23:39.849843'
+    dataset: bioasq
+    params:
+      alpha: '0.8'
+      n_queries: '10'
+      pool_size: '100'
+      top_k: '5'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260630_022339
+    status: running
+    type: benchmark
   bioasq__run_20260627_010905:
     created_at: '2026-06-27T01:09:05.750166'
     dataset: bioasq

@@ -1,46 +1,41 @@
 """
-Two-Stage Neuro-Lexical Pipeline - Working Implementation
+Two-Stage Neuro-Lexical Pipeline Benchmark
 
-BM25 top-K → SF re-ranking on candidates only (not full corpus).
+BM25 retrieves top-K candidates → SF re-ranks those candidates.
 
 Usage:
-    # Index first
-    .venv\Scripts\python -m semantic_folding.dataset_benchmark.generic_benchmark index \
-        --dataset bioasq --jsonl data/bioasq/converted/bioasq.jsonl --max-queries 50
-    
-    # Run two-stage benchmark
-    .venv\Scripts\python -m semantic_folding.dataset_benchmark.two_stage_benchmark \
+    python -m semantic_folding.dataset_benchmark.two_stage_benchmark \
         --dataset bioasq \
         --jsonl data/bioasq/converted/bioasq.jsonl \
-        --run-dir outputs/bioasq_benchmark/runs/run_20260630_120000 \
+        --run-dir outputs/bioasq_benchmark/runs/run_XXX \
         --pool-size 100 \
-        --max-queries 50
+        --alpha 0.5
 """
 import argparse
-import csv
 import json
 import sys
-import time
-from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
+from datetime import datetime
+from typing import Optional, List, Tuple
 import numpy as np
 from scipy import sparse
+from sklearn.metrics.pairwise import cosine_similarity
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from semantic_folding.lib import get_logger
+
+logger = get_logger("two_stage")
 
 from .generic_benchmark import (
     load_entries, compute_metrics, filter_results_to_candidates,
     register_run, update_run_status, OUTPUTS_DIR, PIPELINE_DEFAULTS,
 )
 from .bm25_benchmark import BM25Scorer
-from .adapters import get_adapter
-from .sf_reranker_simple import rerank_candidates_with_sf_simple
-
-logger = get_logger("two_stage")
+from .sf_reranker_simple import (
+    build_query_fingerprint_simple,
+    rerank_candidates_with_sf_simple,
+    load_phrase_fingerprints_from_npz,
+)
 
 
 def run_two_stage_benchmark(
@@ -50,295 +45,192 @@ def run_two_stage_benchmark(
     pool_size: int = 100,
     max_queries: int = None,
     top_k: int = 5,
+    alpha: float = 0.5,
 ) -> Optional[Path]:
     """
     Run two-stage retrieval: BM25 top-K + SF re-ranking.
     
-    Stage 1: BM25 retrieves top-K candidates (coarse lexical filtering)
-    Stage 2: SF re-ranks ONLY those K candidates (fine-grained semantic)
+    Parameters
+    ----------
+    alpha : float
+        Interpolation weight: final = alpha * bm25_norm + (1-alpha) * sf
     """
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    bench_base = OUTPUTS_DIR / f"{dataset}_benchmark" / "benchmarks"
-    bench_base.mkdir(parents=True, exist_ok=True)
-    bench_dir = bench_base / f"benchmark_{ts}"
-    per_query_dir = bench_dir / "per_query"
-    bench_dir.mkdir(parents=True, exist_ok=True)
-    per_query_dir.mkdir(exist_ok=True)
-    
     # === LOAD DATA ===
-    with open(run_dir / "query_doc_map.json", encoding="utf-8") as f:
-        query_doc_map = json.load(f)
-    with open(run_dir / "query_gold.json", encoding="utf-8") as f:
-        query_gold = json.load(f)
+    entries = load_entries(jsonl_path)
+    if max_queries:
+        entries = entries[:max_queries]
     
-    # === BUILD BM25 INDEX ===
-    corpus_path = run_dir / "corpus.txt"
-    if not corpus_path.exists():
-        logger.error(f"Corpus not found: {corpus_path}")
+    # Load gold labels from query_gold.json (created during indexing)
+    # Try multiple possible locations
+    query_gold = {}
+    for qg_path in [
+        run_dir / "query_gold.json",
+        run_dir.parent / "query_gold.json",  # Sometimes in parent
+        Path("outputs") / dataset / "query_gold.json",
+    ]:
+        if qg_path.exists():
+            with open(qg_path) as f:
+                query_gold = json.load(f)
+            logger.info(f"Loaded gold labels from {qg_path}")
+            break
+    
+    if len(query_gold) == 0:
+        logger.warning("No gold labels found, will skip metrics")
+    
+    # Load corpus
+    corpus_file = run_dir / "corpus.txt"
+    if not corpus_file.exists():
+        logger.error(f"Corpus not found: {corpus_file}")
         return None
     
     doc_ids, texts = [], []
-    with open(corpus_path, "r", encoding="utf-8") as f:
+    with open(corpus_file) as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            comma_idx = line.find(",")
-            if comma_idx == -1 or not line[:comma_idx].startswith("doc_"):
-                continue
-            gid = line[:comma_idx].strip()
-            text = line[comma_idx + 1:].strip()
-            doc_ids.append(gid)
-            texts.append(text)
+            comma_idx = line.find(',')
+            if comma_idx > 0 and line[:comma_idx].startswith('doc_'):
+                doc_ids.append(line[:comma_idx])
+                texts.append(line[comma_idx+1:])
     
     logger.info(f"Loaded corpus: {len(doc_ids)} documents")
+    
+    # === BM25 INDEX ===
     bm25 = BM25Scorer(texts)
     logger.info("BM25 index built")
     
-    # === LOAD SF DOCUMENT FINGERPRINTS ===
+    # === LOAD SF FINGERPRINTS ===
+    # Document fingerprints
     doc_fp_dir = run_dir / "doc_fingerprints"
-    if not doc_fp_dir.exists():
-        logger.error(f"Document fingerprints not found: {doc_fp_dir}")
-        return None
-    
-    logger.info(f"Loading document fingerprints from {doc_fp_dir}...")
-    grid_size = 64  # TODO: Make configurable
-    dim = grid_size * grid_size
     doc_fingerprints = {}
-    
-    # Try loading from .npz (preferred format)
-    npz_file = doc_fp_dir / "doc_fingerprints.npz"
-    meta_file = doc_fp_dir / "doc_fingerprints_meta.json"
-    
-    if npz_file.exists() and meta_file.exists():
-        import numpy as np
-        data = np.load(npz_file)
-        fingerprints = data['fingerprints']  # Shape: (n_docs, grid_size^2)
+    if doc_fp_dir.exists():
+        npz_file = doc_fp_dir / "doc_fingerprints.npz"
+        meta_file = doc_fp_dir / "doc_fingerprints_meta.json"
         
-        with open(meta_file) as f:
-            meta = json.load(f)
-        
-        # Load doc_id mapping
-        if 'doc_to_row' in meta:
-            doc_to_row = meta['doc_to_row']
-            for doc_id, idx in doc_to_row.items():
-                vec = sparse.csr_matrix(fingerprints[idx])
-                doc_fingerprints[doc_id] = vec
-        elif 'doc_ids' in meta:
-            doc_ids = meta['doc_ids']
-            for idx, doc_id in enumerate(doc_ids):
-                vec = sparse.csr_matrix(fingerprints[idx])
-                doc_fingerprints[doc_id] = vec
-        
-        logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints from .npz")
-    else:
-        # Fall back to .json files
-        for fp_file in doc_fp_dir.glob("*.json"):
-            with open(fp_file) as f:
-                data = json.load(f)
-            doc_id = data.get("doc_id", fp_file.stem)
-            active_bits = data.get("active_bits", [])
+        if npz_file.exists() and meta_file.exists():
+            doc_data = np.load(npz_file)
+            doc_fps_mat = doc_data['fingerprints']
+            with open(meta_file) as f:
+                doc_meta = json.load(f)
             
-            vec = sparse.csr_matrix((1, dim))
-            if active_bits:
-                vec[0, active_bits] = 1.0
-            doc_fingerprints[doc_id] = vec
-        
-        logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints from .json")
+            doc_to_row = doc_meta.get('doc_to_row', {})
+            for doc_id, idx in doc_to_row.items():
+                doc_fingerprints[doc_id] = sparse.csr_matrix(doc_fps_mat[idx])
+            
+            logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints from .npz")
+        else:
+            logger.warning("Document fingerprints .npz not found, skipping SF re-ranking")
+    else:
+        logger.warning("Document fingerprints not found, skipping SF re-ranking")
     
-    # === LOAD PHRASE FINGERPRINTS ===
+    # Phrase fingerprints
     phrase_fp_dir = run_dir / "phrase_fingerprints"
     phrase_fingerprints = {}
     if phrase_fp_dir.exists():
-        logger.info(f"Loading phrase fingerprints from {phrase_fp_dir}...")
-        
-        # Try loading from .npz (preferred format)
         npz_file = phrase_fp_dir / "phrase_fingerprints.npz"
         meta_file = phrase_fp_dir / "phrase_fingerprints_meta.json"
         
         if npz_file.exists() and meta_file.exists():
-            from semantic_folding.dataset_benchmark.sf_reranker_simple import load_phrase_fingerprints_from_npz
             phrase_fingerprints = load_phrase_fingerprints_from_npz(npz_file, meta_file, grid_size=64)
             logger.info(f"Loaded {len(phrase_fingerprints)} phrase fingerprints from .npz")
         else:
-            # Fall back to .json files
-            for fp_file in phrase_fp_dir.glob("*.json"):
-                with open(fp_file) as f:
-                    data = json.load(f)
-                phrase_text = data.get("phrase", fp_file.stem)
-                active_bits = data.get("active_bits", [])
-                
-                vec = sparse.csr_matrix((1, dim))
-                if active_bits:
-                    vec[0, active_bits] = 1.0
-                phrase_fingerprints[phrase_text] = vec
-            
-            logger.info(f"Loaded {len(phrase_fingerprints)} phrase fingerprints from .json")
+            logger.warning("Phrase fingerprints .npz not found")
     else:
-        logger.warning(f"Phrase fingerprints not found: {phrase_fp_dir}")
+        logger.warning("Phrase fingerprints not found")
     
-    # === SAVE CONFIG ===
-    bench_config = {
-        "phase2": {
-            "mode": "two_stage_benchmark",
-            "dataset": dataset,
-            "timestamp": ts,
-            "run_dir": str(run_dir),
-            "pool_size": pool_size,
-        },
-        "pipeline": {"pool_size": pool_size, "top_k": top_k},
-    }
-    with open(bench_dir / "config.yml", "w") as f:
-        import yaml
-        yaml.dump(bench_config, f, default_flow_style=False)
+    # === RUN BENCHMARK ===
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    bench_dir = OUTPUTS_DIR / f"{dataset}_benchmark" / "benchmarks" / f"benchmark_{ts}"
+    bench_dir.mkdir(parents=True, exist_ok=True)
     
-    register_run(bench_dir, dataset, "two_stage_benchmark", {"pool_size": pool_size}, "running")
-    
-    # === LOAD ENTRIES ===
-    entries = load_entries(jsonl_path)
-    if max_queries is not None:
-        entries = entries[:max_queries]
-    
-    all_metrics = []
-    results_log = bench_dir / "results_log.csv"
+    results = []
     failed = 0
-    total = len(entries)
     
-    logger.info(f"Two-stage benchmark: {bench_dir.name} - {total} queries")
-    logger.info(f"  Pool size: {pool_size}, SF top-k: {top_k}")
-    
-    # === PROCESS QUERIES ===
-    for i, entry in enumerate(entries):
-        q_idx = i
-        q_idx_str = str(q_idx)
-        query_text = entry.get("question", "")
-        candidate_ids = query_doc_map.get(q_idx_str, [])
-        gold_ids = query_gold.get(q_idx_str, [])
+    for idx, entry in enumerate(entries):
+        # Handle different JSONL formats
+        query = entry.get("question") or entry.get("query") or ""
         
-        if not gold_ids:
-            logger.debug(f"  [{q_idx}] no gold passages, skipping")
-            continue
+        # Load gold from query_gold.json
+        gold = query_gold.get(str(idx), [])
         
-        n_words = len(query_text.split())
-        query_out_dir = per_query_dir / f"{q_idx:04d}"
-        query_out_dir.mkdir(exist_ok=True)
-        
-        # Save candidate info
-        with open(query_out_dir / "candidate_docs.json", "w") as f:
-            json.dump({"candidate_ids": candidate_ids, "gold_ids": gold_ids}, f, indent=2)
-        
-        # === STAGE 1: BM25 RETRIEVAL ===
-        t0 = time.time()
-        bm25_results = bm25.score(query_text)
-        stage1_elapsed = time.time() - t0
-        
-        if len(bm25_results) == 0:
-            logger.warning(f"  [{q_idx}] BM25 returned no results")
+        if not query:
+            logger.debug(f"[{idx:04d}] No query, skipping")
             failed += 1
             continue
         
-        # Get top-K candidates from BM25
-        top_k_candidates = [doc_id for doc_id, _ in bm25_results[:pool_size]]
+        if not gold:
+            logger.debug(f"[{idx:04d}] No gold, skipping")
+            failed += 1
+            continue
         
-        # === STAGE 2: SF RE-RANKING (CANDIDATES ONLY) ===
-        t1 = time.time()
+        # === STAGE 1: BM25 TOP-K ===
+        bm25_results = bm25.score(query)
+        candidates = [(did, score) for did, score in bm25_results[:pool_size]]
         
-        # Use simplified SF re-ranking (no complex imports)
-        candidate_results = rerank_candidates_with_sf_simple(
-            query=query_text,
-            candidates=bm25_results[:pool_size],
-            doc_fingerprints=doc_fingerprints,
-            phrase_fingerprints=phrase_fingerprints,
-            grid_size=64,
-            top_k=top_k,
-            alpha=0.5,  # Equal weight to BM25 and SF
-        )
+        # === STAGE 2: SF RE-RANKING ===
+        if len(doc_fingerprints) > 0 and len(phrase_fingerprints) > 0:
+            reranked = rerank_candidates_with_sf_simple(
+                query, candidates, doc_fingerprints, phrase_fingerprints,
+                grid_size=64, top_k=top_k, alpha=alpha,
+            )
+        else:
+            # Fall back to BM25 order
+            reranked = candidates[:top_k]
         
-        logger.debug(f"  [{q_idx}] SF re-ranked {len(candidate_results)} candidates")
+        # === SAVE RESULTS ===
+        ranked_ids = [did for did, _ in reranked]
+        ranked_with_scores = [(did, score) for did, score in reranked]
         
-        stage2_elapsed = time.time() - t1
-        elapsed = stage1_elapsed + stage2_elapsed
+        per_query_dir = bench_dir / "per_query" / f"{idx:04d}"
+        per_query_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save results
-        with open(query_out_dir / "query_results.json", "w") as f:
-            json.dump([{"query": query_text, "results": bm25_results[:pool_size]}], f, indent=2)
-        
-        with open(query_out_dir / "filtered_results.json", "w") as f:
+        with open(per_query_dir / "filtered_results.json", "w") as f:
             json.dump({
-                "query_idx": q_idx,
-                "query": query_text,
-                "query_word_count": n_words,
-                "spreading_steps_used": 0,
-                "spreading_reason": "two_stage",
-                "gold": gold_ids,
-                "candidates": candidate_ids,
-                "filtered_ranked": [(doc_id, float(score)) for doc_id, score in candidate_results],
-                "full_top10": [(doc_id, float(score)) for doc_id, score in bm25_results[:10]],
-                "elapsed_s": round(elapsed, 3),
-                "stage1_time": round(stage1_elapsed, 3),
-                "pool_size": pool_size,
+                "query_idx": idx,
+                "query": query,
+                "gold": gold,
+                "candidates": [did for did, _ in candidates],
+                "filtered_ranked": reranked,
+                "alpha": alpha,
             }, f, indent=2)
         
-        metrics = compute_metrics(candidate_results, gold_ids,
-                                  top_k_list=[1, 2, 3, 5, top_k])
-        metrics["spreading_steps"] = 0
-        all_metrics.append(metrics)
+        # Compute metrics
+        metrics = compute_metrics(ranked_with_scores, gold, top_k_list=[top_k])
+        results.append(metrics)
         
-        if (i + 1) % 10 == 0 or i == 0 or i == total - 1:
-            logger.info(f"  [{q_idx:04d}/{total - 1}] MRR={metrics['mrr']:.3f} "
-                        f"AP={metrics['ap']:.3f} P@2={metrics['p@2']:.3f} "
-                        f"[{elapsed:.2f}s]  ({i+1}/{total})")
-        
-        # Write CSV row
-        with open(results_log, "a", newline="", encoding="utf-8") as csv_f:
-            writer = csv.writer(csv_f)
-            if i == 0:
-                header = ["query_idx", "query", "n_words", "spread", "spread_reason",
-                          "mrr", "ap", "p@1", "p@2", "p@3", "p@5", "r@2", "ndcg@2",
-                          "found_at", "elapsed_s", "stage1_time", "pool_size"]
-                writer.writerow(header)
-            writer.writerow([
-                q_idx, query_text, n_words, 0, "two_stage",
-                f"{metrics['mrr']:.4f}", f"{metrics['ap']:.4f}",
-                f"{metrics['p@1']:.4f}", f"{metrics['p@2']:.4f}",
-                f"{metrics['p@3']:.4f}", f"{metrics['p@5']:.4f}",
-                f"{metrics['r@2']:.4f}", f"{metrics['ndcg@2']:.4f}",
-                metrics["found_at"], round(elapsed, 1),
-                round(stage1_elapsed, 3), pool_size,
-            ])
+        if (idx + 1) % 10 == 0 or idx == len(entries) - 1:
+            n = idx + 1
+            mean_mrr = np.mean([r["mrr"] for r in results]) if results else 0.0
+            logger.info(f"  [{idx:04d}/{n-1}] MRR={mean_mrr:.4f}  ({n}/{len(entries)})")
     
     # === SUMMARY ===
-    n = len(all_metrics)
-    if n == 0:
-        logger.error("No queries completed")
+    if len(results) == 0:
+        logger.error("No valid queries")
         update_run_status(bench_dir, dataset, "failed")
         return None
     
+    # Compute mean metrics (handle both p@k and p@k formats)
+    mean_mrr = float(np.mean([r["mrr"] for r in results]))
+    mean_ap = float(np.mean([r["ap"] for r in results]))
+    
+    # Extract p@k values (try both formats)
+    p_at_1 = [r.get("p@1", r.get("p@1", 0.0)) for r in results]
+    p_at_2 = [r.get("p@2", r.get("p@2", 0.0)) for r in results]
+    p_at_5 = [r.get("p@5", r.get("p@5", 0.0)) for r in results]
+    
     summary = {
-        "dataset": dataset,
-        "display_name": dataset,
-        "num_queries": n,
+        "mean_mrr": mean_mrr,
+        "mean_ap": mean_ap,
+        "mean_p@1": float(np.mean(p_at_1)),
+        "mean_p@2": float(np.mean(p_at_2)),
+        "mean_p@5": float(np.mean(p_at_5)),
+        "n_queries": len(results),
         "failed": failed,
-        "pool_size": pool_size,
-        "mean_mrr": float(np.mean([m["mrr"] for m in all_metrics])),
-        "mean_ap": float(np.mean([m["ap"] for m in all_metrics])),
-        "mean_p@1": float(np.mean([m["p@1"] for m in all_metrics])),
-        "mean_p@2": float(np.mean([m["p@2"] for m in all_metrics])),
     }
+    
     with open(bench_dir / "summary.json", "w") as f:
         json.dump(summary, f, indent=2)
-    
-    with open(bench_dir / "params.json", "w") as f:
-        json.dump({
-            "dataset": dataset,
-            "display_name": dataset,
-            "run_dir": str(run_dir),
-            "num_queries": n,
-            "failed": failed,
-            "pool_size": pool_size,
-            "pipeline": {"pool_size": pool_size, "top_k": top_k},
-            "generated": datetime.now().isoformat(),
-        }, f, indent=2)
     
     update_run_status(bench_dir, dataset, "completed")
     logger.success(f"Two-stage benchmark complete: {bench_dir}")
@@ -358,8 +250,11 @@ def cli_main():
                         help="Existing Phase 1 run directory (needs corpus.txt, fingerprints)")
     parser.add_argument("--pool-size", type=int, default=100,
                         help="BM25 candidate pool size (default: 100)")
+    parser.add_argument("--alpha", type=float, default=0.5,
+                        help="BM25+SF interpolation weight (default: 0.5)")
+    parser.add_argument("--top-k", type=int, default=5,
+                        help="Final top-k results (default: 5)")
     parser.add_argument("--max-queries", type=int, default=None)
-    parser.add_argument("--top-k", type=int, default=5)
     args = parser.parse_args()
     
     bench_dir = run_two_stage_benchmark(
@@ -369,6 +264,7 @@ def cli_main():
         pool_size=args.pool_size,
         max_queries=args.max_queries,
         top_k=args.top_k,
+        alpha=args.alpha,
     )
     if bench_dir is None:
         sys.exit(1)

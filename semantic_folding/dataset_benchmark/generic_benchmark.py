@@ -629,6 +629,8 @@ class GenericBenchmarkRunner:
                 step6_args.extend(["--corpus", self.params["corpus_path"]])
         if self.params.get("splade", False):
             step6_args.extend(["--splade", "--splade-model", self.params.get("splade_model", "naver/splade-cocondenser-ensembledistil")])
+            if self.params.get("hybrid_alpha") is not None:
+                step6_args.extend(["--hybrid-alpha", str(self.params["hybrid_alpha"])])
             if self.params.get("corpus_path"):
                 step6_args.extend(["--corpus", self.params["corpus_path"]])
         if self.params.get("doc_norm", "sqrt_nnz") != "sqrt_nnz":
@@ -706,7 +708,7 @@ class GenericBenchmarkRunner:
 
         # ── Single subprocess call for ALL queries ────────────────────────
         t0 = time.time()
-        ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor (batch)")
+        ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor (batch)", timeout=3600)
         batch_elapsed = time.time() - t0
 
         if not ok:
@@ -1121,7 +1123,8 @@ def cli_main():
     p_bm.add_argument("--multi-resolution", action="store_true",
                        help="Apply multi-resolution spreading (spread at multiple radii and combine)")
     p_bm.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
-    p_bm.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
+    p_bm.add_argument("--expand-synonyms", dest="expand_synonyms", action="store_true", default=None,
+                       help="Expand query with synonyms from glossary")
     p_bm.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_bm.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_bm.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
@@ -1230,9 +1233,10 @@ def cli_main():
     p_all.add_argument("--multi-resolution", action="store_true",
                         help="Apply multi-resolution spreading (spread at multiple radii and combine)")
     p_all.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
-    p_all.add_argument("--expand-synonyms", action="store_true", help="Expand query with synonyms from glossary")
+    p_all.add_argument("--expand-synonyms", dest="expand_synonyms", action="store_true", default=None,
+                       help="Expand query with synonyms from glossary")
     p_all.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
-    p_all.add_argument("--glossary-corpus-expansion", action="store_true",
+    p_all.add_argument("--glossary-corpus-expansion", dest="glossary_corpus_expansion", action="store_true", default=None,
                         help="Inject glossary synonyms into corpus at indexing time (P1.3)")
     p_all.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_all.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
@@ -1311,23 +1315,23 @@ def cli_main():
         # Try default registry location
         registry_params = load_dataset_registry(dataset=args.dataset)
     
-    params = {}
+    # Start with registry defaults, then CLI flags override
+    params = dict(registry_params)
     if hasattr(args, "grid_size"):
-        # Registry provides defaults; CLI flags override
-        params["grid_size"] = registry_params.get("grid_size", args.grid_size)
-        params["method"] = registry_params.get("method", args.method)
-        params["umap_n_neighbors"] = registry_params.get("umap_n_neighbors", args.umap_n_neighbors)
-        params["umap_min_dist"] = registry_params.get("umap_min_dist", args.umap_min_dist)
-        params["umap_metric"] = registry_params.get("umap_metric", args.umap_metric)
-        params["spreading_steps"] = registry_params.get("spreading_steps", args.spreading_steps)
-        params["top_percent"] = registry_params.get("top_percent", args.top_percent)
-        params["weighting"] = registry_params.get("weighting", args.weighting)
-        params["smoothing_sigma"] = registry_params.get("smoothing_sigma", args.smoothing_sigma)
-        params["morton"] = registry_params.get("use_morton", not args.no_morton)
-        params["tsne_perplexity"] = registry_params.get("tsne_perplexity", PIPELINE_DEFAULTS["tsne_perplexity"])
-        params["min_freq"] = registry_params.get("min_freq", PIPELINE_DEFAULTS["min_freq"])
-        params["max_doc_freq"] = registry_params.get("max_doc_freq", PIPELINE_DEFAULTS["max_doc_freq"])
-        params["keep_verbs"] = registry_params.get("keep_verbs", PIPELINE_DEFAULTS["keep_verbs"])
+        params["grid_size"] = args.grid_size
+        params["method"] = args.method
+        params["umap_n_neighbors"] = args.umap_n_neighbors
+        params["umap_min_dist"] = args.umap_min_dist
+        params["umap_metric"] = args.umap_metric
+        params["spreading_steps"] = args.spreading_steps
+        params["top_percent"] = args.top_percent
+        params["weighting"] = args.weighting
+        params["smoothing_sigma"] = args.smoothing_sigma
+        params["morton"] = not args.no_morton
+        params["tsne_perplexity"] = args.tsne_perplexity if hasattr(args, "tsne_perplexity") else PIPELINE_DEFAULTS["tsne_perplexity"]
+        params["min_freq"] = args.min_freq if hasattr(args, "min_freq") else PIPELINE_DEFAULTS["min_freq"]
+        params["max_doc_freq"] = args.max_doc_freq if hasattr(args, "max_doc_freq") else PIPELINE_DEFAULTS["max_doc_freq"]
+        params["keep_verbs"] = args.keep_verbs if hasattr(args, "keep_verbs") else PIPELINE_DEFAULTS["keep_verbs"]
     if hasattr(args, "dynamic_spreading"):
         params["dynamic_spreading"] = args.dynamic_spreading
         params["spreading_steps_long"] = args.spreading_steps_long
@@ -1337,16 +1341,16 @@ def cli_main():
     if hasattr(args, "hybrid"):
         params["hybrid"] = args.hybrid
         params["hybrid_alpha"] = args.hybrid_alpha
+    if "hybrid_alpha" not in params:
+        params["hybrid_alpha"] = registry_params.get("splade_alpha", params.get("hybrid_alpha", 0.3))
     if hasattr(args, "splade"):
-        # Registry can override splade settings per-dataset
-        params["splade"] = registry_params.get("splade", args.splade)
+        # CLI always wins; registry is merely a base default
+        params["splade"] = args.splade
         params["splade_model"] = args.splade_model
-        if "splade_alpha" in registry_params:
-            params["hybrid_alpha"] = registry_params["splade_alpha"]
     if hasattr(args, "multi_resolution"):
         params["multi_resolution"] = args.multi_resolution
     if hasattr(args, "doc_norm"):
-        params["doc_norm"] = registry_params.get("doc_norm", args.doc_norm)
+        params["doc_norm"] = args.doc_norm
     if hasattr(args, "sim_metric"):
         params["sim_metric"] = args.sim_metric
     if hasattr(args, "asymmetric"):
@@ -1368,9 +1372,9 @@ def cli_main():
         params["storage"] = args.storage
     if hasattr(args, "faiss_path") and args.faiss_path:
         params["faiss_path"] = str(args.faiss_path)
-    if hasattr(args, "expand_synonyms"):
+    if hasattr(args, "expand_synonyms") and args.expand_synonyms is not None:
         params["expand_synonyms"] = args.expand_synonyms
-    if hasattr(args, "glossary_corpus_expansion"):
+    if hasattr(args, "glossary_corpus_expansion") and args.glossary_corpus_expansion is not None:
         params["glossary_corpus_expansion"] = args.glossary_corpus_expansion
     if hasattr(args, "glossary") and args.glossary:
         params["glossary_path"] = args.glossary

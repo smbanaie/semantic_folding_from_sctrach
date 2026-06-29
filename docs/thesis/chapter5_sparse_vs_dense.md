@@ -33,36 +33,30 @@ The Orthogonality Constraint leads to a fundamental limitation:
 - Scientific measurements ($\rho = 0.96$): 0.02% accuracy at N=10,000
 - Image embeddings ($\rho = 0.82$): 0.05% accuracy at N=2,000
 
-### 5.2.3 Why Sparse Methods Avoid Interference
+### 5.2.3 Why Sparse Methods Avoid Interference (Revised)
 
-Sparse Distributed Representations (SDRs) naturally satisfy the Orthogonality Constraint through three mechanisms:
+Sparse Distributed Representations (SDRs) offer a potential path around Semantic Interference, but the actual orthogonality of SF fingerprints is more nuanced than initially theorized:
 
-**1. High-dimensional binary vectors are nearly orthogonal by construction**
+**1. Random high-dimensional binary vectors are nearly orthogonal by construction**
 
-For random binary vectors $\mathbf{x}, \mathbf{y} \in \{0,1\}^d$ with density $\rho$ (exactly $\rho d$ active bits each):
+For *independent random* binary vectors $\mathbf{x}, \mathbf{y} \in \{0,1\}^d$ with density $
+ho$:
 
-$$\mathbb{E}[\cos(\mathbf{x}, \mathbf{y})] = \rho$$
+$$\mathbb{E}[\cos(\mathbf{x}, \mathbf{y})] = 
+ho$$
 
-$$\text{Var}[\cos(\mathbf{x}, \mathbf{y})] = \frac{1-\rho}{d}$$
+$$\text{Var}[\cos(\mathbf{x}, \mathbf{y})] = \frac{1-
+ho}{d}$$
 
-This follows from the hypergeometric distribution of the intersection $|\mathcal{A} \cap \mathcal{B}|$ where $|\mathcal{A}| = |\mathcal{B}| = \rho d$.
+**Important caveat (added 2026-06-29):** This formula assumes independent random bits. SF fingerprints are NOT random — they are spatially correlated by design (Gaussian smoothing σ=1.5, Morton encoding, IDF-weighted aggregation). The actual pairwise cosine distribution of SF fingerprints has higher variance and higher mean than the random-SDR prediction. We now report the empirical cosine distributions for each dataset in §7.X.
 
-For SF with $d = 4096$ and $\rho = 0.10$:
-- Expected cosine similarity: 0.10
-- Standard deviation: $\sqrt{0.90/4096} \approx 0.0149$
-- 99.9% of random pairs have cosine < 0.15
+**2. Empirical performance shows SPLADE dominates**
 
-**2. No training required to maintain separability**
+With SPLADE-only baselines added (2026-06-29), SF contributes positively on only 2/9 datasets (2WikiMultihopQA +8.5%, PubMedQA +1.7%) and degrades SPLADE's performance on 5/9 datasets. The complementarity hypothesis (H2) is falsified — SF and SPLADE signals are correlated, not complementary.
 
-Dense methods must learn to keep semantically similar concepts separable through training. SF's discrete grid positions provide inherent separation without learning.
+**3. Interference is inherently limited by sparsity, but spatial correlation reintroduces it**
 
-**3. Interference is inherently limited by sparsity**
-
-With only 10-25% of cells active, the probability of accidental overlap between unrelated fingerprints is:
-
-$$P(\text{overlap}) = \rho^2 \approx 0.01\text{--}0.06$$
-
-This is orders of magnitude lower than the interference levels in dense embeddings.
+With only 10-25% of cells active, the probability of accidental overlap between *independent* sparse vectors is low. But SF's grid-based construction deliberately increases overlap between semantically similar fingerprints — this is the desired mechanism for semantic matching, but it simultaneously reduces orthogonality.
 
 ## 5.3 Empirical Comparison
 
@@ -305,7 +299,7 @@ $$\text{score}_{\text{hybrid}}(q, d) = \alpha \cdot \text{score}_{\text{SF}}(q, 
 | PopQA (10Q) | **1.0000** | 1.0000 (0%) | — | SF-only sufficient |
 | NarrativeQA (10Q) | **1.0000** | 0.8100 (−19.0%) | — | SPLADE hurts |
 
-**Finding**: SPLADE shows large improvements on factoid and multi-hop tasks: NQ-REaR +60.3%, HotpotQA +35.4%, BioASQ +18.4%, 2WikiMultihopQA +24.8%, PubMedQA +15.0%. SPLADE hurts NarrativeQA (−19.0%) — narrative queries benefit from SF's semantic matching, not lexical expansion. SPLADE is complementary to SF — it helps where SF struggles (compositional reasoning) but not where SF already excels (semantic matching).
+**Finding**: SPLADE shows large improvements on factoid and multi-hop tasks: NQ-REaR +60.3%, HotpotQA +35.4%, **MuSiQue +41.0%**, BioASQ +18.4%, 2WikiMultihopQA +24.8%, PubMedQA +15.0%. SPLADE hurts NarrativeQA (−19.0%) — narrative queries benefit from SF's semantic matching, not lexical expansion. SPLADE is complementary to SF — it helps where SF struggles (compositional reasoning) but not where SF already excels (semantic matching).
 
 ### 5.10.5 Comparison with State-of-the-Art
 

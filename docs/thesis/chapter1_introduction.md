@@ -26,15 +26,17 @@ This thesis addresses three core research questions in the context of closed-dom
 
 This work makes the following contributions to closed-domain QA:
 
-1. **A complete unsupervised retrieval pipeline** (Semantic Folding) that converts raw text into sparse binary fingerprints through six stages: phrase extraction, term-context matrix construction, semantic space mapping, phrase fingerprinting, document fingerprinting, and query processing. The pipeline is specifically designed for domain-specific deployment with minimal setup.
+1. **A complete unsupervised retrieval pipeline** (Semantic Folding) that converts raw text into sparse binary fingerprints through six stages. The pipeline requires no training data for its core SF component. A hybrid SF+SPLADE variant (using off-the-shelf pre-trained SPLADE) is also evaluated.
 
-2. **A domain adaptation framework** demonstrating that SF parameters can be tuned for new closed-domain QA tasks in under 10 minutes, compared to days or weeks required for retraining dense methods. We provide a systematic parameter tuning methodology with mathematical justification for each configuration choice.
+2. **A domain adaptation framework** demonstrating that SF parameters can be tuned for new closed-domain QA tasks in under 10 minutes. We provide a systematic parameter tuning methodology with mathematical justification.
 
-3. **A glossary integration mechanism** that allows domain-specific terminologies (MeSH terms, legal citations, chemical formulas) to be directly incorporated into the semantic grid, improving retrieval for specialized vocabulary without retraining.
+3. **A glossary integration mechanism** that allows domain-specific terminologies to be directly incorporated into the semantic grid.
 
-4. **A comprehensive multi-dataset benchmark** across 10 datasets (PubMedQA, Belebele, NarrativeQA, PopQA, SciFact, HotpotQA, 2WikiMultihopQA, NQ-REaR, MuSiQue, BioASQ) demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
+4. **A comprehensive multi-dataset benchmark** across 10 datasets with three configurations: SF-only (unsupervised), SPLADE-only (supervised, off-the-shelf), and SF+SPLADE (hybrid). Key finding: SPLADE-only is the best configuration on 5/9 datasets (MuSiQue 0.987, Belebele 1.000, HotpotQA 0.957, NQ-REaR 0.677, BioASQ 0.442). SF contributes positively on only 2/9 datasets (2WikiMultihopQA +8.5%, PubMedQA +1.7%).
 
-5. **A hybrid SF+SPLADE architecture** that achieves perfect MRR=1.0 on Belebele (+13.6% over baseline, surpassing BM25 at 0.995), providing a practical deployment strategy combining unsupervised semantic coverage with learned sparse expansion for closed-domain systems. This is complemented by per-dataset parameter optimization via a registry system and FAISS-accelerated out-of-vocabulary query expansion (reducing OOV lookup from ~30s to 0.075s per query).
+5. **The feature-invariance principle**: Features duplicating existing SF signals (cross-attention, snippet ranking, adaptive spreading) contribute ≤0% MRR. Only genuinely non-overlapping signals (SPLADE learned expansion) provide gains. This negative result establishes the empirical ceiling for SF-based architectures.
+
+6. **The α-sensitivity framework**: We demonstrate that the SF+SPLADE hybrid weight α ∈ [0,1] produces a monotonic degradation curve on most datasets — as SF weight increases, MRR decreases. This falsifies the complementarity hypothesis (H2) and establishes that SF and SPLADE signals are correlated, not complementary.
 
 ## 1.4 Thesis Outline
 

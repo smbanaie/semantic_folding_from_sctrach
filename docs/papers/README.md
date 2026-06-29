@@ -127,3 +127,85 @@ Three candidate structures were evaluated for the Semantic Folding paper. Each i
 
 **Option B (67/80) wins.** It has the strongest narrative arc — "can unsupervised sparse beat BM25?" is a yes/no question that drives the reader through the entire paper. The answer creates tension ("yes on Belebele, no on MuSiQue") and resolution. It matches the structure of highly-cited IR papers: DPR ("can dense beat BM25?"), ColBERT ("can late interaction match cross-encoders?"), SPLADE ("can learned sparse beat dense?"). Option C's strength — honest failure analysis — is incorporated as a dedicated subsection in Option B ("Analysis: When SF Wins and When It Fails").
 Option A is too broad and reads like a compressed thesis. Option B is the most publishable structure for a top IR/NLP venue.
+
+---
+
+## Future Work (for Next Papers)
+
+### 1. LLM-Based Domain-Specific Phrase Extraction
+
+**Branch:** `improvement/bioasq-llm-phrase-extraction`
+
+**Status:** Implemented but NOT merged (performance negative)
+
+**Idea:** Replace spaCy's generic noun chunk extraction with LLM-based domain-specific phrase extraction. This should improve vocabulary matching for domain-specific queries (e.g., biomedical terms like "Hirschsprung disease", "RET gene").
+
+**Findings (BioASQ benchmark):**
+- Implemented `--use-llm-phrases` flag in Phase 1 and Phase 6
+- LLM API integration works (OpenAI-compatible endpoint)
+- **Problem:** Vocabulary mismatch — corpus uses spaCy extraction, queries use LLM extraction → phrases don't match → MRR dropped from 0.288 to 0.245
+- **Solution needed:** Use LLM for BOTH corpus and query extraction (ensures vocabulary consistency)
+- **Challenge:** Batch LLM corpus extraction is slow (204 paragraphs × API calls) and error-prone
+
+**Next steps:**
+1. Implement batch LLM corpus extraction (preprocess corpus, save to file)
+2. Modify `phrase_extractor.py` to load pre-extracted LLM phrases
+3. Re-run benchmark and verify MRR improves
+4. Test on other datasets (PubMedQA, MedQA) — may benefit more than BioASQ
+
+**For future paper:**
+- If vocabulary consistency fix works → include in next paper as "LLM-Enhanced Semantic Folding"
+- Compare spaCy vs LLM phrase extraction on multiple domains
+- Analyze when LLM phrases help (domain-specific) vs hurt (general domain)
+
+---
+
+### 2. Semantic Sparse Vectors for Near-Duplicate Detection (NEW IDEA)
+
+**Idea:** Use Semantic Folding's sparse binary vectors for **supervised near-duplicate detection**.
+
+**Approach:**
+1. **Define fixed concepts** (e.g., medical conditions, genes, drugs for biomedical domain)
+2. **Encode concepts as sparse binary vectors** in the semantic space (using SF pipeline)
+3. **For duplicate detection:** Compare query/document sparse vectors to concept vectors
+4. **Similarity check:** If query and document share high-weighted sparse dimensions → likely duplicates
+
+**Why this works:**
+- Sparse binary vectors are **interpretable** (each dimension = a phrase)
+- **Fixed concepts** provide supervision signal (known duplicates)
+- **Efficient** — Hamming distance / set intersection on sparse vectors is fast
+
+**Potential applications:**
+- **Near-duplicate detection** in search results (remove redundant docs)
+- **Query expansion** — find queries with similar semantic intent
+- **Document clustering** — group docs by shared sparse dimensions
+- **Supervised retrieval** — train concept vectors from labeled duplicates
+
+**For future paper:**
+- Position as "Supervised Semantic Folding: Leveraging Sparse Vectors for Duplicate Detection"
+- Compare to existing methods (MinHash, SimHash, dense embeddings)
+- Evaluate on near-duplicate benchmarks (TREC, MSMARCO)
+
+---
+
+## Implementation Branches (Current)
+
+| Branch | Status | Performance | Next Steps |
+|--------|--------|-------------|------------|
+| `improvement/bioasq-grid-size-sweep` | ✅ Merged | No improvement (MRR 0.300 vs 0.288) | Try on other datasets |
+| `improvement/bioasq-llm-phrase-extraction` | ⏳ In progress | WORSE (MRR 0.245 vs 0.288) | Fix vocabulary mismatch |
+| `improvement/full-corpus-eval` | 📋 Planned | — | Implement and benchmark |
+
+---
+
+## Paper Timeline
+
+| Paper | Status | Target Venue | Deadline |
+|-------|--------|--------------|----------|
+| **Option B (finding paper)** | ✅ Revised | SIGIR/ACL | TBD |
+| **LLM-Enhanced SF** | 📋 Planned | EMNLP/NeurIPS | 2027 |
+| **Supervised SF (duplicate detection)** | 💡 Idea | CIKM/WSDM | 2027 |
+
+---
+
+**Note:** The LLM phrase extraction and supervised duplicate detection ideas are documented here for inclusion in future papers. The current paper (Option B) focuses on the core SF+SPLADE findings.

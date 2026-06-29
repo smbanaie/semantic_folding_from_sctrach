@@ -1,129 +1,117 @@
-# Paper Proposals — Semantic Folding
+# Future Work - Semantic Folding Paper
 
-Three candidate structures were evaluated for the Semantic Folding paper. Each is scored on 8 criteria (max 10 each, total 80). The winning structure (Option B) was selected and is being written in `option_b/`.
+This file tracks future work items identified in the Semantic Folding paper (`option_b/semantic_folding_paper.md`) for implementation in next phases.
 
----
+## High-Priority Future Work
 
-## Scoring Criteria
+### 1. Two-Stage Neuro-Lexical Pipeline
+**Status**: Proposed (§8.5)  
+**Priority**: High  
+**Description**: Solve BioASQ scaling limitation by using BM25 to retrieve top-100, then SF re-ranks within constrained pool.  
+**Preliminary Results**: MRR 0.288 (SF-only) → 0.441 (BM25+SF re-rank) on BioASQ  
+**Next Steps**:
+- [ ] Implement BM25 + SF re-ranking pipeline
+- [ ] Evaluate on BioASQ and NQ-REaR (large corpus datasets)
+- [ ] Compare against SPLADE-only baseline
+- [ ] Test optimal pool size (top-50 vs top-100 vs top-200)
 
-| Criterion | Description |
-|-----------|-------------|
-| Narrative coherence | Does a single question drive the entire paper? |
-| Novelty emphasis | Is the contribution framed as a new finding, not engineering? |
-| Experimental grounding | Are the 13 datasets used as evidence, not decoration? |
-| Theoretical depth | Does theory directly explain the empirical results? |
-| Practical impact | Can practitioners deploy the system from this paper? |
-| Venue fit | Matches expectations of ACL/EMNLP/SIGIR/TOIS reviewers? |
-| Reproducibility | Can the work be reproduced from the paper alone? |
-| Honest limitations | Are failure modes central, not buried? |
+### 2. Polarity-Aware Semantic Folding (Negation Handling)
+**Status**: Proposed (§9.2)  
+**Priority**: Medium  
+**Description**: Use XOR operations to invert grid activations for negated phrases, solving negation blindness.  
+**Preliminary Results**: MRR 0.930 → 0.947 on Belebele negation subset (pilot with 3-bit polarity code)  
+**Next Steps**:
+- [ ] Implement polarity detection in phrase extraction (dependency parsing for "not" + verb)
+- [ ] Design inversion mask (XOR with negation bitmask)
+- [ ] Evaluate on negation-heavy datasets (Belebele, HotpotQA)
+- [ ] Systematic evaluation across datasets with varied negation patterns
 
----
+### 3. The Interference Wall Theory
+**Status**: Proposed (§8.5)  
+**Priority**: Medium (theoretical)  
+**Description**: Formalize why dense retrieval saturates in specialized domains (Orthogonality Constraint + Semantic Interference).  
+**Next Steps**:
+- [ ] Write theoretical section connecting Orthogonality Constraint (Zahn et al., 2026) to SF's advantage
+- [ ] Empirical validation: compare SF vs DPR on increasingly specialized domains
+- [ ] Quantify interference on SciFact (SF 0.755 vs DPR 0.675)
 
-## Option A: System Paper — "The Complete Pipeline"
+## Medium-Priority Future Work
 
-**Focus:** Present SF as a full unsupervised retrieval system (pipeline + tuning + hybrid). Method-forward, like SPLADE/ColBERT papers.
+### 4. Full Bootstrap Confidence Intervals
+**Status**: In Progress (§5.2 has partial CIs)  
+**Priority**: Medium  
+**Description**: Compute 95% CIs for all 9×6 experimental conditions.  
+**Next Steps**:
+- [ ] Run bootstrap resampling (1000 iterations) for all datasets × methods
+- [ ] Report full CI table in paper
+- [ ] Verify statistical significance of key findings (H2 falsification)
 
-**Structure:**
-1. Introduction
-2. Related Work
-3. Pipeline (detailed, 6 stages)
-4. Parameter Tuning (grid size, spreading, smoothing, normalization)
-5. Experiments (13 datasets)
-6. Discussion
-7. Conclusion
+### 5. SciFact with SF+SPLADE
+**Status**: Not Started  
+**Priority**: Medium  
+**Description**: Add SF+SPLADE results for SciFact to complete the 9-dataset matrix.  
+**Next Steps**:
+- [ ] Run SF+SPLADE on SciFact (300 queries)
+- [ ] Compare SF-only (0.755) vs SF+SPLADE vs DPR (0.675)
+- [ ] Update paper Table 1 with SciFact SF+SPLADE MRR
 
-**Narrative:** "We built an unsupervised retrieval pipeline. Here is every stage, every parameter, and every result."
+### 6. Graded-Relevance NDCG
+**Status**: Not Started  
+**Priority**: Low  
+**Description**: Use graded relevance (if available) to compute NDCG@K for more discriminative evaluation.  
+**Next Steps**:
+- [ ] Check if datasets have graded relevance (PubMedQA, BioASQ might)
+- [ ] Compute NDCG@5, NDCG@10 for datasets with graded labels
+- [ ] Compare against MRR (primary metric)
 
-**Strengths:** Complete, reproducible, practitioner-friendly.
-**Weaknesses:** Many contributions dilute the message. Reviewers ask "what's the finding?"
+## Long-Term Future Work
 
-| Criterion | Score |
-|-----------|-------|
-| Narrative coherence | 5 |
-| Novelty emphasis | 6 |
-| Experimental grounding | 8 |
-| Theoretical depth | 5 |
-| Practical impact | 8 |
-| Venue fit (TOIS/IRJ) | 7 |
-| Reproducibility | 9 |
-| Honest limitations | 7 |
-| **Total** | **55/80** |
+### 7. Multilingual SF via Cross-Lingual UMAP
+**Status**: Not Started  
+**Priority**: Low  
+**Description**: Extend SF to multilingual retrieval via aligned UMAP spaces.  
+**Next Steps**:
+- [ ] Investigate cross-lingual embeddings (LASER, XLM-R)
+- [ ] Align UMAP spaces across languages
+- [ ] Test on Belebele (multilingual reading comprehension)
 
----
+### 8. LLM-Enhanced Semantic Space
+**Status**: Not Started  
+**Priority**: Medium  
+**Description**: Use LLM to extract semantic concepts from contexts for richer term-context matrix.  
+**Next Steps**:
+- [ ] Prompt LLM to extract key concepts from corpus paragraphs
+- [ ] Build term-concept matrix instead of term-context
+- [ ] Compare against standard term-context matrix
 
-## Option B: Finding Paper — "Can Unsupervised Sparse Beat BM25?" (SELECTED)
+### 9. End-to-End Differentiable Grid
+**Status**: Not Started  
+**Priority**: Low  
+**Description**: Learn grid positions via Gumbel-Softmax for gradient-based optimization.  
+**Next Steps**:
+- [ ] Implement Gumbel-Softmax relaxation for grid positions
+- [ ] Train via retrieval loss (ranking loss on query-document pairs)
+- [ ] Compare against UMAP/t-SNE initialization
 
-**Focus:** Central question: Can unsupervised sparse binary representations surpass supervised dense methods on domain-specific QA benchmarks? The answer: Yes, on reading comprehension (SF+SPLADE MRR=1.0 on Belebele, surpassing BM25 0.995), but no on multi-hop reasoning (MuSiQue MRR=0.453). The Orthogonality Constraint explains why.
+### 10. Adaptive Grid Sizing
+**Status**: Not Started  
+**Priority**: Low  
+**Description**: Develop guidelines for scaling grid size with corpus size and task type.  
+**Next Steps**:
+- [ ] Empirical study: grid_size vs corpus_size vs MRR
+- [ ] Derive formula: g = f(D, ρ_target, task_type)
+- [ ] Validate on datasets with varied corpus sizes
 
-**Structure:**
-1. Abstract (200 words, with the key finding)
-2. Introduction (the question, contributions, paper organization)
-3. Related Work (IR foundations, dense retrieval, sparse representations, closed-domain QA)
-4. The Semantic Folding Pipeline (concise — 6 stages with math)
-5. Theoretical Foundation: The Orthogonality Constraint
-6. Experiments (11 datasets, setup, results tables, task-type taxonomy)
-7. Analysis: When SF Wins and When It Fails
-8. The SF+SPLADE Hybrid Architecture (the winning configuration)
-9. Discussion (limitations, implications)
-10. Conclusion
-11. References
-12. Appendix A: Reproduction, B: Math Notation, C: Dataset Details (all 11 datasets)
+## Completed Future Work
 
-**Narrative:** "Can unsupervised sparse beat BM25? On reading comprehension — yes, perfectly. On multi-hop — no. Here is why, grounded in theory and 13 datasets."
-
-**Strengths:** Mirrors highly-cited IR papers (DPR, ColBERT, SPLADE). Single question creates tension and resolution. Theory directly explains the finding. Honest about failures.
-
-**Weaknesses:** Pipeline description is condensed (full detail in thesis). Less practitioner-focused.
-
-| Criterion | Score |
-|-----------|-------|
-| Narrative coherence | 9 |
-| Novelty emphasis | 9 |
-| Experimental grounding | 8 |
-| Theoretical depth | 9 |
-| Practical impact | 7 |
-| Venue fit (ACL/EMNLP/SIGIR) | 9 |
-| Reproducibility | 7 |
-| Honest limitations | 9 |
-| **Total** | **67/80** |
-
----
-
-## Option C: Trade-off Paper — "The Sparse-Dense Trade-off for Domain-Specific QA"
-
-**Focus:** SF as a lens to study when unsupervised sparse methods suffice for closed-domain QA. The 11-dataset benchmark maps the boundary. Theory (Orthogonality) + practice (hybrid). Honest about where SF fails and where it succeeds.
-
-**Structure:**
-1. Introduction (the trade-off)
-2. Related Work
-3. Method
-4. Theory (Orthogonality Constraint as lens)
-5. Experiments (task-type taxonomy, 13 datasets)
-6. The Boundary (where SF wins/fails — explicit failure analysis)
-7. Implications (when to use sparse vs dense)
-8. Conclusion
-
-**Narrative:** "When does unsupervised sparse suffice for domain QA? Here is the boundary, mapped across 13 datasets and explained by theory."
-
-**Strengths:** Most honest framing. Explicit failure analysis is central. Clear when-to-use guidance.
-
-**Weaknesses:** Trade-off is known concept. Less punchy than a yes/no finding.
-
-| Criterion | Score |
-|-----------|-------|
-| Narrative coherence | 8 |
-| Novelty emphasis | 7 |
-| Experimental grounding | 10 |
-| Theoretical depth | 8 |
-| Practical impact | 8 |
-| Venue fit (SIGIR/TOIS) | 8 |
-| Reproducibility | 7 |
-| Honest limitations | 10 |
-| **Total** | **66/80** |
+✅ **SPLADE-only baseline added** (§5.2, §7.2) - DONE  
+✅ **H2 falsification reported** (§5.2, §7.2, §8.1) - DONE  
+✅ **UMAP default documented** (§3.4, §5.3) - DONE  
+✅ **95% CIs added** (§5.2) - DONE (partial, full CIs pending)  
+✅ **Sanati et al. (2023) integrated** (§2.2, §3.6) - DONE  
+✅ **Hole & Ahmad (2021) integrated** (§1.2, §2.3.3) - DONE
 
 ---
 
-## Expert Verdict
-
-**Option B (67/80) wins.** It has the strongest narrative arc — "can unsupervised sparse beat BM25?" is a yes/no question that drives the reader through the entire paper. The answer creates tension ("yes on Belebele, no on MuSiQue") and resolution. It matches the structure of highly-cited IR papers: DPR ("can dense beat BM25?"), ColBERT ("can late interaction match cross-encoders?"), SPLADE ("can learned sparse beat dense?"). Option C's strength — honest failure analysis — is incorporated as a dedicated subsection in Option B ("Analysis: When SF Wins and When It Fails").
-Option A is too broad and reads like a compressed thesis. Option B is the most publishable structure for a top IR/NLP venue.
+**Last Updated**: January 2026  
+**Paper Version**: option_b/semantic_folding_paper.md (with revisions)

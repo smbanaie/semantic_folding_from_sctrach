@@ -12,15 +12,27 @@ This thesis presents **Semantic Folding (SF)**, an unsupervised retrieval archit
 2. **Parameters can be tuned quickly** for new domains in minutes, not days (Sarrouti & El Alaoui, 2020; Abacha & Zweigenbaum, 2015)
 3. **Interpretable grid visualizations** explain retrieval decisions to domain experts (Liu et al., 2025; Vazrala & Mohammed, 2025)
 
-## 1.2 Research Questions
+## 1.2 From Narrow AI to Biologically Constrained Systems
+
+Current AI systems are predominantly "narrow AI" — systems that perform a single well-defined task in a single domain (Hole & Ahmad, 2021). These systems, including deep learning approaches like DPR and ColBERT, exhibit four fundamental limitations: they are **greedy** (requiring massive training sets), **brittle** (failing when test data differs mildly from training data), **rigid** (unable to adapt after initial training), and **opaque** (functioning as black boxes) (Hole & Ahmad, 2021, §3.2). Most critically, narrow AI systems lack abstract reasoning abilities and common sense about the world — they "do not know what they do" and cannot transfer performance to other domains without redesign and retraining (Hole & Ahmad, 2021, §3.2).
+
+The limitations of narrow AI stem from its mathematical and logical foundations, which differ fundamentally from biological intelligence. As Hole & Ahmad (2021) argue, "the non-biological path of narrow AI does not lead to intelligent machines that understand and act similarly to humans" (§1, p. 6). The authors contend that "continued work on today's narrow AI techniques cannot lead to general AI because the techniques are missing necessary biological properties" (§4.2, p. 90).
+
+Biologically constrained AI offers an alternative path. The neocortex — the center of intelligence in the human brain — employs **Sparse Distributed Representations (SDRs)** where only 2-5% of neurons are active at any time (Hole & Ahmad, 2021, §5.2). This sparse coding provides three advantages: (1) **robustness to noise**, (2) **capacity for massive pattern storage**, and (3) **ability to perform multiple simultaneous predictions** (Hole & Ahmad, 2021, §5.2). The Thousand Brains Theory (Hawkins, 2021) proposes that the neocortex runs a "common cortical algorithm" across all regions, suggesting that a single biologically plausible algorithm could achieve general intelligence.
+
+This thesis positions Semantic Folding within the biologically constrained AI paradigm. By representing text as SDRs on a 2D semantic grid, SF employs sparse representations analogous to neocortical coding. The Semantic Folding pipeline's use of distributional semantics (Term-Context matrices) mirrors the brain's learning of statistical regularities from sensory input. While SF does not model all six biological constraints identified by Hole & Ahmad (2021) — sparse representations, realistic neuron models, reference frames, continuous online learning, sensorimotor integration, and single general-purpose algorithm — it incorporates the foundational principle of sparse distributed representations.
+
+### 1.2 Research Questions
 
 This thesis addresses three core research questions in the context of closed-domain and open-domain QA:
 
-**RQ1:** Can unsupervised sparse binary representations achieve competitive retrieval performance against supervised dense methods on domain-specific and general-purpose QA benchmarks?
+**RQ1**: Can unsupervised sparse binary representations achieve competitive retrieval performance against supervised dense methods on closed-domain QA benchmarks?
 
-**RQ2:** How can domain-specific glossaries be integrated into the semantic grid to improve retrieval for specialized terminology?
+**RQ2**: What is the *performance boundary* — on which task types does Semantic Folding match or surpass BM25, and where does it fail?
 
-**RQ3:** What is the minimal parameter tuning effort required to adapt SF to a new closed-domain QA task, and how does this compare to retraining dense methods?
+**RQ3**: Does a hybrid (SF+SPLADE) combine unsupervised semantic matching with learned term expansion to outperform both approaches individually?
+
+**Important clarification on supervision.** The SF pipeline is fully unsupervised—no labelled pairs, no gradient updates, no GPU training. SPLADE is used as an **off-the-shelf, frozen pre-trained model** (naver/splade-cocondenser-ensembledistil) with **no domain-specific fine-tuning**. The hybrid system requires **zero labelled data for new target domains**, distinguishing it from DPR or ColBERT which need 10K–500K domain-specific training pairs. This makes SF+SPLADE a **training-free neuro-retrieval architecture** that can be deployed instantly in emerging domains.
 
 ## 1.3 Contributions
 
@@ -63,6 +75,7 @@ Parts of this work have been published or are under review:
 - Fernández, M., Cantador, I., López, V., Vallet, D., Castells, P., & Motta, E. (2011). Semantically enhanced information retrieval: An ontology-based approach. *Journal of Web Semantics*, 9(4), 413-434.
 - Furnas, G. W., et al. (1987). The vocabulary problem in human-system communication. *Communications of the ACM*, 30(11), 964–971.
 - Hawkins, J., & George, D. (2006). *Hierarchical Temporal Memory: Concepts, Theory, and Terminology*. Numenta Technical Report.
+- Hole, K. J., & Ahmad, S. (2021). A thousand brains: toward biologically constrained AI. *SN Applied Sciences*, 3(8), 743. https://doi.org/10.1007/s42452-021-04715-0
 - Kanerva, P. (1988). *Sparse Distributed Memory*. MIT Press.
 - Liu, Y., Li, X., Luo, Y., Du, J., Zhang, Y., Lv, T., ... & Tang, X. (2025). Toward a large language model-driven medical knowledge retrieval and QA system. *Engineering*, in press.
 - Sarrouti, M., & El Alaoui, S. O. (2020). SemBioNLQA: A semantic biomedical question answering system. *Artificial Intelligence in Medicine*, 102, 101776.

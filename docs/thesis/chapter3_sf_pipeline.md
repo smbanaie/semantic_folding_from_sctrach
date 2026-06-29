@@ -113,6 +113,8 @@ $$\text{cell}(p) = (\lfloor x \rfloor, \lfloor y \rfloor)$$
 
 For grid size $g$, coordinates are scaled to $[0, g-1] \times [0, g-1]$.
 
+**Evaluation against expert-annotated semantic grids**: Recent work by Cai et al. (2024) provides SSDB-100, a dataset of 3,215 sentences labeled into 100 semantic grids by 10 expert annotators. This dataset enables direct evaluation of grid mapping quality using clustering metrics (NMI, homogeneity, completeness) in addition to retrieval metrics. We include SSDB-100 as Benchmark 10 in Chapter 7 to validate our semantic space construction against expert ground truth.
+
 ### 3.4.3 Morton Encoding (Z-order Curve)
 
 To preserve spatial locality in the 1D bitstring representation, grid cells are encoded using Morton order:
@@ -139,11 +141,27 @@ with $\sigma = 1.5$ as the optimal smoothing parameter (see Chapter 4 for tuning
 
 ### 3.5.3 Sparsification
 
-After smoothing, only the top $\rho = 10\%$ of cells are retained:
+After smoothing, only the top $
+ho = 10\%$ of cells are retained:
 
-$$\mathbf{v}_j^{\text{sparse}} = \text{top\_percent}(\tilde{\mathbf{v}}_j, \rho)$$
+$$\mathbf{v}_j^{\text{sparse}} = \text{top\_percent}(\tilde{\mathbf{v}}_j, 
+ho)$$
 
 This produces sparse binary vectors with approximately $0.10 \times g^2$ active bits.
+
+**Biological inspiration**: This sparsification step mirrors the **HTM Spatial Pooler (SP)** algorithm, which encodes input streams into Sparse Distributed Representations (SDRs) with 2-5% sparsity (Hole & Ahmad, 2021, §5.2). The SP algorithm's sparsification is not arbitrary — Sanati et al. (2023) prove mathematically that increased sparsity improves estimation performance under the Cauchy distribution assumption (see Chapter 2, §2.2.3 for details).
+
+**Information-theoretic justification**: The sparsification step implicitly optimizes the **Information Bottleneck (IB)** trade-off between compression and information preservation (Sanati et al., 2023, §3.1). By retaining only the top $
+ho=10\%$ of cells, SF discards noise while preserving the most salient semantic signals. The modified IB upper bound introduced by Sanati et al. (2023) provides a framework for analyzing this trade-off, though SF does not explicitly compute IB objectives.
+
+**Choice of $
+ho=10\%$**: While HTM-SP typically uses ~2% sparsity, SF uses $
+ho=10\%$ (top_percent=0.10). This higher density reflects the different requirements of text retrieval versus sensory encoding:
+- **HTM-SP**: Encodes sensory input where extreme sparsity (2%) maximizes pattern separation capacity
+- **SF**: Encodes semantic relationships where moderate sparsity (10%) preserves enough signal for accurate matching
+
+Empirical results in Chapter 4 show that $
+ho=10\%$ is optimal for retrieval performance; lower values (5%) degrade MRR by 5.3%, while higher values (20%) increase noise without improving performance.
 
 ## 3.6 Step 5: Document Fingerprints
 
@@ -273,5 +291,7 @@ Pure SF (without SPLADE) is recommended for:
 - Furnas, G. W., et al. (1987). The vocabulary problem in human-system communication. *Communications of the ACM*, 30(11), 964–971.
 - Harris, Z. S. (1954). Distributional structure. *Word*, 10(2–3), 146–162.
 - Hawkins, J., & George, D. (2006). *Hierarchical Temporal Memory: Concepts, Theory, and Terminology*. Numenta Technical Report.
+- Hole, K. J., & Ahmad, S. (2021). A thousand brains: toward biologically constrained AI. *SN Applied Sciences*, 3(8), 743. https://doi.org/10.1007/s42452-021-04715-0
 - Kanerva, P. (1988). *Sparse Distributed Memory*. MIT Press.
+- Sanati, S., Rouhani, M., & Hodtani, G. A. (2023). Information-theoretic analysis of Hierarchical Temporal Memory-Spatial Pooler algorithm with a new upper bound for the standard information bottleneck method. *Frontiers in Computational Neuroscience*, 17, 1140782. https://doi.org/10.3389/fncom.2023.1140782
 - van der Maaten, L., & Hinton, G. (2008). Visualizing Data using t-SNE. *JMLR*, 9, 2579–2605.

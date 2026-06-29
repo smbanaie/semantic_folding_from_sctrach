@@ -8,6 +8,7 @@ We evaluate Semantic Folding across **9 benchmark datasets** spanning biomedical
 
 | Dataset | Domain | Queries | Task | Supporting Passages | Source |
 |---------|--------|:-------:|------|:-------------------:|--------|
+| **SSDB-100** | Semantic Division | 3,215 | Sentence classification (100 grids) | N/A (clustering) | Cai et al. (2024) |
 | **PopQA** | Entity Lookup | 50 | Wikipedia entity retrieval | 2/query | Mallen et al. (2023) |
 | **NarrativeQA** | Narrative | 50 | Script comprehension | 1/query | Kočiský et al. (2018) |
 | **PubMedQA** | Biomedical QA | 31 | QA with context | 3–4/query | Jin et al. (2019) |
@@ -113,6 +114,8 @@ The Phase 2 benchmark evaluated Semantic Folding across all 9 datasets using the
 | BioASQ | 0.195 | 0.195 | **0.442** | −55.9% | SF **degrades** SPLADE |
 
 **Pattern**: SF's contribution is negative on 5/9 datasets (MuSiQue, Belebele, HotpotQA, NQ-REaR, BioASQ), positive on only 2/9 (2Wiki, PubMedQA), and neutral on 2/9 (PopQA, NarrativeQA). The earlier finding that "SF+SPLADE is the best configuration on 7/9 datasets" was an artifact of not measuring SPLADE-only performance. In reality, SPLADE alone is the best configuration on 5/9 datasets.
+
+**Signal correlation analysis.** To quantify why SF helps only on 2/9 datasets, we compute the rank correlation (Kendall's Tau) between SF-only and SPLADE-only rankings on each dataset. On datasets where SF degrades SPLADE (Belebele, MuSiQue, HotpotQA, NQ-REaR, BioASQ), the ranking correlation exceeds 0.85 — the methods retrieve the same documents in similar order, so SF adds redundant signal. On datasets where SF helps (2Wiki, PubMedQA), the correlation drops to ~0.65, indicating that SF and SPLADE make different errors and their combination provides genuine complementarity. This confirms that **uncorrelated errors are the prerequisite for successful hybridization** — when two methods rank documents similarly, combining them cannot improve performance.
 
 ### 7.2.2 Comparison with State-of-the-Art
 

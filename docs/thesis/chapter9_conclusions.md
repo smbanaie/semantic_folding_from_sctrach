@@ -187,6 +187,65 @@ The negative results documented in this thesis — 7 failed improvement attempts
 
 ---
 
+## 9.8 Practitioner's Decision Guide
+
+Based on the 9-dataset benchmark results, we provide the following decision rule for retrieval system selection:
+
+**Table 9.4: Decision Guide for Retrieval Method Selection**
+
+| Condition | Recommended Method | MRR (Expected) | Rationale |
+|-----------|-------------------|:----------------:|-----------|
+| High vocabulary mismatch + small pool (< 100 docs) | **SF+SPLADE** | 0.85–0.93 | Semantic matching catches synonyms |
+| High vocabulary mismatch + large pool (> 1000 docs) | **BM25 + SPLADE re-ranking** | 0.44–0.68 | Avoid SF score compression |
+| Low vocabulary mismatch + entity lookup | **BM25** | 0.95–1.00 | Exact match suffices |
+| Multi-hop reasoning (2+ hops) | **SPLADE-only** or **DPR** | 0.80–0.99 | SF cannot compose facts |
+| No training data available | **SF-only** | 0.20–0.93 | Zero-shot deployment |
+| GPU available + training data exists | **SPLADE or DPR** | 0.68–0.99 | Peak performance |
+| Interpretability required | **SF+SPLADE** | 0.85–0.93 | Grid visualization explains matches |
+
+**Decision tree**:
+1. Is training data available? → No: Use SF-only or SF+SPLADE (off-the-shelf SPLADE)
+2. Is the candidate pool large (> 1000 docs)? → Yes: Use BM25 baseline + SPLADE re-ranking
+3. Is the task multi-hop reasoning? → Yes: Use SPLADE-only or dense method
+4. Is vocabulary mismatch high? → Yes: Use SF+SPLADE; No: Use BM25
+
+---
+
+## 9.9 Scalability Warnings
+
+### 9.9.1 Score Compression Mechanism
+
+SF's sparse dot-product scoring suffers from **score compression** on large corpora. The mathematical derivation is as follows:
+
+For a corpus of N documents, the expected dot-product score between query q and document d is:
+
+E[s] = ‖f_q‖₁ × ρ
+
+where ρ ≈ 0.10 is the fingerprint density. The standard deviation is:
+
+σ[s] ≈ √ (‖f_q‖₁ × ρ × (1-ρ))
+
+For a 64×64 grid with 10% density, this gives E[s] ≈ 41 and σ[s] ≈ 6.07.
+
+**The dynamic range problem**: The maximum expected score for N documents approaches E[s] + z × σ[s], where z scales with N. For N = 1,075 (BioASQ), z ≈ 3.5 (extreme value theory), giving a maximum of ~62. The dynamic range (62 - 41 = 21 units) is comparable to small-pool settings, but the ratio of relevant to irrelevant documents degrades from 1:19 (20-doc pool) to 1:1074 (1075-doc pool).
+
+**Practical consequence**: When N > 1000, pre-filter with BM25 or use SF as a re-ranker on a smaller candidate set (top-100 BM25 results).
+
+### 9.9.2 Grid Size Scaling
+
+The 64×64 grid is optimal for 20–200 document corpora. For larger corpora:
+
+| Corpus Size | Recommended Grid | Expected MRR (Belebele-scale) |
+|-------------|-----------------|:------------------------------:|
+| 20–200 | 64×64 | 0.88–0.93 |
+| 200–1000 | 128×128 | 0.85–0.90 |
+| 1000–5000 | 128×128 or 256×256 | 0.70–0.85 |
+| >5000 | 256×256 + BM25 prefiltering | 0.60–0.75 |
+
+**Warning**: These are extrapolations. The largest corpus evaluated in this thesis is BioASQ (1075 docs, MRR=0.288). Scaling beyond 5000 documents requires further empirical validation.
+
+---
+
 ## References
 
 - Formal, T., Piwowarski, B., & Clinchant, S. (2021). SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking. *Proceedings of SIGIR 2021*.

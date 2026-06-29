@@ -218,6 +218,16 @@ Recent evidence confirms hybrid sparse+dense pipelines outperform single-method 
 
 **Key insight**: No unsupervised sparse method approaches SPLADE's performance levels. SF's value proposition is not matching SPLADE's accuracy, but providing unsupervised semantic matching with zero training data.
 
+### 5.8 The Compositional Gap: Why SDRs Lack Relational Algebra
+
+A fundamental limitation of SDRs is the lack of a built-in **relational algebra** to compose facts across passages. Compositional reasoning requires combining features from multiple independent facts (hops). While SDRs store individual facts orthogonally (avoiding interference), they cannot represent the *relationship* between facts without learned weights.
+
+Consider a 2-hop query: "Who was the spouse of the performer who sang X?" This requires (1) identifying the performer who sang X, and (2) identifying that performer's spouse. SF encodes each fact as an independent SDR, but there is no mechanism to *compose* these SDRs into a joint representation of the 2-hop relationship. The dot-product scoring computes similarity between the query SDR and each document SDR independently — it cannot reason about multi-step relationships.
+
+This explains why SF-only degrades linearly with hop count (Chapter 7, §7.3.2): each additional hop requires composing one more fact, and SF's independent SDRs cannot capture compositional structure. SPLADE's learned expansion partially bridges this gap by learning to expand queries with terms that implicitly represent compositional relationships (e.g., expanding "spouse of performer who sang X" with "married to", "husband of", etc.). However, SPLADE alone also struggles with composition — the hybrid SF+SPLADE outperforms both on 2/9 datasets (2Wiki, PubMedQA) where the relational structure is simple enough for SF's phrase matching to help.
+
+**Future direction**: Integrating neuro-symbolic reasoning over SDRs (e.g., binding operations via vector addition/subtraction) could provide the relational algebra that current SF lacks.
+
 ### 5.7.3 SF's Position in the Landscape
 
 **Table 5.5: Method Comparison for Closed-Domain QA**

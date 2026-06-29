@@ -29,7 +29,8 @@ from scipy import sparse
 from sklearn.metrics.pairwise import cosine_similarity
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from lib import get_logger
+
+from semantic_folding.lib import get_logger
 
 logger = get_logger("sf_reranker")
 

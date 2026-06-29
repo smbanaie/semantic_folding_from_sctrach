@@ -30,7 +30,7 @@ import numpy as np
 from scipy import sparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from lib import get_logger
+from semantic_folding.lib import get_logger
 
 from .generic_benchmark import (
     load_entries, compute_metrics, filter_results_to_candidates,
@@ -38,11 +38,7 @@ from .generic_benchmark import (
 )
 from .bm25_benchmark import BM25Scorer
 from .adapters import get_adapter
-from .sf_reranker import (
-    load_document_fingerprints,
-    load_phrase_fingerprints,
-    rerank_candidates_with_sf,
-)
+from .sf_reranker_simple import rerank_candidates_with_sf_simple
 
 logger = get_logger("two_stage")
 
@@ -106,16 +102,78 @@ def run_two_stage_benchmark(
         return None
     
     logger.info(f"Loading document fingerprints from {doc_fp_dir}...")
-    doc_fingerprints = load_document_fingerprints(doc_fp_dir, grid_size=64)
-    logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints")
+    grid_size = 64  # TODO: Make configurable
+    dim = grid_size * grid_size
+    doc_fingerprints = {}
+    
+    # Try loading from .npz (preferred format)
+    npz_file = doc_fp_dir / "doc_fingerprints.npz"
+    meta_file = doc_fp_dir / "doc_fingerprints_meta.json"
+    
+    if npz_file.exists() and meta_file.exists():
+        import numpy as np
+        data = np.load(npz_file)
+        fingerprints = data['fingerprints']  # Shape: (n_docs, grid_size^2)
+        
+        with open(meta_file) as f:
+            meta = json.load(f)
+        
+        # Load doc_id mapping
+        if 'doc_to_row' in meta:
+            doc_to_row = meta['doc_to_row']
+            for doc_id, idx in doc_to_row.items():
+                vec = sparse.csr_matrix(fingerprints[idx])
+                doc_fingerprints[doc_id] = vec
+        elif 'doc_ids' in meta:
+            doc_ids = meta['doc_ids']
+            for idx, doc_id in enumerate(doc_ids):
+                vec = sparse.csr_matrix(fingerprints[idx])
+                doc_fingerprints[doc_id] = vec
+        
+        logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints from .npz")
+    else:
+        # Fall back to .json files
+        for fp_file in doc_fp_dir.glob("*.json"):
+            with open(fp_file) as f:
+                data = json.load(f)
+            doc_id = data.get("doc_id", fp_file.stem)
+            active_bits = data.get("active_bits", [])
+            
+            vec = sparse.csr_matrix((1, dim))
+            if active_bits:
+                vec[0, active_bits] = 1.0
+            doc_fingerprints[doc_id] = vec
+        
+        logger.info(f"Loaded {len(doc_fingerprints)} document fingerprints from .json")
     
     # === LOAD PHRASE FINGERPRINTS ===
     phrase_fp_dir = run_dir / "phrase_fingerprints"
     phrase_fingerprints = {}
     if phrase_fp_dir.exists():
         logger.info(f"Loading phrase fingerprints from {phrase_fp_dir}...")
-        phrase_fingerprints = load_phrase_fingerprints(phrase_fp_dir, grid_size=64)
-        logger.info(f"Loaded {len(phrase_fingerprints)} phrase fingerprints")
+        
+        # Try loading from .npz (preferred format)
+        npz_file = phrase_fp_dir / "phrase_fingerprints.npz"
+        meta_file = phrase_fp_dir / "phrase_fingerprints_meta.json"
+        
+        if npz_file.exists() and meta_file.exists():
+            from semantic_folding.dataset_benchmark.sf_reranker_simple import load_phrase_fingerprints_from_npz
+            phrase_fingerprints = load_phrase_fingerprints_from_npz(npz_file, meta_file, grid_size=64)
+            logger.info(f"Loaded {len(phrase_fingerprints)} phrase fingerprints from .npz")
+        else:
+            # Fall back to .json files
+            for fp_file in phrase_fp_dir.glob("*.json"):
+                with open(fp_file) as f:
+                    data = json.load(f)
+                phrase_text = data.get("phrase", fp_file.stem)
+                active_bits = data.get("active_bits", [])
+                
+                vec = sparse.csr_matrix((1, dim))
+                if active_bits:
+                    vec[0, active_bits] = 1.0
+                phrase_fingerprints[phrase_text] = vec
+            
+            logger.info(f"Loaded {len(phrase_fingerprints)} phrase fingerprints from .json")
     else:
         logger.warning(f"Phrase fingerprints not found: {phrase_fp_dir}")
     
@@ -185,21 +243,18 @@ def run_two_stage_benchmark(
         # === STAGE 2: SF RE-RANKING (CANDIDATES ONLY) ===
         t1 = time.time()
         
-        # Use SF to re-rank BM25 candidates
-        if len(phrase_fingerprints) > 0:
-            candidate_results = rerank_candidates_with_sf(
-                query=query_text,
-                candidates=bm25_results[:pool_size],
-                doc_fingerprints=doc_fingerprints,
-                phrase_fingerprints=phrase_fingerprints,
-                grid_size=64,
-                top_k=top_k,
-            )
-            logger.debug(f"  [{q_idx}] SF re-ranked {len(candidate_results)} candidates")
-        else:
-            # Fall back to BM25 order if phrase fingerprints not available
-            logger.warning(f"  [{q_idx}] No phrase fingerprints, using BM25 order")
-            candidate_results = [(doc_id, score) for doc_id, score in bm25_results[:top_k]]
+        # Use simplified SF re-ranking (no complex imports)
+        candidate_results = rerank_candidates_with_sf_simple(
+            query=query_text,
+            candidates=bm25_results[:pool_size],
+            doc_fingerprints=doc_fingerprints,
+            phrase_fingerprints=phrase_fingerprints,
+            grid_size=64,
+            top_k=top_k,
+            alpha=0.5,  # Equal weight to BM25 and SF
+        )
+        
+        logger.debug(f"  [{q_idx}] SF re-ranked {len(candidate_results)} candidates")
         
         stage2_elapsed = time.time() - t1
         elapsed = stage1_elapsed + stage2_elapsed

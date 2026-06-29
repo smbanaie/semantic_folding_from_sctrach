@@ -592,7 +592,7 @@ This finding has important implications:
 
 **Conclusion.** Sparse methods trade peak performance for *zero-shot capability*. This is fundamental and cannot be eliminated by architectural improvements. The trade-off is most favourable in two regimes: (a) when no training data is available and instant domain adaptation is required, and (b) on multi-hop benchmarks where BM25's exact-match baseline is already weak.
 
-**SPLADE backbone note.** The results in this paper use the standard SPLADE checkpoint (naver/splade-cocondenser-ensembledistil) from 2021. Given the rapid progress in learned sparse models, we hypothesize that replacing this with the latest variants (e.g., SPLADE-v3 [X], Mistral-SPLADE [Y]) could further push the performance ceiling, particularly on the datasets where SPLADE-only currently dominates. Our hybrid architecture is designed to be model-agnostic — any learned sparse model can serve as the SPLADE component, allowing immediate adoption of future improvements in the learned sparse retrieval literature.
+**SPLADE backbone note.** The results in this paper use the standard SPLADE checkpoint (naver/splade-cocondenser-ensembledistil) from 2021. Given the rapid progress in learned sparse models, replacing this with the latest variants could further push the performance ceiling. **Mistral-SPLADE** (Echo-Mistral-SPLADE) [X] uses a decoder-only LLM (Mistral-7B) with echo embeddings to achieve state-of-the-art performance on BEIR benchmark (avg NDCG@10 = 55.07), outperforming all SPLADE variants. Our hybrid architecture is model-agnostic — any learned sparse model can serve as the SPLADE component, allowing immediate adoption of Mistral-SPLADE for improved performance.
 
 ### 8.2 Where SF Most Fits
 

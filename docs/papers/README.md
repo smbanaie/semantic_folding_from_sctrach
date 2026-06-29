@@ -15,7 +15,19 @@ This file tracks future work items identified in the Semantic Folding paper (`op
 - [ ] Compare against SPLADE-only baseline
 - [ ] Test optimal pool size (top-50 vs top-100 vs top-200)
 
-### 2. Polarity-Aware Semantic Folding (Negation Handling)
+### 2. Replace SPLADE with Mistral-SPLADE
+**Status**: Not Started  
+**Priority**: High  
+**Description**: Upgrade the SPLADE component of the hybrid with Mistral-SPLADE (Echo-Mistral-SPLADE) which achieves SOTA on BEIR benchmark (avg NDCG@10 = 55.07).  
+**Reference**: Mistral-SPLADE paper (arXiv:2408.11119) - uses Mistral-7B with echo embeddings for learned sparse retrieval.  
+**Expected Impact**: Further push performance ceiling on datasets where SPLADE-only currently dominates (MuSiQue, Belebele, HotpotQA, NQ-REaR, BioASQ).  
+**Next Steps**:
+- [ ] Download Mistral-SPLADE checkpoint from HuggingFace
+- [ ] Replace current SPLADE (naver/splade-cocondenser-ensembledistil) with Mistral-SPLADE
+- [ ] Re-run 9-dataset benchmark with Mistral-SPLADE
+- [ ] Compare vs current SPLADE-only and SF+SPLADE results
+
+### 3. Polarity-Aware Semantic Folding (Negation Handling)
 **Status**: Proposed (§9.2)  
 **Priority**: Medium  
 **Description**: Use XOR operations to invert grid activations for negated phrases, solving negation blindness.  

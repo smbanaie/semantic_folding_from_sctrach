@@ -356,6 +356,9 @@ def process_corpus_with_expansion(
     filter_generic: bool = True,
     min_word_length: int = 3,
     keep_verbs: bool = True,
+    use_llm: bool = False,
+    llm_model: str = "gpt-3.5-turbo",
+    llm_domain: str = "biomedical",
 ) -> Tuple[CounterType[str], Dict[str, List[str]]]:
     """
     Full pipeline: raw extraction → expansion → normalization → frequency filter.
@@ -430,8 +433,18 @@ def process_corpus_with_expansion(
                     f"'{text_original[:60]}' → '{text_clean[:60]}'"
                 )
 
-            # ── Stage 1: raw candidate extraction ────────────────────────────
-            if use_spacy and SPACY_AVAILABLE:
+            # ── Stage 1: raw candidate extraction ──────────────────────────
+            if use_llm:
+                # LLM-based phrase extraction
+                if llm_extractor is None:
+                    from llm_phrase_extractor import LLMPhraseExtractor
+                    llm_extractor = LLMPhraseExtractor(model=llm_model, domain=llm_domain)
+                
+                raw_phrases = llm_extractor.extract_phrases(text_clean, domain=llm_domain)
+                raw_phrases = set(raw_phrases)  # Convert to set for consistency
+                logger.debug(f"[LLM] Extracted {len(raw_phrases)} phrases from line {i}")
+            
+            elif use_spacy and SPACY_AVAILABLE:
                 doc = nlp(text_clean)          # spaCy sees hyphen-free text
                 raw_phrases = extract_raw_phrases_spacy(doc)
             else:
@@ -662,6 +675,18 @@ def main() -> None:
         '--stats', action='store_true',
         help='Print detailed distributional statistics after extraction',
     )
+    parser.add_argument(
+        '--use-llm-phrases', action='store_true',
+        help='Use LLM for domain-specific phrase extraction instead of spaCy',
+    )
+    parser.add_argument(
+        '--llm-model', type=str, default='gpt-3.5-turbo',
+        help='LLM model to use for phrase extraction (default: gpt-3.5-turbo)',
+    )
+    parser.add_argument(
+        '--llm-domain', type=str, default='biomedical',
+        help='Domain context for LLM phrase extraction (default: biomedical)',
+    )
 
     args = parser.parse_args()
 
@@ -683,7 +708,11 @@ def main() -> None:
     logger.info(f"  Max doc freq:    {args.max_doc_freq or 'unlimited'}")
     logger.info(f"  Min word length: {args.min_word_length}")
     logger.info(f"  Keep verbs:      {args.keep_verbs}")
-    logger.info("──────────────────────────────────────────────────────────")
+    logger.info(f"  Use LLM:        {args.use_llm_phrases}")
+    if args.use_llm_phrases:
+        logger.info(f"  LLM model:      {args.llm_model}")
+        logger.info(f"  LLM domain:     {args.llm_domain}")
+    logger.info("─────────────────────────────────────────────────────")
 
     phrase_counts, phrase_to_contexts = process_corpus_with_expansion(
         corpus_path=args.corpus,
@@ -693,6 +722,9 @@ def main() -> None:
         filter_generic=filter_generic,
         min_word_length=args.min_word_length,
         keep_verbs=args.keep_verbs,
+        use_llm=args.use_llm_phrases,
+        llm_model=args.llm_model,
+        llm_domain=args.llm_domain,
     )
 
     output_vocab_path = args.output_dir / 'vocabulary'

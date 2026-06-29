@@ -2101,20 +2101,39 @@ def process_query(
 
     # Primary extraction: vocabulary-filtered, typically returns single tokens
     # and the most common short phrases, but often misses multi-word vocab hits.
-    matched_phrases = extract_query_phrases(
-        query, phrase_vocab,
-        use_spacy=use_spacy, remove_verbs=remove_verbs,
-        filter_generic=filter_generic, min_word_length=min_word_length,
-    )
-    logger.debug(f"  [STAGE 1] matched_phrases={matched_phrases}")
-
-    # Re-run raw extraction to collect every candidate before vocab filter.
-    # This is the source of truth for both multi-word vocab hits and OOV terms.
-    if use_spacy and SPACY_AVAILABLE:
-        doc = nlp(query)
-        raw = extract_raw_phrases_spacy(doc)
+    
+    # Check if LLM-based phrase extraction is enabled
+    use_llm = getattr(args, "use_llm_phrases", False)
+    llm_model = getattr(args, "llm_model", "gpt-3.5-turbo")
+    llm_domain = getattr(args, "llm_domain", "biomedical")
+    
+    if use_llm:
+        # Use LLM for query phrase extraction (consistent with Step 1)
+        from llm_phrase_extractor import LLMPhraseExtractor
+        llm_extractor = LLMPhraseExtractor(model=llm_model, domain=llm_domain)
+        
+        llm_phrases = llm_extractor.extract_phrases(query, domain=llm_domain)
+        matched_phrases = set(llm_phrases) & phrase_vocab  # Keep only vocab hits
+        logger.info(f"  [LLM] Extracted {len(llm_phrases)} phrases, {len(matched_phrases)} in vocab")
+        
+        # For raw candidates, also use LLM (needed for OOV expansion)
+        raw = llm_phrases
     else:
-        raw = extract_raw_phrases_fallback(query, max_ngram=4)
+        # Original spaCy/fallback extraction
+        matched_phrases = extract_query_phrases(
+            query, phrase_vocab,
+            use_spacy=use_spacy, remove_verbs=remove_verbs,
+            filter_generic=filter_generic, min_word_length=min_word_length,
+        )
+        
+        # Re-run raw extraction to collect every candidate before vocab filter
+        if use_spacy and SPACY_AVAILABLE:
+            doc = nlp(query)
+            raw = extract_raw_phrases_spacy(doc)
+        else:
+            raw = extract_raw_phrases_fallback(query, max_ngram=4)
+    
+    logger.debug(f"  [STAGE 1] matched_phrases={matched_phrases}")
 
     logger.debug(f"  [STAGE 1] raw candidates={raw}")
 
@@ -2908,6 +2927,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--verbose", action="store_true",
         help="Print detailed query analysis and corpus statistics.",
+    )
+    # ── LLM-based phrase extraction (must match Step 1) ──────────────────
+    parser.add_argument(
+        "--use-llm-phrases", action="store_true",
+        help="Use LLM for query phrase extraction (must match Step 1 setting)",
+    )
+    parser.add_argument(
+        "--llm-model", type=str, default="gpt-3.5-turbo",
+        help="LLM model to use for query phrase extraction (default: gpt-3.5-turbo)",
+    )
+    parser.add_argument(
+        "--llm-domain", type=str, default="biomedical",
+        help="Domain context for LLM query phrase extraction (default: biomedical)",
     )
 
     return parser.parse_args()

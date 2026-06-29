@@ -1120,6 +1120,10 @@ def cli_main():
     p_bm.add_argument("--no-splade", dest="splade", action="store_false", help="Disable SPLADE hybrid scoring")
     p_bm.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
                        help="HuggingFace SPLADE model name")
+    p_bm.add_argument("--two-stage", action="store_true", 
+                       help="Enable two-stage retrieval: BM25 top-K + SF re-ranking")
+    p_bm.add_argument("--pool-size", type=int, default=100,
+                       help="BM25 candidate pool size for two-stage retrieval (default: 100)")
     p_bm.add_argument("--multi-resolution", action="store_true",
                        help="Apply multi-resolution spreading (spread at multiple radii and combine)")
     p_bm.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
@@ -1230,6 +1234,10 @@ def cli_main():
     p_all.add_argument("--no-splade", dest="splade", action="store_false", help="Disable SPLADE hybrid scoring")
     p_all.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
                         help="HuggingFace SPLADE model name")
+    p_all.add_argument("--two-stage", action="store_true", 
+                       help="Enable two-stage retrieval: BM25 top-K + SF re-ranking")
+    p_all.add_argument("--pool-size", type=int, default=100,
+                       help="BM25 candidate pool size for two-stage retrieval (default: 100)")
     p_all.add_argument("--multi-resolution", action="store_true",
                         help="Apply multi-resolution spreading (spread at multiple radii and combine)")
     p_all.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
@@ -1347,6 +1355,9 @@ def cli_main():
         # CLI always wins; registry is merely a base default
         params["splade"] = args.splade
         params["splade_model"] = args.splade_model
+    if hasattr(args, "two_stage"):
+        params["two_stage"] = args.two_stage
+        params["pool_size"] = args.pool_size
     if hasattr(args, "multi_resolution"):
         params["multi_resolution"] = args.multi_resolution
     if hasattr(args, "doc_norm"):

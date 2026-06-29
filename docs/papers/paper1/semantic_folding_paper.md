@@ -1093,6 +1093,10 @@ Target: Improve MuSiQue MRR from 0.453 to ~0.55.
 
 Train LambdaMART on 35 features per (query, document) pair. Expected improvement: +10-15% MRR over raw SF scoring.
 
+**4. LLM-Based Domain-Specific Phrase Extraction**
+
+Replace spaCy's generic noun chunk extraction with Large Language Model (LLM)-based domain-specific phrase extraction. This addresses vocabulary mismatch between corpus and query extraction that degrades retrieval performance on specialized domains (e.g., biomedical). Implementation requires batch LLM processing of corpus paragraphs to ensure vocabulary consistency between indexing and query processing. Preliminary experiments on BioASQ show that vocabulary mismatch is the primary barrier—resolving it may improve MRR by 10-15%.
+
 #### 8.3.2 Medium-Term Research Directions
 
 **1. LLM-Enhanced Semantic Space**
@@ -1116,6 +1120,10 @@ Use Gumbel-Softmax to make the grid mapping differentiable, enabling gradient-ba
 **3. Learned Sparsification**
 
 Replace fixed top-percent with learned thresholding that adapts to document length and topic diversity.
+
+**4. Semantic Sparse Vectors for Near-Duplicate Detection**
+
+Use SF's sparse binary vectors for supervised near-duplicate detection. Encode fixed concepts (e.g., medical conditions, genes) as sparse vectors in the semantic space, then compute similarity between query/document sparse vectors and concept vectors. Applications include: (1) near-duplicate removal in search results, (2) query expansion via semantic intent clustering, (3) document clustering by shared sparse dimensions, and (4) supervised retrieval using labeled duplicates. Future work will compare against MinHash, SimHash, and dense embeddings on TREC and MS MARCO duplicate benchmarks.
 
 #### 8.3.3 Long-Term Research Directions
 

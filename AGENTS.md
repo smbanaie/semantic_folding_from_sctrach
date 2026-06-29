@@ -42,7 +42,7 @@ These files are the foundation of the PhD thesis and MUST be updated after each 
 
 | File | Topic | Status |
 |------|-------|--------|
-| `docs/thesis/benchmarks.md` | Benchmarking methodology, multi-dataset results | ✅ Updated |
+| `docs/thesis/benchmarks.md` | Benchmarking methodology, multi-dataset results | ✅ Updated (SPLADE-only results included) |
 | `docs/thesis/archive/metrics.md` | Retrieval metrics & evaluation framework | ✅ Current |
 | `docs/thesis/archive/parameters_tuning.md` | Parameter tuning experiments | ✅ Current |
 | `docs/thesis/archive/fingerprints.md` | Phrase/doc fingerprint encoding | ✅ Current |

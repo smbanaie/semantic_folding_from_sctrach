@@ -73,9 +73,9 @@ PIPELINE_DEFAULTS = {
     "keep_verbs": True,
     "min_word_length": 3,
     "min_freq": 1,
-    "max_doc_freq": 0,
+    "max_doc_freq": 20,
     "morton": True,
-    "method": "tsne",
+    "method": "umap",
     "tsne_perplexity": 50,
     "tsne_iter": 1000,
     "umap_n_neighbors": 15,
@@ -97,7 +97,7 @@ PIPELINE_DEFAULTS = {
     "snippet_stride": 2,
     "snippet_ranking": False,
     "cross_attention": False,
-    "oov_expansion": True,
+    "oov_expansion": False,
     "synonym_weight": 0.5,
 }
 

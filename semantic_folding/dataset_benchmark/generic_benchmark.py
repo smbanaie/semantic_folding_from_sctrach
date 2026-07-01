@@ -1418,7 +1418,10 @@ def cli_main():
         params["morton"] = not args.no_morton
         params["tsne_perplexity"] = args.tsne_perplexity if hasattr(args, "tsne_perplexity") else PIPELINE_DEFAULTS["tsne_perplexity"]
         params["min_freq"] = args.min_freq if hasattr(args, "min_freq") else PIPELINE_DEFAULTS["min_freq"]
-        params["max_doc_freq"] = args.max_doc_freq if hasattr(args, "max_doc_freq") else PIPELINE_DEFAULTS["max_doc_freq"]
+        # Only override max_doc_freq if user explicitly passed --max-doc-freq
+        # (otherwise preserve registry value which may be > 0)
+        if hasattr(args, "max_doc_freq") and args.max_doc_freq != PIPELINE_DEFAULTS["max_doc_freq"]:
+            params["max_doc_freq"] = args.max_doc_freq
         params["keep_verbs"] = args.keep_verbs if hasattr(args, "keep_verbs") else PIPELINE_DEFAULTS["keep_verbs"]
     if hasattr(args, "dynamic_spreading"):
         params["dynamic_spreading"] = args.dynamic_spreading

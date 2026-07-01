@@ -418,17 +418,53 @@ class GenericBenchmarkRunner:
         register_run(run_dir, self.adapter.dataset_name, "index", self.params, "indexing")
 
         # Run steps 1-5
-        # Step 1
-        out = run_dir / "extracted_phrases"
-        ok = run_step(STEP_SCRIPTS[1], [
-            "--corpus", str(corpus_path), "--output", str(out),
-            "--keep-verbs", "--min-word-length", str(self.params["min_word_length"]),
-            "--min-freq", str(self.params["min_freq"]),
-            "--max-doc-freq", str(self.params.get("max_doc_freq", 0)),
-        ], PROJECT_ROOT, "Step 1 phrase_extractor")
-        if not ok:
-            update_run_status(run_dir, self.adapter.dataset_name, "failed_step1")
-            return None
+        # Step 1 (skip if prebuilt vocab provided)
+        prebuilt = self.params.get("prebuilt_vocab")
+        if prebuilt:
+            prebuilt_path = Path(prebuilt)
+            target = run_dir / "extracted_phrases"
+            target.mkdir(parents=True, exist_ok=True)
+            import shutil
+            for fname in ("vocabulary.csv", "phrase_to_contexts.json"):
+                src = prebuilt_path / fname
+                if src.exists():
+                    shutil.copy2(str(src), str(target / fname))
+                    logger.info(f"  [PREBUILT] copied {fname} from {prebuilt_path}")
+            logger.info("  [PREBUILT] skipping Step 1 + 0.5 (using pre-built vocabulary)")
+        else:
+            out = run_dir / "extracted_phrases"
+            ok = run_step(STEP_SCRIPTS[1], [
+                "--corpus", str(corpus_path), "--output", str(out),
+                "--keep-verbs", "--min-word-length", str(self.params["min_word_length"]),
+                "--min-freq", str(self.params["min_freq"]),
+                "--max-doc-freq", str(self.params.get("max_doc_freq", 0)),
+            ], PROJECT_ROOT, "Step 1 phrase_extractor")
+            if not ok:
+                update_run_status(run_dir, self.adapter.dataset_name, "failed_step1")
+                return None
+
+            # ── Step 0.5: LLM phrase enrichment (optional) ──────────────────────
+            if self.params.get("llm_phrases", False):
+                logger.info("  [LLM] Step 0.5: enriching phrase vocabulary via LLM extraction")
+                from llm_phrase_extractor import (
+                    extract_phrases_from_corpus,
+                    merge_with_spacy,
+                )
+                llm_cache = run_dir / "llm_phrases"
+                llm_counts, llm_mapping = extract_phrases_from_corpus(
+                    corpus_lines,
+                    min_freq=self.params.get("min_freq", 1),
+                    max_doc_freq=self.params.get("max_doc_freq", 0),
+                    batch_size=self.params.get("llm_batch_size", 8),
+                    cache_dir=llm_cache,
+                )
+                # Merge into Step 1 output directory (overwrites)
+                merge_with_spacy(
+                    llm_counts, llm_mapping,
+                    out / "vocabulary.csv",
+                    out / "phrase_to_contexts.json",
+                    run_dir,
+                )
 
         # Step 2
         out = run_dir / "term_context_matrix"
@@ -1095,6 +1131,12 @@ def cli_main():
     p_idx.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_idx.add_argument("--glossary-corpus-expansion", action="store_true",
                        help="Inject glossary synonyms into corpus at indexing time (P1.3)")
+    p_idx.add_argument("--llm-phrases", action="store_true", default=False,
+                       help="Enrich phrase vocabulary with LLM-extracted concepts (Step 0.5)")
+    p_idx.add_argument("--llm-batch-size", type=int, default=4,
+                       help="Docs per LLM API call during phrase extraction (default: 4)")
+    p_idx.add_argument("--prebuilt-vocab", type=Path, default=None,
+                       help="Path to a pre-built extracted_phrases/ dir to skip Steps 1 + 0.5")
 
     # benchmark
     p_bm = sub.add_parser("benchmark", help="Phase 2: run Step 6 per query")
@@ -1126,6 +1168,8 @@ def cli_main():
     p_bm.add_argument("--expand-synonyms", dest="expand_synonyms", action="store_true", default=None,
                        help="Expand query with synonyms from glossary")
     p_bm.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
+    p_bm.add_argument("--llm-phrases", dest="llm_phrases", action="store_true", default=None,
+                       help="Reference flag: index was built with LLM-enriched vocabulary")
     p_bm.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_bm.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_bm.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
@@ -1238,6 +1282,10 @@ def cli_main():
     p_all.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_all.add_argument("--glossary-corpus-expansion", dest="glossary_corpus_expansion", action="store_true", default=None,
                         help="Inject glossary synonyms into corpus at indexing time (P1.3)")
+    p_all.add_argument("--llm-phrases", dest="llm_phrases", action="store_true", default=None,
+                        help="Enrich phrase vocabulary with LLM-extracted concepts (Step 0.5)")
+    p_all.add_argument("--llm-batch-size", type=int, default=4,
+                        help="Docs per LLM API call during phrase extraction (default: 4)")
     p_all.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_all.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_all.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
@@ -1376,6 +1424,12 @@ def cli_main():
         params["expand_synonyms"] = args.expand_synonyms
     if hasattr(args, "glossary_corpus_expansion") and args.glossary_corpus_expansion is not None:
         params["glossary_corpus_expansion"] = args.glossary_corpus_expansion
+    if hasattr(args, "llm_phrases") and args.llm_phrases is not None:
+        params["llm_phrases"] = args.llm_phrases
+    if hasattr(args, "llm_batch_size") and args.llm_batch_size is not None:
+        params["llm_batch_size"] = args.llm_batch_size
+    if hasattr(args, "prebuilt_vocab") and args.prebuilt_vocab is not None:
+        params["prebuilt_vocab"] = str(args.prebuilt_vocab)
     if hasattr(args, "glossary") and args.glossary:
         params["glossary_path"] = args.glossary
     # Also check registry for glossary_path

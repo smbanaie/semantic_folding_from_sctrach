@@ -643,6 +643,27 @@ class GenericBenchmarkRunner:
                 f.write(be["query_text"] + "\n")
         logger.info(f"Batch: {len(batch_entries)} queries written to {query_file}")
 
+        # ── Pre-extract LLM query phrases if requested ────────────────────
+        llm_query_phrases_path = None
+        if self.params.get("llm_query_phrases"):
+            try:
+                from llm_phrase_extractor import extract_query_phrases_batch
+                query_texts = [be["query_text"] for be in batch_entries]
+                logger.info(f"  [LLM] extracting query phrases for {len(query_texts)} queries...")
+                all_phrases = extract_query_phrases_batch(query_texts)
+                llm_query_phrases_path = bench_dir / "llm_query_phrases.json"
+                with open(llm_query_phrases_path, "w", encoding="utf-8") as f:
+                    json.dump(all_phrases, f)
+                n_nonempty = sum(1 for p in all_phrases if p)
+                logger.info(
+                    f"  [LLM] query phrases: {n_nonempty}/{len(all_phrases)} "
+                    f"queries got extra phrases"
+                )
+            except ImportError:
+                logger.warning("  [LLM] llm_phrase_extractor not available — skipping query extraction")
+            except Exception as exc:
+                logger.warning(f"  [LLM] query phrase extraction failed: {exc} — proceeding without")
+
         # ── Build step6 args (shared across all queries) ──────────────────
         batch_output = bench_dir / "all_results.json"
         step6_args = [
@@ -741,6 +762,9 @@ class GenericBenchmarkRunner:
         # ── Synonym weight ─────────────────────────────────────────────────────
         if self.params.get("synonym_weight", 0.5) != 0.5:
             step6_args.extend(["--synonym-weight", str(self.params["synonym_weight"])])
+
+        if llm_query_phrases_path:
+            step6_args.extend(["--llm-query-phrases", str(llm_query_phrases_path)])
 
         # ── Single subprocess call for ALL queries ────────────────────────
         t0 = time.time()
@@ -1170,6 +1194,8 @@ def cli_main():
     p_bm.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
     p_bm.add_argument("--llm-phrases", dest="llm_phrases", action="store_true", default=None,
                        help="Reference flag: index was built with LLM-enriched vocabulary")
+    p_bm.add_argument("--llm-query-phrases", dest="llm_query_phrases", action="store_true", default=None,
+                       help="Extract query phrases via LLM at query time for improved match quality")
     p_bm.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
     p_bm.add_argument("--tfidf-alpha", type=float, default=0.3, help="TF-IDF weight in re-ranking")
     p_bm.add_argument("--corpus", type=Path, default=None, help="Path to corpus.txt for hybrid/tfidf")
@@ -1284,6 +1310,8 @@ def cli_main():
                         help="Inject glossary synonyms into corpus at indexing time (P1.3)")
     p_all.add_argument("--llm-phrases", dest="llm_phrases", action="store_true", default=None,
                         help="Enrich phrase vocabulary with LLM-extracted concepts (Step 0.5)")
+    p_all.add_argument("--llm-query-phrases", dest="llm_query_phrases", action="store_true", default=None,
+                        help="Extract query phrases via LLM at query time for improved match quality")
     p_all.add_argument("--llm-batch-size", type=int, default=4,
                         help="Docs per LLM API call during phrase extraction (default: 4)")
     p_all.add_argument("--tfidf-rerank", action="store_true", help="Enable TF-IDF re-ranking")
@@ -1426,6 +1454,8 @@ def cli_main():
         params["glossary_corpus_expansion"] = args.glossary_corpus_expansion
     if hasattr(args, "llm_phrases") and args.llm_phrases is not None:
         params["llm_phrases"] = args.llm_phrases
+    if hasattr(args, "llm_query_phrases") and args.llm_query_phrases is not None:
+        params["llm_query_phrases"] = args.llm_query_phrases
     if hasattr(args, "llm_batch_size") and args.llm_batch_size is not None:
         params["llm_batch_size"] = args.llm_batch_size
     if hasattr(args, "prebuilt_vocab") and args.prebuilt_vocab is not None:

@@ -1005,9 +1005,9 @@ def extract_query_phrases(
     remove_verbs    : bool = False,
     filter_generic  : bool = True,
     min_word_length : int  = 3,
+    extra_phrases   : Optional[List[str]] = None,
 ) -> List[str]:
-    """
-    Extract vocabulary-matched phrases from a raw query string.
+    """Extract vocabulary-matched phrases from a raw query string.
 
     Applies the **identical** three-stage pipeline used in Steps 1 and 5
     to guarantee that query phrases map to the same vocabulary entries
@@ -1054,6 +1054,11 @@ def extract_query_phrases(
         Minimum character length for single-word tokens kept after
         expansion (default: ``3``).  **Must match the flag used during
         Step 1.**
+    extra_phrases : Optional[List[str]], optional
+        Additional phrase strings (from LLM extraction) to inject into
+        the pipeline after Stage 1 normalisation.  These pass through
+        Stage 2 (sub-phrase expansion) and Stage 3 (vocab filter) to
+        increase recall on vocabulary-matched concepts.
 
     Returns
     -------
@@ -1115,6 +1120,15 @@ def extract_query_phrases(
             logger.debug(f"  [NORM OK] '{phrase}' → '{norm}'")
         else:
             logger.debug(f"  [NORM DROP] '{phrase}' → empty after normalisation")
+
+    # Inject extra phrases (e.g., from LLM extraction) after normalisation
+    if extra_phrases:
+        for phrase in extra_phrases:
+            norm = normalize_phrase(phrase, remove_verbs=remove_verbs)
+            if norm:
+                candidates.append(norm)
+                logger.debug(f"  [EXTRA NORM] '{phrase}' → '{norm}'")
+        logger.debug(f"  [EXTRA] added {sum(1 for p in extra_phrases if normalize_phrase(p, remove_verbs=remove_verbs))} extra phrases to candidates")
 
     if not candidates:
         logger.debug(f"No candidates after normalisation for query: {query!r}")
@@ -1911,7 +1925,8 @@ def process_query(
     doc_fingerprints    : Dict[str, csr_matrix],
     args                : argparse.Namespace,
     idf_weights         : Optional[Dict[str, float]] = None,
-     use_morton      : bool  = True
+    use_morton      : bool  = True,
+    llm_query_phrases   : Optional[List[str]] = None,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     r"""
     Process a single query through the full retrieval pipeline.
@@ -2105,6 +2120,7 @@ def process_query(
         query, phrase_vocab,
         use_spacy=use_spacy, remove_verbs=remove_verbs,
         filter_generic=filter_generic, min_word_length=min_word_length,
+        extra_phrases=llm_query_phrases,
     )
     logger.debug(f"  [STAGE 1] matched_phrases={matched_phrases}")
 
@@ -2674,6 +2690,10 @@ def parse_args() -> argparse.Namespace:
         "--query-file", dest="query_file", type=Path, default=None,
         help="Text file with one query per line (alternative to --query).",
     )
+    parser.add_argument(
+        "--llm-query-phrases", dest="llm_query_phrases_path", type=Path, default=None,
+        help="JSON file mapping 0-indexed query index to list of LLM-extracted phrases.",
+    )
 
     # ── Grid parameters ───────────────────────────────────────────────────────
     parser.add_argument(
@@ -3112,11 +3132,34 @@ def main() -> None:
 
     logger.info(f"Processing {len(queries)} quer{'y' if len(queries) == 1 else 'ies'}.")
 
+    # ── Load LLM query phrases if provided ──────────────────────────────────────
+    llm_query_phrases: Optional[List[List[str]]] = None
+    if args.llm_query_phrases_path:
+        if args.llm_query_phrases_path.exists():
+            with open(args.llm_query_phrases_path, "r", encoding="utf-8") as fh:
+                raw = json.load(fh)
+            # Accept both list-of-lists and dict-of-lists; normalise to list of lists
+            if isinstance(raw, dict):
+                llm_query_phrases = [raw.get(str(i), []) for i in range(len(queries))]
+            else:
+                llm_query_phrases = raw
+            logger.info(
+                f"Loaded LLM query phrases for {sum(1 for p in llm_query_phrases if p)}/"
+                f"{len(queries)} queries."
+            )
+        else:
+            logger.warning(
+                f"LLM query phrases file not found: {args.llm_query_phrases_path} — "
+                "proceeding without."
+            )
+
     # ── Process queries ────────────────────────────────────────────────────────
     all_results = []
 
     for i, query in enumerate(queries, 1):
         logger.info(f"[{i}/{len(queries)}] Processing: {query!r}")
+
+        q_extra = llm_query_phrases[i - 1] if llm_query_phrases and i - 1 < len(llm_query_phrases) else None
 
         results, metadata, query_fp_dense = process_query(
             query,
@@ -3124,7 +3167,8 @@ def main() -> None:
             doc_fingerprints,
             args,
             idf_weights,
-            use_morton=use_morton
+            use_morton=use_morton,
+            llm_query_phrases=q_extra,
         )
 
         if "error" in metadata:

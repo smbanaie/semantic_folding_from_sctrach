@@ -336,6 +336,56 @@ def extract_phrases_from_corpus(
     return phrase_counts, filtered_mapping
 
 
+QUERY_SYSTEM_PROMPT = """You are a biomedical query analyzer. Extract key concepts and multi-word phrases from the user's question that would help retrieve relevant medical literature.
+
+Rules:
+- Extract the disease, condition, genes, symptoms, treatments, and biological processes mentioned
+- Identify concept pairs or relationships (e.g., "Hirschsprung mendelian", "genetic inheritance pattern")
+- Include both exact disease names and their relevant sub-concepts
+- Focus on domain-specific medical terms, not generic question words
+- Output only a JSON array of strings, each a phrase or concept
+- If nothing relevant, return []
+
+Examples:
+Input: "Is Hirschsprung disease a mendelian or a multifactorial disorder?"
+Output: ["Hirschsprung disease", "mendelian disorder", "multifactorial disorder", "genetic inheritance", "Hirschsprung inheritance"]
+
+Input: "What is the role of RET mutations in thyroid cancer?"
+Output: ["RET mutations", "thyroid cancer", "RET gene", "RET role thyroid", "genetic mutation"]
+
+Return ONLY the JSON array, no explanation."""  # noqa: E501
+
+
+def extract_query_phrases_batch(
+    query_texts: List[str],
+    system_prompt: str = None,
+    max_tokens: int = 2048,
+    temperature: float = 0.01,
+    retries: int = 2,
+) -> List[List[str]]:
+    """Extract key concepts from query texts using LLM.
+
+    Each query is sent individually (short text, high precision needed).
+    Returns a list of phrase lists, one per query.
+    """
+    if system_prompt is None:
+        system_prompt = QUERY_SYSTEM_PROMPT
+
+    results: List[List[str]] = []
+    for i, query_text in enumerate(query_texts):
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": query_text},
+        ]
+        content = _call_llm(messages, max_tokens=max_tokens, temperature=temperature, retries=retries)
+        phrases = _parse_llm_response(content)
+        results.append(phrases)
+        if (i + 1) % 5 == 0:
+            logger.info(f"  [LLM] query phrases: {i+1}/{len(query_texts)}")
+
+    return results
+
+
 # ── Save in phrase_extractor format ───────────────────────────────────────────
 
 def save_llm_phrases(

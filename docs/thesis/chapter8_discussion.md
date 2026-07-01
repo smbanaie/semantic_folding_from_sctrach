@@ -27,7 +27,7 @@ The MuSiQue result appears to contradict the compositional gap — SF succeeds o
 
 ### 8.1.3 Negative Results Summary
 
-A significant contribution of this work is the systematic documentation of **what does NOT improve SF**. As detailed in Chapter 7 (§7.2.3–§7.2.6), we tested 7 distinct approaches:
+A significant contribution of this work is the systematic documentation of **what does NOT improve SF**. As detailed in Chapter 7 (§7.2.3–§7.2.6), we tested 8 distinct approaches:
 
 | Attempt | MRR Impact | Verdict |
 |---------|:----------:|---------|

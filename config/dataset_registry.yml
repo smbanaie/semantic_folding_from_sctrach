@@ -14,7 +14,10 @@
 defaults:
   grid_size: 64
   smoothing_sigma: 1.5
-  method: tsne
+  method: umap
+  umap_n_neighbors: 15
+  umap_min_dist: 0.0
+  umap_metric: cosine
   perplexity: 50
   spreading_steps: 1
   top_percent: 0.10
@@ -34,9 +37,9 @@ defaults:
   normalize_after_spreading: false
   spreading_decay: 0.5
   normalization: l2
-  oov_expansion: true
+  oov_expansion: false
   synonym_weight: 0.5
-  # Phrase frequency filtering (tested: +12.4% BioASQ, +10.6% HotpotQA)
+  # Phrase frequency filtering (tested: +8.6% BioASQ, +0.7% HotpotQA vs df=0)
   max_doc_freq: 20
 
 # ============================================================

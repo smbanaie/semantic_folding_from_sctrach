@@ -1503,8 +1503,8 @@ def cli_main():
         params["spreading_decay"] = args.spreading_decay
     if hasattr(args, "normalization"):
         params["normalization"] = args.normalization
-    if hasattr(args, "no_oov_expansion"):
-        params["oov_expansion"] = not args.no_oov_expansion
+    if hasattr(args, "no_oov_expansion") and args.no_oov_expansion:
+        params["oov_expansion"] = False
     if hasattr(args, "synonym_weight"):
         params["synonym_weight"] = args.synonym_weight
     if hasattr(args, "corpus") and args.corpus:

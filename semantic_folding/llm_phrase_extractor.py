@@ -89,20 +89,20 @@ def _call_llm(messages: list, max_tokens: int = 4096, temperature: float = 0.1,
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are a biomedical NLP assistant. Your task is to extract key concepts and multi-word phrases from biomedical text.
+SYSTEM_PROMPT = """You are a biomedical NLP assistant. Extract domain-specific terms from biomedical text that a standard NLP parser would miss or under-represent.
 
-For each input line, return a JSON array of strings. Each string is a concept or phrase that captures domain-specific meaning.
+For each input line, return a JSON array of strings. Each string is a specific term.
 
 Rules:
-- Prefer multi-word terms (2-5 words) over single words
-- Include gene/protein names, diseases, drugs, biological processes
+- Output AT MOST 5 terms per item. Fewer is better — only high-value terms.
+- Prefer proper nouns: drug names, gene/protein symbols, rare disease names, assay names
+- Prefer multi-word terms (2-4 words) over single generic words
 - Include abbreviations and their expansions as separate entries when both appear
-- Include MeSH-like concepts and technical terminology
-- Exclude generic/stop words, very common English words, and phrases shorter than 3 characters
-- If nothing relevant is found, return an empty array []
+- NEVER output generic terms: drug, therapy, treatment, gene, protein, disease, disorder, mutation, effect, role, mechanism, cell, tissue, process, pathway
+- If the text contains only generic concepts, return []
 
 OUTPUT FORMAT: A JSON list of strings. Example:
-["myocardial infarction", "heart attack", "acute mi", "cardiac arrest", "receptor tyrosine kinase RET"]
+["myocardial infarction", "acute mi", "receptor tyrosine kinase RET"]
 
 Return ONLY the JSON array, no explanation."""
 
@@ -146,6 +146,7 @@ def extract_phrases_batch(
     batch_size: int = 8,
     max_tokens: int = 8192,
     temperature: float = 0.05,
+    max_phrases_per_doc: int = 5,
 ) -> Dict[str, Set[str]]:
     """Extract phrases from a batch of corpus lines via a single LLM call.
 
@@ -199,6 +200,7 @@ Items:
         return {}
 
     result: Dict[str, Set[str]] = {}
+    doc_phrase_count: Dict[str, int] = {}  # track phrases per doc_id
     for key, phrases in parsed.items():
         try:
             idx = int(key)
@@ -211,7 +213,11 @@ Items:
             for phrase in phrases:
                 p = str(phrase).strip().lower() if phrase else ""
                 if len(p) >= 3:
+                    count = doc_phrase_count.get(doc_id, 0)
+                    if count >= max_phrases_per_doc:
+                        break
                     result.setdefault(p, set()).add(doc_id)
+                    doc_phrase_count[doc_id] = count + 1
 
     logger.info(f"  [LLM] batch extracted {sum(len(v) for v in result.values())} phrase-ctx mappings for {len(texts)} lines")
     return result
@@ -336,22 +342,31 @@ def extract_phrases_from_corpus(
     return phrase_counts, filtered_mapping
 
 
-QUERY_SYSTEM_PROMPT = """You are a biomedical query analyzer. Extract key concepts and multi-word phrases from the user's question that would help retrieve relevant medical literature.
+QUERY_SYSTEM_PROMPT = """You are a biomedical query analyzer. Your ONLY job is to find 1-2 specific terms that a standard NLP parser would MISS from the question.
+
+What spaCy already catches: disease names, body parts, common medical nouns, verbs, adjectives. DO NOT duplicate these.
+
+What spaCy MISKS (your job):
+- Drug/compound names (e.g., "metformin", "lacosamide")
+- Gene/protein symbols (e.g., "RET", "BRCA1", "EGFR")
+- Specific assay/test names (e.g., "ELISA", "Western blot")
+- Rare disease subtypes not in general vocabulary
 
 Rules:
-- Extract the disease, condition, genes, symptoms, treatments, and biological processes mentioned
-- Identify concept pairs or relationships (e.g., "Hirschsprung mendelian", "genetic inheritance pattern")
-- Include both exact disease names and their relevant sub-concepts
-- Focus on domain-specific medical terms, not generic question words
-- Output only a JSON array of strings, each a phrase or concept
-- If nothing relevant, return []
+- Output AT MOST 2 terms. Less is better — only add what spaCy truly misses.
+- Each term must be a specific proper noun or technical term, NOT a concept or relationship.
+- NEVER output generic terms: drug, therapy, treatment, gene, protein, disease, disorder, mutation, effect, role, interaction, mechanism.
+- NEVER output multi-word relationship phrases. Only atomic terms.
+- If spaCy would already catch everything, return []
 
-Examples:
 Input: "Is Hirschsprung disease a mendelian or a multifactorial disorder?"
-Output: ["Hirschsprung disease", "mendelian disorder", "multifactorial disorder", "genetic inheritance", "Hirschsprung inheritance"]
+Output: []  (spaCy catches: Hirschsprung, disease, mendelian, multifactorial, disorder)
+
+Input: "Does metformin interfere thyroxine absorption?"
+Output: ["metformin", "thyroxine"]  (drug names spaCy might miss)
 
 Input: "What is the role of RET mutations in thyroid cancer?"
-Output: ["RET mutations", "thyroid cancer", "RET gene", "RET role thyroid", "genetic mutation"]
+Output: ["RET"]  (gene symbol spaCy misses)
 
 Return ONLY the JSON array, no explanation."""  # noqa: E501
 
@@ -362,6 +377,7 @@ def extract_query_phrases_batch(
     max_tokens: int = 2048,
     temperature: float = 0.01,
     retries: int = 2,
+    max_phrases: int = 2,
 ) -> List[List[str]]:
     """Extract key concepts from query texts using LLM.
 
@@ -378,7 +394,7 @@ def extract_query_phrases_batch(
             {"role": "user", "content": query_text},
         ]
         content = _call_llm(messages, max_tokens=max_tokens, temperature=temperature, retries=retries)
-        phrases = _parse_llm_response(content)
+        phrases = _parse_llm_response(content)[:max_phrases]
         results.append(phrases)
         if (i + 1) % 5 == 0:
             logger.info(f"  [LLM] query phrases: {i+1}/{len(query_texts)}")

@@ -3502,6 +3502,414 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260627_224234
     status: completed
     type: benchmark
+  bioasq__benchmark_20260701_171652:
+    created_at: '2026-07-01T17:16:53.653447'
+    dataset: bioasq
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260701_165015\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      geometric: 'False'
+      glossary_corpus_expansion: 'True'
+      glossary_path: config/glossary_bioasq.json
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_query_phrases: 'True'
+      max_doc_freq: '0'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '30'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260701_171652
+    status: completed
+    type: benchmark
+  bioasq__benchmark_20260701_172946:
+    created_at: '2026-07-01T17:29:47.120869'
+    dataset: bioasq
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260701_165015\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      geometric: 'False'
+      glossary_corpus_expansion: 'True'
+      glossary_path: config/glossary_bioasq.json
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_query_phrases: 'True'
+      max_doc_freq: '0'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '30'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260701_172946
+    status: completed
+    type: benchmark
+  bioasq__benchmark_20260701_194418:
+    created_at: '2026-07-01T19:44:23.403917'
+    dataset: bioasq
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260701_165015\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      geometric: 'False'
+      glossary_corpus_expansion: 'True'
+      glossary_path: config/glossary_bioasq.json
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_query_phrases: 'True'
+      max_doc_freq: '0'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '30'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260701_194418
+    status: running
+    type: benchmark
+  bioasq__benchmark_20260701_203154:
+    created_at: '2026-07-01T20:31:55.198438'
+    dataset: bioasq
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260701_165015\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      geometric: 'False'
+      glossary_corpus_expansion: 'True'
+      glossary_path: config/glossary_bioasq.json
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_query_phrases: 'True'
+      max_doc_freq: '0'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '30'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260701_203154
+    status: completed
+    type: benchmark
+  bioasq__benchmark_20260701_225700:
+    created_at: '2026-07-01T22:57:01.476096'
+    dataset: bioasq
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260701_225339\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      geometric: 'False'
+      glossary_corpus_expansion: 'True'
+      glossary_path: config/glossary_bioasq.json
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '20'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '30'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260701_225700
+    status: completed
+    type: benchmark
+  bioasq__benchmark_20260701_230302:
+    created_at: '2026-07-01T23:03:03.844181'
+    dataset: bioasq
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260701_225339\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      geometric: 'False'
+      glossary_corpus_expansion: 'True'
+      glossary_path: config/glossary_bioasq.json
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_query_phrases: 'True'
+      max_doc_freq: '0'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '30'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\benchmarks\benchmark_20260701_230302
+    status: completed
+    type: benchmark
   bioasq__run_20260627_010905:
     created_at: '2026-06-27T01:09:05.750166'
     dataset: bioasq
@@ -3872,6 +4280,74 @@ runs:
       umap_n_neighbors: '15'
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260627_211053
+    status: completed
+    type: index
+  bioasq__run_20260701_225339:
+    created_at: '2026-07-01T22:53:41.057894'
+    dataset: bioasq
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260701_225339\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      expand_synonyms: 'True'
+      geometric: 'False'
+      glossary_corpus_expansion: 'True'
+      glossary_path: config/glossary_bioasq.json
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '20'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '30'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\bioasq_benchmark\runs\run_20260701_225339
     status: completed
     type: index
   cuad__benchmark_20260627_223015:
@@ -6813,726 +7289,66 @@ runs:
     status: failed_step1
     type: index
   hotpotqa__benchmark_20260624_000922:
-    created_at: '2026-06-24T00:09:22.235744'
+    created_at: '2026-06-28T13:32:43.444379'
     dataset: hotpotqa
     params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      corpus_path: outputs\hotpotqa_benchmark\runs\run_20260616_223027\corpus.txt
-      decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
+      glossary_corpus_expansion: 'False'
       grid_size: '64'
-      hybrid: 'True'
-      hybrid_alpha: '0.5'
       keep_verbs: 'True'
+      max_doc_freq: '20'
       method: tsne
-      min_freq: '1'
+      min_freq: '2'
       min_word_length: '3'
       morton: 'True'
-      negation_aware: 'False'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
       short_query_max_words: '10'
-      sim_metric: cosine
       smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
       spreading_steps: '1'
       spreading_steps_long: '1'
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
       top_k: '5'
       top_percent: '0.1'
       tsne_iter: '1000'
-      tsne_perplexity: '30'
+      tsne_perplexity: '50'
       umap_metric: cosine
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\benchmarks\benchmark_20260624_000922
     status: completed
-    type: benchmark
-    created_at: '2026-06-28T12:44:14.110489'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: sqrt_nnz
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      glossary_corpus_expansion: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '20'
-      method: tsne
-      min_freq: '2'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '30'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: running
-    type: benchmark
-    created_at: '2026-06-28T12:51:45.059668'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: sqrt_nnz
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: running
-    type: benchmark
-    created_at: '2026-06-28T13:06:41.814078'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: running
-    type: benchmark
-    created_at: '2026-06-28T13:11:45.252595'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: sqrt_nnz
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: running
-    type: benchmark
-    created_at: '2026-06-28T13:21:31.630791'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'True'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: running
-    type: benchmark
-    created_at: '2026-06-28T13:34:37.953259'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: sqrt_nnz
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: completed
-    type: benchmark
-    created_at: '2026-06-28T13:35:02.145121'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: completed
-    type: benchmark
-    created_at: '2026-06-28T13:35:29.944021'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'True'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: completed
-    type: benchmark
-    created_at: '2026-06-28T13:35:52.191653'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'True'
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'True'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: completed
-    type: benchmark
-    created_at: '2026-06-28T13:36:18.102225'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'True'
-      rerank_model: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\models\lambdamart_belebele_sameds.txt
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'True'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: failed_batch
-    type: benchmark
-    created_at: '2026-06-28T13:36:36.756201'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'True'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: completed
-    type: benchmark
-    created_at: '2026-06-28T13:37:02.714906'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      grid_size: '64'
-      hybrid: 'True'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '0'
-      method: tsne
-      min_freq: '1'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: completed
-    type: benchmark
-    created_at: '2026-06-28T12:16:59.733151'
-    params:
-      asym_alpha: '0.7'
-      asymmetric: 'False'
-      decompose: 'False'
-      doc_norm: sqrt_nnz
-      dynamic_spreading: 'False'
-      expand_synonyms: 'False'
-      geometric: 'False'
-      glossary_corpus_expansion: 'False'
-      grid_size: '64'
-      hybrid: 'False'
-      hybrid_alpha: '0.5'
-      keep_verbs: 'True'
-      max_doc_freq: '20'
-      method: tsne
-      min_freq: '2'
-      min_word_length: '3'
-      morton: 'True'
-      multi_resolution: 'False'
-      negation_aware: 'False'
-      negation_boost: '0.3'
-      negation_penalty: '0.5'
-      rerank: 'False'
-      rerank_model: None
-      rerank_top_k: '100'
-      score_norm: none
-      short_query_max_words: '10'
-      sim_metric: cosine
-      smoothing_sigma: '1.5'
-      splade: 'False'
-      splade_model: naver/splade-cocondenser-ensembledistil
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      storage: file
-      tfidf_alpha: '0.3'
-      tfidf_rerank: 'False'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '30'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: completed
     type: index
-    created_at: '2026-06-28T12:23:46.843574'
+  hotpotqa__benchmark_20260701_220646:
+    created_at: '2026-07-01T22:06:47.681396'
+    dataset: hotpotqa
     params:
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      glossary_corpus_expansion: 'False'
-      grid_size: '64'
-      keep_verbs: 'True'
-      max_doc_freq: '20'
-      method: tsne
-      min_freq: '2'
-      min_word_length: '3'
-      morton: 'True'
-      short_query_max_words: '10'
-      smoothing_sigma: '1.5'
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: indexing
-    type: index
-    created_at: '2026-06-28T12:40:04.176070'
-    params:
-      doc_norm: l2
-      dynamic_spreading: 'False'
-      glossary_corpus_expansion: 'False'
-      grid_size: '64'
-      keep_verbs: 'True'
-      max_doc_freq: '20'
-      method: tsne
-      min_freq: '2'
-      min_word_length: '3'
-      morton: 'True'
-      short_query_max_words: '10'
-      smoothing_sigma: '1.5'
-      spreading_steps: '1'
-      spreading_steps_long: '1'
-      top_k: '5'
-      top_percent: '0.1'
-      tsne_iter: '1000'
-      tsne_perplexity: '50'
-      umap_metric: cosine
-      umap_min_dist: '0.0'
-      umap_n_neighbors: '15'
-      weighting: idf
-    status: completed
-    type: index
-    created_at: '2026-06-28T13:11:15.942270'
-    params:
+      adaptive_spreading: 'False'
       asym_alpha: '0.7'
       asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\runs\run_20260629_095932\corpus.txt
+      cross_attention: 'False'
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
-      expand_synonyms: 'False'
       geometric: 'False'
-      glossary_corpus_expansion: 'False'
       grid_size: '64'
       hybrid: 'False'
       hybrid_alpha: '0.5'
       keep_verbs: 'True'
-      max_doc_freq: '20'
+      max_doc_freq: '0'
       method: tsne
-      min_freq: '2'
+      min_freq: '1'
       min_word_length: '3'
       morton: 'True'
       multi_resolution: 'False'
       negation_aware: 'False'
       negation_boost: '0.3'
       negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '50'
       rerank: 'False'
       rerank_model: None
       rerank_top_k: '100'
@@ -7540,11 +7356,17 @@ runs:
       short_query_max_words: '10'
       sim_metric: cosine
       smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
       splade: 'False'
+      splade_alpha: '0.3'
       splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
       spreading_steps: '1'
       spreading_steps_long: '1'
       storage: file
+      synonym_weight: '0.5'
       tfidf_alpha: '0.3'
       tfidf_rerank: 'False'
       top_k: '5'
@@ -7554,32 +7376,44 @@ runs:
       umap_metric: cosine
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
+      use_morton: 'True'
       weighting: idf
-    status: failed_step1
-    type: index
-    created_at: '2026-06-28T13:15:24.599046'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\benchmarks\benchmark_20260701_220646
+    status: completed
+    type: benchmark
+  hotpotqa__benchmark_20260701_221015:
+    created_at: '2026-07-01T22:10:16.526589'
+    dataset: hotpotqa
     params:
+      adaptive_spreading: 'False'
       asym_alpha: '0.7'
       asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\runs\run_20260629_095932\corpus.txt
+      cross_attention: 'False'
       decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
-      expand_synonyms: 'False'
       geometric: 'False'
-      glossary_corpus_expansion: 'False'
       grid_size: '64'
       hybrid: 'False'
       hybrid_alpha: '0.5'
       keep_verbs: 'True'
-      max_doc_freq: '20'
+      llm_query_phrases: 'True'
+      max_doc_freq: '0'
       method: tsne
-      min_freq: '2'
+      min_freq: '1'
       min_word_length: '3'
       morton: 'True'
       multi_resolution: 'False'
       negation_aware: 'False'
       negation_boost: '0.3'
       negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '50'
       rerank: 'False'
       rerank_model: None
       rerank_top_k: '100'
@@ -7587,11 +7421,17 @@ runs:
       short_query_max_words: '10'
       sim_metric: cosine
       smoothing_sigma: '1.5'
-      splade: 'True'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
       splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
       spreading_steps: '1'
       spreading_steps_long: '1'
       storage: file
+      synonym_weight: '0.5'
       tfidf_alpha: '0.3'
       tfidf_rerank: 'False'
       top_k: '5'
@@ -7601,25 +7441,64 @@ runs:
       umap_metric: cosine
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
+      use_morton: 'True'
       weighting: idf
-    status: indexing
-    type: index
-    created_at: '2026-06-28T13:32:43.444379'
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\benchmarks\benchmark_20260701_221015
+    status: completed
+    type: benchmark
+  hotpotqa__benchmark_20260701_230143:
+    created_at: '2026-07-01T23:01:43.763363'
+    dataset: hotpotqa
     params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\runs\run_20260701_225837\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
       doc_norm: l2
       dynamic_spreading: 'False'
-      glossary_corpus_expansion: 'False'
+      geometric: 'False'
       grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
       keep_verbs: 'True'
+      llm_batch_size: '4'
       max_doc_freq: '20'
       method: tsne
-      min_freq: '2'
+      min_freq: '1'
       min_word_length: '3'
       morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
       short_query_max_words: '10'
+      sim_metric: cosine
       smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
       spreading_steps: '1'
       spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
       top_k: '5'
       top_percent: '0.1'
       tsne_iter: '1000'
@@ -7627,7 +7506,74 @@ runs:
       umap_metric: cosine
       umap_min_dist: '0.0'
       umap_n_neighbors: '15'
+      use_morton: 'True'
       weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\benchmarks\benchmark_20260701_230143
+    status: completed
+    type: benchmark
+  hotpotqa__run_20260701_225837:
+    created_at: '2026-07-01T22:58:38.524039'
+    dataset: hotpotqa
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\runs\run_20260701_225837\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '20'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\runs\run_20260701_225837
     status: completed
     type: index
   nq_rear__benchmark_20260623_235004:
@@ -7722,6 +7668,199 @@ runs:
       umap_n_neighbors: '15'
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\nq_rear_benchmark\benchmarks\benchmark_20260627_003551
+    status: completed
+    type: benchmark
+  nq_rear__benchmark_20260701_212708:
+    created_at: '2026-07-01T21:27:09.338446'
+    dataset: nq_rear
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\nq_rear_benchmark\runs\run_20260629_101030\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      max_doc_freq: '0'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\nq_rear_benchmark\benchmarks\benchmark_20260701_212708
+    status: failed_batch
+    type: benchmark
+  nq_rear__benchmark_20260701_213048:
+    created_at: '2026-07-01T21:30:49.827987'
+    dataset: nq_rear
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\nq_rear_benchmark\runs\run_20260629_101030\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      max_doc_freq: '0'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\nq_rear_benchmark\benchmarks\benchmark_20260701_213048
+    status: completed
+    type: benchmark
+  nq_rear__benchmark_20260701_213424:
+    created_at: '2026-07-01T21:34:26.191617'
+    dataset: nq_rear
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\nq_rear_benchmark\runs\run_20260629_101030\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_query_phrases: 'True'
+      max_doc_freq: '0'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'True'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'False'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\nq_rear_benchmark\benchmarks\benchmark_20260701_213424
     status: completed
     type: benchmark
   nq_rear__run_20260627_003338:

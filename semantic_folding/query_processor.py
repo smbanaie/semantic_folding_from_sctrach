@@ -1006,6 +1006,9 @@ def extract_query_phrases(
     filter_generic  : bool = True,
     min_word_length : int  = 3,
     extra_phrases   : Optional[List[str]] = None,
+    doc_freq        : Optional[Dict[str, int]] = None,
+    max_doc_freq    : int  = 50,
+    max_llm_phrases : int  = 2,
 ) -> List[str]:
     """Extract vocabulary-matched phrases from a raw query string.
 
@@ -1122,17 +1125,29 @@ def extract_query_phrases(
             logger.debug(f"  [NORM DROP] '{phrase}' → empty after normalisation")
 
     # Inject extra phrases (e.g., from LLM extraction) after normalisation
+    llm_matched: List[str] = []
     if extra_phrases:
+        # Filter by IDF and cap count
+        filtered_extras = []
         for phrase in extra_phrases:
             norm = normalize_phrase(phrase, remove_verbs=remove_verbs)
-            if norm:
-                candidates.append(norm)
-                logger.debug(f"  [EXTRA NORM] '{phrase}' → '{norm}'")
-        logger.debug(f"  [EXTRA] added {sum(1 for p in extra_phrases if normalize_phrase(p, remove_verbs=remove_verbs))} extra phrases to candidates")
+            if not norm:
+                continue
+            # IDF filter: skip generic phrases appearing in many documents
+            if doc_freq and norm in doc_freq and doc_freq[norm] > max_doc_freq:
+                logger.debug(f"  [EXTRA IDF SKIP] '{norm}' (doc_freq={doc_freq[norm]} > {max_doc_freq})")
+                continue
+            filtered_extras.append(norm)
+            if len(filtered_extras) >= max_llm_phrases:
+                break
+        # Track which LLM phrases survive into candidates
+        llm_matched = [p for p in filtered_extras if p in phrase_vocab]
+        candidates.extend(filtered_extras)
+        logger.debug(f"  [EXTRA] added {len(filtered_extras)} extra phrases (from {len(extra_phrases)} raw)")
 
     if not candidates:
         logger.debug(f"No candidates after normalisation for query: {query!r}")
-        return []
+        return [], []
 
     logger.debug(f"  Stage 1 complete: {len(candidates)} normalised candidates")
 
@@ -1168,12 +1183,11 @@ def extract_query_phrases(
 
     logger.info(
         f"Query phrase extraction: {len(raw_phrases)} raw → "
-        f"{len(candidates)} normalised → "
-        f"{len(expanded)} expanded → "
+        f"{len(candidates)} normalised → {len(expanded)} expanded → "
         f"{len(matched)} vocab hits"
     )
 
-    return matched
+    return matched, llm_matched
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1187,6 +1201,8 @@ def construct_query_fingerprint(
     weighting           : str                        = "idf",
     idf_weights         : Optional[Dict[str, float]] = None,
     normalization       : str                        = "l2",
+    downweight_phrases  : Optional[set]              = None,
+    llm_weight_factor   : float                      = 0.5,
 ) -> Tuple[Optional[csr_matrix], Dict]:
     """
     Aggregate per-phrase fingerprints into a single query fingerprint vector.
@@ -1319,6 +1335,11 @@ def construct_query_fingerprint(
         else:  # "uniform"
             weight = 1.0
             logger.debug(f"  [WEIGHT UNIFORM] '{phrase}' → weight=1.0")
+
+        # Downweight LLM-origin phrases (applies to all weighting modes)
+        if downweight_phrases and phrase in downweight_phrases:
+            weight *= llm_weight_factor
+            logger.debug(f"  [DOWNWEIGHT] '{phrase}' × {llm_weight_factor} → {weight:.4f}")
 
         # Flatten fingerprint to 1-D and accumulate
         if hasattr(phrase_fp, "toarray"):
@@ -2089,6 +2110,16 @@ def process_query(
     filter_generic  = getattr(args, "filter_generic",      True)
     min_word_length = getattr(args, "min_word_length",     3)
 
+    # Build document frequency dict for LLM phrase IDF filtering
+    doc_freq: Dict[str, int] = {}
+    vocab_csv = Path(getattr(args, "run_dir", ".")) / "extracted_phrases" / "vocabulary.csv"
+    if vocab_csv.exists():
+        with open(vocab_csv) as _f:
+            for _line in _f:
+                _parts = _line.strip().split(",")
+                if len(_parts) >= 2 and _parts[0]:
+                    doc_freq[_parts[0]] = int(_parts[1])
+
     # ── Stage 1: phrase extraction + OOV expansion ───────────────────────────
     logger.debug("  [STAGE 1] phrase extraction + OOV expansion")
 
@@ -2116,11 +2147,12 @@ def process_query(
 
     # Primary extraction: vocabulary-filtered, typically returns single tokens
     # and the most common short phrases, but often misses multi-word vocab hits.
-    matched_phrases = extract_query_phrases(
+    matched_phrases, llm_phrases_matched = extract_query_phrases(
         query, phrase_vocab,
         use_spacy=use_spacy, remove_verbs=remove_verbs,
         filter_generic=filter_generic, min_word_length=min_word_length,
         extra_phrases=llm_query_phrases,
+        doc_freq=doc_freq, max_doc_freq=50, max_llm_phrases=2,
     )
     logger.debug(f"  [STAGE 1] matched_phrases={matched_phrases}")
 
@@ -2283,6 +2315,10 @@ def process_query(
                 fp     = phrase_fingerprints[phrase]
                 fp_arr = (fp.toarray().ravel() if hasattr(fp, "toarray")
                           else np.asarray(fp).ravel())
+                # Downweight LLM-origin phrases
+                if llm_phrases_matched and phrase in llm_phrases_matched:
+                    weight *= 0.5
+                    logger.debug(f"  [DOWNWEIGHT LLM] '{phrase}' → {weight:.4f}")
                 pre_nnz = int(np.count_nonzero(acc))
                 acc    += weight * fp_arr
                 logger.debug(

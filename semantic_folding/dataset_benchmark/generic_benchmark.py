@@ -1153,6 +1153,10 @@ def cli_main():
     p_idx.add_argument("--smoothing-sigma", type=float, default=PIPELINE_DEFAULTS["smoothing_sigma"])
     p_idx.add_argument("--no-morton", action="store_true")
     p_idx.add_argument("--glossary", type=str, default=None, help="Path to glossary JSON file")
+    p_idx.add_argument("--min-freq", type=int, default=1,
+                       help="Min document frequency to keep a phrase (default: 1)")
+    p_idx.add_argument("--max-doc-freq", type=int, default=0,
+                       help="Max document frequency to keep a phrase (0=unlimited, default: 0)")
     p_idx.add_argument("--glossary-corpus-expansion", action="store_true",
                        help="Inject glossary synonyms into corpus at indexing time (P1.3)")
     p_idx.add_argument("--llm-phrases", action="store_true", default=False,
@@ -1184,6 +1188,10 @@ def cli_main():
     p_bm.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
     p_bm.add_argument("--splade", action="store_true", default=True, help="Enable hybrid SF+SPLADE scoring (default: True)")
     p_bm.add_argument("--no-splade", dest="splade", action="store_false", help="Disable SPLADE hybrid scoring")
+    p_bm.add_argument("--min-freq", type=int, default=1,
+                       help="Min document frequency to keep a phrase (default: 1)")
+    p_bm.add_argument("--max-doc-freq", type=int, default=0,
+                       help="Max document frequency to keep a phrase (0=unlimited, default: 0)")
     p_bm.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
                        help="HuggingFace SPLADE model name")
     p_bm.add_argument("--multi-resolution", action="store_true",
@@ -1298,6 +1306,10 @@ def cli_main():
     p_all.add_argument("--hybrid-alpha", type=float, default=0.5, help="SF weight in hybrid mode")
     p_all.add_argument("--splade", action="store_true", default=True, help="Enable hybrid SF+SPLADE scoring (default: True)")
     p_all.add_argument("--no-splade", dest="splade", action="store_false", help="Disable SPLADE hybrid scoring")
+    p_all.add_argument("--min-freq", type=int, default=1,
+                       help="Min document frequency to keep a phrase (default: 1)")
+    p_all.add_argument("--max-doc-freq", type=int, default=0,
+                       help="Max document frequency to keep a phrase (0=unlimited, default: 0)")
     p_all.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
                         help="HuggingFace SPLADE model name")
     p_all.add_argument("--multi-resolution", action="store_true",

@@ -13,21 +13,21 @@ HiPPoRAG and multi-hop QA literature. These datasets provide:
 - **Reproducible ground truth**: Binary relevance judgments with document-level gold labels.
 
 The benchmark pipeline is implemented in `semantic_folding/dataset_benchmark/`
-and currently supports **9 datasets** across biomedical, narrative, reading
+and currently supports **8 datasets** across biomedical, narrative, reading
 comprehension, multi-hop QA, and entity lookup domains. Three configurations
 are benchmarked: **SF-only** (fully unsupervised), **SPLADE-only** (off-the-shelf
 pre-trained SPLADE), and **SF+SPLADE** (hybrid with α weighting).
 
 **Key finding (2026-06-29):** SPLADE-only is the optimal configuration on
-5/9 datasets. SF contributes positively on only 2/9 (2WikiMultihopQA +8.5%,
+5/8 datasets. SF contributes positively on only 2/8 (2WikiMultihopQA +8.5%,
 PubMedQA +1.7%). The α-sensitivity curve is monotonic — more SF weight
 consistently degrades retrieval. See Chapter 7 for full results.
 
-**Evaluation protocol note:** For 7/9 datasets, evaluation uses candidate
+**Evaluation protocol note:** For 7/8 datasets, evaluation uses candidate
 pools of ~20 documents per query (1 gold + 19 distractors). This is a
 candidate re-ranking design, not full-corpus retrieval. Results are
 comparable within this protocol but not directly to published full-corpus
-benchmarks (e.g., BEIR, TREC). BioASQ and SciFact use larger corpora.
+benchmarks (e.g., BEIR, TREC). SciFact uses a larger corpus.
 
 ---
 

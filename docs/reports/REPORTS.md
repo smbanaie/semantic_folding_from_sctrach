@@ -23,6 +23,13 @@
 | v3 OOV | 2026-06-28 | MuSiQue | 64 | **0.541** | — | — | OOV expansion enabled (−2.3% MRR, 7× slower) |
 | v1 | 2026-06-15 | DROP | 64 | 0.320 | 0.762 | 42.6% | 50 queries, L2 norm |
 | v1 | 2026-06-09 | DocFinQA | 128 | 0.250 | 0.341 | 73.3% | 20 queries, financial |
+| **RRF** | **2026-07-07** | **Belebele** | 64 | 0.940 (Lin) | **1.000 (RRF)** | — | **+6.4% MRR with RRF fusion** |
+| RRF | 2026-07-07 | NarrativeQA | 64 | 0.940 (Lin) | 0.967 (RRF) | — | +2.8% MRR with RRF |
+| RRF | 2026-07-07 | PopQA | 64 | 1.000 (Lin) | 1.000 (RRF) | — | Tie |
+| RRF | 2026-07-07 | PubMedQA | 64 | 0.968 (Lin) | 0.968 (RRF) | — | Tie |
+| RRF | 2026-07-07 | HotpotQA | 64 | 0.872 (Lin) | 0.857 (RRF) | — | −1.7% (linear wins) |
+| RRF | 2026-07-07 | NQ-REaR | 64 | 0.632 (Lin) | 0.631 (RRF) | — | Tie |
+| RRF | 2026-07-07 | 2WikiMultihopQA | 64 | 0.901 (Lin) | 0.761 (RRF) | — | −15.5% (linear wins) |
 
 ---
 

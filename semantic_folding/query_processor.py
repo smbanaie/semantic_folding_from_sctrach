@@ -2528,18 +2528,41 @@ def process_query(
                     splade_scores_list = scorer.score_all(query)
                     splade_dict = {doc_id_list[i]: score for i, score in splade_scores_list}
 
-                    max_sf = max(sf_scores.values()) if sf_scores else 1.0
-                    max_splade = max(splade_dict.values()) if splade_dict else 1.0
+                    fusion_method = getattr(args, "fusion_method", "linear")
 
-                    hybrid_results = []
-                    for doc_id in doc_id_list:
-                        sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
-                        splade_norm = splade_dict.get(doc_id, 0.0) / max_splade if max_splade > 0 else 0
-                        combined = hybrid_alpha * sf_norm + (1 - hybrid_alpha) * splade_norm
-                        hybrid_results.append((doc_id, combined))
+                    if fusion_method == "rrf":
+                        # Reciprocal Rank Fusion: rank-level fusion, no score normalization needed
+                        rrf_k = getattr(args, "rrf_k", 60)
+                        sf_ranked = sorted(sf_scores.items(), key=lambda x: x[1], reverse=True)
+                        splade_ranked = sorted(splade_dict.items(), key=lambda x: x[1], reverse=True)
+                        sf_rank = {doc_id: rank + 1 for rank, (doc_id, _) in enumerate(sf_ranked)}
+                        splade_rank = {doc_id: rank + 1 for rank, (doc_id, _) in enumerate(splade_ranked)}
 
-                    hybrid_results.sort(key=lambda x: x[1], reverse=True)
-                    results = hybrid_results[:getattr(args, "top_k", 10)]
+                        hybrid_results = []
+                        all_doc_ids = set(sf_rank) | set(splade_rank)
+                        for doc_id in all_doc_ids:
+                            r1 = sf_rank.get(doc_id, len(sf_rank) + 1)
+                            r2 = splade_rank.get(doc_id, len(splade_rank) + 1)
+                            combined = 1.0 / (rrf_k + r1) + 1.0 / (rrf_k + r2)
+                            hybrid_results.append((doc_id, combined))
+
+                        hybrid_results.sort(key=lambda x: x[1], reverse=True)
+                        results = hybrid_results[:getattr(args, "top_k", 10)]
+                        logger.info(f"  [RRF] k={rrf_k}, fused {len(all_doc_ids)} docs")
+                    else:
+                        # Linear fusion: score-level weighted combination (default)
+                        max_sf = max(sf_scores.values()) if sf_scores else 1.0
+                        max_splade = max(splade_dict.values()) if splade_dict else 1.0
+
+                        hybrid_results = []
+                        for doc_id in doc_id_list:
+                            sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
+                            splade_norm = splade_dict.get(doc_id, 0.0) / max_splade if max_splade > 0 else 0
+                            combined = hybrid_alpha * sf_norm + (1 - hybrid_alpha) * splade_norm
+                            hybrid_results.append((doc_id, combined))
+
+                        hybrid_results.sort(key=lambda x: x[1], reverse=True)
+                        results = hybrid_results[:getattr(args, "top_k", 10)]
 
     # ── Stage 4d: negation-aware scoring ──────────────────────────────────────
     negation_aware = getattr(args, "negation_aware", False)
@@ -2892,6 +2915,15 @@ def parse_args() -> argparse.Namespace:
         "--splade-model", dest="splade_model", type=str,
         default="naver/splade-cocondenser-ensembledistil",
         help="HuggingFace SPLADE model name (default: naver/splade-cocondenser-ensembledistil).",
+    )
+    parser.add_argument(
+        "--fusion-method", dest="fusion_method", type=str, default="linear",
+        choices=["linear", "rrf"],
+        help="Fusion method for combining SF+ SPLADE scores (default: linear). 'rrf' uses Reciprocal Rank Fusion.",
+    )
+    parser.add_argument(
+        "--rrf-k", dest="rrf_k", type=int, default=60,
+        help="Rank constant k for RRF fusion (default: 60).",
     )
 
     # ── OOV expansion ────────────────────────────────────────────────────

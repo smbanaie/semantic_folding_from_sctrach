@@ -2,6 +2,28 @@
 
 > **Single source of truth**: [`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md) — complete consolidated report with all datasets, metrics, and analysis.
 
+## Quick Reference: Metrics & Acronyms
+
+| Term | Meaning |
+|------|---------|
+| **MRR** | Mean Reciprocal Rank — average of 1/rank of the first relevant result. Primary metric. Range [0,1], higher is better. |
+| **AP** | Average Precision — mean precision at each relevant result's rank. Captures ranking quality across all relevant docs. |
+| **P@K / R@K** | Precision/Recall at K — fraction of top-K results that are relevant / fraction of relevant docs found in top-K. |
+| **NDCG@K** | Normalized Discounted Cumulative Gain — position-aware ranking quality normalized by the ideal ranking. |
+| **SF** | Semantic Folding — the unsupervised retrieval method proposed in this thesis. |
+| **SPLADE** | Sparse Lexical and Expansion Model — pre-trained learned sparse retriever (Formal et al., 2021). |
+| **BM25** | Best Matching 25 — classic lexical retrieval baseline. |
+| **DPR** | Dense Passage Retrieval — neural dense vector baseline (Karpukhin et al., 2020). |
+| **RRF** | Reciprocal Rank Fusion — rank-level fusion (Cormack et al., 2009). Combines rankings by position, not scores. |
+| **α** | Alpha — fusion weight for SF in linear fusion: score = α·SF + (1−α)·SPLADE. Default 0.3. |
+| **k (RRF)** | Rank constant — smoothing in RRF formula. Default 60. Higher k = less rank sensitivity. |
+| **Δ** | Delta — percentage change between methods. Positive = improvement. |
+| **SF/BM25** | SF-to-BM25 ratio — >100% means SF outperforms BM25. |
+
+For full metric definitions and formulae, see [`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md) §Glossary.
+
+---
+
 ## Version History
 
 | Version | Date | Dataset | Grid | MRR (SF) | MRR (BM25) | SF/BM25 | Notes |

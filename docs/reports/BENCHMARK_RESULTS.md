@@ -6,6 +6,29 @@ For per-dataset parameter registry, see `config/dataset_registry.yml`.
 
 ---
 
+## Glossary: Metrics & Acronyms
+
+| Acronym | Full Name | Range | What It Measures |
+|---------|-----------|:-----:|------------------|
+| **MRR** | Mean Reciprocal Rank | [0, 1] | Average of 1/rank of the first relevant result. MRR=1.0 means the gold answer is always ranked first. Primary metric for this benchmark. |
+| **AP** | Average Precision | [0, 1] | Mean precision at each relevant result's rank position. Captures how well all relevant docs are ranked, not just the first. |
+| **P@K** | Precision at K | [0, 1] | Fraction of top-K results that are relevant. P@1 = 1.0 if the first result is gold; P@2 = 0.5 if 1 of top-2 is gold. |
+| **R@K** | Recall at K | [0, 1] | Fraction of all relevant docs found in top-K. Since most datasets have 1 gold doc, R@K equals 1.0 if gold is in top-K. |
+| **NDCG@K** | Normalized Discounted Cumulative Gain at K | [0, 1] | Ranking quality normalized by the ideal ranking. Accounts for position: earlier relevant docs score higher. |
+| **SF** | Semantic Folding | — | The unsupervised retrieval method proposed in this thesis. Maps text to sparse distributed representations on a 2D semantic grid. |
+| **SPLADE** | Sparse Lexical and Expansion Model | — | Pre-trained learned sparse retriever (Formal et al., 2021). Expands query/document terms using contextual embeddings. |
+| **BM25** | Best Matching 25 | — | Classic lexical retrieval baseline (Robertson et al., 2009). Term frequency × inverse document frequency with length normalization. |
+| **DPR** | Dense Passage Retrieval | — | Neural retrieval baseline (Karpukhin et al., 2020). Encodes queries and documents as dense vectors via BERT. |
+| **RRF** | Reciprocal Rank Fusion | — | Rank-level fusion method (Cormack et al., 2009). Combines ranked lists by position: score(d) = Σ 1/(k + rank(d)). |
+| **α** | Alpha (fusion weight) | [0, 1] | Weight for SF in linear fusion: score = α·SF + (1−α)·SPLADE. α=0.3 means 30% SF, 70% SPLADE. |
+| **k (RRF)** | Rank constant | integer | Smoothing constant in RRF formula. Higher k = less influence from rank differences. Default 60 (Elasticsearch convention). |
+| **Δ** | Delta | % | Percentage change between two methods. Positive = improvement, negative = degradation. |
+| **SF/BM25** | SF-to-BM25 ratio | % | SF MRR divided by BM25 MRR. >100% means SF outperforms BM25. |
+| **SF+SPLADE Linear** | Score-level fusion | — | Weighted sum of normalized SF and SPLADE scores (α=0.3). Default fusion method. |
+| **SF+SPLADE RRF** | Rank-level fusion | — | Reciprocal Rank Fusion of SF and SPLADE rankings (k=60). Tuning-free alternative. |
+
+---
+
 ## 1. Summary
 
 Semantic Folding (SF) was benchmarked against BM25, SPLADE, and SF+SPLADE on **8 closed-domain QA datasets** spanning entity lookup, biomedical QA, narrative comprehension, reading comprehension, multi-hop QA, and factoid retrieval. Results are from 50 queries per dataset (except where noted). All metrics use MRR as primary, with AP, P@1, and NDCG@K for context.

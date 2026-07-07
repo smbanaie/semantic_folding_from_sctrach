@@ -54,6 +54,9 @@ belebele:
   # SPLADE hybrid gives MRR 1.000 on Belebele
   splade: true
   splade_alpha: 0.3
+  # RRF fusion gives MRR 1.000 vs linear 0.940 (+6.4%)
+  fusion_method: rrf
+  rrf_k: 60
   # t-SNE perplexity=50 tested optimal
   perplexity: 50
   # L2 norm tested optimal (+4% vs sqrt_nnz)
@@ -74,6 +77,9 @@ popqa:
   # SPLADE not tested on PopQA; start with it enabled
   splade: true
   splade_alpha: 0.3
+  # RRF ties linear on PopQA (both MRR=1.0), but consistent with single-hop strategy
+  fusion_method: rrf
+  rrf_k: 60
   perplexity: 50
   doc_norm: l2
 
@@ -82,6 +88,9 @@ narrativeqa:
   max_queries: 200
   # SPLADE hurts NarrativeQA (-19%)
   splade: false
+  # RRF gives MRR 0.967 vs linear 0.940 (+2.8%) when SPLADE is enabled
+  fusion_method: rrf
+  rrf_k: 60
   perplexity: 50
   doc_norm: l2
 

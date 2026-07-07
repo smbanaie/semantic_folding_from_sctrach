@@ -1198,10 +1198,10 @@ def cli_main():
                        help="Max document frequency to keep a phrase (0=unlimited, default: 0)")
     p_bm.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
                        help="HuggingFace SPLADE model name")
-    p_bm.add_argument("--fusion-method", type=str, default="linear", choices=["linear", "rrf"],
-                       help="Fusion method for SF+SPLADE: linear (default) or rrf (Reciprocal Rank Fusion)")
-    p_bm.add_argument("--rrf-k", type=int, default=60,
-                       help="Rank constant k for RRF fusion (default: 60)")
+    p_bm.add_argument("--fusion-method", type=str, default=None, choices=["linear", "rrf"],
+                       help="Fusion method for SF+SPLADE: linear or rrf. If not set, uses dataset registry default (or 'linear').")
+    p_bm.add_argument("--rrf-k", type=int, default=None,
+                       help="Rank constant k for RRF fusion. If not set, uses dataset registry default (or 60).")
     p_bm.add_argument("--multi-resolution", action="store_true",
                        help="Apply multi-resolution spreading (spread at multiple radii and combine)")
     p_bm.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
@@ -1320,10 +1320,10 @@ def cli_main():
                        help="Max document frequency to keep a phrase (0=unlimited, default: 0)")
     p_all.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
                         help="HuggingFace SPLADE model name")
-    p_all.add_argument("--fusion-method", type=str, default="linear", choices=["linear", "rrf"],
-                        help="Fusion method for SF+SPLADE: linear (default) or rrf (Reciprocal Rank Fusion)")
-    p_all.add_argument("--rrf-k", type=int, default=60,
-                        help="Rank constant k for RRF fusion (default: 60)")
+    p_all.add_argument("--fusion-method", type=str, default=None, choices=["linear", "rrf"],
+                        help="Fusion method for SF+SPLADE: linear or rrf. If not set, uses dataset registry default (or 'linear').")
+    p_all.add_argument("--rrf-k", type=int, default=None,
+                        help="Rank constant k for RRF fusion. If not set, uses dataset registry default (or 60).")
     p_all.add_argument("--multi-resolution", action="store_true",
                         help="Apply multi-resolution spreading (spread at multiple radii and combine)")
     p_all.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
@@ -1450,9 +1450,9 @@ def cli_main():
         # CLI always wins; registry is merely a base default
         params["splade"] = args.splade
         params["splade_model"] = args.splade_model
-    if hasattr(args, "fusion_method"):
+    if hasattr(args, "fusion_method") and args.fusion_method is not None:
         params["fusion_method"] = args.fusion_method
-    if hasattr(args, "rrf_k"):
+    if hasattr(args, "rrf_k") and args.rrf_k is not None:
         params["rrf_k"] = args.rrf_k
     if hasattr(args, "multi_resolution"):
         params["multi_resolution"] = args.multi_resolution

@@ -10,7 +10,7 @@
 
 ### Critical Weaknesses
 
-- **[Priority: HIGH] [Structural]** Section 1.3 (Contributions) lists specific MRR numbers (e.g., "0.987", "1.000", "0.442"). Contributions should be stated at a high level without detailed metrics. Numbers belong in the Results/Experiments chapter.
+- **[Priority: HIGH] [Structural]** Section 1.3 (Contributions) lists specific MRR numbers (e.g., "0.876", "1.000", "0.442"). Contributions should be stated at a high level without detailed metrics. Numbers belong in the Results/Experiments chapter.
 - **[Priority: MEDIUM] [Structural]** Section 1.5 (Publications) contains a todo placeholder: "[To be completed with actual publication records before final submission]". This must be populated or removed.
 - **[Priority: LOW] [Clarity]** The research questions (RQ1-RQ3) mention "closed-domain QA" but the thesis evaluates 9 datasets, many of which are open-domain (PopQA, NQ-REaR). The scope needs clarification.
 
@@ -124,7 +124,7 @@
 ### Critical Weaknesses
 
 - **[Priority: HIGH] [Structural Coherence]** This chapter repeats the "Four Pillars" framework and performance summaries from Chapters 7 and 8. Conclusions should synthesize, not repeat.
-- **[Priority: MEDIUM] [Contribution Clarity]** Section 9.1.1 states "SPLADE-only achieves MRR=0.987 on MuSiQue (beating BM25 at 0.482 by +104.6%)" but this result is presented as a contribution of *this* thesis. Actually, SPLADE is a separate method (Formal et al., 2021). The contribution is the *hybrid* SF+SPLADE, not SPLADE-only. The contribution statement is misleading.
+- **[Priority: MEDIUM] [Contribution Clarity]** Section 9.1.1 states "SPLADE-only achieves MRR=0.876 on MuSiQue (beating BM25 at 0.482 by +81.7%)" but this result is presented as a contribution of *this* thesis. Actually, SPLADE is a separate method (Formal et al., 2021). The contribution is the *hybrid* SF+SPLADE, not SPLADE-only. The contribution statement is misleading.
 - **[Priority: LOW] [Clarity]** Section 9.7.4 (Open Questions) is good but some questions (e.g., "Why does SF succeed on MuSiQue but not on 2Wiki/HotpotQA?") are already answered in Chapter 8. Remove redundancy.
 
 ### Flagged Cleanup Items

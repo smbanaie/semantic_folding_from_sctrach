@@ -72,7 +72,7 @@ With only 10-25% of cells active, the probability of accidental overlap between 
 | Scientific claims | **0.755** | 0.697 | 0.675 | **SF** | Zero-shot advantage |
 | 2-hop QA | **0.865** | 0.921 | ~0.78 | BM25 | Composition gap |
 | Factoid retrieval | **0.566** | 0.675 | 0.794 | DPR | Dense methods better |
-| Multi-hop QA (2–5 hops) | **0.927** | 0.482 | ~0.65 | **SF+SPLADE** | See Chapter 7 |
+| Multi-hop QA (2–5 hops) | **0.782** | 0.482 | ~0.65 | **SF+SPLADE** | See Chapter 7 |
 
 *Note: For full results including SPLADE-only and SF+SPLADE configurations, see Chapter 7, Table 7.1.*
 
@@ -92,7 +92,7 @@ Factoid retrieval requires precise entity matching that SF's phrase-level granul
 |-----------|--------|----------|-----|
 | 1-hop | 1.000 | 1.000 | 0% |
 | 2-hop | 0.865 | 0.921 | −5.6% |
-| 2–5 hops | 0.927 | 0.482 | **+92%** (SF beats BM25) |
+| 2–5 hops | 0.782 | 0.482 | **+62%** (SF beats BM25) |
 
 *Note: The 2–5 hop result appears to contradict the compositional gap. See Chapter 7, §7.3.2 for resolution — SF+SPLADE succeeds on MuSiQue despite the compositional gap, not because it bridges it.*
 
@@ -144,7 +144,7 @@ SF can match "Green performer" to a passage, but it cannot compose the result wi
 | PubMedQA | 1 | 0.968 | 1.000 | −3.2% |
 | HotpotQA | 2 | 0.857 | 0.869 | −1.4% |
 | 2WikiMultihopQA | 2 | 0.865 | 0.921 | −6.1% |
-| MuSiQue | 2–5 | 0.927 | 0.482 | **+92%** |
+| MuSiQue | 2–5 | 0.782 | 0.482 | **+62%** |
 
 *Note: The MuSiQue result (SF+SPLADE beats BM25) is achieved despite the compositional gap, not by overcoming it. See Chapter 7, §7.3.2 for detailed analysis.*
 
@@ -316,7 +316,7 @@ where $\alpha = 0.3$ is the optimal weight across datasets (see Chapter 7, §7.2
 2. **PubMedQA**: +1.7% MRR over SPLADE-only
 
 **When does SF hurt SPLADE?**
-1. **MuSiQue**: −6.1% MRR vs SPLADE-only
+1. **MuSiQue**: −10.7% MRR vs SPLADE-only
 2. **Belebele**: −7.0% MRR vs SPLADE-only
 3. **HotpotQA**: −10.4% MRR vs SPLADE-only
 

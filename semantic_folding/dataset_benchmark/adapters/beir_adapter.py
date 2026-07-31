@@ -212,6 +212,105 @@ class BEIRAdapter(BaseDatasetAdapter):
         logger.info(f"  Written {n_written} entries -> {output_path}")
         return output_path
 
+    def convert_to_full_corpus_format(
+        self, raw_path: Path, output_dir: Path, max_queries: int = 500
+    ) -> Path:
+        """
+        Full-corpus variant: writes two files so the benchmark can rank over the
+        ENTIRE corpus (not a gold+15 distractor pool):
+          - <name>_full.jsonl          : queries with gold passages (is_supporting=True)
+          - <name>_full_corpus.txt     : every corpus doc, one line: "doc_<id>, title text"
+        phase1_index (--full-corpus) loads the corpus file to build a global candidate
+        set and maps every query to ALL corpus doc ids.
+        """
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        corpus_path = raw_path / "corpus.jsonl"
+        queries_path = raw_path / "queries.jsonl"
+        qrels_dir = raw_path / "qrels"
+        if not corpus_path.exists():
+            raise FileNotFoundError(f"corpus.jsonl not found at {corpus_path}")
+
+        corpus = {}
+        with open(corpus_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                e = json.loads(line)
+                corpus[e["_id"]] = {"title": e.get("title", ""), "text": e.get("text", "")}
+
+        queries = {}
+        with open(queries_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                e = json.loads(line)
+                queries[e["_id"]] = e.get("text", "")
+
+        qrels_path = qrels_dir / "test.tsv"
+        if not qrels_path.exists():
+            for split in ["dev", "train"]:
+                c = qrels_dir / f"{split}.tsv"
+                if c.exists():
+                    qrels_path = c
+                    break
+        if not qrels_path.exists():
+            raise FileNotFoundError(f"No qrels found at {qrels_dir}")
+        qrels = {}
+        with open(qrels_path, "r", encoding="utf-8") as f:
+            f.readline()
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split("\t")
+                if len(parts) >= 3 and int(parts[2]) > 0:
+                    qrels.setdefault(parts[0], []).append(parts[1])
+
+        # Global corpus file (all docs, stable ids doc_<idx>)
+        corpus_file = output_dir / f"{self._dataset_name}_full_corpus.txt"
+        with open(corpus_file, "w", encoding="utf-8") as f:
+            for idx, (_id, doc) in enumerate(corpus.items()):
+                gid = f"doc_{idx:06d}"
+                f.write(f"{gid}, {doc['title']} {doc['text']}\n")
+
+        # Query file: gold passages only (supporting); candidate set = full corpus
+        query_file = output_dir / f"{self._dataset_name}_full.jsonl"
+        n_written = 0
+        with open(query_file, "w", encoding="utf-8") as f:
+            for q_idx, (qid, qtext) in enumerate(queries.items()):
+                if n_written >= max_queries:
+                    break
+                rel = qrels.get(qid, [])
+                if not rel:
+                    continue
+                paragraphs = []
+                for did in rel[:5]:
+                    if did in corpus:
+                        paragraphs.append({
+                            "idx": len(paragraphs),
+                            "title": corpus[did]["title"],
+                            "paragraph_text": corpus[did]["text"],
+                            "is_supporting": True,
+                        })
+                if not paragraphs:
+                    continue
+                entry = {
+                    "id": f"{self._dataset_name}_{qid}",
+                    "question": qtext,
+                    "answer": paragraphs[0]["title"],
+                    "paragraphs": paragraphs,
+                    "use_full_corpus": True,
+                }
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                n_written += 1
+        logger.info(f"  Written {n_written} full-corpus queries -> {query_file}")
+        logger.info(f"  Global corpus ({len(corpus)} docs) -> {corpus_file}")
+        return query_file
+
     def get_recommended_params(self) -> Dict[str, Any]:
         params = super().get_recommended_params()
         # BEIR datasets are larger, use larger top_k
@@ -239,3 +338,7 @@ class TRECCOVIDAdapter(BEIRAdapter):
 class DBPediaAdapter(BEIRAdapter):
     def __init__(self, **kwargs):
         super().__init__("dbpedia-entity", "DBPedia", "dbpedia-entity", **kwargs)
+
+class SciDocsAdapter(BEIRAdapter):
+    def __init__(self, **kwargs):
+        super().__init__("scidocs", "SciDocs", "scidocs", **kwargs)

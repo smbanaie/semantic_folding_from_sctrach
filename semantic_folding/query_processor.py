@@ -1644,6 +1644,45 @@ def apply_spreading(
 # Ranking
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _load_candidate_ids(args, query_idx: Optional[int] = None) -> Optional[set]:
+    """If a candidates.json exists in run_dir, restrict ranking to those doc ids.
+
+    Enables "candidate-set" evaluation (e.g. gold + top-K BM25 retrieved)
+    without scoring the entire corpus per query.
+
+    The file may be:
+      * a flat ``[doc_id, ...]`` list  -> used for every query, or
+      * a ``{query_idx: [doc_id, ...]}`` dict -> looked up by ``query_idx``.
+
+    Returns None when absent or no candidates for this query.
+    """
+    run_dir = getattr(args, "run_dir", None)
+    if not run_dir:
+        return None
+    cpath = Path(run_dir) / "candidates.json"
+    if not cpath.exists():
+        return None
+    try:
+        data = json.load(open(cpath, encoding="utf-8"))
+        if isinstance(data, dict):
+            if query_idx is None:
+                # No per-query key available: union (still restricts vs full corpus).
+                ids: set = set()
+                for v in data.values():
+                    ids.update(v)
+            else:
+                ids = set(data.get(str(query_idx), []))
+        else:
+            ids = set(data)
+        if not ids:
+            return None
+        logger.info(f"  [CANDIDATE-SET] restricting ranking to {len(ids)} docs")
+        return ids
+    except Exception as exc:
+        logger.warning(f"  [CANDIDATE-SET] failed to load {cpath}: {exc}")
+        return None
+
+
 def rank_documents(
     query_fp        : csr_matrix,
     doc_fingerprints: Dict[str, csr_matrix],
@@ -1655,6 +1694,7 @@ def rank_documents(
     use_morton      : bool  = True,
     doc_norm        : str   = "sqrt_nnz",
     sim_metric      : str   = "cosine",
+    candidate_ids   : Optional[set] = None,
     **kwargs,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     """
@@ -1751,6 +1791,8 @@ def rank_documents(
     skipped_empty = 0
 
     for doc_id, doc_fp in doc_fingerprints.items():
+        if candidate_ids is not None and doc_id not in candidate_ids:
+            continue
         if doc_fp.nnz == 0:
             skipped_empty += 1
             logger.debug(f"  [RANK SKIP] '{doc_id}' has zero active bits")
@@ -1946,8 +1988,9 @@ def process_query(
     doc_fingerprints    : Dict[str, csr_matrix],
     args                : argparse.Namespace,
     idf_weights         : Optional[Dict[str, float]] = None,
-    use_morton      : bool  = True,
+    use_morton          : bool  = True,
     llm_query_phrases   : Optional[List[str]] = None,
+    query_idx           : Optional[int] = None,
 ) -> Tuple[List[Tuple[str, float]], Dict]:
     r"""
     Process a single query through the full retrieval pipeline.
@@ -2112,7 +2155,8 @@ def process_query(
 
     # Build document frequency dict for LLM phrase IDF filtering
     doc_freq: Dict[str, int] = {}
-    vocab_csv = Path(getattr(args, "run_dir", ".")) / "extracted_phrases" / "vocabulary.csv"
+    run_dir = getattr(args, "run_dir", None) or "."
+    vocab_csv = Path(run_dir) / "extracted_phrases" / "vocabulary.csv"
     if vocab_csv.exists():
         with open(vocab_csv) as _f:
             for _line in _f:
@@ -2447,6 +2491,7 @@ def process_query(
         cross_attention=getattr(args, "cross_attention", False),
         block_size=getattr(args, "block_size", 8),
         attention_temperature=getattr(args, "attention_temperature", 1.0),
+        candidate_ids=_load_candidate_ids(args, query_idx),
     )
 
     # Initialize sf_scores from results (used by hybrid and TF-IDF blocks)
@@ -2979,6 +3024,11 @@ def parse_args() -> argparse.Namespace:
         "--corpus", dest="corpus_path", type=Path, default=None,
         help="Path to corpus.txt for hybrid scoring or TF-IDF re-ranking.",
     )
+    parser.add_argument(
+        "--run-dir", dest="run_dir", type=Path, default=None,
+        help="Run directory; if it contains candidates.json, ranking is restricted "
+             "to that candidate set (deep-pool / candidate-set evaluation).",
+    )
 
     # ── Output ────────────────────────────────────────────────────────────────
     parser.add_argument(
@@ -3237,6 +3287,7 @@ def main() -> None:
             idf_weights,
             use_morton=use_morton,
             llm_query_phrases=q_extra,
+            query_idx=i - 1,
         )
 
         if "error" in metadata:

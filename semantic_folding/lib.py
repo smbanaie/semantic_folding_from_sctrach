@@ -838,13 +838,26 @@ def _load_doc_fingerprint_matrix(
         if not p.exists():
             raise FileNotFoundError(f"Expected file not found: {p}")
 
-    # Load matrix
-    archive = np.load(str(npz_path))
-    if npz_key not in archive:
-        raise KeyError(f"Key '{npz_key}' not in {npz_path.name}. Available: {list(archive.keys())}")
-    matrix = archive[npz_key]
-    n_docs, vector_size = matrix.shape
-    logger.info(f"Document matrix shape: {matrix.shape} (n_docs={n_docs}, vec={vector_size})")
+    # Load matrix — prefer sparse CSR file (avoids 2.6 GB dense alloc for large
+    # corpora); fall back to legacy dense npz (key "fingerprints").
+    sparse_path = npz_path.with_name("doc_fingerprints_sparse.npz")
+    matrix = None
+    if sparse_path.exists():
+        try:
+            import scipy.sparse as _sp
+            matrix = _sp.load_npz(str(sparse_path))
+            n_docs, vector_size = matrix.shape
+            logger.info(f"Document matrix loaded (sparse CSR) shape: {matrix.shape} (n_docs={n_docs}, vec={vector_size})")
+        except Exception as _exc:
+            logger.warning(f"Sparse load failed ({_exc}); falling back to dense npz.")
+            matrix = None
+    if matrix is None:
+        archive = np.load(str(npz_path))
+        if npz_key not in archive:
+            raise KeyError(f"Key '{npz_key}' not in {npz_path.name}. Available: {list(archive.keys())}")
+        matrix = archive[npz_key]
+        n_docs, vector_size = matrix.shape
+        logger.info(f"Document matrix shape: {matrix.shape} (n_docs={n_docs}, vec={vector_size})")
 
     # Load metadata
     with open(meta_path, "r", encoding="utf-8") as fh:

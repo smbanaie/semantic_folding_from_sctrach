@@ -14,7 +14,7 @@ These are the "must-fix" items before any resubmission. They are objective issue
 
 **Count:** 6/6 reviews flag this as critical/fatal
 **Why:** 7 of 9 datasets use ~20-document candidate pools (1 gold + 19 distractors). This is a reading-comprehension / re-ranking evaluation, not an information retrieval evaluation. Standard IR benchmarks rank against the full corpus (10³–10⁹ documents).
-**Consequence:** The +92.3% MuSiQue result cannot be compared to any published baseline. All metrics are inflated ~1000× vs random baseline.
+**Consequence:** The +62.2% MuSiQue result cannot be compared to any published baseline. All metrics are inflated ~1000× vs random baseline.
 **Fix:** Run full-corpus evaluation on ≥2 datasets, OR reframe paper as "candidate re-ranking" and remove all full-corpus comparisons.
 
 ### 1.2 Missing SPLADE-Only Baseline

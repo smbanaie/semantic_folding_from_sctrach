@@ -1,0 +1,116 @@
+# ============================================================
+# BEIR Custom Dataset Parameter Registry
+# ============================================================
+# Per-dataset parameter overrides for the BEIR retrieval datasets:
+#   scifact, nfcorpus, scidocs
+# (msmarco dropped — 1.08 GB passage corpus, too large for this run)
+#
+# Use with:
+#   python -m semantic_folding.dataset_benchmark.generic_benchmark all \
+#     --dataset <name> --jsonl data/<name>/converted/<name>.jsonl \
+#     --registry config/dataset_registry_beir.yml
+#
+# Generated: 2026-07-20
+# Source: project PIPELINE_DEFAULTS + BEIR dataset characteristics.
+#
+# Rationale for choices:
+#   - grid_size 64, smoothing_sigma 1.5, morton, weighting idf: verified
+#     optimal defaults for the SF pipeline (see AGENTS.md).
+#   - doc_norm l2: tested optimal across datasets (+4% vs sqrt_nnz).
+#   - BEIR queries are short factual/entity lookups (single-hop). RRF fusion
+#     is the tuning-free default for single-hop datasets (see registry commit
+#     ec083a2). SPLADE is enabled by default but with a modest alpha; it tends
+#     to HURT or be neutral on scientific/lexical domains (cf. PubMedQA,
+#     BioASQ in the main registry), so it is left on but easy to ablate via
+#     --no-splade. Re-tune per dataset after the first run.
+#   - max_doc_freq 20: phrase-frequency filter, +8.6% on BioASQ; safe default.
+#
+# NOTE: these are STARTING params. After the first benchmark run, inspect
+# docs/reports/<name>/ and adjust splade / fusion_method / perplexity below.
+
+# ============================================================
+# GLOBAL DEFAULTS (override per-dataset as needed)
+# ============================================================
+defaults:
+  grid_size: 64
+  smoothing_sigma: 1.5
+  method: umap
+  umap_n_neighbors: 15
+  umap_min_dist: 0.0
+  umap_metric: cosine
+  perplexity: 50
+  spreading_steps: 1
+  top_percent: 0.10
+  weighting: idf
+  doc_norm: l2
+  use_morton: true
+  top_k: 10
+  splade: true
+  splade_alpha: 0.3
+  fusion_method: rrf
+  rrf_k: 60
+  cross_attention: false
+  block_size: 8
+  attention_temperature: 1.0
+  snippet_ranking: false
+  adaptive_spreading: false
+  normalize_after_spreading: false
+  spreading_decay: 0.5
+  normalization: l2
+  oov_expansion: false
+  synonym_weight: 0.5
+  max_doc_freq: 20
+
+# ============================================================
+# PER-DATASET OVERRIDES
+# ============================================================
+
+scifact:
+  description: "Scientific fact-checking retrieval (claim -> evidence passages)"
+  max_queries: 300
+  # Short factual claims, single-hop. RRF default for single-hop.
+  fusion_method: rrf
+  rrf_k: 60
+  # Scientific domain: SPLADE often neutral/hurt -> keep on but low alpha;
+  # ablate with --no-splade after first run.
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+nfcorpus:
+  description: "Nutrition/medical IR (query -> biomedical abstracts + papers)"
+  max_queries: 323
+  # Very small corpus (~3639 docs), short queries. RRF default.
+  fusion_method: rrf
+  rrf_k: 60
+  # Domain mismatch (like BioASQ/PubMedQA): SPLADE likely neutral -> on, low alpha.
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+scidocs:
+  description: "Scientific document similarity (citation/COCI-style retrieval)"
+  max_queries: 1000
+  # Similarity-style retrieval, short queries. RRF default.
+  fusion_method: rrf
+  rrf_k: 60
+  splade: true
+  splade_alpha: 0.3
+  perplexity: 50
+  doc_norm: l2
+
+# ============================================================
+# BENCHMARK PROTOCOLS (reproducibility helpers)
+# ============================================================
+protocols:
+  quick:
+    max_queries: 50
+    splade: false
+  standard:
+    max_queries: 100
+    splade: true
+  sf_only:
+    max_queries: 100
+    splade: false

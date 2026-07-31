@@ -28,7 +28,7 @@ The key empirical findings are:
 
 1. **SPLADE-only outperforms SF-only on 5/9 datasets** (Chapter 7, Table 7.2). The SF+SPLADE hybrid is beneficial on only 2/9 datasets (2WikiMultihopQA +8.5%, PubMedQA +1.7%).
 
-2. **SF+SPLADE achieves MRR=0.927 on MuSiQue**, outperforming BM25 (0.482) by +92% and DPR (0.865) by +7.2%. This is the strongest result among unsupervised methods on this multi-hop QA dataset.
+2. **SF+SPLADE achieves MRR=0.782 on MuSiQue**, outperforming BM25 (0.482) by +62.2% — the largest relative gain in the matrix — though it trails HippoRAG2's dense baseline (0.865, −9.6%) and SPLADE-only alone (0.876) is the strongest single system. This remains the best unsupervised-sparse result on this multi-hop QA dataset.
 
 3. **SF matches or exceeds DPR on three datasets** (MuSiQue, HotpotQA, PopQA) without any training data.
 
@@ -69,7 +69,7 @@ SF's success follows a clear pattern:
 | Training data | None | None | 50K+ pairs |
 | Memory per document | 512 bytes | ~1KB | 3KB |
 | Interpretability | Grid visualization | Term frequency | Black box |
-| Best dataset MRR | 0.927 (MuSiQue) | 0.995 (Belebele) | 0.863 (NQ) |
+| Best dataset MRR | 0.782 (MuSiQue) | 0.995 (Belebele) | 0.863 (NQ) |
 | Worst dataset MRR | 0.288 (BioASQ) | 0.482 (MuSiQue) | — |
 
 SF occupies a unique quadrant: unsupervised semantic matching + interpretability + memory efficiency. No other method provides all three simultaneously.
@@ -118,7 +118,7 @@ These properties make SF valuable for scenarios where training data is unavailab
 
 ### 9.4.2 The Vocabulary Mismatch Problem
 
-SF's strong performance on MuSiQue (+92% vs BM25) provides evidence that vocabulary mismatch remains a significant challenge for lexical retrieval. However, the broader 9-dataset pattern shows that vocabulary mismatch is only one component of retrieval quality. Lexical precision, entity matching, and score discrimination are equally important.
+SF's strong performance on MuSiQue (+62% vs BM25) provides evidence that vocabulary mismatch remains a significant challenge for lexical retrieval. However, the broader 9-dataset pattern shows that vocabulary mismatch is only one component of retrieval quality. Lexical precision, entity matching, and score discrimination are equally important.
 
 ### 9.4.3 The Complementarity Principle
 

@@ -73,7 +73,7 @@ Instead of scoring documents with SF, use SF's semantic grid to **expand queries
 Use SPLADE as the primary ranker. When SPLADE confidence is low (max score below threshold), use SF to re-rank or expand.
 
 **Why this works:**
-- SPLADE is strong on common vocabulary (Belebele 1.000, MuSiQue 0.987)
+- SPLADE is strong on common vocabulary (Belebele 1.000, MuSiQue 0.876)
 - SPLADE is weak on domain-specific terminology (PubMedQA 0.952 vs BM25 1.000)
 - SF helps exactly where SPLADE is weak — domain synonymy
 

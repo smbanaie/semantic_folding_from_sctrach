@@ -1,16 +1,6 @@
 # ============================================================
 # Dataset Parameter Registry
 # ============================================================
-# Recommended parameters per dataset based on benchmark results.
-# Use with: python -m semantic_folding.dataset_benchmark.generic_benchmark all \
-#           --dataset <name> --registry config/dataset_registry.yml
-#
-# Generated: 2026-06-26
-# Source: BENCHMARK_RESULTS.md + per-dataset analyses
-
-# ============================================================
-# GLOBAL DEFAULTS (override per-dataset as needed)
-# ============================================================
 defaults:
   grid_size: 64
   smoothing_sigma: 1.5
@@ -20,13 +10,12 @@ defaults:
   umap_metric: cosine
   perplexity: 50
   spreading_steps: 1
-  top_percent: 0.10
+  top_percent: 0.1
   weighting: idf
   doc_norm: l2
   use_morton: true
   splade: true
   splade_alpha: 0.3
-  # New feature defaults
   cross_attention: false
   block_size: 8
   attention_temperature: 1.0
@@ -39,157 +28,220 @@ defaults:
   normalization: l2
   oov_expansion: false
   synonym_weight: 0.5
-  # Phrase frequency filtering (tested: +8.6% BioASQ, +0.7% HotpotQA vs df=0)
   max_doc_freq: 20
-
-# ============================================================
-# PER-DATASET OVERRIDES
-# ============================================================
-# Each dataset can override any default parameter.
-# Parameters not listed inherit from defaults.
-
 belebele:
-  description: "Reading comprehension across 122 languages (English subset)"
+  description: Reading comprehension across 122 languages (English subset)
   max_queries: 200
-  # SPLADE hybrid gives MRR 1.000 on Belebele
   splade: true
   splade_alpha: 0.3
-  # RRF fusion gives MRR 1.000 vs linear 0.940 (+6.4%)
   fusion_method: rrf
   rrf_k: 60
-  # t-SNE perplexity=50 tested optimal
   perplexity: 50
-  # L2 norm tested optimal (+4% vs sqrt_nnz)
   doc_norm: l2
-
 pubmedqa:
-  description: "Biomedical question answering (yes/no/maybe)"
+  description: Biomedical question answering (yes/no/maybe)
   max_queries: 200
-  # SPLADE hurts PubMedQA (domain mismatch)
   splade: false
-  # Default params work well (MRR 0.955)
   perplexity: 50
   doc_norm: l2
-
 popqa:
-  description: "Popular culture QA (entity-centric)"
+  description: Popular culture QA (entity-centric)
   max_queries: 200
-  # SPLADE not tested on PopQA; start with it enabled
   splade: true
   splade_alpha: 0.3
-  # RRF ties linear on PopQA (both MRR=1.0), but consistent with single-hop strategy
   fusion_method: rrf
   rrf_k: 60
   perplexity: 50
   doc_norm: l2
-
 narrativeqa:
-  description: "Narrative/story comprehension"
+  description: Narrative/story comprehension
   max_queries: 200
-  # SPLADE hurts NarrativeQA (-19%)
   splade: false
-  # RRF gives MRR 0.967 vs linear 0.940 (+2.8%) when SPLADE is enabled
   fusion_method: rrf
   rrf_k: 60
   perplexity: 50
   doc_norm: l2
-
 musique:
-  description: "Multi-hop compositional QA"
+  description: Multi-hop compositional QA
   max_queries: 200
-  # SPLADE helps (+24.8% on 2WikiMultihop, similar expected here)
   splade: true
   splade_alpha: 0.3
   perplexity: 50
   doc_norm: l2
-
 hotpotqa:
-  description: "Multi-hop factoid QA"
+  description: Multi-hop factoid QA
   max_queries: 200
-  # SPLADE helps (+35.4%)
   splade: true
   splade_alpha: 0.3
   perplexity: 50
   doc_norm: l2
-
 nq_rear:
-  description: "Natural Questions (entity matching)"
+  description: Natural Questions (entity matching)
   max_queries: 200
-  # SPLADE helps (+60.3%)
   splade: true
   splade_alpha: 0.3
   perplexity: 50
   doc_norm: l2
-
 bioasq:
-  description: "Biomedical semantic QA (1075 docs, complex queries)"
+  description: Biomedical semantic QA (1075 docs, complex queries)
   max_queries: 200
-  # SPLADE has 0% effect on BioASQ (large corpus + domain mismatch)
-  # Old 0.248 baseline was inflated by batched 10Q evaluation
   splade: false
   perplexity: 30
   doc_norm: l2
-  # P1.3: Ontology-guided retrieval — inject MeSH glossary synonyms into
-  # corpus at indexing time, and normalize query phrases through glossary
-  glossary_path: "config/glossary_bioasq.json"
+  glossary_path: config/glossary_bioasq.json
   glossary_corpus_expansion: true
   expand_synonyms: true
-
 drop:
-  description: "Discrete reasoning over paragraphs"
+  description: Discrete reasoning over paragraphs
   max_queries: 200
-  # SPLADE not tested; start with enabled
   splade: true
   splade_alpha: 0.3
   perplexity: 50
   doc_norm: l2
-
 docfinqa:
-  description: "Document-level financial QA"
+  description: Document-level financial QA
   max_queries: 200
-  # SPLADE not tested; start with enabled
   splade: true
   splade_alpha: 0.3
   perplexity: 50
   doc_norm: l2
-
 twowikimultihopqa:
-  description: "Multi-hop QA across Wikipedia"
+  description: Multi-hop QA across Wikipedia
   max_queries: 200
-  # SPLADE helps (+24.8%)
   splade: true
   splade_alpha: 0.3
   perplexity: 50
   doc_norm: l2
-
-# ============================================================
-# BENCHMARK PROTOCOLS
-# ============================================================
-# Pre-defined benchmark configurations for reproducibility
-
+scifact:
+  description: Scientific fact-checking retrieval (claim -> evidence passages)
+  max_queries: 300
+  splade: true
+  method: tsne
+  max_doc_freq: 0
+  perplexity: 50
+  doc_norm: l2
+  fusion_method: rrf
+  rrf_k: 60
+  splade_alpha: 0.3
+  tuning:
+    best_profile: sf_splade
+    generated: '2026-07-20'
+    grid:
+      sf_only:
+        winner: umap_mdf0
+        mrr:
+          umap_mdf0: 0.86
+          umap_mdf05pct: 0.8066666666666668
+          tsne_mdf0: 0.85
+          tsne_mdf05pct: 0.8233333333333333
+        time:
+          umap_mdf0: 143.4
+          umap_mdf05pct: 132.6
+          tsne_mdf0: 105.1
+          tsne_mdf05pct: 120.0
+      sf_splade:
+        winner: tsne_mdf0
+        mrr:
+          umap_mdf0: 0.95
+          umap_mdf05pct: 0.95
+          tsne_mdf0: 0.95
+          tsne_mdf05pct: 0.94
+        time:
+          umap_mdf0: 225.8
+          umap_mdf05pct: 223.0
+          tsne_mdf0: 209.8
+          tsne_mdf05pct: 225.0
+nfcorpus:
+  description: "Nutrition/medical IR (query -> biomedical abstracts + papers)"
+  max_queries: 323
+  splade: true
+  method: tsne
+  max_doc_freq: 0
+  perplexity: 50
+  doc_norm: l2
+  fusion_method: rrf
+  rrf_k: 60
+  splade_alpha: 0.3
+  tuning:
+    best_profile: sf_splade
+    generated: '2026-07-20'
+    grid:
+      sf_only:
+        winner: umap_mdf0
+        mrr:
+          umap_mdf0: 0.65
+          umap_mdf05pct: 0.6166666666666667
+          tsne_mdf0: 0.63
+          tsne_mdf05pct: 0.64
+        time:
+          umap_mdf0: 276.0
+          umap_mdf05pct: 271.3
+          tsne_mdf0: 258.1
+          tsne_mdf05pct: 235.7
+      sf_splade:
+        winner: tsne_mdf0
+        mrr:
+          umap_mdf0: 0.76
+          umap_mdf05pct: 0.72
+          tsne_mdf0: 0.76
+          tsne_mdf05pct: 0.72
+        time:
+          umap_mdf0: 621.1
+          umap_mdf05pct: 557.8
+          tsne_mdf0: 587.1
+          tsne_mdf05pct: 540.8
+scidocs:
+  description: "Scientific document similarity (citation/COCI-style retrieval)"
+  max_queries: 1000
+  splade: true
+  method: tsne
+  max_doc_freq: 20
+  max_doc_freq_pct: 0.05
+  perplexity: 50
+  doc_norm: l2
+  fusion_method: rrf
+  rrf_k: 60
+  splade_alpha: 0.3
+  tuning:
+    best_profile: sf_splade
+    generated: '2026-07-20'
+    grid:
+      sf_only:
+        winner: tsne_mdf05pct
+        mrr:
+          umap_mdf0: 0.73
+          umap_mdf05pct: 0.72
+          tsne_mdf0: 0.75
+          tsne_mdf05pct: 0.8
+        time:
+          umap_mdf0: 263.8
+          umap_mdf05pct: 261.8
+          tsne_mdf0: 245.6
+          tsne_mdf05pct: 246.1
+      sf_splade:
+        winner: tsne_mdf05pct
+        mrr:
+          umap_mdf0: 0.9
+          umap_mdf05pct: 0.9
+          tsne_mdf0: 0.89
+          tsne_mdf05pct: 0.9
+        time:
+          umap_mdf0: 636.2
+          umap_mdf05pct: 527.7
+          tsne_mdf0: 533.2
+          tsne_mdf05pct: 504.0
 protocols:
-  # Quick smoke test (50 queries, fast)
   quick:
     max_queries: 50
-    splade: false  # Skip SPLADE for speed
-    
-  # Standard benchmark (100 queries)
+    splade: false
   standard:
     max_queries: 100
     splade: true
-    
-  # Full benchmark (200+ queries, all datasets)
   full:
     max_queries: 200
     splade: true
-    
-  # SF-only (no SPLADE, for ablation study)
   sf_only:
     max_queries: 100
     splade: false
-    
-  # SPLADE-only (no SF, for ablation study)
   splade_only:
     max_queries: 100
-    # This requires custom code to disable SF scoring
-    # Not directly supported by current CLI

@@ -42,6 +42,7 @@ For full metric definitions and formulae, see [`BENCHMARK_RESULTS.md`](BENCHMARK
 | **v3** | 2026-06-28 | MuSiQue | 64 | **0.554** | — | — | **44 queries, batch, SPLADE off (SF-only baseline)** |
 | v3 SPLADE | 2026-06-28 | MuSiQue | 64 | 0.554 | — | — | *OLD — ran without --corpus, SPLADE didn't actually run* |
 | **v4 SPLADE** | **2026-06-28** | **MuSiQue** | 64 | **0.782** | **0.523** | **0.705** | **Fixed SPLADE +41% MRR vs SF-only (44 Q, 954 docs)** |
+| **v5 SPLADE-only** | **2026-07-31** | **MuSiQue** | 64 | **0.876** | **0.644** | — | **SPLADE-only (α=0.0), 44 Q, 954 docs — first measured SPLADE-only value on this pool** |
 | v3 OOV | 2026-06-28 | MuSiQue | 64 | **0.541** | — | — | OOV expansion enabled (−2.3% MRR, 7× slower) |
 | v1 | 2026-06-15 | DROP | 64 | 0.320 | 0.762 | 42.6% | 50 queries, L2 norm |
 | v1 | 2026-06-09 | DocFinQA | 128 | 0.250 | 0.341 | 73.3% | 20 queries, financial |
@@ -52,6 +53,33 @@ For full metric definitions and formulae, see [`BENCHMARK_RESULTS.md`](BENCHMARK
 | RRF | 2026-07-07 | HotpotQA | 64 | 0.872 (Lin) | 0.857 (RRF) | — | −1.7% (linear wins) |
 | RRF | 2026-07-07 | NQ-REaR | 64 | 0.632 (Lin) | 0.631 (RRF) | — | Tie |
 | RRF | 2026-07-07 | 2WikiMultihopQA | 64 | 0.901 (Lin) | 0.761 (RRF) | — | −15.5% (linear wins) |
+
+### BEIR zero-shot (tuned, main registry)
+
+Three BEIR datasets tuned via `semantic_folding/dataset_tuner.py` (both profiles, 4-way grid)
+and written as **top-level entries** in `config/dataset_registry.yml`. SPLADE wins all three.
+**Only SciFact is included in the §3 main matrix (row 9);** NFCorpus and SciDocs are retained
+in `docs/reports/` but excluded from the matrix (BM25 outperformed SF+SPLADE on both).
+
+| Version | Date | Dataset | Grid | MRR (SF-only) | MRR (SF+SPLADE) | AP | Best profile | Notes |
+|---------|------|---------|------|---------------|-----------------|-----|:------------:|-------|
+| v1 | 2026-07-20 | SciFact | 64 | 0.860 | 0.869 | 0.863 | sf_only | 50 Q, untuned SF-only |
+| v2 | 2026-07-20 | SciFact | 64 | 0.860 | **0.960** | 0.948 | sf_splade | 50 Q, tuned (tsne, mdf0) |
+| v1 | 2026-07-20 | NFCorpus | 64 | 0.650 | 0.670 | 0.404 | sf_only | 50 Q, untuned SF-only |
+| v2 | 2026-07-20 | NFCorpus | 64 | 0.650 | **0.760** | 0.414 | sf_splade | 50 Q, tuned (tsne, mdf0) |
+| v1 | 2026-07-20 | SciDocs | 64 | 0.800 | 0.830 | 0.474 | sf_only | 50 Q, untuned SF-only |
+| v1 | 2026-07-20 | SciDocs | 64 | 0.800 | **0.900** | 0.438 | sf_splade | 50 Q, tuned (tsne, mdf20/pct5) |
+| **v3 deep-pool** | **2026-07-21** | **SciFact** | 64 | **0.0109** (SF) | **0.0004** (RRF) | — | deep-pool | **gold+top-100 BM25, ~101 cand/q, n=50 — SF=0.0109, SF+SPLADE RRF=0.0004, BM25=0.0095. 16-doc pool MRR 0.960 is an artifact (NOT leaderboard-comparable)** |
+
+> **Methodology note (BEIR runs):** These are tuned SF benchmarks added as top-level keys in
+> `config/dataset_registry.yml` (RRF fusion default, grid 64). Retrieval is over the candidate
+> pool built by `BEIRAdapter` (each query's gold passages + 15 distractors from the BEIR corpus),
+> NOT the full BEIR corpus — so MRR reflects phrase-fingerprint ranking quality within a small
+> pool, comparable to the existing in-project benchmark convention. **This makes the pool MRR
+> values an artifact of pool size and NOT comparable to published full-corpus BEIR/SciFact
+> leaderboards** — see `scifact/v3_20260721_deeppool.md` and BENCHMARK_RESULTS.md §5.6 for the
+> methodologically defensible deep-pool (gold + top-100 BM25) validation. msmarco was dropped
+> (1.08 GB passage corpus, too large for this run). See `docs/reports/<dataset>/v2_*_tuned.md`.
 
 ---
 
@@ -86,12 +114,32 @@ For full metric definitions and formulae, see [`BENCHMARK_RESULTS.md`](BENCHMARK
 ### MuSiQue
 - MuSiQue results are recorded in BENCHMARK_RESULTS.md (MRR=0.453, 100 queries, multi-hop; v3 MRR=0.554, 44 queries, batch processing)
 - `musique/v3_20260628_134311.md` — Batch-processed benchmark report
+- `musique/v5_20260731_230557_spladeonly.md` — SPLADE-only (α=0.0) benchmark report (MRR=0.876 ± 0.082, 44 Q, 954 docs)
 
 ### DROP
 - DROP results are recorded in BENCHMARK_RESULTS.md (MRR=0.320, 50 queries, L2 norm)
 
 ### DocFinQA
 - DocFinQA results are recorded in BENCHMARK_RESULTS.md (MRR=0.250, 20 queries, financial)
+
+### SciFact (BEIR)
+- `scifact/v1_20260720_124345.md` — SF-only benchmark report (MRR=0.869, AP=0.863, 50 Q)
+- `scifact/v2_20260720_151348_tuned.md` — Tuned report (MRR=0.960, AP=0.948, sf_splade, tsne/mdf0)
+- `scifact/v2_20260720_155945_linear.md` — SF+SPLADE Linear (MRR=0.900)
+- `scifact/v2_20260720_162711_bm25.md` — BM25 baseline (MRR=0.900)
+- **`scifact/v3_20260721_deeppool.md` — Deep-pool validation (gold + top-100 BM25, n=50): SF MRR=0.0109, BM25 MRR=0.0095. ⚠️ The 16-doc pool MRR 0.960 is a retrieval-recall artifact, NOT comparable to BEIR/SciFact leaderboards. See BENCHMARK_RESULTS.md §5.6.**
+
+### NFCorpus (BEIR)
+- `nfcorpus/v1_20260720_124345.md` — SF-only benchmark report (MRR=0.670, AP=0.404, 50 Q)
+- `nfcorpus/v2_20260720_151856_tuned.md` — Tuned report (MRR=0.760, AP=0.414, sf_splade, tsne/mdf0)
+- `nfcorpus/v2_20260720_160448_linear.md` — SF+SPLADE Linear (MRR=0.680)
+- `nfcorpus/v2_20260720_162711_bm25.md` — BM25 baseline (MRR=0.866)
+
+### SciDocs (BEIR)
+- `scidocs/v1_20260720_124345.md` — SF-only benchmark report (MRR=0.830, AP=0.474, 50 Q)
+- `scidocs/v2_20260720_152707_tuned.md` — Tuned report (MRR=0.900, AP=0.438, sf_splade, tsne/mdf20/pct5)
+- `scidocs/v2_20260720_161237_linear.md` — SF+SPLADE Linear (MRR=0.730)
+- `scidocs/v2_20260720_162711_bm25.md` — BM25 baseline (MRR=0.952)
 
 ---
 

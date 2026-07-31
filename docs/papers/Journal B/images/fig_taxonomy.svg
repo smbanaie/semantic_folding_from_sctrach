@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .root { fill: #f3f4f6; stroke: #111827; stroke-width: 1.6; }
+    .branch { fill: #eef2ff; stroke: #4338ca; stroke-width: 1.4; }
+    .leafA { fill: #ecfdf5; stroke: #047857; stroke-width: 1.2; }
+    .leafB { fill: #fff7ed; stroke: #c2410c; stroke-width: 1.2; }
+    .leafC { fill: #fef2f2; stroke: #b91c1c; stroke-width: 1.2; }
+    .label { font-size: 14px; fill: #111827; }
+    .sublabel { font-size: 11.5px; fill: #374151; }
+    .caption { font-size: 11px; fill: #6b7280; font-style: italic; }
+    .titletxt { font-size: 15px; fill: #111827; font-weight: 600; }
+    line, path.edge { stroke: #9ca3af; stroke-width: 1.3; fill: none; }
+  </style>
+  <rect x="390" y="46" width="180" height="42" rx="8" class="root"/>
+  <text x="480" y="72" text-anchor="middle" class="label" style="white-space: pre;">Hybrid Failure</text>
+  <path class="edge" d="M480,88 L480,110 L165,110 L165,132"/>
+  <path class="edge" d="M480,88 L480,132"/>
+  <path class="edge" d="M480,88 L480,110 L795,110 L795,132"/>
+  <rect x="65" y="132" width="200" height="42" rx="8" class="branch"/>
+  <text x="165" y="158" text-anchor="middle" class="label" style="white-space: pre;">Signal Failure</text>
+  <path class="edge" d="M165,174 L165,340"/>
+  <rect x="45" y="200" width="240" height="50" rx="7" class="leafA"/>
+  <text x="165" y="220" text-anchor="middle" class="sublabel" style="white-space: pre;">True redundancy</text>
+  <text x="165" y="236" text-anchor="middle" class="sublabel" style="white-space: pre;">τ(π_A, π_B) ≈ 1</text>
+  <rect x="45" y="290" width="240" height="50" rx="7" class="leafA"/>
+  <text x="165" y="310" text-anchor="middle" class="sublabel" style="white-space: pre;">Locality-induced feature ceiling</text>
+  <text x="165" y="326" text-anchor="middle" class="sublabel" style="white-space: pre;">a candidate feature adds nothing new</text>
+  <rect x="380" y="132" width="200" height="42" rx="8" class="branch"/>
+  <text x="480" y="158" text-anchor="middle" class="label" style="white-space: pre;">Operator Failure</text>
+  <path class="edge" d="M480,174 L480,340"/>
+  <rect x="360" y="200" width="240" height="50" rx="7" class="leafB"/>
+  <text x="480" y="220" text-anchor="middle" class="sublabel" style="white-space: pre;">Scale mismatch</text>
+  <text x="480" y="236" text-anchor="middle" class="sublabel" style="white-space: pre;">= Complementarity Illusion (§4.1)</text>
+  <rect x="360" y="290" width="240" height="50" rx="7" class="leafB"/>
+  <text x="480" y="310" text-anchor="middle" class="sublabel" style="white-space: pre;">Magnitude destruction</text>
+  <text x="480" y="326" text-anchor="middle" class="sublabel" style="white-space: pre;">rank-only operator discards s (§4.2)</text>
+  <rect x="695" y="132" width="200" height="42" rx="8" class="branch"/>
+  <text x="795" y="158" text-anchor="middle" class="label" style="white-space: pre;">Representation Failure</text>
+  <path class="edge" d="M795,174 L795,340"/>
+  <rect x="675" y="200" width="240" height="50" rx="7" class="leafC"/>
+  <text x="795" y="220" text-anchor="middle" class="sublabel" style="white-space: pre;">Compositional gap</text>
+  <text x="795" y="236" text-anchor="middle" class="sublabel" style="white-space: pre;">no relational algebra across docs</text>
+  <rect x="675" y="290" width="240" height="50" rx="7" class="leafC"/>
+  <text x="795" y="310" text-anchor="middle" class="sublabel" style="white-space: pre;">Score concentration</text>
+  <text x="795" y="326" text-anchor="middle" class="sublabel" style="white-space: pre;">dynamic range collapses as N grows (§4.3)</text>
+  <text x="480" y="380" text-anchor="middle" class="caption" style="white-space: pre;"> </text>
+  <text x="480" y="398" text-anchor="middle" class="caption" style="white-space: pre;"> </text>
+  <text style="white-space: pre; fill: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 28px;" x="999.706" y="269.379">Enter your text here</text>
+</svg>

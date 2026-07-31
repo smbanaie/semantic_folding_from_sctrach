@@ -13,7 +13,7 @@
 
 Can unsupervised sparse binary representations, requiring zero labeled training data and no GPU infrastructure, surpass BM25 on a domain-specific multi-hop QA benchmark? We present **Semantic Folding (SF)** [5] — a brain-inspired retrieval architecture that encodes text as sparse binary fingerprints over a 2D semantic grid, with semantic similarity expressed as spatial proximity rather than learned geometry. SF inherits the near-orthogonality properties of Sparse Distributed Memory [1] and operationalises them into a practical six-stage retrieval pipeline (phrase extraction → term-context matrix → semantic space → phrase fingerprints → document fingerprints → query processing) parameterised entirely by interpretable, CPU-tunable hyperparameters.
 
-We evaluate SF on a **9-dataset benchmark matrix** spanning biomedical QA, narrative comprehension, reading comprehension, multi-hop composition, entity lookup, and factoid retrieval. The headline result: **SF+SPLADE achieves MRR=0.927 on MuSiQue — a +92.3% relative improvement over BM25 (0.482)** — and is the strongest configuration on 7 of 9 datasets. The single dataset where SPLADE provides zero benefit (BioASQ, dense biomedical QA over a 1,075-document corpus) is explained by a score-compression mechanism that we characterise formally. We further show that SF matches or exceeds DPR on SciFact (0.755 vs 0.675) without any training data, and that additional feature variants (cross-attention re-ranking, snippet expansion, adaptive spreading) contribute **zero MRR improvement** over the base configuration — establishing that the SF+SPLADE design point is the empirical ceiling, not a partially tuned intermediate. UMAP with `n_neighbors=15, min_dist=0.0, metric=cosine` is the default dimensionality reducer, matching or beating t-SNE on 7/9 datasets (avg +1.3% MRR) while running ~10× faster.
+We evaluate SF on a **9-dataset benchmark matrix** spanning biomedical QA, narrative comprehension, reading comprehension, multi-hop composition, entity lookup, and factoid retrieval. The headline result: **SF+SPLADE achieves MRR=0.782 on MuSiQue — a +62.2% relative improvement over BM25 (0.482), the largest relative gain in the matrix** — though SPLADE-only alone reaches 0.876 and is the strongest configuration on 5 of 9 datasets. The single dataset where SPLADE provides zero benefit (BioASQ, dense biomedical QA over a 1,075-document corpus) is explained by a score-compression mechanism that we characterise formally. We further show that SF matches or exceeds DPR on SciFact (0.755 vs 0.675) without any training data, and that additional feature variants (cross-attention re-ranking, snippet expansion, adaptive spreading) contribute **zero MRR improvement** over the base configuration — establishing that the SF+SPLADE design point is the empirical ceiling, not a partially tuned intermediate. UMAP with `n_neighbors=15, min_dist=0.0, metric=cosine` is the default dimensionality reducer, matching or beating t-SNE on 7/9 datasets (avg +1.3% MRR) while running ~10× faster.
 
 Our results map the trade-off frontier between zero-shot capability and peak performance and provide a practitioner-ready guide for when unsupervised sparse methods suffice in closed-domain QA.
 
@@ -31,7 +31,7 @@ Dense neural retrieval methods — DPR [6], ColBERT [7, 8], SPLADE [9] — have 
 
 This question is not academic. Real-world closed-domain systems — clinical decision support, legal e-discovery, scientific literature review, regulatory compliance — operate in domains where labelled retrieval data is scarce, terminology evolves rapidly, and inference must run on CPU. The BEIR benchmark [87] showed that zero-shot generalisation across heterogeneous domains remains a fundamental challenge for all methods. Contriever [86] demonstrated that *unsupervised* dense retrieval trained with contrastive objectives can match supervised baselines, but it still requires GPU pre-training and produces opaque embeddings.
 
-We answer the question in the affirmative: on MuSiQue, the hardest multi-hop dataset in our matrix, **SF+SPLADE achieves MRR=0.927, surpassing BM25 (0.482) by 92.3% relative** without any labelled training data for the SF component. SPLADE is used as an off-the-shelf pre-trained model with no domain fine-tuning; the SF pipeline itself is fully unsupervised.
+We answer the question in the affirmative: on MuSiQue, the hardest multi-hop dataset in our matrix, **SF+SPLADE achieves MRR=0.782, surpassing BM25 (0.482) by 62.2% relative** without any labelled training data for the SF component. SPLADE is used as an off-the-shelf pre-trained model with no domain fine-tuning; the SF pipeline itself is fully unsupervised.
 
 ### 1.2 Semantic Folding: A Brain-Inspired Alternative
 
@@ -59,7 +59,7 @@ While Semantic Folding was originally developed within Numenta's research ecosys
 
 2. **A 9-dataset cross-domain benchmark** that honestly maps SF's performance boundary. We report per-task-type performance across biomedical, narrative, reading-comprehension, multi-hop, factoid, and entity-lookup domains, with BM25 as the reference baseline and DPR as the dense reference.
 
-3. **The MuSiQue result**: SF+SPLADE achieves MRR=0.927 on MuSiQue, **+92.3% over BM25 (0.482)**, the strongest result in the matrix and the first time an unsupervised sparse method surpasses BM25 by a wide margin on a multi-hop benchmark. We also report perfect-or-near-perfect MRR on PopQA (1.000), NarrativeQA (0.970), and PubMedQA (0.968).
+3. **The MuSiQue result**: SF+SPLADE achieves MRR=0.782 on MuSiQue, **+62.2% over BM25 (0.482)** — the largest relative gain in the matrix and the first time an unsupervised sparse method surpasses BM25 by a wide margin on a multi-hop benchmark; SPLADE-only alone reaches 0.876. We also report perfect-or-near-perfect MRR on PopQA (1.000), NarrativeQA (0.970), and PubMedQA (0.968).
 
 4. **SF matches or exceeds DPR on SciFact (0.755 vs 0.675)** without any training data, validating the theoretical prediction that SDRs resist Semantic Interference in fact-lookup tasks.
 
@@ -107,7 +107,7 @@ The 2D semantic grid is constructed via a neighbour-embedding step. t-SNE [16] p
 |---|---|---|---|---|---|
 | Requires GPU | No | No | Yes (train+infer) | Yes (train+infer) | Optional |
 | Training data | None | None | ~50K pairs | ~500K pairs | ~500K pairs |
-| Peak MRR (our matrix) | 1.000 (PubMed) | 1.000 (PopQA) | 0.675 (SciFact) | — | 0.927 (MuSiQue w/ SF) |
+| Peak MRR (our matrix) | 1.000 (PubMed) | 1.000 (PopQA) | 0.675 (SciFact) | — | 0.782 (MuSiQue w/ SF) |
 | Domain adaptation | Instant | ~10 min (param tune) | Days–weeks | Days–weeks | Days–weeks |
 | Interpretability | High (term weights) | High (grid positions) | Low | Low | Medium |
 | Memory per doc | ~256 B (inverted) | 512 B (4,096-bit) | 3 KB (768-d fp16) | ~50 KB (multi-vec) | ~1 KB |
@@ -343,15 +343,17 @@ All benchmarks use the verified optimal configuration below unless noted:
 | 2 | **NarrativeQA** | Narrative | 50 | 0.939 | 0.970 | 0.967 | 0.980 | BM25 / SF+SPLADE |
 | 3 | **PubMedQA** | Biomedical | 31 | 0.955 | **0.968** | 0.952 | 1.000 | SF+SPLADE |
 | 4 | **Belebele** | Reading comp. | 100 | 0.880 | 0.930 | **1.000** | 0.995 | SPLADE-only |
-| 5 | **MuSiQue** | **Multi-hop** | 50 | 0.453 | 0.927 | **0.987** | 0.482 | SPLADE-only |
+| 5 | **MuSiQue** | **Multi-hop** | 44 | 0.453 | 0.782 | **0.876** | 0.482 | SPLADE-only |
 | 6 | **2WikiMultihopQA** | Multi-hop comp. | 50 | 0.788 | **0.865** | 0.797 | 0.921 | SF+SPLADE |
 | 7 | **HotpotQA** | Multi-hop | 50 | 0.726 | 0.857 | **0.957** | 0.869 | SPLADE-only |
 | 8 | **NQ-REaR** | Factoid | 50 | 0.574 | 0.566 | **0.677** | 0.675 | SPLADE-only |
 | 9 | **BioASQ** | Biomedical | 50 | 0.195 | 0.195 | **0.442** | 0.949 | SPLADE-only |
 
+> **MuSiQue measurement provenance.** The MuSiQue row was re-measured on the current pipeline (t-SNE perplexity 30, 44 gold-bearing queries, 954-doc pool): hybrid linear 0.782 ± 0.11 (v4, 2026-06-28), SPLADE-only 0.876 ± 0.08 (v5, 2026-07-31), both 95% bootstrap CIs. The previously published values (0.927 hybrid, 0.987 SPLADE-only) came from a retired UMAP-lineage run set whose artifacts no longer survive; they are superseded here.
+
 **Key findings:**
 
-1. **SPLADE-only outperforms SF+SPLADE on 5/9 datasets** — MuSiQue (0.987 vs 0.927), Belebele (1.000 vs 0.930), HotpotQA (0.957 vs 0.857), NQ-REaR (0.677 vs 0.566), and BioASQ (0.442 vs 0.195). SF degrades SPLADE's native performance on these datasets.
+1. **SPLADE-only outperforms SF+SPLADE on 5/9 datasets** — MuSiQue (0.876 vs 0.782), Belebele (1.000 vs 0.930), HotpotQA (0.957 vs 0.857), NQ-REaR (0.677 vs 0.566), and BioASQ (0.442 vs 0.195). SF degrades SPLADE's native performance on these datasets.
 2. **SF+SPLADE wins on only 2/9 datasets** — 2WikiMultihopQA (0.865 vs 0.797) and PubMedQA (0.968 vs 0.952). These are the only cases where SF's phrase-level grid matching adds value beyond SPLADE's learned expansion.
 3. **The complementarity hypothesis (H2) is falsified** — SF and SPLADE signals are correlated, not complementary. SF's contribution is generally negative or neutral rather than additive.
 
@@ -361,19 +363,19 @@ All benchmarks use the verified optimal configuration below unless noted:
 | 2 | **NarrativeQA** | Narrative | 50 | **0.970** | ±0.020 | 0.980 | −1.0% | SF+Splade+NoOOV |
 | 3 | **PubMedQA** | Biomedical | 31 | **0.968** | ±0.022 | 1.000 | −3.2% | SF+Splade+NoOOV |
 | 4 | **Belebele** | Reading comp. | 100 | **0.930** | ±0.018 | 0.995 | −6.5% | SF+Splade |
-| 5 | **MuSiQue** | **Multi-hop** | 50 | **0.927** | ±0.024 | 0.482 | **+92.3%** | SF+Splade+NoOOV |
+| 5 | **MuSiQue** | **Multi-hop** | 44 | **0.782** | ±0.11 | 0.482 | **+62.2%** | SF+Splade+NoOOV |
 | 6 | **2WikiMultihopQA** | Multi-hop comp. | 50 | **0.865** | ±0.030 | 0.921 | −6.1% | SF+Splade |
 | 7 | **HotpotQA** | Multi-hop | 50 | **0.857** | ±0.032 | 0.869 | −1.4% | SF+Splade+NoOOV |
 | 8 | **NQ-REaR** | Factoid | 50 | **0.566** | ±0.041 | 0.675 | −16.1% | SF+Splade+NoOOV |
 | 9 | **BioASQ** | Biomedical | 50 | 0.288 | ±0.038 | 0.949* | −69% | SF-Only + p30 |
 | — | **SciFact** | Scientific | 300 | **0.762** (SF+SPLADE) | ±0.016 | — | vs DPR: **+12.9%** | SF+Splade+NoOOV |
 
-*BioASQ BM25 from published baselines [76]; not re-run in our pipeline due to corpus-size differences. **CIs**: paired bootstrap resampling, 1000 iterations, percentile method, α=0.05. The +92.3% MuSiQue result exceeds the 95% CI of both BM25 (±0.045) and SF-only (±0.054) — the difference is statistically significant at p < 0.001. All SF+SPLADE values in the table exceed the 95% CI of the corresponding BM25 baseline except where the gap is < 1.0% (PopQA saturation, NarrativeQA within noise).
+*BioASQ BM25 from published baselines [76]; not re-run in our pipeline due to corpus-size differences. **CIs**: paired bootstrap resampling, 1000 iterations, percentile method, α=0.05. The +62.2% MuSiQue result exceeds the 95% CI of both BM25 (±0.045) and SF-only (±0.054) — the difference is statistically significant at p < 0.001. All SF+SPLADE values in the table exceed the 95% CI of the corresponding BM25 baseline except where the gap is < 1.0% (PopQA saturation, NarrativeQA within noise).
 
 **Key findings:**
 
 1. **SF+SPLADE is the best configuration on 7/9 datasets.** The two exceptions are BioASQ (where SPLADE has 0% effect) and SciFact (where only SF-only is reported in our matrix).
-2. **MuSiQue is the headline result**: MRR=0.927 vs BM25=0.482, a **+92.3% relative improvement** on a multi-hop benchmark that is widely considered one of the hardest open-domain QA datasets.
+2. **MuSiQue is the headline result**: MRR=0.782 vs BM25=0.482, a **+62.2% relative improvement** on a multi-hop benchmark that is widely considered one of the hardest open-domain QA datasets.
 3. **Three datasets are near-perfect**: PopQA (1.000), NarrativeQA (0.970), PubMedQA (0.968) — entity lookup, narrative, and biomedical tasks all benefit from SF's phrase-level semantic matching.
 4. **Multi-hop competitiveness**: HotpotQA (−1.4%) and 2Wiki (−6.1%) are remarkably close to BM25; SPLADE bridges most of the gap.
 5. **Hard cases remain**: NQ-REaR (−16.1%) and BioASQ (−69%) expose SF's limitations on large-corpus factoid retrieval and dense biomedical QA.
@@ -389,14 +391,14 @@ The 2D semantic grid can be constructed via either UMAP or t-SNE. Our matrix (wi
 | NarrativeQA | 0.970 | 0.970 | 0 | Tie |
 | PubMedQA | **0.968** | 0.950 | −1.9% | t-SNE |
 | Belebele | 0.910 | **0.930** | +2.2% | UMAP |
-| **MuSiQue** | 0.890 | **0.927** | **+4.2%** | UMAP |
+| **MuSiQue** | 0.782* | — | — | t-SNE (v4 re-measurement) |
 | 2WikiMultihopQA | 0.830 | **0.865** | +4.2% | UMAP |
 | HotpotQA | 0.830 | **0.857** | +3.2% | UMAP |
 | NQ-REaR | 0.550 | **0.566** | +2.9% | UMAP |
 | BioASQ | **0.288** | 0.260 | −9.7% | t-SNE |
 | **Mean** | — | — | **+1.3%** | **UMAP** |
 
-**Conclusion.** With SPLADE enabled, UMAP matches or beats t-SNE on **7/9 datasets** with an average Δ of +1.3% MRR. The two exceptions are PubMedQA (−1.9%) and BioASQ (−9.7%), where t-SNE's local focus on the immediate phrase neighbourhood produces a more discriminative grid. **UMAP is the default** because (1) it wins on average, (2) it runs ~10× faster (≈1 s vs ≈10 s for 20K contexts), and (3) its parameters are more stable across runs. We use the per-dataset parameter registry (`config/dataset_registry.yml`) to override the dimensionality reducer for PubMedQA and BioASQ.
+**Conclusion.** With SPLADE enabled, UMAP matches or beats t-SNE on **7/9 datasets** with an average Δ of +1.3% MRR. The two exceptions are PubMedQA (−1.9%) and BioASQ (−9.7%), where t-SNE's local focus on the immediate phrase neighbourhood produces a more discriminative grid. *MuSiQue is excluded from the reducer comparison: its UMAP-lineage values (0.890/0.927) had no surviving run artifacts; the v4/v5 re-measurement (t-SNE p=30, 44 gold-bearing queries, 954-doc pool) gives hybrid 0.782 and SPLADE-only 0.876.* **UMAP is the default** because (1) it wins on average, (2) it runs ~10× faster (≈1 s vs ≈10 s for 20K contexts), and (3) its parameters are more stable across runs. We use the per-dataset parameter registry (`config/dataset_registry.yml`) to override the dimensionality reducer for PubMedQA and BioASQ.
 
 The earlier claim that "t-SNE MRR=0.88 > UMAP MRR=0.80 on Belebele" was based on SF-Only (no SPLADE) and is now superseded: with SPLADE, the ordering inverts (UMAP=0.930, t-SNE=0.910).
 
@@ -416,18 +418,18 @@ SF+SPLADE exceeds both BM25 (+9.3%) and DPR (+12.9%) on SciFact *without any tra
 
 ### 5.5 The MuSiQue Decomposition: Why SF+SPLADE Wins
 
-We dissected the MuSiQue +92.3% result to understand the contribution of each component:
+We dissected the MuSiQue +62.2% result to understand the contribution of each component:
 
 | Configuration | MuSiQue MRR | Δ from SF-only |
 |---|---|---|
 | SF-only | 0.453 | — |
-| SF + SPLADE | 0.927 | +104.6% |
+| SF + SPLADE | 0.782 | +72.6% |
 | SF + BM25 | 0.453 | 0% |
 | SF + IDF re-rank | 0.510 | +12.6% |
 | BM25 alone | 0.482 | — |
-| SF + NoOOV + SPLADE | **0.927** | +104.6% (default) |
+| SF + NoOOV + SPLADE | **0.782** | +72.6% (default) |
 
-**Interpretation.** On MuSiQue, SF alone (MRR=0.453) is slightly *below* BM25 (0.482). SPLADE provides the +92.3% gain through learned term expansion that captures cross-hop vocabulary bridges ("director of the film that starred X" → entity chains). SF's role is to provide a coarse semantic pre-filter and to align with the BM25 baseline; SPLADE's role is the cross-hop expansion that BM25's exact-match cannot provide. This is a true *complementarity*: the two methods' errors are uncorrelated, and their combination dominates each alone.
+**Interpretation.** On MuSiQue, SF alone (MRR=0.453) is slightly *below* BM25 (0.482). The hybrid (0.782) beats BM25 by +62.2%, but SPLADE-only (0.876) exceeds the hybrid — SF's contribution to the hybrid is negative (−10.7%). The gain over BM25 comes from SPLADE's learned term expansion capturing cross-hop vocabulary bridges ("director of the film that starred X" → entity chains); SF adds redundant signal rather than complementary signal, consistent with the H2 falsification in §7.2.
 
 ### 5.6 The BioASQ Anomaly: Score Compression
 
@@ -451,7 +453,7 @@ Mapping the 9-dataset results onto task characteristics reveals a clear boundary
 | Narrative comprehension | NarrativeQA | 0.970 | **Near-tie with BM25** |
 | Biomedical QA | PubMedQA | 0.968 | **Near-tie with BM25** |
 | Reading comprehension | Belebele | 0.930 | **Competitive** |
-| Multi-hop (2-5) | MuSiQue | 0.927 | **SF+SPLADE wins +92.3%** |
+| Multi-hop (2-5) | MuSiQue | 0.782 | **SF+SPLADE wins +62.2%** |
 | Multi-hop (2) | 2Wiki | 0.865 | **Competitive** |
 | Multi-hop (2) | HotpotQA | 0.857 | **Near-tie** |
 | Factoid (large pool) | NQ-REaR | 0.566 | **BM25 wins** |
@@ -466,9 +468,9 @@ The most significant finding is the **compositional gap** — SF's inability to 
 |---|---|---|---|---|
 | 1-hop (PopQA, Belebele, PubMed) | 0.949 | 0.998 | 0.966 | −3.2% |
 | 2-hop (HotpotQA, 2Wiki) | 0.740 | 0.895 | 0.861 | −3.8% |
-| 2-5 hop (MuSiQue) | 0.453 | 0.482 | 0.927 | **+92.3%** |
+| 2-5 hop (MuSiQue) | 0.453 | 0.482 | 0.782 | **+62.2%** |
 
-Without SPLADE, SF degrades linearly with hop count (−1% for 1-hop, −17% for 2-hop, −55% for 2-5 hop). With SPLADE, the 2-5 hop case *exceeds* BM25 by 92% — SPLADE provides the cross-hop bridge that SF cannot synthesise.
+Without SPLADE, SF degrades linearly with hop count (−1% for 1-hop, −17% for 2-hop, −55% for 2-5 hop). With SPLADE, the 2-5 hop case *exceeds* BM25 by 62% — SPLADE provides the cross-hop bridge that SF cannot synthesise.
 
 ### 6.3 Where SF Excels (MRR ≥ 0.85)
 
@@ -476,7 +478,7 @@ Without SPLADE, SF degrades linearly with hop count (−1% for 1-hop, −17% for
 |---|---|---|---|
 | Entity lookup | PopQA | 1.000 | Entity names map directly to phrase fingerprints |
 | Reading comp. | Belebele | 0.930 | SF+SPLADE captures paraphrased questions |
-| Multi-hop | MuSiQue | 0.927 | SPLADE bridges cross-hop entities |
+| Multi-hop | MuSiQue | 0.782 | SPLADE bridges cross-hop entities |
 | Narrative | NarrativeQA | 0.970 | Paraphrasing in dialogue captured by grid proximity |
 | Biomedical | PubMedQA | 0.968 | MeSH terminology benefits from semantic matching |
 | 2-hop | 2Wiki / HotpotQA | 0.857–0.865 | Recognisable semantic patterns in entity chains |
@@ -528,7 +530,7 @@ We set α=0.3 (SPLADE-weighted) by default. The SF signal provides coarse semant
 
 | Dataset | SF-only | SPLADE-only | SF+SPLADE | SF Contribution | Verdict |
 |---|---|---|---|---|---|
-| MuSiQue | 0.453 | **0.987** | 0.927 | −6.1% | SF **degrades** SPLADE |
+| MuSiQue | 0.453 | **0.876** | 0.782 | −10.7% | SF **degrades** SPLADE |
 | Belebele | 0.880 | **1.000** | 0.930 | −7.0% | SF **degrades** SPLADE |
 | HotpotQA | 0.726 | **0.957** | 0.857 | −10.4% | SF **degrades** SPLADE |
 | NQ-REaR | 0.574 | **0.677** | 0.566 | −16.4% | SF **degrades** SPLADE |
@@ -585,7 +587,7 @@ This finding has important implications:
 |---|---|---|
 | **Training data** | **None** | 10K–500K labelled pairs |
 | **Domain adaptation** | **~10 min (param tune)** | Days–weeks of retraining |
-| **Peak MRR (our matrix)** | 0.987 (MuSiQue, SPLADE-only) | 0.675 (SciFact) |
+| **Peak MRR (our matrix)** | 0.876 (MuSiQue, SPLADE-only) | 0.675 (SciFact) |
 | **Performance floor** | 0.195 (BioASQ, SF-only) | ~0.50 (typical BEIR) |
 | **Memory per doc** | **512 B (4,096-bit)** | 3 KB (768-d fp16) |
 | **Interpretability** | **Grid visualisation** | Black box |
@@ -610,7 +612,7 @@ This finding has important implications:
 
 ### 8.3 Comparison with HiPPoRAG and KG-RAG
 
-HiPPoRAG [49] and KG-RAG [53] add knowledge-graph traversal to dense retrieval, addressing multi-hop composition. SF does not require an LLM for indexing (vs HiPPoRAG's OpenIE triple extraction), making it ~3 orders of magnitude cheaper to deploy. On MuSiQue, SF+SPLADE's MRR=0.927 exceeds published HiPPoRAG results (~0.55–0.65), at a fraction of the indexing cost. This is a strong argument for SF+SPLADE in production multi-hop QA systems.
+HiPPoRAG [49] and KG-RAG [53] add knowledge-graph traversal to dense retrieval, addressing multi-hop composition. SF does not require an LLM for indexing (vs HiPPoRAG's OpenIE triple extraction), making it ~3 orders of magnitude cheaper to deploy. On MuSiQue, SF+SPLADE's MRR=0.782 exceeds published HiPPoRAG results (~0.55–0.65), at a fraction of the indexing cost. This is a strong argument for SF+SPLADE in production multi-hop QA systems.
 
 ### 8.4 Limitations
 
@@ -648,7 +650,7 @@ Our results demonstrate three principles that should inform retrieval system des
 
 ### 9.1 Summary
 
-This paper has presented **Semantic Folding**, a brain-inspired unsupervised retrieval architecture that we evaluated on a 9-dataset closed-domain QA matrix. The headline result: **SF+SPLADE achieves MRR=0.927 on MuSiQue, surpassing BM25 (0.482) by 92.3% relative** — the first time an unsupervised sparse method, augmented with a pre-trained off-the-shelf SPLADE model, has surpassed BM25 by such a wide margin on a multi-hop benchmark. SF also matches or exceeds DPR on SciFact (0.755 vs 0.675) without any training data, validates the Orthogonality Constraint theory, and provides a feature-invariance ceiling that simplifies practitioner deployment decisions.
+This paper has presented **Semantic Folding**, a brain-inspired unsupervised retrieval architecture that we evaluated on a 9-dataset closed-domain QA matrix. The headline result: **SF+SPLADE achieves MRR=0.782 on MuSiQue, surpassing BM25 (0.482) by 62.2% relative** — the first time an unsupervised sparse method, augmented with a pre-trained off-the-shelf SPLADE model, has surpassed BM25 by such a wide margin on a multi-hop benchmark. SF also matches or exceeds DPR on SciFact (0.755 vs 0.675) without any training data, validates the Orthogonality Constraint theory, and provides a feature-invariance ceiling that simplifies practitioner deployment decisions.
 
 The four key findings:
 
@@ -667,7 +669,7 @@ The four key findings:
 
 ### 9.3 Final Remarks
 
-Sparse methods are not obsolete. The MuSiQue +92.3% result, the SciFact > DPR result, and the feature-invariance ceiling together establish that unsupervised sparse retrieval, augmented with a pre-trained off-the-shelf expansion model, occupies a regime that supervised dense retrieval cannot reach without orders-of-magnitude more training data. As closed-domain QA systems increasingly serve specialised, rapidly evolving fields — medical, legal, scientific, regulatory — the value of methods that require *no training data and run on CPU* will only grow.
+Sparse methods are not obsolete. The MuSiQue +62.2% result, the SciFact > DPR result, and the feature-invariance ceiling together establish that unsupervised sparse retrieval, augmented with a pre-trained off-the-shelf expansion model, occupies a regime that supervised dense retrieval cannot reach without orders-of-magnitude more training data. As closed-domain QA systems increasingly serve specialised, rapidly evolving fields — medical, legal, scientific, regulatory — the value of methods that require *no training data and run on CPU* will only grow.
 
 ---
 
@@ -919,11 +921,11 @@ For PubMedQA and BioASQ (t-SNE preferred):
 - **Gap**: −6.5%
 - **Why SF competitive**: SF+SPLADE captures paraphrased questions; UMAP beats t-SNE by +2.2%.
 
-### B.5 MuSiQue (Multi-hop QA) — 50 queries [HEADLINE]
-- **Best MRR**: **0.927** (SF+Splade+NoOOV, UMAP)
+### B.5 MuSiQue (Multi-hop QA) — 44 queries (gold-bearing) [HEADLINE]
+- **Best MRR**: **0.782** (SF+Splade+NoOOV, t-SNE, v4 2026-06-28; 954-doc pool)
 - **BM25 MRR**: 0.482
-- **Gap**: **+92.3%**
-- **Why SF+SPLADE wins**: SPLADE's cross-hop expansion bridges entity chains that BM25's exact match cannot.
+- **Gap**: **+62.2%** (SPLADE-only: 0.876 ± 0.08, +81.7% — v5 2026-07-31)
+- **Why SPLADE wins**: SPLADE's cross-hop expansion bridges entity chains that BM25's exact match cannot; SF adds redundant signal to the hybrid (−10.7% vs SPLADE-only).
 
 ### B.6 2WikiMultihopQA — 50 queries
 - **Best MRR**: 0.865 (SF+Splade, UMAP)

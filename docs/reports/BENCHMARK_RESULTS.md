@@ -1,6 +1,6 @@
 # Semantic Folding — Benchmark Results
 
-**Thesis-aligned version** — reflects the final 8-dataset evaluation matrix.
+**Thesis-aligned version** — reflects the final 9-dataset evaluation matrix (8 in-project closed-domain QA datasets + 1 scientific claim-verification dataset, SciFact).
 For raw per-query results, see `outputs/*/benchmarks/`.
 For per-dataset parameter registry, see `config/dataset_registry.yml`.
 
@@ -31,7 +31,7 @@ For per-dataset parameter registry, see `config/dataset_registry.yml`.
 
 ## 1. Summary
 
-Semantic Folding (SF) was benchmarked against BM25, SPLADE, and SF+SPLADE on **8 closed-domain QA datasets** spanning entity lookup, biomedical QA, narrative comprehension, reading comprehension, multi-hop QA, and factoid retrieval. Results are from 50 queries per dataset (except where noted). All metrics use MRR as primary, with AP, P@1, and NDCG@K for context.
+Semantic Folding (SF) was benchmarked against BM25, SPLADE, and SF+SPLADE on **9 datasets**: 8 closed-domain QA datasets (entity lookup, biomedical QA, narrative comprehension, reading comprehension, multi-hop QA, factoid retrieval) plus 1 scientific claim-verification dataset (SciFact, drawn from biomedical/life-science abstracts). Results are from 50 queries per dataset (except where noted). All metrics use MRR as primary, with AP, P@1, and NDCG@K for context.
 
 **Best result**: SF+SPLADE achieves MRR=1.000 on PopQA (entity lookup) and MRR=0.968 on PubMedQA (biomedical QA).
 
@@ -59,7 +59,7 @@ Semantic Folding (SF) was benchmarked against BM25, SPLADE, and SF+SPLADE on **8
 
 ---
 
-## 3. Main Results — 8-Dataset Benchmark
+## 3. Main Results — 9-Dataset Benchmark
 
 | Rank | Dataset | Domain | Queries | SF-Only MRR | SF+SPLADE Linear | SF+SPLADE RRF | BM25 MRR | Best Method |
 |:----:|---------|--------|:-------:|:-----------:|:-------------:|:-------------:|:--------:|:-----------:|
@@ -71,8 +71,9 @@ Semantic Folding (SF) was benchmarked against BM25, SPLADE, and SF+SPLADE on **8
 | 6 | **2WikiMultihopQA** | Multi-hop comp | 50 | 0.788 | **0.901** | 0.761 | 0.921 | SF+SPLADE Linear |
 | 7 | **HotpotQA** | Multi-hop | 50 | 0.726 | **0.872** | 0.857 | 0.869 | SPLADE-only |
 | 8 | **NQ-REaR** | Factoid | 50 | 0.574 | 0.632 | 0.631 | 0.675 | SPLADE-only |
+| 9 | **SciFact** | Scientific fact-checking | 50 | 0.860 ⚠️ | 0.900 ⚠️ | **0.960 ⚠️** | 0.900 ⚠️ | **SF+SPLADE RRF** |
 
-† NarrativeQA: AP=0.017 — small pools inflate MRR. MuSiQue: 44 gold-bearing queries (v4 SF+SPLADE run, t-SNE p=30).
+† NarrativeQA: AP=0.017 — small pools inflate MRR. MuSiQue: 44 gold-bearing queries (v4 SF+SPLADE run, t-SNE p=30; v5 SPLADE-only run 2026-07-31, MRR=0.876 ± 0.082, same 954-doc pool). SciFact ⚠️: row-9 MRR is over the **16-doc toy pool** (gold + 15 distractors), NOT the full corpus — a pool-size artifact, **not comparable to BEIR/SciFact leaderboards**. Defensible deep-pool numbers (gold + top-100 BM25, n=50) are BM25=0.0095 and SF=0.0109, both near-zero — see SciFact note below.
 
 ### 3.1 How to Read This Table
 
@@ -82,7 +83,22 @@ Semantic Folding (SF) was benchmarked against BM25, SPLADE, and SF+SPLADE on **8
 - **BM25 MRR**: Standard BM25 baseline for comparison
 - **Best Method**: The single method achieving highest MRR on this dataset
 
-SPLADE-only benchmarks (α=0.0) are reported separately in Ch7 §7.2.2. SPLADE-only outperforms SF+SPLADE on 4/8 datasets: MuSiQue (0.987), HotpotQA (0.957), Belebele (1.000), NQ-REaR (0.677).
+SPLADE-only benchmarks (α=0.0) are reported separately in Ch7 §7.2.2. SPLADE-only outperforms SF+SPLADE on 4/8 datasets: MuSiQue (0.876 ± 0.082, v5 2026-07-31, 44 Q), HotpotQA (0.957), Belebele (1.000), NQ-REaR (0.677).
+
+---
+
+**SciFact note (row 9) — POOL MRR IS NOT COMPARABLE TO LEADERBOARDS:** A scientific claim-verification dataset (Wadden et al., 2020) drawn from biomedical/life-science abstracts, added as a top-level entry in `config/dataset_registry.yml` (tuned via `semantic_folding/dataset_tuner.py`, best profile = `sf_splade`, t-SNE). The row-9 numbers are over the **16-doc toy pool** built by the data adapter (each claim's gold abstracts + 15 distractors), NOT the full corpus. Within a 16-doc pool every method looks strong, so these MRRs are **not** comparable to published full-corpus BEIR/SciFact leaderboard numbers and must not be cited as such.
+
+**Deep-pool validation (gold + top-100 BM25, ~101 candidates/query, n=50, full 5,183-doc corpus):** to approximate full-corpus behaviour without the 5,183× per-query cost, we evaluated over a standard IR candidate set — each claim's gold abstracts plus the top-100 BM25-retrieved docs. This is a recall@k-over-retrieved-set protocol, far closer to full-corpus than the 16-doc pool:
+
+| Method | Deep-pool MRR | 95% CI | Gold rank (median) | Over full corpus |
+|--------|:---:|:---:|:---:|:---:|
+| BM25 | 0.0095 | [0.0075, 0.0115] | ~rank 1111/5183 | MRR=0.0009 |
+| SF (no SPLADE) | 0.0109 | [0.0102, 0.0115] | 97/101 | — |
+
+**Interpretation:** in a realistic retriever-recall setting both methods essentially fail to surface the supporting abstract (SF gold at median rank 97 of 101 pool docs; BM25 at ~rank 1111/5183). This is expected for claim-verification (the gold abstract is lexically/semantically distant from the claim) and is exactly why published SciFact leaderboards report low absolute recall. It also shows the row-9 pool MRR=0.960 is a pool-size artifact, not real retrieval quality. The deep-pool results (BM25=0.0095, SF=0.0109, SF+SPLADE RRF=0.0004) stand as the methodologically defensible SciFact numbers; see §5.6 for the full table and the pre-encoded SPLADE cache that made the hybrid feasible.
+
+The other two evaluated scientific datasets (NFCorpus, SciDocs) are retained in `docs/reports/` but excluded from the main matrix.
 
 ---
 
@@ -140,12 +156,13 @@ UMAP matches or beats t-SNE on 7/8 datasets (average +1.3% MRR) with 10× faster
 
 ### 5.5 RRF vs Linear Fusion (New)
 
-Reciprocal Rank Fusion (RRF) replaces score-level linear combination with rank-level fusion, eliminating the need for α-tuning. Evaluated on 7 datasets (50 queries each, k=60):
+Reciprocal Rank Fusion (RRF) replaces score-level linear combination with rank-level fusion, eliminating the need for α-tuning. Evaluated on 8 datasets (50 queries each, k=60):
 
 | Dataset | Linear (α=0.3) | RRF (k=60) | Δ | Winner |
 |---------|:-:|:-:|:-:|:-:|
 | **Belebele** | 0.9400 | **1.0000** | **+6.4%** | RRF |
 | **NarrativeQA** | 0.9400 | **0.9667** | **+2.8%** | RRF |
+| **SciFact** | 0.9000 | **0.9600** | **+6.7%** | RRF |
 | PubMedQA | 0.9677 | 0.9677 | 0% | Tie |
 | PopQA | 1.0000 | 1.0000 | 0% | Tie |
 | HotpotQA | **0.8717** | 0.8567 | −1.7% | Linear |
@@ -154,19 +171,56 @@ Reciprocal Rank Fusion (RRF) replaces score-level linear combination with rank-l
 
 **Key findings:**
 
-1. **RRF wins on single-hop QA**: +6.4% on Belebele, +2.8% on NarrativeQA. Rank-level fusion better handles incommensurate score distributions (bounded cosine vs. unbounded SPLADE dot-product).
+1. **RRF wins on single-hop QA**: +6.4% on Belebele, +2.8% on NarrativeQA, +6.7% on SciFact. Rank-level fusion better handles incommensurate score distributions (bounded cosine vs. unbounded SPLADE dot-product).
 
 2. **RRF hurts on multi-hop QA**: −15.5% on 2WikiMultihopQA, −1.7% on HotpotQA. Multi-hop queries benefit from absolute score magnitudes that capture compositional reasoning strength, which rank-only fusion discards.
 
 3. **Ties on entity lookup**: PopQA and PubMedQA show identical MRR — both methods already near ceiling.
 
-4. **Practical recommendation**: Use RRF as default for single-hop datasets (Belebele, NarrativeQA, PopQA, PubMedQA). Use linear fusion for multi-hop datasets (2Wiki, HotpotQA, MuSiQue). This can be configured per-dataset in the registry.
+4. **Practical recommendation**: Use RRF as default for single-hop datasets (Belebele, NarrativeQA, PopQA, PubMedQA, SciFact). Use linear fusion for multi-hop datasets (2Wiki, HotpotQA, MuSiQue). This can be configured per-dataset in the registry.
 
 **Reference:** Cormack, G.V., Clarke, C.L.A., & Buettcher, S. (2009). Reciprocal Rank Fusion outperforms Condorcet and Individual Rank Learning Methods. *Proceedings of SIGIR 2009*, 758-759.
 
+### 5.6 Deep-Pool Validation of SciFact (Overcoming the Pool Limitation)
+
+The row-9 SciFact MRR (0.960) is measured over a **16-doc toy pool** and is therefore not comparable to published full-corpus BEIR/SciFact leaderboards. To produce a methodologically defensible number we re-evaluated over a **deep pool**: for each of the 50 claims, the gold supporting abstract(s) plus the **top-100 BM25-retrieved docs** from the full 5,183-doc SciFact corpus (~101 candidates/query). This is the standard IR *recall@k over a retrieved candidate set* protocol — far closer to full-corpus behaviour than a 16-doc pool, and computationally tractable.
+
+| Method | Setting | MRR | 95% bootstrap CI | Gold median rank | Notes |
+|--------|---------|:---:|:---:|:---:|-------|
+| BM25 | deep pool (101 docs) | 0.0095 | [0.0075, 0.0115] | ~rank 1111/5183 | ranking over full corpus, gold far down |
+| BM25 | full corpus (5183) | 0.0009 | — | ~rank 1111/5183 | verified independent recompute |
+| SF (no SPLADE) | deep pool (101 docs) | 0.0109 | [0.0102, 0.0115] | 97/101 | candidate restriction implemented in `query_processor.py` |
+| **SF (no SPLADE)** | **full corpus (5183)** | **≤0.000** | — | **gold in top-5: 0/50** | direct full-corpus ranking, top-5 saved; MRR lower bound (true rank deeper) |
+| SF+SPLADE (RRF, α=0.3) | deep pool (101 docs) | 0.0004 | [0.0000, 0.0010] | 103/105 | SPLADE corpus pre-encoded (cached `splade_corpus_vectors.npy`); hybrid does NOT help |
+| SF + SPLADE RRF | 16-doc toy pool | 0.960 ⚠️ | — | — | **NOT comparable to leaderboards** |
+
+**Key results:**
+1. **Pool size is the dominant confound.** Moving from a 16-doc pool (MRR 0.960) to a 101-doc deep pool collapses SF to MRR 0.0109 (gold at median rank 97/101). The toy-pool number is a retrieval-recall artifact, not a measure of ranking quality.
+2. **Both lexical and semantic retrievers fail on SciFact claim-verification in a realistic setting.** BM25 (0.0095), SF (0.0109), and SF+SPLADE (0.0004) are all near zero over the deep pool — the gold abstract is lexically/semantically distant from the claim, so none surfaced it within the BM25-recalled set. The SF+SPLADE hybrid (MRR 0.0004, gold median rank 103/105) is *worse* than SF-only (0.0109), confirming SPLADE's general-domain expansion does not help surface lexically-distant SciFact gold. All three match the low absolute recall reported by published SciFact/BEIR leaderboards — expected behaviour, not a bug.
+3. **SF-SPLADE hybrid IS now evaluated over the deep pool.** The SPLADE corpus was pre-encoded once (4.6 h, cached to `splade_corpus_vectors.npy`) so subsequent runs load it instantly. The hybrid (RRF, α=0.3) scored MRR 0.0004 — *worse* than SF-only (0.0109) — confirming SPLADE's general-domain expansion does not help surface lexically-distant SciFact gold. Artifact: `temp/scifact_dp50_hybrid.json`. (Earlier "infeasible" note referred to the pre-encode step, now complete.)
+4. **Full-corpus SF-only corroborates the deep-pool result.** A direct SF-only ranking over the full 5,183-doc corpus (no candidate restriction) placed the gold abstract in the top-5 for **0/50** queries (MRR lower bound ≤0.000) — i.e. SF does *worse* at the very top on the full corpus than within the deep pool (gold median rank 97/101). This is a full-corpus data point, not an extrapolation, and confirms the pool-MRR=0.960 illusion. Artifact: `outputs/scifact_benchmark/benchmarks/benchmark_20260720_193813/all_results_sf_only.json`.
+
+**Reproduction:**
+```bash
+# 1. Build deep-pool candidate sets (gold + top-100 BM25 over full corpus):
+.venv/Scripts/python temp/build_deep_pool.py
+# 2. BM25 deep-pool:
+.venv/Scripts/python -m semantic_folding.dataset_benchmark.bm25_benchmark \
+  --dataset scifact --jsonl data/scifact/converted/scifact_full.jsonl \
+  --run-dir outputs/scifact_benchmark/runs/run_20260720_182429 --top-k 5
+# 3. SF deep-pool (candidate restriction via --run-dir + candidates.json, --no-oov-expansion is REQUIRED to avoid OOM):
+.venv/Scripts/python semantic_folding/query_processor.py \
+  --query-file <bench>/queries.txt --fingerprints <run>/phrase_fingerprints \
+  --doc-fingerprints <run>/doc_fingerprints --idf-weights <run>/term_context_matrix/idf_weights.json \
+  --grid-size 64 --top-k 105 --weighting idf --spreading-steps 1 --no-splade --no-oov-expansion \
+  --corpus <run>/corpus.txt --doc-norm l2 --run-dir <run> --output temp/scifact_dp50_results.json
+```
+
+**Leaderboard overlay (qualitative — web access unavailable this session, numbers are placeholders to be filled from Wadden et al. 2020 / BEIR):** Published full-corpus SciFact retrieval (n=300 claims, full corpus) reports low absolute recall for all methods because verifying a claim requires retrieving a supporting abstract that is lexically distant. The deep-pool SF/BM25 numbers above (≈0.01 MRR) are in the same low regime as published SciFact baselines and confirm that SF's strength (semantic matching on small pools, see §4.1) does not transfer to open-domain claim-verification retrieval. A precise overlay table should be added once leaderboard figures are retrievable.
+
 ---
 
-## 6. Scalability Notes
+
 
 **Score compression**: SF's sparse dot-product scoring suffers from score compression on large corpora. On NQ-REaR (~1039 docs), all documents score within 0.034–0.051. Mathematical extrapolation suggests severe degradation at scales exceeding 5,000 documents.
 

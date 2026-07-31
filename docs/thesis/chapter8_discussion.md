@@ -21,7 +21,7 @@ The central finding is that **SPLADE-only outperforms SF-only on 5/9 datasets**,
 
 ### 8.1.2 The Compositional Gap
 
-The relationship between hop count and SF performance is nuanced. As shown in Chapter 7 (Table 7.1), SF+SPLADE outperforms BM25 on MuSiQue (2–5 hops, MRR=0.927 vs 0.482, +92%), but underperforms on 2-hop datasets like HotpotQA (MRR=0.857 vs 0.869, −1.4%).
+The relationship between hop count and SF performance is nuanced. As shown in Chapter 7 (Table 7.1), SF+SPLADE outperforms BM25 on MuSiQue (2–5 hops, MRR=0.782 vs 0.482, +62%), but underperforms on 2-hop datasets like HotpotQA (MRR=0.857 vs 0.869, −1.4%).
 
 The MuSiQue result appears to contradict the compositional gap — SF succeeds on the hardest multi-hop dataset. The resolution is that **SF+SPLADE succeeds on MuSiQue despite the compositional gap, not by bridging it**. MuSiQue's candidate pools (20 passages/query) are carefully curated to include gold supporting passages. SF+SPLADE's semantic matching, combined with SPLADE's learned expansion, is sufficient to identify correct passages when entities are distinctive and the pool is small. The compositional gap is real but masked by SPLADE's lexical expansion in small-pool settings.
 
@@ -66,7 +66,7 @@ Semantic Folding's competitive performance on 7/9 datasets can be traced to four
 
 **Mechanism**: SF maps phrases to 2D grid positions via dimensionality reduction (t-SNE or UMAP). Distributionally similar phrases map to nearby cells, creating a semantic manifold where vocabulary-mismatched terms cluster together.
 
-**Evidence**: MuSiQue (MRR=0.927 vs BM25 0.482, +92%). Queries use varied vocabulary across hops; BM25 misses these lexical bridges; SF's grid proximity catches them.
+**Evidence**: MuSiQue (MRR=0.782 vs BM25 0.482, +62.2%), though SPLADE-only (0.876) shows the gain is largely SPLADE's learned expansion, not SF's grid proximity.
 
 **Limitation**: This pillar explains SF's advantage only when vocabulary mismatch is the primary challenge. On datasets where exact term matching dominates (Belebele, NQ-REaR), grid proximity provides no advantage over BM25.
 
@@ -135,14 +135,14 @@ The learned grid mapper (Phase 3) was trained to predict 2D coordinates from phr
 
 ### 8.4.1 SF vs BM25
 
-SF+SPLADE beats BM25 on MuSiQue (+92%) and approaches parity on HotpotQA (−1.4%). On other datasets, BM25 maintains a 3–16% advantage.
+SF+SPLADE beats BM25 on MuSiQue (+62%) and approaches parity on HotpotQA (−1.4%). On other datasets, BM25 maintains a 3–16% advantage.
 
 **Where SF wins**: High synonymy tasks (MuSiQue, PubMedQA)
 **Where BM25 wins**: Exact entity matching (PopQA, Belebele), factoid retrieval (NQ-REaR)
 
 ### 8.4.2 SF vs Dense Retrieval
 
-SF+SPLADE matches or exceeds DPR on three datasets (MuSiQue +7.2%, HotpotQA +9.9%, PopQA +5.3%) without any training data. This is notable because DPR requires 50K+ labeled pairs.
+SF+SPLADE matches or exceeds DPR on two datasets (HotpotQA +9.9%, PopQA +5.3%) without any training data; on MuSiQue it beats BM25 (+62.2%) but trails HippoRAG2's dense baseline (0.865, −9.6%). This is notable because DPR requires 50K+ labeled pairs.
 
 **Key advantage**: Zero-shot domain adaptation. SF can switch from biomedical QA to narrative comprehension instantly; DPR requires retraining.
 
@@ -155,7 +155,7 @@ SF occupies a unique quadrant in the retrieval landscape:
 | Training required | None | None | 50K+ pairs | 500K+ pairs |
 | Memory per document | 512 bytes | ~1KB | 3KB | 3KB |
 | Interpretability | Grid visualization | Term frequency | Black box | Black box |
-| Best dataset MRR | 0.927 (MuSiQue) | 0.995 (Belebele) | 0.863 (NQ) | ~0.90 (NQ) |
+| Best dataset MRR | 0.782 (MuSiQue) | 0.995 (Belebele) | 0.863 (NQ) | ~0.90 (NQ) |
 
 No other method provides unsupervised semantic matching, interpretable grids, and memory-efficient storage simultaneously.
 
@@ -191,7 +191,7 @@ Our results demonstrate that unsupervised semantic matching can achieve competit
 
 ### 8.6.2 The Vocabulary Mismatch Problem Revisited
 
-SF's strong performance on MuSiQue (+92% vs BM25) provides evidence that vocabulary mismatch remains a significant challenge for lexical retrieval. However, the broader 9-dataset pattern shows that vocabulary mismatch is only one component of retrieval quality. Lexical precision, entity matching, and score discrimination are equally important.
+SF's strong performance on MuSiQue (+62% vs BM25) provides evidence that vocabulary mismatch remains a significant challenge for lexical retrieval. However, the broader 9-dataset pattern shows that vocabulary mismatch is only one component of retrieval quality. Lexical precision, entity matching, and score discrimination are equally important.
 
 ### 8.6.3 The Sparse-Dense Trade-off
 

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#374151"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill: #f3f4f6; stroke: #374151; stroke-width: 1.5; rx: 8; }
+    .decision { fill: #eef2ff; stroke: #4338ca; stroke-width: 1.5; }
+    .action { fill: #ecfdf5; stroke: #047857; stroke-width: 1.5; rx: 8; }
+    .stop { fill: #fef2f2; stroke: #b91c1c; stroke-width: 1.5; rx: 8; }
+    .label { font-size: 14px; fill: #111827; }
+    .edgeLabel { font-size: 12px; fill: #374151; }
+    .titletxt { font-size: 15px; fill: #111827; font-weight: 600; }
+    .caption { font-size: 11px; fill: #6b7280; font-style: italic; }
+    line, path.edge { stroke: #374151; stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+  </style>
+  <rect x="360" y="46" width="180" height="42" class="box" rx="8"/>
+  <text x="450" y="72" text-anchor="middle" class="label" style="white-space: pre;">Compute τ(R_A, R_B)</text>
+  <polygon points="451.657 102.202 555.738 150 451.657 201.112 350.888 154.142" class="decision"/>
+  <text x="450" y="146" text-anchor="middle" class="label" style="white-space: pre;">τ &gt; 0.80?</text>
+  <text x="450" y="164" text-anchor="middle" class="edgeLabel" style="white-space: pre;">(high rank agreement)</text>
+  <path class="edge" d="M 355.858 153.313 C 336.728 132.169 242.845 151.337 211.776 169.879"/>
+  <text x="295" y="140" text-anchor="middle" class="edgeLabel" style="white-space: pre;">no</text>
+  <rect x="120" y="168" width="220" height="46" class="decision" rx="8"/>
+  <text x="230" y="193" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">Task topology?</text>
+  <path d="M 195 216.708 L 170.678 278.931" class="edge"/>
+  <text class="edgeLabel" style="white-space: pre; font-size: 12px;" x="135" y="276" text-anchor="middle">multi-hop</text>
+  <rect x="30" y="287" width="230" height="56" class="action" rx="8"/>
+  <text x="145" y="312" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">Multi-hop:</text>
+  <text x="145" y="332" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">use Linear (preserve M)</text>
+  <path d="M 271.627 215.88 L 334.051 378.043" class="edge"/>
+  <text x="340" y="275" text-anchor="middle" class="edgeLabel" style="white-space: pre; font-size: 12px;">single-hop</text>
+  <rect x="200" y="378" width="230" height="56" class="box" rx="8"/>
+  <text x="315" y="402" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">Single-hop:</text>
+  <text x="315" y="422" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">either operator admissible</text>
+  <path class="edge" style="" d="M 551.597 150 C 556.941 141.603 673.868 140.023 706.447 154.97"/>
+  <text class="edgeLabel" style="text-anchor: middle; white-space: pre;" x="605" y="140" dx="1.657" dy="-4.97">yes</text>
+  <rect x="589.94" y="159.112" width="220" height="46" class="decision" rx="8"/>
+  <text x="699.94" y="187.112" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">RRF recovers performance?</text>
+  <line x1="694.142" y1="205.112" x2="695.798" y2="284.729" class="edge"/>
+  <rect x="607" y="288" width="220" height="70" class="action" rx="8"/>
+  <text x="719" y="310" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">Yes → Complementarity</text>
+  <text x="719" y="328" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">Illusion (§4.1): scale</text>
+  <text x="719" y="346" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">mismatch → use RRF</text>
+  <line x1="619.172" y1="206.768" x2="530.467" y2="376.386" class="edge"/>
+  <rect x="464" y="378" width="220" height="70" class="stop" rx="8"/>
+  <text x="583" y="400" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">No → true redundancy</text>
+  <text x="575" y="418" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">(e.g. NQ-REaR, τ=0.82):</text>
+  <text x="537" y="436" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">do not fuse</text>
+  <line x1="450" y1="192" x2="454.142" y2="488.871" class="edge" stroke-dasharray="4,3"/>
+  <text x="395" y="469" class="edgeLabel" style="white-space: pre; font-size: 12px;">(checked independently of τ)</text>
+  <rect x="330" y="488" width="240" height="70" class="stop" rx="8"/>
+  <text x="450" y="512" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">Score variance V → 0?</text>
+  <text x="450" y="532" text-anchor="middle" class="label" style="white-space: pre; font-size: 14px;">(Scaling Wall, §4.3) →</text>
+  <text class="label" style="white-space: pre; font-size: 14px;" x="450" y="550" text-anchor="middle">no operator will help</text>
+</svg>

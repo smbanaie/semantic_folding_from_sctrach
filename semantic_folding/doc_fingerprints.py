@@ -111,8 +111,18 @@ def write_outputs(
     meta_path  = output_dir / "doc_fingerprints_meta.json"
     stats_path = output_dir / "doc_fingerprints_stats.json"
 
-    # --- fingerprint matrix ---
-    np.savez_compressed(str(npz_path), fingerprints=fingerprints)
+    # --- fingerprint matrix (store sparse CSR to avoid 2.6 GB dense alloc
+    #     for large corpora; scipy.sparse.load_npz reads it back) ---
+    from scipy.sparse import csr_matrix
+    fingerprints_csr = csr_matrix(fingerprints)
+    np.savez_compressed(str(npz_path), fingerprints=fingerprints)  # legacy dense fallback
+    sparse_path = output_dir / "doc_fingerprints_sparse.npz"
+    try:
+        import scipy.sparse as _sp
+        _sp.save_npz(str(sparse_path), fingerprints_csr)
+        logger.info(f"Fingerprint matrix (sparse) written → {sparse_path}  shape={fingerprints.shape}")
+    except Exception as _exc:
+        logger.warning(f"Sparse save skipped ({_exc}); dense fallback present.")
     logger.info(f"Fingerprint matrix written → {npz_path}  shape={fingerprints.shape}")
 
     # --- structured metadata ---

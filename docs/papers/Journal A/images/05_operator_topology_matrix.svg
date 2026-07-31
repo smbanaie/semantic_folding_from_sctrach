@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 760 435" xmlns="http://www.w3.org/2000/svg" font-family="DejaVu Sans, Arial, sans-serif">
+  <style>
+    .title { font-size: 19px; font-weight: bold; fill: #1a1a1a; }
+    .axislabel { font-size: 14px; font-weight: bold; fill: #333333; }
+    .celltitle { font-size: 15px; font-weight: bold; }
+    .cellbody { font-size: 12.5px; fill: #2a2a2a; }
+    .metric { font-size: 12px; font-style: italic; fill: #444444; }
+  </style>
+  <text x="368" y="24" text-anchor="middle" class="axislabel" style="white-space: pre; font-size: 14px;">Task Topology</text>
+  <text x="20" y="290" text-anchor="middle" class="axislabel" transform="matrix(0, -1, 1, 0, -238.042759, 227.253849)" style="white-space: pre; font-size: 14px;">Fusion Operator</text>
+  <text x="233" y="49" text-anchor="middle" class="axislabel" fill="#2b4a76" style="white-space: pre; font-size: 14px;">Single-Hop</text>
+  <text x="553" y="49" text-anchor="middle" class="axislabel" fill="#2b4a76" style="white-space: pre; font-size: 14px;">Multi-Hop</text>
+  <text x="82" y="128" text-anchor="middle" class="axislabel" fill="#2b4a76" style="white-space: pre; font-size: 14px;">RRF</text>
+  <text x="82" y="312" text-anchor="middle" class="axislabel" fill="#2b4a76" style="white-space: pre; font-size: 14px;">Linear</text>
+  <g stroke="#8a8f98" stroke-width="1.5" fill="none" transform="matrix(1, 0, 0, 1, -12, -41.000001)">
+    <rect x="120" y="100" width="600" height="330"/>
+    <line x1="420" y1="100" x2="420" y2="430"/>
+    <line x1="120" y1="265" x2="720" y2="265"/>
+  </g>
+  <rect x="110" y="61" width="296" height="161" fill="#e7f3ea"/>
+  <text x="258" y="89" text-anchor="middle" class="celltitle" fill="#3a7d44" style="white-space: pre; font-size: 15px;">✓ Rescue</text>
+  <text x="258" y="111" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">Scale-invariant rank fusion</text>
+  <text x="258" y="129" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">normalizes incommensurate</text>
+  <text x="258" y="147" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">score scales</text>
+  <text x="258" y="174" text-anchor="middle" class="metric" style="white-space: pre; font-size: 12px;">Belebele: 0.920 → 1.000</text>
+  <text x="258" y="192" text-anchor="middle" class="metric" style="white-space: pre; font-size: 12px;">(+6.4% over Linear)</text>
+  <rect x="410" y="61" width="296" height="161" fill="#fbeceb"/>
+  <text x="558" y="89" text-anchor="middle" class="celltitle" fill="#b5423a" style="white-space: pre; font-size: 15px;">✗ Catastrophe</text>
+  <text x="558" y="111" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">Multi-Hop Magnitude Fallacy:</text>
+  <text x="558" y="129" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">discards absolute score</text>
+  <text x="558" y="147" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">magnitude = compositional confidence</text>
+  <text x="558" y="174" text-anchor="middle" class="metric" style="white-space: pre; font-size: 12px;">2WikiMulti: 0.901 → 0.761</text>
+  <text x="558" y="192" text-anchor="middle" class="metric" style="white-space: pre; font-size: 12px;">(−15.5% vs. Linear)</text>
+  <rect x="110" y="226" width="296" height="161" fill="#fdf2e7"/>
+  <text x="258" y="254" text-anchor="middle" class="celltitle" fill="#d97b2b" style="white-space: pre; font-size: 15px;">△ Suboptimal</text>
+  <text x="258" y="276" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">Unbounded SPLADE scores</text>
+  <text x="258" y="294" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">mathematically dwarf the</text>
+  <text x="258" y="312" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">bounded SF signal</text>
+  <text x="258" y="339" text-anchor="middle" class="metric" style="white-space: pre; font-size: 12px;">Belebele: 1.000 → 0.920</text>
+  <text x="258" y="357" text-anchor="middle" class="metric" style="white-space: pre; font-size: 12px;">(scale mismatch)</text>
+  <rect x="410" y="226" width="296" height="161" fill="#e7f3ea"/>
+  <text x="558" y="254" text-anchor="middle" class="celltitle" fill="#3a7d44" style="white-space: pre; font-size: 15px;">✓ Strictly Dominant</text>
+  <text x="558" y="276" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">Preserves magnitude-encoded</text>
+  <text x="558" y="294" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">compositional confidence</text>
+  <text x="558" y="312" text-anchor="middle" class="cellbody" style="white-space: pre; font-size: 12.5px;">across reasoning hops</text>
+  <text x="558" y="339" text-anchor="middle" class="metric" style="white-space: pre; font-size: 12px;">MuSiQue: 0.482 → 0.782</text>
+  <text x="558" y="357" text-anchor="middle" class="metric" style="white-space: pre; font-size: 12px;">(+62.2% relative, BM25 baseline)</text>
+  <text x="390" y="411" text-anchor="middle" font-size="12.5" fill="#555555" font-style="italic" style="white-space: pre; font-size: 12.5px;">
+    The correct operator is a strict function of task complexity — not a tunable hyperparameter.
+  </text>
+</svg>

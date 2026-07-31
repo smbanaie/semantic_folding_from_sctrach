@@ -105,3 +105,7 @@ __pycache__/
 brain_approaches/hipporag2/
 
 
+
+# Accidental tool dump inside Journal A paper folder
+/docs/papers/Journal A/.mimocode/
+/rag-methods/hipporag2/

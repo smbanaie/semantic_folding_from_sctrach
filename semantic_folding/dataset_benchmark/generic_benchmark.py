@@ -283,6 +283,45 @@ def build_combined_corpus(entries: List[dict]):
     return corpus_lines, query_doc_map, query_gold
 
 
+def build_full_corpus(global_corpus_path: Path, entries: List[dict]):
+    """
+    Full-corpus variant: the candidate set for EVERY query is the entire corpus.
+    `global_corpus_path` is a txt file ("doc_<id>, title text" per line) produced by
+    the adapter's convert_to_full_corpus_format. Gold ids are matched by (title, text)
+    against the query's supporting paragraphs so per-query relevance is preserved.
+    """
+    corpus_lines = []
+    global_ids = []
+    id_by_text = {}
+    with open(global_corpus_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line.strip():
+                continue
+            corpus_lines.append(line)
+            gid = line.split(",", 1)[0].strip()
+            global_ids.append(gid)
+            body = line[line.find(",") + 1:].strip()
+            id_by_text[body] = gid
+    logger.info(f"Full corpus: {len(corpus_lines)} documents")
+
+    query_doc_map = {}
+    query_gold = {}
+    for q_idx, entry in enumerate(entries):
+        gold_ids = []
+        for p in entry.get("paragraphs", []):
+            if p.get("is_supporting", False):
+                needle = f"{p.get('title', '')} {p.get('paragraph_text', '')}".strip()
+                gid = id_by_text.get(needle)
+                if gid and gid not in gold_ids:
+                    gold_ids.append(gid)
+        query_doc_map[str(q_idx)] = list(global_ids)
+        if gold_ids:
+            query_gold[str(q_idx)] = gold_ids
+    logger.info(f"Full-corpus query map: {len(query_doc_map)} queries x {len(global_ids)} candidates")
+    return corpus_lines, query_doc_map, query_gold
+
+
 # ============================================================================
 # Phase 2 — Benchmark helpers (same as musique)
 # ============================================================================
@@ -331,6 +370,25 @@ def compute_metrics(retrieved: List[Tuple[str, float]], relevant: List[str],
     return metrics
 
 
+def bootstrap_ci(values: List[float], n_boot: int = 1000, seed: int = 42) -> dict:
+    """95% bootstrap CI (bias-corrected percentile) for the mean of `values`."""
+    import random
+    if len(values) < 2:
+        return {"mean": sum(values) / len(values) if values else 0.0,
+                "ci_low": 0.0, "ci_high": 0.0, "n_boot": 0}
+    rng = random.Random(seed)
+    vals = list(values)
+    n = len(vals)
+    boot_means = []
+    for _ in range(n_boot):
+        sample = [rng.choice(vals) for _ in range(n)]
+        boot_means.append(sum(sample) / n)
+    boot_means.sort()
+    lo = boot_means[int(0.025 * n_boot)]
+    hi = boot_means[int(0.975 * n_boot)]
+    return {"mean": sum(vals) / n, "ci_low": lo, "ci_high": hi, "n_boot": n_boot}
+
+
 def load_query_results(result_path: Path) -> List[dict]:
     with open(result_path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -370,8 +428,17 @@ class GenericBenchmarkRunner:
         logger.info(f"Index run: {run_dir.name} ({len(entries)} queries, "
                     f"params: {self.params})")
 
-        # Build combined corpus
-        corpus_lines, query_doc_map, query_gold = build_combined_corpus(entries)
+        # Build combined corpus (pool mode) or full corpus (--full-corpus)
+        if self.params.get("full_corpus"):
+            global_corpus_path = Path(str(jsonl_path).replace(".jsonl", "_corpus.txt"))
+            if not global_corpus_path.exists():
+                raise FileNotFoundError(
+                    f"Full-corpus file not found: {global_corpus_path}. "
+                    f"Run the adapter's convert_to_full_corpus_format() first."
+                )
+            corpus_lines, query_doc_map, query_gold = build_full_corpus(global_corpus_path, entries)
+        else:
+            corpus_lines, query_doc_map, query_gold = build_combined_corpus(entries)
 
         # P1.3: Corpus-level glossary expansion — append synonyms to corpus
         # lines so phrase extraction picks them up and creates fingerprints
@@ -720,6 +787,9 @@ class GenericBenchmarkRunner:
             step6_args.extend(["--tfidf-rerank", "--tfidf-alpha", str(self.params.get("tfidf_alpha", 0.3))])
             if self.params.get("corpus_path"):
                 step6_args.extend(["--corpus", self.params["corpus_path"]])
+        # Candidate-set (deep-pool) evaluation: pass run-dir so qp can
+        # pick up candidates.json and restrict ranking to the pool.
+        step6_args.extend(["--run-dir", str(run_dir)])
         if self.params.get("decompose", False):
             step6_args.append("--decompose")
         if self.params.get("multi_resolution", False):
@@ -860,11 +930,19 @@ class GenericBenchmarkRunner:
                 "num_queries": len(all_metrics),
                 "failed": failed,
                 "batch_elapsed_s": round(batch_elapsed, 1),
+                "full_corpus": bool(self.params.get("full_corpus", False)),
             }
             for k, vals in agg.items():
                 summary[f"mean_{k}"] = sum(vals) / len(vals)
                 summary[f"min_{k}"] = min(vals)
                 summary[f"max_{k}"] = max(vals)
+
+            # Bootstrap 95% CI on MRR (SIGIR reporting standard)
+            per_query_mrr = [m["mrr"] for m in all_metrics]
+            ci = bootstrap_ci(per_query_mrr)
+            summary["per_query_mrr"] = per_query_mrr
+            summary["mrr_ci95_low"] = ci["ci_low"]
+            summary["mrr_ci95_high"] = ci["ci_high"]
 
             with open(bench_dir / "summary.json", "w") as f:
                 json.dump(summary, f, indent=2)
@@ -1169,6 +1247,8 @@ def cli_main():
                        help="Docs per LLM API call during phrase extraction (default: 4)")
     p_idx.add_argument("--prebuilt-vocab", type=Path, default=None,
                        help="Path to a pre-built extracted_phrases/ dir to skip Steps 1 + 0.5")
+    p_idx.add_argument("--full-corpus", action="store_true", default=False,
+                       help="Rank over the ENTIRE corpus (full-corpus evaluation). Requires the <name>_full_corpus.txt sidecar from the adapter's convert_to_full_corpus_format().")
 
     # benchmark
     p_bm = sub.add_parser("benchmark", help="Phase 2: run Step 6 per query")
@@ -1218,6 +1298,8 @@ def cli_main():
     p_bm.add_argument("--sim-metric", type=str, default="cosine",
                        choices=["cosine", "dice", "overlap", "jaccard", "idf-weighted", "spatial_jaccard"],
                        help="Similarity metric for document ranking")
+    p_bm.add_argument("--full-corpus", action="store_true", default=False,
+                      help="Rank over the ENTIRE corpus (full-corpus evaluation). The run-dir's query_doc_map.json must already contain all corpus ids (built by `index --full-corpus`).")
     p_bm.add_argument("--asymmetric", action="store_true", help="Use asymmetric containment/coverage scoring")
     p_bm.add_argument("--asym-alpha", type=float, default=0.7, help="Containment weight in asymmetric mode")
     p_bm.add_argument("--score-norm", type=str, default="none",
@@ -1324,6 +1406,8 @@ def cli_main():
                         help="Fusion method for SF+SPLADE: linear or rrf. If not set, uses dataset registry default (or 'linear').")
     p_all.add_argument("--rrf-k", type=int, default=None,
                         help="Rank constant k for RRF fusion. If not set, uses dataset registry default (or 60).")
+    p_all.add_argument("--full-corpus", action="store_true", default=False,
+                        help="Rank over the ENTIRE corpus (full-corpus evaluation) instead of the gold+distractor pool. Requires the <name>_full_corpus.txt sidecar from the adapter's convert_to_full_corpus_format().")
     p_all.add_argument("--multi-resolution", action="store_true",
                         help="Apply multi-resolution spreading (spread at multiple radii and combine)")
     p_all.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
@@ -1454,6 +1538,8 @@ def cli_main():
         params["fusion_method"] = args.fusion_method
     if hasattr(args, "rrf_k") and args.rrf_k is not None:
         params["rrf_k"] = args.rrf_k
+    if hasattr(args, "full_corpus"):
+        params["full_corpus"] = args.full_corpus
     if hasattr(args, "multi_resolution"):
         params["multi_resolution"] = args.multi_resolution
     if hasattr(args, "doc_norm"):

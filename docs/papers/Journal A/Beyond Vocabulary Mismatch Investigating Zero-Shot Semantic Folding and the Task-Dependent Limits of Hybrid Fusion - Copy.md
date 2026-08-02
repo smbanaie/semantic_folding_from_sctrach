@@ -14,9 +14,9 @@ Closed-domain question answering in specialized domains such as biomedicine and 
 
 ## 1. Introduction
 
-The cold-start problem in domain-specific question answering [18, 19, 20] is often posed as a problem of data scarcity: neural retrievers require labeled samples to learn from, while such samples are unavailable in niche domains. This framing, however, obscures a more interesting question—whether unsupervised, training-free retrieval can be of sufficient quality to warrant integration in practical systems. We find partial support for this possibility: Semantic Folding (SF) [5], a recent unsupervised method that encodes semantic structure into Sparse Distributed Representations [1, 2, 3, 4], matches BM25 [11, 12] on single-hop biomedical questions [21, 22, 24] with no training data. Its performance drops precipitously, however, when retrieval requires multi-hop reasoning—a failure that reveals a structural limitation shared by all rank-fusion approaches. We trace this to the Multi-Hop Magnitude Fallacy [15, 33]: rank-based fusion operators discard magnitude information that compositional reasoning critically depends on [41].
+The cold-start problem in domain-specific question answering [19, 20, 21, 22] is often posed as a problem of data scarcity: neural retrievers require labeled samples to learn from, while such samples are unavailable in niche domains. This framing, however, obscures a more interesting question—whether unsupervised, training-free retrieval can be of sufficient quality to warrant integration in practical systems. We find partial support for this possibility: Semantic Folding (SF) [5], a recent unsupervised method that encodes semantic structure into Sparse Distributed Representations [1, 2, 3, 4], matches BM25 [11, 12] on single-hop biomedical questions [23, 24, 27] with no training data. Its performance drops precipitously, however, when retrieval requires multi-hop reasoning—a failure that reveals a structural limitation shared by all rank-fusion approaches. We trace this to the Multi-Hop Magnitude Fallacy [15, 34]: rank-based fusion operators discard magnitude information that compositional reasoning critically depends on [44].
 
-Rather than competing with existing retrievers [6,7,8], SF was designed as a probe to understand hybrid retrieval behavior through controlled experiments. SF is rooted in the biologically plausible principle of organizing semantic structure on a 2D grid and representing documents as sparse binary fingerprints over this space [1,2,3,4]. The mathematical simplicity of SF’s architecture allows us to tease out the impact of fusion operators from the confounding variables of learned representations: its deterministic encoding and fixed grid topology enables systematic analysis of hybrid retrieval behavior. By applying SF to 8 closed-domain datasets, we were able to delineate the circumstances under which a hybrid system succeeds or fails, ultimately uncovering general principles (Feature Invariance, Scaling Wall, and the Multi-Hop Magnitude Fallacy) that drastically constrain the choice of fusion operator to the algorithmic topology of the task [23, 39, 40].
+Rather than competing with existing retrievers [6,7,8], SF was designed as a probe to understand hybrid retrieval behavior through controlled experiments. SF is rooted in the biologically plausible principle of organizing semantic structure on a 2D grid and representing documents as sparse binary fingerprints over this space [1,2,3,4]. The mathematical simplicity of SF’s architecture allows us to tease out the impact of fusion operators from the confounding variables of learned representations: its deterministic encoding and fixed grid topology enables systematic analysis of hybrid retrieval behavior. By applying SF to 8 closed-domain datasets, we were able to delineate the circumstances under which a hybrid system succeeds or fails, ultimately uncovering general principles (Feature Invariance, Scaling Wall, and the Multi-Hop Magnitude Fallacy) that drastically constrain the choice of fusion operator to the algorithmic topology of the task [25,26,41,42,43].
 
 In this paper, we evaluate SF not as an end in itself but as a means to explore the limits of zero-shot semantic matching and hybrid fusion capabilities. We pose four distinct questions:
 1. (**Capability**) A 2D spatial grid of a machine learning model that has not learned from examples, can it perform on a level comparable to the trained neural networks from the very beginning?
@@ -27,11 +27,11 @@ In this paper, we evaluate SF not as an end in itself but as a means to explore 
 
 4. (**Boundary Conditions**) Exactly where would a spatial method that does not require training stop working when looked at structurally?
 
-Using eight benchmark closed-domain datasets [25, 26, 27, 28, 30, 31], we investigate the possibility of measuring the model's boundaries through various metrics. Standalone SF achieves similar or better results with SF trained on single-hop tasks such as PubMedQA [25] (MRR 0.955 vs. BM25's 1.000) on average with zero training data
+Using eight benchmark closed-domain datasets [28, 29, 30, 31, 33, 34], we investigate the possibility of measuring the model's boundaries through various metrics. Standalone SF achieves similar or better results with SF trained on single-hop tasks such as PubMedQA [28] (MRR 0.955 vs. BM25's 1.000) on average with zero training data
 however, the effectiveness of standalone SF decreases as the overlap between the two vocabularies increases and ultimately converges with SFs trained on the same task. In addition, we observe that SFs have little value in answering compositional multi-hop questions
 
-One of the most interesting findings concerns the mechanisms of fusion [41], rather than the properties of approaches that operate independently. First evidence suggests that linear fusion SF with SPLADE [9] leads to largely negative results on most of the single-hop settings that we tested. By using Reciprocal Rank Fusion (RRF), we showed that this ‘illusion’ was created by the use of fundamentally different score scales, which does not allow direct comparison of reciprocal ranks, rather than the actual similarity of the ranking results.
-By doing this, we found that **RRF recovers the performance of single-hop tasks to satisfactory levels** (1.000 MRR on Belebele) but strongly harms the performance of multi-hop setting (2WikiMultihopQA sees the drop by 15.5 MRR points). By contrast, the Linear operator, fused with the multi-hop task, demonstrates the best gain among all the methods we tried in this paper: the MuSiQue [27] MRR jumps from 0.482 (BM25) to 0.782, a 62.2% improvement, after its scores are linearly combined with the results of another system in accordance with the way these results were obtained. This finding, which underlines the importance of proper fusion methods, might be the most valuable diagnostic finding of this paper.
+One of the most interesting findings concerns the mechanisms of fusion [44], rather than the properties of approaches that operate independently. First evidence suggests that linear fusion SF with SPLADE [9] leads to largely negative results on most of the single-hop settings that we tested. By using Reciprocal Rank Fusion (RRF), we showed that this ‘illusion’ was created by the use of fundamentally different score scales, which does not allow direct comparison of reciprocal ranks, rather than the actual similarity of the ranking results.
+By doing this, we found that **RRF recovers the performance of single-hop tasks to satisfactory levels** (1.000 MRR on Belebele) but strongly harms the performance of multi-hop setting (2WikiMultihopQA sees the drop by 15.5 MRR points). By contrast, the Linear operator, fused with the multi-hop task, demonstrates the best gain among all the methods we tried in this paper: the MuSiQue [30] MRR jumps from 0.482 (BM25) to 0.782, a 62.2% improvement, after its scores are linearly combined with the results of another system in accordance with the way these results were obtained. This finding, which underlines the importance of proper fusion methods, might be the most valuable diagnostic finding of this paper.
 
 To complement the preceding arguments, here is what we provide:
 • **A multi-topic diagnostic evaluation** with detailed statistics that validate the entire Semantic Folding pipeline, plus a set of ablations that demonstrate the contribution of individual pipeline elements, to facilitate architectural deletions;
@@ -46,21 +46,21 @@ To complement the preceding arguments, here is what we provide:
 
 ### 2.1 The Cold-Start Problem in Closed Domain QA
 
-QA systems for specialized domains [18, 19, 20] have to be able to quickly adopt to shifts in terminology [21, 22] (see, e.g., [15, 33]). BM25 [11, 12] , which is often used as a zero-shot baseline, is particularly challenged by the presence of domain-specific synonyms [15, 33] .
-Meanwhile, neural approaches close this ranking gap, but with a significant amount of in-domain annotation, which is unavailable at the beginning [6, 7, 8, 9, 33, 35, 36] . Unsupervised representations (obtained, e.g., via word embeddings or matrix factorization) offer a potential way to alleviate this issue, but their performance often remains inferior to exact topological matching [15, 32, 37] .
+QA systems for specialized domains [19, 20, 21, 22] have to be able to quickly adopt to shifts in terminology [23, 24] (see, e.g., [15, 34]). BM25 [11, 12] , which is often used as a zero-shot baseline, is particularly challenged by the presence of domain-specific synonyms [15, 34] .
+Meanwhile, neural approaches close this ranking gap, but with a significant amount of in-domain annotation, which is unavailable at the beginning [6, 7, 8, 9, 36, 37, 38, 39] . Unsupervised representations (obtained, e.g., via word embeddings or matrix factorization) offer a potential way to alleviate this issue, but their performance often remains inferior to exact topological matching [15, 35, 40] .
 
 ### 2.2 Modern Sparse and Dense Fusion
 Recently there has been a surge in hybrid architecture research for search systems. Dense Passage Retrieval (DPR) [6] and late-interaction models (ColBERT [7], ColBERTv2 [8]) have both shown state-of-the-art performance on semantic interaction tasks, but require substantial amounts of costly GPU computation. On the other hand, learned sparse approaches, SPLADE [9] in particular, and later its derivatives (e. g. Mistral-SPLADE), offer a middle ground for bridging the precision-recall gap between dense and sparse methods by learning to produce sparse query expansions with contextualized scoring of relevant terms.
-The standard approach to combine the strengths of different models is to fuse their scores at the top of the ranking using either Reciprocal Rank Fusion (RRF) [41] or linear interpolation [33].
+The standard approach to combine the strengths of different models is to fuse their scores at the top of the ranking using either Reciprocal Rank Fusion (RRF) [44] or linear interpolation [36].
 In this work, we argue (in greater detail than in the original conference paper) that, in general, these approaches tend to overlook the possibility that signals can be combined in more ways than just by mixing them at the top of the list. In fact, we argue that the very act of choosing a particular combination method implicitly makes assumptions about how different signals interact. More specifically, there is no a priori reason to believe that simply combining scores at the top of the ranking is actually the optimal way to exploit the potential of different signals, since doing so may destroy the mathematical properties that make individual signals useful in the first place (e. g. their ability to preserve rank order information). In our conference paper, we highlight with both theoretical and empirical evidence that the subtle distinction between different signals, which was largely ignored in most of the hybrid-IR literature, ultimately determines the effectiveness of multi-hop sparse-dense retrieval.
 
 ### 2.3 Sparse Distributed Representations in IR
 
-**Sparse distributed representations (SDRs)**, first proposed in the context of Kanerva’s Sparse Distributed Memory [1], are binary vectors with a large number of dimensions, most of which are zero [2, 3, 4]. The appeal of SDRs lies in their potential to store and retrieve information densely due to the near-orthogonality of randomly generated binary vectors in high-dimensional spaces (e.g. d=4096) [39, 40]. The Semantic Folding [5, 37] approach attempted to apply SDRs to text by arranging the vocabulary as a 2D grid [38]. Previous studies attributed the effectiveness of SDRs to their neurobiological plausibility. We will side-step the discussion of biology and focus on evaluating the hypothesis that SDRs form an effective indexing topology from an information retrieval perspective [10]. By deliberately restricting the consideration to the informational properties of SDRs, we adopt a narrower research question than the one implied by the neurobiological arguments.
+**Sparse distributed representations (SDRs)**, first proposed in the context of Kanerva’s Sparse Distributed Memory [1], are binary vectors with a large number of dimensions, most of which are zero [2, 3, 4]. The appeal of SDRs lies in their potential to store and retrieve information densely due to the near-orthogonality of randomly generated binary vectors in high-dimensional spaces (e.g. d=4096) [42, 43]. The Semantic Folding [5, 40] approach attempted to apply SDRs to text by arranging the vocabulary as a 2D grid [41]. Previous studies attributed the effectiveness of SDRs to their neurobiological plausibility. We will side-step the discussion of biology and focus on evaluating the hypothesis that SDRs form an effective indexing topology from an information retrieval perspective [10]. By deliberately restricting the consideration to the informational properties of SDRs, we adopt a narrower research question than the one implied by the neurobiological arguments.
 
 ### 2.4 The Mathematics of Score Fusion
 
-The theory of score combination has a considerable history. Fox and Shaw [42] proposed to normalize scores by a common function. Cormack et al. [41] proposed Reciprocal Rank Fusion (RRF) on the grounds that scores from different models are not comparable, and suggested replacing them by their ranks.
+The theory of score combination has a considerable history. Fox and Shaw [45] proposed to normalize scores by a common function. Cormack et al. [44] proposed Reciprocal Rank Fusion (RRF) on the grounds that scores from different models are not comparable, and suggested replacing them by their ranks.
 
 score(d) = Σ 1 / (k + rank(d))
 
@@ -85,7 +85,7 @@ The resulting matrices are stored on disk in a memory efficient manner using com
 
 ### 3.2 Semantic Space Construction: The Necessity of UMAP (Stage 3)
 
-We compared t-SNE with UMAP [16]. t-SNE aims to minimize Kullback-Leibler (KL) divergence, but because KL divergence is not symmetric, it fails for points that are far apart in the high-dimensional space but brought close together in 2D (false neighbors) by ignoring them during optimization, leading to an overlap in projections of unrelated concepts on the discrete grid. By contrast, UMAP has a cross-entropy objective function that includes a crucial repulsive term that actively pushes apart dissimilar concepts:
+We compared t-SNE [16] with UMAP [17]. t-SNE aims to minimize Kullback-Leibler (KL) divergence, but because KL divergence is not symmetric, it fails for points that are far apart in the high-dimensional space but brought close together in 2D (false neighbors) by ignoring them during optimization, leading to an overlap in projections of unrelated concepts on the discrete grid. By contrast, UMAP has a cross-entropy objective function that includes a crucial repulsive term that actively pushes apart dissimilar concepts:
 
 C₍UMAP₎ = Σ [ w₍ᵢⱼ₎ log(w₍ᵢⱼ₎ / ŵ₍ᵢⱼ₎) + (1 − w₍ᵢⱼ₎) log((1 − w₍ᵢⱼ₎) / (1 − ŵ₍ᵢⱼ₎)) ]  for i ≠ j
 
@@ -93,7 +93,7 @@ In practice, UMAP (n_neighbors=15, min_dist=0) leads to an increase of 1.3% in a
 
 ### 3.3 Morton Encoding: Topology Preservation (Stage 4a)
 
-The usual way of flattening arrays in the row-major manner totally breaks down spatial locality. Indeed, two cells, (0, N-1) and (1, 0) that are adjacent in 2D, end up being far away from each other in 1D with respect to linear distance. SF takes advantage of Morton Z-order curve encoding [17], a method that allows 2D Euclidean distance to be strictly and purely monotonically related to 1D Hamming distance.
+The usual way of flattening arrays in the row-major manner totally breaks down spatial locality. Indeed, two cells, (0, N-1) and (1, 0) that are adjacent in 2D, end up being far away from each other in 1D with respect to linear distance. SF takes advantage of Morton Z-order curve encoding [18], a method that allows 2D Euclidean distance to be strictly and purely monotonically related to 1D Hamming distance.
 
 
 ### 3.4 Fingerprint Generation (Stage 4b)
@@ -121,7 +121,7 @@ The maximum cost of the query is a single dot product operation which is O(D · 
 
 ### 4.1 Datasets and the Diagnostic Matrix
 
-To evaluate the robustness of our hybrid approach, we selected eight closed-domain benchmarks [25, 26, 27, 28, 30, 31] that showcase different failure modes [29]. The eight QA datasets are tested on manually crafted candidate sets of 20 passages (with one reference and 19 BM25 negatives), while PopQA and PubMedQA are tested on naturally occurring candidate sets (with much smaller sizes than the other datasets). NQ-REaR conducts full-corpus ranking (i.e., all documents) for Scaling Wall analysis in Section 5.5.
+To evaluate the robustness of our hybrid approach, we selected eight closed-domain benchmarks [28, 29, 30, 31, 33, 34] that showcase different failure modes [32]. The eight QA datasets are tested on manually crafted candidate sets of 20 passages (with one reference and 19 BM25 negatives), while P opQA and PubMedQA are tested on naturally occurring candidate sets (with much smaller sizes than the other datasets). NQ-REA R conducts full-corpus ranking (i.e., all documents) for Scaling Wall analysis in Section 5.5.
 
 *Table 1: Dataset Statistics.*
 
@@ -138,7 +138,7 @@ To evaluate the robustness of our hybrid approach, we selected eight closed-doma
 
 ### 4.2 Baselines and Statistical Protocols
 
-We compared different methods one based on BM25 (k1=1.2, b=0.75) and another on the frozen SPLADE model (splade-cocondenser-ensembledistil) [33, 34, 35, 36].
+We compared different methods one based on BM25 (k1=1.2, b=0.75) and another on the frozen SPLADE model (splade-cocondenser-ensembledistil) [36, 37, 38, 39].
 
 All the presented MRR values are accompanied by 95% Bootstrap Confidence Intervals computed from 1, 000 resamplings, and the level of significance was 0.05.
 
@@ -181,11 +181,11 @@ In Table 2, we provide the results of SF as a standalone method compared against
 | **MuSiQue** | Multi-hop (2-5) | 20 | 0.453 | **0.482** | **Severe Compositional Gap** |
 | **NQ-REaR** | Factoid | ~1,039 | 0.574 | **0.675** | **The Scaling Wall** |
 
-**Zero-Shot Strength (PubMedQA)**.PubMedQA [25] is a biomedical QA dataset heavily laced with domain terminology. In such cases, the ability of retrieval systems that match only exact lexemes would be expected to give superior results. This makes the fact that unsupervised SF on PubMedQA, without using any training data, can get up to an MRR of **0.955**, being within statistical distance to BM25 (1.000), even more impressive. SF closing, with little supervision, most, if not even, the advantage of exact match retrieval which is the strongest sign in our results that a discrete, high-dimensional binary grid can serve a purpose similar to that of a retriever which uses exact matches when the labeled data is unavailable on the very day.
+**Zero-Shot Strength (PubMedQA)**.PubMedQA [28] is a biomedical QA dataset heavily laced with domain terminology. In such cases, the ability of retrieval systems that match only exact lexemes would be expected to give superior results. This makes the fact that unsupervised SF on PubMedQA, without using any training data, can get up to an MRR of **0.955**, being within statistical distance to BM25 (1.000), even more impressive. SF closing, with little supervision, most, if not even, the advantage of exact match retrieval which is the strongest sign in our results that a discrete, high-dimensional binary grid can serve a purpose similar to that of a retriever which uses exact matches when the labeled data is unavailable on the very day.
 
 **structural Failures**: Table 2 shows the places where unsupervised SF is in a dead end, and we find two major shortcomings.
 
- 1. **Compositional Gap (Multi-hop Tasks)**: SF exhibits a steady drop in quality with growing hop count (0.788 on 2-hop, only 0.453 on 2-5 hop) [26, 27, 30]. By design, SF decomposes words into independent spatial fingerprints, which prevents any higher order tensor operations to bind factual tokens from different documents into a joint matrix.
+ 1. **Compositional Gap (Multi-hop Tasks)**: SF exhibits a steady drop in quality with growing hop count (0.788 on 2-hop, only 0.453 on 255 hop) [29, 30, 33]. By design, SF decomposes words into independent spatial fingerprints, which prevents any higher order tensor operations to bind factual tokens from different documents into a joint matrix.
  2.**Scaling Wall (Large Corpora)**: On NQ-REaR (1039 documents), SF drops down to 0.574 MRR. In Section 5.5, we show that SDR’s dot-products have a dynamic range that scales as O(√N), whereas their competitors’ have a dynamic range that scales as O(N). As a consequence, scores from different documents in a large corpus become indistinguishable from noise, collapsing to a flat, noisy distribution.
 
 SF is not capable of spanning the compositional gap and is not scalable to large corpuses, being forced to use a learned model such as SPLADE to be employed within current QA pipelines. However, such a combination would only add another non-ideal layer on top of a highly complex model, which poses additional risks, which we explore in the next section.
@@ -213,7 +213,7 @@ Therefore, the hybrid model does not represent an improvement over the SPLADE-on
 
 
 **How RRF Rescues Single-Hop:**
-RRF eliminates this issue by converting both the signals to unitless rank space 1/(60 + rank). In this case, a rank of 1 from SF would mean the same as a rank of 1 from SPLADE, even though their raw scores may differ a lot. From Table 3, one can see that RRF totally gets rid of degeneracy in single-hop tasks: Belebele reaches a near perfect MRR score **1.000** (+6.4% over linear) and NarrativeQA jumps to **0.967** (+2.8%). Thus one might say that SF and SPLADE do complement each other at the level of ranking [41], however, linear interpolation by its very nature covers up this complementary relationship.
+RRF eliminates this issue by converting both the signals to unitless rank space 1/(60 + rank). In this case, a rank of 1 from SF would mean the same as a rank of 1 from SPLADE, even though their raw scores may differ a lot. From Table 3, one can see that RRF totally gets rid of degeneracy in single-hop tasks: Belebele reaches a near perfect MRR score **1.000** (+6.4% over linear) and NarrativeQA jumps to **0.967** (+2.8%). Thus one might say that SF and SPLADE do complement each other at the level of ranking [44], however, linear interpolation by its very nature covers up this complementary relationship.
 
 
 ### 5.3 The Multi-Hop Magnitude Fallacy
@@ -358,7 +358,7 @@ Only apply SDRs to very small sets of candidates retrieved with particular task,
 
 ### 6.1 Deployment Economics: A CPU-Only Alternative
 
-One thing we have to say that we did not discuss yet, that we did not utilize any GPU at all for the results reported in this paper [37, 38, 39, 40].
+One thing we have to say that we did not discuss yet, that we did not utilize any GPU at all for the results reported in this paper [40, 41, 42, 43].
 Both retrieval based on semantic fingerprints and query processing take place on CPUs, while storing 512-bytes per document, as compared to ∼1/6 of the storage footprint needed to hold a dense 768-dimensional DPR vector (Section 3.6).
 If your team is facing the cold-start problem described in Section 1, this alternative view on deployment economics changes the comparison between approaches from “it’s not just about "zero-shot vs. fine-tuned" models” to “it’s not just about GPU-hosted vs. CPU-only models”. For the tasks where OTC-tuned hybrid model provides a clear improvement over MuSiQue / Belebele (two out of six), you can score a compositional reasoning gain without having to invest extra in new inference hardware for the sentence fermentation part. For the tasks where BM25 is still king (NarrativeQA, 2WikiMulti, PubMedQA, NQ-REaR), that same CPU-only economics allow you to trial SF with little risk of wasting your computational budget - which means it is particularly compelling in the resource-constrained setting when your compute is either costly or scarce versus the plentiful free compute of the benchmarking papers.
 
@@ -370,7 +370,7 @@ We recognize a number of limitations. First, we only selected two dozen primary 
 
 Second, our Operator-Topology Constrain is a scale property of the splade-cocondenser-ensembledistil checkpoint which we have evaluated. If newer sparse models have different magnitude distributions, this could have pushed Multi-Hop Magnitude Fallacy to a different degree.
 To begin with, while we have formalized the math of the Feature Invariance Principle to a great extent, the experiments were conducted with 7 specific architectural modifications and a much larger, adversarial modification set could provide a more convincing counterexample. Furthermore, through our multi-hop case studies we have interpreted SPLADE score magnitudes as ‘compositional confidence scores’, which is a specific case of term expansion density, the black-box nature of neural operators was the cause of investigation, and it is only an assumption, though well-justified, that score magnitudes would be correlated with it.
-Finally, all our evaluations have been conducted in English, and while the Operator- Topology Limit might hold for German or other European languages, there is no basis for assuming that it holds for languages with different morphology or resource availability [21, 22], for which BM25 and SPLADE have quite different approximations.
+Finally, all our evaluations have been conducted in English, and while the Operator- Topology Limit might hold for German or other European languages, there is no basis for assuming that it holds for languages with different morphology or resource availability [23, 24], for which BM25 and SPLADE have quite different approximations.
 
 ---
 
@@ -382,7 +382,7 @@ The results suggest that alone, unsupervised SF is close to BM25 on many single-
 Our paper explores the phenomenon of the "complementarity illusion": when linear fusion of models fails on single-hop tasks, it is the mismatch of score scales that explains this failure rather than the lack of complementarity a problem Reciprocal Rank Fusion solves.
 The rescue by RRF led us to discover a new fallacy, which is called the Multi-Hop Magnitude Fallacy, also the downfall of the paper that we cite as destroying the Multi-Hop Magnitude Fallacy. The loss due to the fallacy is largest where multi-hop retrieval is also most difficult. For example, if, while retrieving with BM25, we combine the results not with RRF (our method), but with Linear interpolation (just a different method, a very common and very simplistic one) then the result on MuSiQue is improved from the BM25 baseline of 0.482 to **0.782 (MRR)**, that is a total increase of about 62.2 %! We proposed the Operator-Topology Constraint in such a way that now Hybrid Design is not going to be a guess, but it should go into hand with the law that we formulate. It is a mathematical one that we think the IR community would find useful. Besides, we formulated the Principle of Feature Invariance together with the Scaling Wall.
 
-Future research should tackle the problem of the Scaling Wall at larger corpus sizes by, perhaps, using hierarchical SDRs [23, 24]. Besides that, the Operator-Topology Constraint has to be tested in a variety of different modalities (e.g., integrating dense vectors with sparse vectors) and across languages to find out if it truly is a Law for Information Retrieval or just a feature specific to the sparse-lexical signals here [24]. The implications for retrieval-augmented generation (RAG) systems are profound: our findings suggest that the Operator-Topology Constraint directly applies to the fusion of retrieval signals with generator confidence [43, 44, 45].
+Future research should tackle the problem of the Scaling Wall at larger corpus sizes by, perhaps, using hierarchical SDRs [25, 26]. Besides that, the Operator-Topology Constraint has to be tested in a variety of different modalities (e.g., integrating dense vectors with sparse vectors) and across languages to find out if it truly is a Law for Information Retrieval or just a feature specific to the sparse-lexical signals here [27].
 
 ---
 
@@ -393,8 +393,8 @@ Future research should tackle the problem of the Scaling Wall at larger corpus s
 3. Hawkins, J., George, D.: Hierarchical Temporal Memory: Concepts, Theory, and Terminology. Numenta Technical Report (2006).
 4. Ahmad, S., Hawkins, J.: Properties of sparse distributed representations and their application to hierarchical temporal memory. arXiv:1503.07469 (2015).
 5. Webber, F.D.S.: Semantic Folding Theory and its Application in Semantic Fingerprinting. arXiv:1511.08855 (2015).
-6. Zhao, W.X., Liu, J., Gu, R., Wen, J.-R.: Dense Text Retrieval based on Pretrained Language Models: A Survey. ACM Transactions on Information Systems (2024).
-7. Lassance, C., et al.: SPLATE: Sparse Late Interaction Retrieval. In: Proceedings of the 47th International ACM SIGIR Conference (SIGIR 2024).
+6. Karpukhin, V., et al.: Dense Passage Retrieval for Open-Domain Question Answering. In: Proceedings of EMNLP 2020, pp. 6769–6781 (2020).
+7. Khattab, O., Zaharia, M.: ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT. In: Proceedings of SIGIR 2020, pp. 39–48 (2020).
 8. Santhanam, K., et al.: ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction. In: Proceedings of NAACL 2022, pp. 3715–3734 (2022).
 9. Formal, T., Piwowarski, B., Clinchant, S.: SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking. In: Proceedings of SIGIR 2021, pp. 2288–2296 (2021).
 10. Salton, G., Wong, A., Yang, C.S.: A vector space model for automatic indexing. Communications of the ACM 18(11), 613–620 (1975).
@@ -403,33 +403,33 @@ Future research should tackle the problem of the Scaling Wall at larger corpus s
 13. Harris, Z.S.: Distributional Structure. Word 10(2-3), 146–162 (1954).
 14. Firth, J.R.: A synopsis of linguistic theory, 1930–1955. Studies in Linguistic Analysis, pp. 1–32 (1957).
 15. Furnas, G.W., et al.: The vocabulary problem in human-system communication. Communications of the ACM 30(11), 964–971 (1987).
-16. McInnes, L., Healy, J., Melville, J.: UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. arXiv:1802.03426 (2018).
-17. Morton, G.M.: A computer oriented geodetic data base and a new technique in file sequencing. IBM Technical Report (1966).
-18. Farea, A., Emmert-Streib, F.: Understanding question-answering systems: Evolution, applications, trends, and challenges. Engineering Applications of Artificial Intelligence (Elsevier, 2025).
-19. Zhang, Q., Chen, S., Xu, D., Cao, Q., Chen, X., Cohn, T., Fang, M.: A Survey for Efficient Open Domain Question Answering. In: Proceedings of ACL 2023 (2023).
-20. Omar, R., Dhall, I., Kalnis, P., Mansour, E.: A Universal Question-Answering Platform for Knowledge Graphs. Proceedings of the ACM on Management of Data (PACMMOD) 1(1) (2023).
-21. Jin, Q., Kim, W., Chen, Q., Comeau, D.C., Yeganova, L., Wilbur, W.J., Lu, Z.: MedCPT: Contrastive Pre-trained Transformers with large-scale PubMed search logs for zero-shot biomedical information retrieval. Bioinformatics 39(11), btad651 (2023).
-22. Jin, Q., et al.: Biomedical question answering: A survey of approaches and challenges. ACM Computing Surveys 55(2), 1–38 (2022).
-23. Kleyko, D., et al.: A Survey on Hyperdimensional Computing aka Vector Symbolic Architectures, Part II. ACM Computing Surveys 55(9), 1–35 (2023).
-24. Otegi, A., et al.: Information retrieval and question answering: A case study on COVID-19 scientific literature. Knowledge-Based Systems 242, 108380 (2022).
-25. Jin, Q., et al.: PubMedQA: A Dataset for Biomedical Research Question Answering. In: Proceedings of EMNLP 2019, pp. 2567–2577 (2019).
-26. Yang, Z., et al.: HotpotQA: A Dataset for Diverse, Explainable Multi-hop QA. In: Proceedings of EMNLP 2018, pp. 2369–2380 (2018).
-27. Trivedi, H., et al.: MuSiQue: Multihop Questions via Single-hop Question Composition. Transactions of the Association for Computational Linguistics 10, 539–554 (2022).
-28. Bandarkar, L., et al.: Belebele: A Massive Multilingual Multiple Choice Reading Comprehension Dataset. arXiv:2308.16884 (2023).
-29. Mallen, A., et al.: When Not to Trust Language Models. arXiv:2305.14283 (2023).
-30. Ho, X., Nguyen, A.K., Sugawara, S., Aizawa, A.: Constructing A Multi-hop QA Dataset for Comprehensive Evaluation of Reasoning Steps. In: Proceedings of the 28th International Conference on Computational Linguistics (COLING 2020), pp. 6609–6625 (2020).
-31. Kwiatkowski, T., et al.: Natural Questions: A Benchmark for Question Answering Research. Transactions of the Association for Computational Linguistics 7, 452–466 (2019).
-32. Lei, Y., et al.: Unsupervised Dense Retrieval with Relevance-Aware Contrastive Pre-Training. In: Findings of the Association for Computational Linguistics: ACL 2023, pp. 10932–10947 (2023).
-33. Thakur, N., et al.: BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of IR Models. arXiv:2104.08663 (2021).
-34. Kamalloo, E., Thakur, N., Lassance, C., Ma, X., Yang, J.-H., Lin, J.: Resources for Brewing BEIR: Reproducible Reference Models and Statistical Analyses. In: Proceedings of the 47th International ACM SIGIR Conference (SIGIR 2024), pp. 1431–1440 (2024).
-35. Wischounig, L., Abdallah, A., Jatowt, A.: Negative Sampling Techniques in Information Retrieval: A Survey. In: Findings of EACL 2026. arXiv:2603.18005 (2026).
-36. Xiao, S., Liu, Z., Shao, Y., Cao, Z.: RetroMAE: Pre-Training Retrieval-oriented Language Models Via Masked Auto-Encoder. In: Proceedings of EMNLP 2022. arXiv:2205.12035 (2022).
-37. Cortical.io: Semantic Folding: A Proprietary Implementation of SDR for Text. Cortical.io Inc. (2015).
-38. Clay, V., et al.: The Thousand Brains Project: A New Paradigm for Sensorimotor Intelligence. arXiv:2412.18354 (2024).
-39. Sanati, S., Rouhani, M., Hodtani, G.A.: Information-theoretic analysis of Hierarchical Temporal Memory-Spatial Pooler algorithm. Frontiers in Computational Neuroscience 17, 1140782 (2023).
-40. Sanati, S., et al.: Information-theoretic foundations of sparse distributed representations in brain-inspired architectures. Frontiers in Computational Neuroscience (2023).
-41. Cormack, G.V., Clarke, C.L.A., Buettcher, S.: Reciprocal Rank Fusion outperforms Condorcet and Individual Rank Learning Methods. In: Proceedings of SIGIR 2009, pp. 758–759 (2009).
-42. Fox, E.A., Shaw, J.A.: Combination of multiple searches. In: Proceedings of the 2nd Text REtrieval Conference (TREC-2), pp. 243–252 (1994).
-43. Gao, Y., et al.: Retrieval-Augmented Generation for Large Language Models: A Survey. arXiv:2312.10997 (2023).
-44. Xiong, S., et al.: Benchmarking Retrieval-Augmented Generation for Medicine. arXiv:2402.13178 (2024).
-45. Jin, Q., et al.: PubMed and Beyond: Biomedical Literature Search in the AI Age. eBioMedicine (2024).
+16. van der Maaten, L., Hinton, G.: Visualizing Data using t-SNE. Journal of Machine Learning Research 9, 2579–2605 (2008).
+17. McInnes, L., Healy, J., Melville, J.: UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. arXiv:1802.03426 (2018).
+18. Morton, G.M.: A computer oriented geodetic data base and a new technique in file sequencing. IBM Technical Report (1966).
+19. Allam, A.M.N., Haggag, M.H.: The question answering systems: A survey. International Journal of Research and Reviews in Information Sciences 2(3), 367–375 (2012).
+20. Molla, D., Vicedo, J.L.: Question answering in restricted domains: An overview. Computational Linguistics 33(1), 41–82 (2007).
+21. Arbaaeen, A., Shah, A.: Ontology-based approach to semantically enhanced question answering for closed domain: A review. Information 12(4), 145 (2021).
+22. Caballero, M.: A brief survey of question answering systems. International Journal of Artificial Intelligence and Applications 12(3), 1–15 (2021).
+23. Tamine, L., Goeuriot, L.: Semantic information retrieval on medical texts. ACM Computing Surveys 54(7), 1–37 (2021).
+24. Jin, Q., et al.: Biomedical question answering: A survey of approaches and challenges. ACM Computing Surveys 55(2), 1–38 (2022).
+25. Kleyko, D., et al.: A Survey on Hyperdimensional Computing aka Vector Symbolic Architectures, Part II. ACM Computing Surveys 55(9), 1–35 (2023).
+26. Ge, L., Parhi, K.K.: Classification using hyperdimensional computing: A review. IEEE Circuits and Systems Magazine 20(4), 18–32 (2020).
+27. Otegi, A., et al.: Information retrieval and question answering: A case study on COVID-19 scientific literature. Knowledge-Based Systems 242, 108380 (2022).
+28. Jin, Q., et al.: PubMedQA: A Dataset for Biomedical Research Question Answering. In: Proceedings of EMNLP 2019, pp. 2567–2577 (2019).
+29. Yang, Z., et al.: HotpotQA: A Dataset for Diverse, Explainable Multi-hop QA. In: Proceedings of EMNLP 2018, pp. 2369–2380 (2018).
+30. Trivedi, H., et al.: MuSiQue: Multihop Questions via Single-hop Question Composition. Transactions of the Association for Computational Linguistics 10, 539–554 (2022).
+31. Bandarkar, L., et al.: Belebele: A Massive Multilingual Multiple Choice Reading Comprehension Dataset. arXiv:2308.16884 (2023).
+32. Mallen, A., et al.: When Not to Trust Language Models. arXiv:2305.14283 (2023).
+33. Ho, X., Nguyen, A.K., Sugawara, S., Aizawa, A.: Constructing A Multi-hop QA Dataset for Comprehensive Evaluation of Reasoning Steps. In: Proceedings of the 28th International Conference on Computational Linguistics (COLING 2020), pp. 6609–6625 (2020).
+34. Kwiatkowski, T., et al.: Natural Questions: A Benchmark for Question Answering Research. Transactions of the Association for Computational Linguistics 7, 452–466 (2019).
+35. Izacard, G., et al.: Unsupervised Dense Information Retrieval with Contrastive Learning. Transactions on Machine Learning Research. arXiv:2112.09118 (2022).
+36. Thakur, N., et al.: BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of IR Models. arXiv:2104.08663 (2021).
+37. Xiong, L., et al.: Approximate nearest neighbor negative contrastive learning for dense text retrieval. In: Proceedings of ACL 2021. arXiv:2007.00808 (2021).
+38. Qu, Y., et al.: RocketQA: An Optimized Training Approach to Dense Passage Retrieval. In: Proceedings of NAACL 2021, pp. 5849–5861 (2021).
+39. Lin, J., et al.: UniCOIL: Zero-Shot Sparse Lexical Interaction via Counting. In: Proceedings of ECIR 2024. arXiv:2306.14547 (2024).
+40. Cortical.io: Semantic Folding: A Proprietary Implementation of SDR for Text. Cortical.io Inc. (2015).
+41. Hole, K.J., Ahmad, S.: A thousand brains: toward biologically constrained AI. SN Applied Sciences 3(8), 743 (2021).
+42. Sanati, S., Rouhani, M., Hodtani, G.A.: Information-theoretic analysis of Hierarchical Temporal Memory-Spatial Pooler algorithm. Frontiers in Computational Neuroscience 17, 1140782 (2023).
+43. Sanati, S., et al.: Information-theoretic foundations of sparse distributed representations in brain-inspired architectures. Frontiers in Computational Neuroscience (2023).
+44. Cormack, G.V., Clarke, C.L.A., Buettcher, S.: Reciprocal Rank Fusion outperforms Condorcet and Individual Rank Learning Methods. In: Proceedings of SIGIR 2009, pp. 758–759 (2009).
+45. Fox, E.A., Shaw, J.A.: Combination of multiple searches. In: Proceedings of the 2nd Text REtrieval Conference (TREC-2), pp. 243–252 (1994).

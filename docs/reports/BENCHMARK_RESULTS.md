@@ -73,7 +73,7 @@ Semantic Folding (SF) was benchmarked against BM25, SPLADE, and SF+SPLADE on **9
 | 8 | **NQ-REaR** | Factoid | 50 | 0.574 | 0.632 | 0.631 | 0.675 | SPLADE-only |
 | 9 | **SciFact** | Scientific fact-checking | 50 | 0.860 ⚠️ | 0.900 ⚠️ | **0.960 ⚠️** | 0.900 ⚠️ | **SF+SPLADE RRF** |
 
-† NarrativeQA: AP=0.017 — small pools inflate MRR. MuSiQue: 44 gold-bearing queries (v4 SF+SPLADE run, t-SNE p=30; v5 SPLADE-only run 2026-07-31, MRR=0.876 ± 0.082, same 954-doc pool). SciFact ⚠️: row-9 MRR is over the **16-doc toy pool** (gold + 15 distractors), NOT the full corpus — a pool-size artifact, **not comparable to BEIR/SciFact leaderboards**. Defensible deep-pool numbers (gold + top-100 BM25, n=50) are BM25=0.0095 and SF=0.0109, both near-zero — see SciFact note below.
+† NarrativeQA: AP=0.017 — small pools inflate MRR. MuSiQue: 44 gold-bearing queries of 50 evaluated (v4 SF+SPLADE run, t-SNE p=30; v5 SPLADE-only run 2026-07-31, MRR=0.876 ± 0.082). All MuSiQue numbers use the same protocol: 50 queries (44 gold-bearing), ~20 passages per query (1 gold + 19 BM25 hard negatives). The full MuSiQue dev set has 2,417 queries; we evaluate on the standard 50-query subset. SciFact ⚠️: row-9 MRR is over the **16-doc toy pool** (gold + 15 distractors), NOT the full corpus — a pool-size artifact, **not comparable to BEIR/SciFact leaderboards**. Defensible deep-pool numbers (gold + top-100 BM25, n=50) are BM25=0.0095 and SF=0.0109, both near-zero — see SciFact note below.
 
 ### 3.1 How to Read This Table
 
@@ -83,7 +83,7 @@ Semantic Folding (SF) was benchmarked against BM25, SPLADE, and SF+SPLADE on **9
 - **BM25 MRR**: Standard BM25 baseline for comparison
 - **Best Method**: The single method achieving highest MRR on this dataset
 
-SPLADE-only benchmarks (α=0.0) are reported separately in Ch7 §7.2.2. SPLADE-only outperforms SF+SPLADE on 4/8 datasets: MuSiQue (0.876 ± 0.082, v5 2026-07-31, 44 Q), HotpotQA (0.957), Belebele (1.000), NQ-REaR (0.677).
+SPLADE-only benchmarks (α=0.0) are reported separately in Ch7 §7.2.2. SPLADE-only outperforms SF+SPLADE on 4/8 datasets: MuSiQue (0.876 ± 0.082, v5 2026-07-31, 44 Q, same 50-query protocol), HotpotQA (0.957), Belebele (1.000), NQ-REaR (0.677).
 
 ---
 

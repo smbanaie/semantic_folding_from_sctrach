@@ -6,7 +6,7 @@
 
 ## Abstract
 
-Closed-domain question answering in specialized domains such as biomedicine and law is hindered by a cold-start problem: both sparse and dense retrievers require thousands of labeled query-document pairs to adapt to new domain-specific lexicons. We explore whether Semantic Folding, an unsupervised learning method that discovers semantic structure by encoding information into a 2D grid for creating Sparse Distributed Representations, can act as a training-free relevance signal for such specialized question answering tasks. We demonstrate that SF achieves a MRR of 0.955 on PubMedQA, matching BM25's performance (MRR 1.0). On multi-hop reasoning tasks, however, SF's effectiveness drops precipitously. We focus on understanding SF's complementary nature to late fusion retrievers through diagnostic experiments on its ability to capture compositional meaning. We find that reciprocal rank fusion (RRF), the default method for combining multiple ranked lists, performs exceptionally well on reading comprehension tasks (MRR 1.0), but considerably worse than BM25 on multi-hop reasoning (MRR -0.155). We show linear interpolation with appropriate scaling lifts the MuSiQue baseline from 0.482 to 0.782 MRR (+62.2%). We label this phenomenon the Multi-Hop Magnitude Fallacy, as magnitude information is effectively discarded when applying rank fusion to compositional reasoning. We additionally introduce the Feature Invariance Principle, demonstrating that modifying the SDR grid in SF has no effect on downstream performance, and the Scaling Wall, an O(√N) drop in scores due to the range of scores spanned by fusion operators being insufficient for the number of models being fused. We conclude by describing the Operator-Topology constraint, which dictates that an operator is not freely selectable, but rather must be considered in concert with the algorithmic topologies it is applied to.
+Closed-domain question answering in specialized domains such as biomedicine and law is hindered by a cold-start problem: both sparse and dense retrievers require thousands of labeled query-document pairs to adapt to new domain-specific lexicons. We explore whether Semantic Folding, an unsupervised learning method that discovers semantic structure by encoding information into a 2D grid for creating Sparse Distributed Representations, can act as a training-free relevance signal for such specialized question answering tasks. We demonstrate that SF achieves a MRR of 0.955 on PubMedQA, matching BM25's performance (MRR 1.0). On multi-hop reasoning tasks, however, SF's effectiveness drops precipitously. We focus on understanding SF's complementary nature to late fusion retrievers through diagnostic experiments on its ability to capture compositional meaning. We find that reciprocal rank fusion (RRF), the default method for combining multiple ranked lists, performs exceptionally well on reading comprehension tasks (MRR 1.0), but considerably worse than BM25 on multi-hop reasoning (MRR -0.155). We show linear interpolation with appropriate scaling lifts the MuSiQue baseline from 0.482 to 0.782 MRR (+62.2%). We label this phenomenon the Multi-Hop Magnitude Fallacy, as magnitude information is effectively discarded when applying rank fusion to compositional reasoning. We conclude by describing the Operator-Topology constraint, which dictates that an operator is not freely selectable, but rather must be considered in concert with the algorithmic topologies it is applied to.
 
 **Keywords:** Zero-Shot Retrieval, Sparse Distributed Representations, Hybrid Retrieval, Reciprocal Rank Fusion, Information Retrieval Theory, Semantic Folding.
 
@@ -16,7 +16,7 @@ Closed-domain question answering in specialized domains such as biomedicine and 
 
 The cold-start problem in domain-specific question answering [18, 19, 20] is often posed as a problem of data scarcity: neural retrievers require labeled samples to learn from, while such samples are unavailable in niche domains. This framing, however, obscures a more interesting question—whether unsupervised, training-free retrieval can be of sufficient quality to warrant integration in practical systems. We find partial support for this possibility: Semantic Folding (SF) [5], a recent unsupervised method that encodes semantic structure into Sparse Distributed Representations [1, 2, 3, 4], matches BM25 [11, 12] on single-hop biomedical questions [21, 22, 24] with no training data. Its performance drops precipitously, however, when retrieval requires multi-hop reasoning—a failure that reveals a structural limitation shared by all rank-fusion approaches. We trace this to the Multi-Hop Magnitude Fallacy [15, 33]: rank-based fusion operators discard magnitude information that compositional reasoning critically depends on [41].
 
-Rather than competing with existing retrievers [6,7,8], SF was designed as a probe to understand hybrid retrieval behavior through controlled experiments. SF is rooted in the biologically plausible principle of organizing semantic structure on a 2D grid and representing documents as sparse binary fingerprints over this space [1,2,3,4]. The mathematical simplicity of SF’s architecture allows us to tease out the impact of fusion operators from the confounding variables of learned representations: its deterministic encoding and fixed grid topology enables systematic analysis of hybrid retrieval behavior. By applying SF to 8 closed-domain datasets, we were able to delineate the circumstances under which a hybrid system succeeds or fails, ultimately uncovering general principles (Feature Invariance, Scaling Wall, and the Multi-Hop Magnitude Fallacy) that drastically constrain the choice of fusion operator to the algorithmic topology of the task [23, 39, 40].
+Rather than competing with existing retrievers [6,7,8], SF was designed as a probe to understand hybrid retrieval behavior through controlled experiments. SF is rooted in the biologically plausible principle of organizing semantic structure on a 2D grid and representing documents as sparse binary fingerprints over this space [1,2,3,4]. The mathematical simplicity of SF’s architecture allows us to tease out the impact of fusion operators from the confounding variables of learned representations: its deterministic encoding and fixed grid topology enables systematic analysis of hybrid retrieval behavior. By applying SF to 8 closed-domain datasets, we were able to delineate the circumstances under which a hybrid system succeeds or fails, ultimately uncovering general principles (the Multi-Hop Magnitude Fallacy) that drastically constrain the choice of fusion operator to the algorithmic topology of the task [23, 39, 40].
 
 In this paper, we evaluate SF not as an end in itself but as a means to explore the limits of zero-shot semantic matching and hybrid fusion capabilities. We pose four distinct questions:
 1. (**Capability**) A 2D spatial grid of a machine learning model that has not learned from examples, can it perform on a level comparable to the trained neural networks from the very beginning?
@@ -37,8 +37,6 @@ To complement the preceding arguments, here is what we provide:
 • **A multi-topic diagnostic evaluation** with detailed statistics that validate the entire Semantic Folding pipeline, plus a set of ablations that demonstrate the contribution of individual pipeline elements, to facilitate architectural deletions;
 • **An explanation of how and why the Linear Fusion Scale Mismatch** is addressed by demonstrating that a RRF is able to fully recover the one-hop case performance, due to proper normalization of the input signal;
 • **The Multi-Hop Magnitude Fallacy**, which formally derives its incompatibility with compositional reasoning on the rank level, with a demonstration of its most practically impactful instantiation – a 62.2 PCT relative MRR gain on MuSiQue that would have been erroneously discarded by a RRF;
-• **A mathematical description of a certain grid property** that leads to the Feature Invariance Principle, which formally explains why changes to the grid features do not lead to MRR improvements;
-• **Theoretical derivation of the Scaling Wall;** demonstration of how the SDR dot-product dynamic ranges change at O(√N ) scales.
 
 ---
 
@@ -121,7 +119,7 @@ The maximum cost of the query is a single dot product operation which is O(D · 
 
 ### 4.1 Datasets and the Diagnostic Matrix
 
-To evaluate the robustness of our hybrid approach, we selected eight closed-domain benchmarks [25, 26, 27, 28, 30, 31] that showcase different failure modes [29]. The eight QA datasets are tested on manually crafted candidate sets of 20 passages (with one reference and 19 BM25 negatives), while PopQA and PubMedQA are tested on naturally occurring candidate sets (with much smaller sizes than the other datasets). NQ-REaR conducts full-corpus ranking (i.e., all documents) for Scaling Wall analysis in Section 5.5.
+To evaluate the robustness of our hybrid approach, we selected eight closed-domain benchmarks [25, 26, 27, 28, 30, 31] that showcase different failure modes [29]. The eight QA datasets are tested on manually crafted candidate sets of 20 passages (with one reference and 19 BM25 negatives), while PopQA and PubMedQA are tested on naturally occurring candidate sets (with much smaller sizes than the other datasets). NQ-REaR conducts full-corpus ranking (i.e., all documents) for score compression analysis.
 
 *Table 1: Dataset Statistics.*
 
@@ -179,14 +177,14 @@ In Table 2, we provide the results of SF as a standalone method compared against
 | **2WikiMulti** | Multi-hop (2) | 20 | 0.788 | **0.921** | **Compositional Gap** |
 | **HotpotQA** | Multi-hop (2) | 20 | 0.726 | **0.869** | **Compositional Gap** |
 | **MuSiQue** | Multi-hop (2-5) | 20 | 0.453 | **0.482** | **Severe Compositional Gap** |
-| **NQ-REaR** | Factoid | ~1,039 | 0.574 | **0.675** | **The Scaling Wall** |
+|| **NQ-REaR** | Factoid | ~1,039 | 0.574 | **0.675** | **Score Compression** |
 
 **Zero-Shot Strength (PubMedQA)**.PubMedQA [25] is a biomedical QA dataset heavily laced with domain terminology. In such cases, the ability of retrieval systems that match only exact lexemes would be expected to give superior results. This makes the fact that unsupervised SF on PubMedQA, without using any training data, can get up to an MRR of **0.955**, being within statistical distance to BM25 (1.000), even more impressive. SF closing, with little supervision, most, if not even, the advantage of exact match retrieval which is the strongest sign in our results that a discrete, high-dimensional binary grid can serve a purpose similar to that of a retriever which uses exact matches when the labeled data is unavailable on the very day.
 
 **structural Failures**: Table 2 shows the places where unsupervised SF is in a dead end, and we find two major shortcomings.
 
- 1. **Compositional Gap (Multi-hop Tasks)**: SF exhibits a steady drop in quality with growing hop count (0.788 on 2-hop, only 0.453 on 2-5 hop) [26, 27, 30]. By design, SF decomposes words into independent spatial fingerprints, which prevents any higher order tensor operations to bind factual tokens from different documents into a joint matrix.
- 2.**Scaling Wall (Large Corpora)**: On NQ-REaR (1039 documents), SF drops down to 0.574 MRR. In Section 5.5, we show that SDR’s dot-products have a dynamic range that scales as O(√N), whereas their competitors’ have a dynamic range that scales as O(N). As a consequence, scores from different documents in a large corpus become indistinguishable from noise, collapsing to a flat, noisy distribution.
+1. **Compositional Gap (Multi-hop Tasks)**: SF exhibits a steady drop in quality with growing hop count (0.788 on 2-hop, only 0.453 on 2-5 hop) [26, 27, 30]. By design, SF decomposes words into independent spatial fingerprints, which prevents any higher order tensor operations to bind factual tokens from different documents into a joint matrix.
+2. **Score Compression (Large Corpora)**: On NQ-REaR (1039 documents), SF drops down to 0.574 MRR. The SDR's dot-products have a dynamic range that scales as O(√N), whereas their competitors' have a dynamic range that scales as O(N). As a consequence, scores from different documents in a large corpus become indistinguishable from noise, collapsing to a flat, noisy distribution.
 
 SF is not capable of spanning the compositional gap and is not scalable to large corpuses, being forced to use a learned model such as SPLADE to be employed within current QA pipelines. However, such a combination would only add another non-ideal layer on top of a highly complex model, which poses additional risks, which we explore in the next section.
 
@@ -288,42 +286,6 @@ For those of you for whom major evidence to discrimination came in the form of d
 Since additional tuning of the operator doesn't seem to be the right move, what is left in this paper is an examination of other ways to break the deadlock, i.e., changing the internal layout of the Semantic Folding topology itself.
 Finally, in the last part of this work, we provide a proof of the concept that the strategies proposed above, too, don' t quite lead to a breakthrough.
 
-### 5.4 The Feature Invariance Principle
-
-We can see from Table 5 that testing the SF architecture’s hypothesized under optimization required evaluating 7 variants. Of these variants, 5 had the identical, ~0.000% MRR delta (Fig. 5). Meanwhile two variants, Learned Grid and Cross-Attention, decreased performance by -19.3% and -21.5% respectively.
-*Table 5: Architectural Variant Ablations (2WikiMultihopQA, Linear Fusion Baseline).*
-
-| Modification | MRR | Δ |
-| :--- | :--- | :--- |
-| **Baseline (Linear)** | **0.901** | — |
-| + Snippet Ranking | 0.901 | **0.000%** |
-| + Adaptive Spreading | 0.901 | **0.000%** |
-| + NoOOV | 0.901 | **0.000%** |
-| + BM25 Pre-filtering | 0.901 | **0.000%** |
-| + Query Decomposition | 0.901 | **0.000%** |
-| + Learned Grid | 0.727 | **-19.300%** |
-| + Cross-Attention | 0.707 | **-21.500%** |
-
-We formalize this observation as the following principle:
-**Feature Invariance Principle**: Let q, d ∈ {0,1}^d be localized SDRs. If a feature f is computed as a function of the localized spatial overlap between q and d, it is perfectly collinear with the dot-product q · d.
-
-We discuss why snippet ranking fails because query phrases are already max-aggregated into the document’s SDR, and why cross-attention fails by design, as applying alignment to spatially encoded binary vectors breaks Morton-order locality. In practice this has the implication that efforts to improve SF-style retrievers should be directed less towards the choice of grid and more towards understanding what is being fused and how.
-
-### 5.5 The Scaling Wall: Mathematical Proof of Score Compression
-
-We can show mathematically why SDRs are problematic in the context of large databases. Assume that our query fingerprint q has ‖q‖1 =K active bits (for each d=4096 , ρ=0.10 , K ≈ 410 ). The distribution of an SDR's dot product with a random document is given by: E[s] = K × ρ ≈ 41.0 , Var[s] ≈36.9, σ[s] ≈6.07.
-
-Because of the increased range of possible query-document pairs, the dynamic range of scores falls asymptotically at O(√N) for SDRs versus O(N) for standard vectors. In other words, as you attempt to find the best matching document among an increasingly large number of candidates, the noise floor swamps out the signal.
-
-**Empirical Validation.** We visualize the score distributions for NQ-REaR in fig.1.
-BM25 has a wide distribution of scores (mean 5.2, std 4.1) allowing to distinguish relevant and non-relevant documents.
-
-SF, however, has highly compressed scores: the vast majority of 1039 documents have score between 0.034 and 0.051. The coefficient of variation is is ≈ 0.15 _ _ meaning that the “relevant” document is not different from random. Thus, unsupervised SDRs cannot be used for first-stage retrieval over large collections due to inability to perform hard negative mining.
-
-![](images/02_figure1_score_distribution.svg)
-
-*(Figure 1: Score-distribution comparison on NQ-REaR. Left: BM25 scores show a wide, healthy spread enabling clear discrimination. Right: SF scores show severe compression, tightly packed near 0.04, illustrating the Scaling Wall.)*
-
 ---
 
 ## 6. Discussion and Deployment Guidelines
@@ -348,11 +310,7 @@ In this case application of RRF leads to Magnitude Fallacy, which in context of 
 
 Apply Kendall’s τ test. If τ > 0.80 is achieved on multi-hop task, consider abandoning fusion entirely (it reflects true redundancy of the signals). If it is achieved for single-hop task consider switching to RRF.
 
-### Do Not Attempt to Mine Internal SDRs
-
-Internal Signals are formally prohibited by Feature Invariance. It is better to attempt to mine external information sources compatible with chosen method (e.g. additional signals for linear fusion).
-
-### Scaling Wall is to be Recognized
+### Score Compression is to be Recognized
 
 Only apply SDRs to very small sets of candidates retrieved with particular task, for which N < 100 holds.
 
@@ -366,10 +324,10 @@ If your team is facing the cold-start problem described in Section 1, this alter
 
 ## 7. Threats to Validity
 
-We recognize a number of limitations. First, we only selected two dozen primary sources of candidates for most QA datasets. Even though we theoretically concluded the existence of a wall at approximately O(\√N), we did not validate our algorithm SF against the entire corpus of a million plus passages such as in MS MARCO due to the limitations of CPU-indexing. We leave this large-scale validation as a follow-up task; the only large corpus we've run into, NQ-REaR which consists of about 1, 039 documents, is itself a mid-sized approximation. So, we recommend with caution that anyone trying to get the exact Scaling Wall constants for considerably larger corpora without first doing some measurement.
+We recognize a number of limitations. First, we only selected two dozen primary sources of candidates for most QA datasets. Even though we theoretically concluded the existence of score compression at approximately O(√N), we did not validate our algorithm SF against the entire corpus of a million plus passages such as in MS MARCO due to the limitations of CPU-indexing. We leave this large-scale validation as a follow-up task; the only large corpus we've run into, NQ-REaR which consists of about 1, 039 documents, is itself a mid-sized approximation. So, we recommend with caution that anyone trying to get the exact score compression constants for considerably larger corpora without first doing some measurement.
 
-Second, our Operator-Topology Constrain is a scale property of the splade-cocondenser-ensembledistil checkpoint which we have evaluated. If newer sparse models have different magnitude distributions, this could have pushed Multi-Hop Magnitude Fallacy to a different degree.
-To begin with, while we have formalized the math of the Feature Invariance Principle to a great extent, the experiments were conducted with 7 specific architectural modifications and a much larger, adversarial modification set could provide a more convincing counterexample. Furthermore, through our multi-hop case studies we have interpreted SPLADE score magnitudes as ‘compositional confidence scores’, which is a specific case of term expansion density, the black-box nature of neural operators was the cause of investigation, and it is only an assumption, though well-justified, that score magnitudes would be correlated with it.
+Second, our Operator-Topology Constraint is a scale property of the splade-cocondenser-ensembledistil checkpoint which we have evaluated. If newer sparse models have different magnitude distributions, this could have pushed Multi-Hop Magnitude Fallacy to a different degree.
+Furthermore, through our multi-hop case studies we have interpreted SPLADE score magnitudes as 'compositional confidence scores', which is a specific case of term expansion density, the black-box nature of neural operators was the cause of investigation, and it is only an assumption, though well-justified, that score magnitudes would be correlated with it.
 Finally, all our evaluations have been conducted in English, and while the Operator- Topology Limit might hold for German or other European languages, there is no basis for assuming that it holds for languages with different morphology or resource availability [21, 22], for which BM25 and SPLADE have quite different approximations.
 
 ---
@@ -380,9 +338,9 @@ We did a diagnosis of hybrid information retrieval through a Semantic Folding ex
 The results suggest that alone, unsupervised SF is close to BM25 on many single-hop tasks with no training data(e.g., PubMedQA MRR 0.955), but even more importantly is understanding which method should work in conjunction with a learned model.
 
 Our paper explores the phenomenon of the "complementarity illusion": when linear fusion of models fails on single-hop tasks, it is the mismatch of score scales that explains this failure rather than the lack of complementarity a problem Reciprocal Rank Fusion solves.
-The rescue by RRF led us to discover a new fallacy, which is called the Multi-Hop Magnitude Fallacy, also the downfall of the paper that we cite as destroying the Multi-Hop Magnitude Fallacy. The loss due to the fallacy is largest where multi-hop retrieval is also most difficult. For example, if, while retrieving with BM25, we combine the results not with RRF (our method), but with Linear interpolation (just a different method, a very common and very simplistic one) then the result on MuSiQue is improved from the BM25 baseline of 0.482 to **0.782 (MRR)**, that is a total increase of about 62.2 %! We proposed the Operator-Topology Constraint in such a way that now Hybrid Design is not going to be a guess, but it should go into hand with the law that we formulate. It is a mathematical one that we think the IR community would find useful. Besides, we formulated the Principle of Feature Invariance together with the Scaling Wall.
+The rescue by RRF led us to discover a new fallacy, which is called the Multi-Hop Magnitude Fallacy, also the downfall of the paper that we cite as destroying the Multi-Hop Magnitude Fallacy. The loss due to the fallacy is largest where multi-hop retrieval is also most difficult. For example, if, while retrieving with BM25, we combine the results not with RRF (our method), but with Linear interpolation (just a different method, a very common and very simplistic one) then the result on MuSiQue is improved from the BM25 baseline of 0.482 to **0.782 (MRR)**, that is a total increase of about 62.2 %! We proposed the Operator-Topology Constraint in such a way that now Hybrid Design is not going to be a guess, but it should go into hand with the law that we formulate. It is a mathematical one that we think the IR community would find useful.
 
-Future research should tackle the problem of the Scaling Wall at larger corpus sizes by, perhaps, using hierarchical SDRs [23, 24]. Besides that, the Operator-Topology Constraint has to be tested in a variety of different modalities (e.g., integrating dense vectors with sparse vectors) and across languages to find out if it truly is a Law for Information Retrieval or just a feature specific to the sparse-lexical signals here [24]. The implications for retrieval-augmented generation (RAG) systems are profound: our findings suggest that the Operator-Topology Constraint directly applies to the fusion of retrieval signals with generator confidence [43, 44, 45].
+Future research should tackle the problem of score compression at larger corpus sizes by, perhaps, using hierarchical SDRs [23, 24]. Besides that, the Operator-Topology Constraint has to be tested in a variety of different modalities (e.g., integrating dense vectors with sparse vectors) and across languages to find out if it truly is a Law for Information Retrieval or just a feature specific to the sparse-lexical signals here [24]. The implications for retrieval-augmented generation (RAG) systems are profound: our findings suggest that the Operator-Topology Constraint directly applies to the fusion of retrieval signals with generator confidence [43, 44, 45].
 
 ---
 

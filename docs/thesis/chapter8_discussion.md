@@ -199,6 +199,53 @@ The Orthogonality Constraint (Zahn et al., 2026) provides a theoretical framewor
 
 **SPLADE backbone note.** The results in this thesis use the standard SPLADE checkpoint (naver/splade-cocondenser-ensembledistil) from 2021. Given the rapid progress in learned sparse models, replacing this with the latest variants could further push the performance ceiling. **Mistral-SPLADE** (Echo-Mistral-SPLADE) uses a decoder-only LLM (Mistral-7B) with echo embeddings to achieve state-of-the-art performance on BEIR benchmark (avg NDCG@10 = 55.07), outperforming all SPLADE variants. The hybrid architecture is model-agnostic — any learned sparse model can serve as the SPLADE component, allowing immediate adoption of Mistral-SPLADE for improved performance.
 
+### 8.6.4 A Diagnostic Theory of Hybrid Retrieval (Journal B Framework)
+
+The findings from Journal B provide a comprehensive diagnostic framework that recontextualizes our experimental results:
+
+#### The Taxonomy of Hybrid Failures
+All hybrid retrieval failures fall into three categories independent of retriever choice:
+
+```
+Hybrid Failure
+├── Signal Failure          (components carry no exploitable information)
+│     ├── True redundancy         — rank correlation τ ≈ 1
+│     └── Locality-induced feature ceiling — feature adds nothing beyond base signal
+├── Operator Failure        (operator discards information task needs)
+│     ├── Scale mismatch          — score spaces incommensurate
+│     └── Magnitude destruction   — rank-only operator discards magnitude
+└── Representation Failure  (signal's encoding has structural ceiling)
+      ├── Compositional gap       — no relational algebra to bind facts
+      └── Score concentration     — dynamic range collapses with pool size
+```
+
+Our SF+SPLADE experiments map directly to this taxonomy:
+- **Belebele, NarrativeQA**: Signal Failure → Complementarity Illusion (true redundancy)
+- **2WikiMultihopQA, HotpotQA**: Operator Failure → Magnitude Destruction (RRF discards compositional confidence)
+- **MuSiQue**: Signal + Operator Failure → SPLADE-only outperforms hybrid
+- **NQ-REaR**: Signal Failure → True Redundancy (τ=0.82, no RRF recovery)
+- **BioASQ, NQ-REaR, SciFact (deep pool)**: Representation Failure → Score Concentration / Deep-Pool Collapse
+
+#### Score Geometry and Operator Information Preservation
+The **Score Geometry** framework provides a coordinate system $\mathcal{G}_R(q) = (\pi, \mathbf{s}, \mu_S, \sigma_S^2)$ that captures exactly what fusion operators act upon. The proven claim that **RRF preserves only ordering while linear interpolation preserves both ordering and magnitude** is a theoretical result from operator definitions, not empirical observation.
+
+This explains all our fusion phenomena:
+- **Complementarity Illusion** (Belebele, NarrativeQA): High τ + scale mismatch → RRF restores performance
+- **Magnitude Destruction** (2Wiki, HotpotQA): Multi-hop needs magnitude → Linear preserves it
+- **True Redundancy** (NQ-REaR): High τ + no RRF recovery → drop weaker signal
+
+#### Hybrid Compatibility Profile
+The **Hybrid Compatibility Profile** $(\tau, \mathrm{RRF\text{-}recoverable}, T)$ provides a pre-fusion diagnostic to choose the operator before fusion. The decision rule is retrospectively consistent across 9 datasets but not yet validated out-of-sample or on other retriever pairs.
+
+#### Deep-Pool Collapse
+Small-pool MRR scores are upper bounds of re-ranking conditioned on a strong first-stage retriever. Full-corpus evaluation (SciFact 5,183 docs) shows near-random MRR for SF (0.0109), BM25 (0.0095), and SF+SPLADE RRF (0.0004). This aligns with standard IR benchmarks like BEIR.
+
+#### Locality-Induced Feature Ceiling
+For SDRs with Morton-ordering, any feature built from spatial overlap is informationally equivalent to the dot product. This explains why snippet ranking, adaptive spreading, OOV, BM25 filtering, and query decomposition showed zero effect — they compute the same overlap. Only locality-breaking features (learned grid, cross-attention) change performance, and they degrade it.
+
+#### Score Concentration
+The bounded dynamic range of SF scores ($\mathbb{E}[s] \approx 41$, $\sigma[s] \approx 6$) explains score compression on large pools. BM25's unbounded range (mean 5.2, std 4.1 on same corpus) maintains discrimination.
+
 ---
 
 ## 8.7 Future Directions

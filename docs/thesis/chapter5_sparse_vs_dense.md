@@ -218,20 +218,112 @@ Recent evidence confirms hybrid sparse+dense pipelines outperform single-method 
 
 **Key insight**: No unsupervised sparse method approaches SPLADE's performance levels. SF's value proposition is not matching SPLADE's accuracy, but providing unsupervised semantic matching with zero training data.
 
-### 5.8 The Compositional Gap: Why SDRs Lack Relational Algebra
+### 5.7.3 Score Geometry and Operator Information Preservation
 
-A fundamental limitation of SDRs is the lack of a built-in **relational algebra** to compose facts across passages. Compositional reasoning requires combining features from multiple independent facts (hops). While SDRs store individual facts orthogonally (avoiding interference), they cannot represent the *relationship* between facts without learned weights.
+A fundamental contribution from our diagnostic theory (Journal B) is the **Score Geometry framework** — a coordinate system for analyzing fusion operators based on measurable properties of retrieval signals.
 
-Consider a 2-hop query: "Who was the spouse of the performer who sang X?" This requires (1) identifying the performer who sang X, and (2) identifying that performer's spouse. SF encodes each fact as an independent SDR, but there is no mechanism to *compose* these SDRs into a joint representation of the 2-hop relationship. The dot-product scoring computes similarity between the query SDR and each document SDR independently — it cannot reason about multi-step relationships.
+#### 5.7.3.1 Score Geometry (Definition 1)
 
-This explains why SF-only degrades linearly with hop count (Chapter 7, §7.3.2): each additional hop requires composing one more fact, and SF's independent SDRs cannot capture compositional structure. SPLADE's learned expansion partially bridges this gap by learning to expand queries with terms that implicitly represent compositional relationships (e.g., expanding "spouse of performer who sang X" with "married to", "husband of", etc.). However, SPLADE alone also struggles with composition — the hybrid SF+SPLADE outperforms both on 2/9 datasets (2Wiki, PubMedQA) where the relational structure is simple enough for SF's phrase matching to help.
+For a retrieval model $R$ and query $q$, the observable score geometry is:
 
-**Future direction**: Integrating neuro-symbolic reasoning over SDRs (e.g., binding operations via vector addition/subtraction) could provide the relational algebra that current SF lacks.
+$$\mathcal{G}_R(q) = \big(\pi,\; \mathbf{s},\; \mu_S,\; \sigma_S^2\big)$$
 
-### 5.7.3 SF's Position in the Landscape
+where $\pi$ is the ranking, $\mathbf{s}$ is the empirical score vector, and $\mu_S$, $\sigma_S^2$ are the mean and variance. This coordinate system captures exactly what fusion operators act upon.
 
-**Table 5.5: Method Comparison for Closed-Domain QA**
+#### 5.7.3.2 Operator Information Preservation (Proven Claim)
 
+**Claim**: RRF is a function that depends only on rank. Linear interpolation preserves both ordering and magnitude.
+
+*Proof*: RRF's formula $\sum_r 1/(k+\mathrm{rank}_r(d))$ is invariant under any strictly monotonic transformation $\phi$ of raw scores since $\mathrm{rank}(\phi(\mathbf{s})) = \mathrm{rank}(\mathbf{s})$. Linear interpolation $\alpha s_A + (1-\alpha) s_B$ changes when magnitude changes. $\square$
+
+| Operator | Formula | Preserves $\pi$ | Preserves $\mathbf{s}$ | Scale-invariant |
+|----------|---------|:---:|:---:|:---:|
+| RRF | $\sum_r 1/(k+\mathrm{rank}_r(d))$ | ✓ | ✗ | ✓ |
+| Linear | $\alpha s_A + (1-\alpha) s_B$ | ✓ | ✓ | ✗ |
+
+This is a **theoretical result derived from the operator definitions**, not an empirical observation. It provides the foundation for understanding all fusion phenomena in this thesis.
+
+#### 5.7.3.3 The Complementarity Illusion (Definition 2)
+
+Two retrievers exhibit a **Complementarity Illusion** under linear fusion iff all three hold:
+
+1. **Apparent failure**: $\mathrm{MRR}(\mathcal{F}_{\mathrm{lin}}(\pi_A, \pi_B)) < \max(\mathrm{MRR}(\pi_A), \mathrm{MRR}(\pi_B))$
+2. **High rank agreement**: $\tau(\pi_A, \pi_B) > 0.80$
+3. **Recoverability under normalization**: $\mathrm{MRR}(\mathcal{F}_{\mathrm{RRF}}(\pi_A, \pi_B)) \geq \max(\mathrm{MRR}(\pi_A), \mathrm{MRR}(\pi_B))$
+
+If all three hold, the apparent failure is due to **incommensurate score geometry**, not information redundancy. Condition (2) is often misused as evidence for redundancy, but (3) invalidates that conclusion. This explains why SF+SPLADE fails under linear fusion on Belebele ($\tau=0.86$) and NarrativeQA ($\tau=0.85$) — RRF restores performance perfectly.
+
+#### 5.7.3.4 The Operator-Topology Constraint
+
+**Claim**: The optimal fusion operator is determined by task topology:
+
+- **Single-hop matching** → RRF (scale-invariant, fixes Complementarity Illusion)
+- **Multi-hop compositional reasoning** → Linear interpolation (preserves magnitude = compositional confidence)
+
+*Proof sketch*: For multi-hop QA, absolute SPLADE scores express compositional confidence (high score = multiple hops matched). RRF transforms both into rank-only scores, losing the 3× difference between a full compositional match (s=45) and a partial match (s=15). Linear interpolation preserves this difference. Evidence: on 2WikiMultihopQA, RRF is 15.5 MRR points worse than linear; on MuSiQue, linear increases MRR from BM25 0.482 to 0.782 (+62.2%), impossible for RRF.
+
+### 5.7.4 Hybrid Compatibility Profile (Definition 3)
+
+The **Hybrid Compatibility Profile** of two retrievers is the triple:
+
+$$\big(\tau(\pi_A,\pi_B),\; \mathrm{RRF\text{-}recoverable}(\mathcal{G}_A,\mathcal{G}_B),\; T\big)$$
+
+— rank redundancy, scale compatibility (RRF-recoverability), and task topology $T$. This profile provides a **pre-fusion diagnostic** to choose the operator before fusion rather than through exhaustive sweeping.
+
+**Proposed decision rule** (retrospectively consistent with 9 datasets):
+
+- High $\tau$, one-hop task → check Complementarity Illusion; confirm with RRF test; fuse with RRF
+- Low/moderate $\tau$, multi-hop task → independent magnitude-relevant information; use linear
+- High $\tau$, no RRF restoration → genuine redundancy; drop weaker signal
+- Score variance collapse ($\sigma_S^2 
+ightarrow 0$) → representational problem; no operator fixes this
+
+**Status**: Valid on 9 datasets (SF+SPLADE); not yet validated out-of-sample or on other retriever pairs.
+
+### 5.7.5 Taxonomy of Hybrid Retrieval Failures
+
+All hybrid failures fall into three categories independent of retriever choice:
+
+```
+Hybrid Failure
+├── Signal Failure          (components carry no exploitable information)
+│     ├── True redundancy         — rank correlation τ ≈ 1
+│     └── Locality-induced feature ceiling — feature adds nothing beyond base signal
+├── Operator Failure        (operator discards information the task needs)
+│     ├── Scale mismatch          — score spaces incommensurate; convex combo dominated
+│     └── Magnitude destruction   — rank-only operator discards magnitude task needs
+└── Representation Failure  (signal's encoding has structural ceiling)
+      ├── Compositional gap       — no relational algebra to bind facts across docs
+      └── Score concentration     — dynamic range collapses as candidate pool grows
+```
+
+Each leaf maps to a distinct diagnosis and theoretically a distinct solution (re-normalize, change operator, reconstruct signal, or drop weaker signal).
+
+### 5.7.6 Deep-Pool Collapse
+
+On SciFact full-corpus evaluation (5,183 documents, ~101 retrievals/query), both SF and BM25 collapse to near-random MRR (0.0109 for SF, 0.0095 for BM25). SF+SPLADE RRF also collapses (MRR = 0.0004). Full-corpus SF-only retrieves gold document in top-5 for 0 of 50 queries.
+
+**Critical implication**: Small-pool MRR scores are **upper bounds of re-ranking conditioned on a strong first-stage retriever**, not full-corpus retrieval accuracy. This aligns with standard IR benchmarks like BEIR.
+
+### 5.7.7 Locality-Induced Feature Ceiling Principle
+
+For SDRs with spatially localized active bits (Morton-ordering), any feature $f(\mathbf{q},\mathbf{d})$ constructed as a function of spatial overlap is informationally equivalent to $\mathbf{q} \cdot \mathbf{d}$. Feature engineering satisfying locality (snippet ranking, adaptive spreading, OOV, BM25 filtering, query decomposition) **cannot improve ranking** beyond measurement noise.
+
+Only features breaking locality (non-static learning grid, cross-attention) change performance — and they degrade it (−19.3% and −21.5% respectively). This is a **conjecture** for SDR-type architectures, demonstrated on one architecture.
+
+### 5.7.8 Score Concentration Principle
+
+For a query fingerprint with $\|\mathbf{q}\|_1 = K \approx 410$ at $d=4096$, $
+ho=0.10$:
+
+$$\mathbb{E}[s] = K
+ho \approx 41.0, \quad \mathrm{Var}[s] \approx 36.9, \quad \sigma[s] \approx 6.07$$
+
+This dynamic range is bounded regardless of corpus size. As $N \to \infty$, scores compress to a narrow range. On NQ-REaR (~1,039 docs), SF scores compress to 0.034–0.051 (CV ≈ 0.15), indistinguishable from noise, while BM25 remains well-separated (mean 5.2, std 4.1).
+
+---
+
+## 5.8 The Compositional Gap: Why SDRs Lack Relational Algebra
 | Method | Training | Best Task | SF Advantage |
 |--------|----------|-----------|--------------|
 | BM25 | None | Lexical exact match | SF adds semantics |

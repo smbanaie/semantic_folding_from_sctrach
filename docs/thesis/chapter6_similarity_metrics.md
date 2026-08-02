@@ -184,7 +184,84 @@ LambdaMART re-ranks the top-K documents from SF+SPLADE using 35 features per (qu
 2. Insufficient training data (50 queries)
 3. Cross-dataset generalization failure
 
-## 6.8 Recommended Configuration
+## 6.9 The Complementarity Illusion and Hybrid Fusion Diagnostics
+
+The framework from Journal B provides a diagnostic vocabulary for understanding when and why hybrid fusion succeeds or fails. This section integrates those findings into the similarity metrics context.
+
+### 6.9.1 Score Geometry for Similarity Metrics
+
+The **Score Geometry** framework (Journal B, Definition 1) applies directly to similarity metrics. For a similarity metric $M$ and query $q$, the observable score geometry is:
+
+$$\mathcal{G}_M(q) = \big(\pi,\; \mathbf{s},\; \mu_S,\; \sigma_S^2\big)$$
+
+where $\pi$ is the ranking, $\mathbf{s}$ is the empirical similarity score vector, and $\mu_S$, $\sigma_S^2$ are the mean and variance. This coordinate system captures exactly what fusion operators act upon when combining similarity metrics.
+
+### 6.9.2 Operator Information Preservation for Similarity Fusion
+
+When combining similarity metrics (e.g., Cosine + SPLADE), the **Operator Information Preservation** claim (Journal B, §3.2) determines what information survives fusion:
+
+| Operator | Preserves Order ($\pi$) | Preserves Magnitude ($\mathbf{s}$) | Scale-invariant |
+|----------|------------------------|-----------------------------------|:---:|
+| RRF | ✓ | ✗ | ✓ |
+| Linear Interpolation | ✓ | ✓ | ✗ |
+
+**Implication**: When combining similarity metrics with different score scales (e.g., Cosine ∈ [0,1] vs SPLADE dot-products ∈ [0,∞]), RRF is scale-invariant while linear interpolation is dominated by the larger-scale metric. This explains why linear fusion of Cosine + SPLADE fails on single-hop tasks (Complementarity Illusion).
+
+### 6.9.3 The Complementarity Illusion for Similarity Metrics
+
+Two similarity metrics exhibit a **Complementarity Illusion** under linear fusion iff:
+
+1. **Apparent failure**: $\mathrm{MRR}(\mathcal{F}_{\mathrm{lin}}) < \max(\mathrm{MRR}(M_1), \mathrm{MRR}(M_2))$
+2. **High rank agreement**: $\tau(\pi_1, \pi_2) > 0.80$
+3. **Recoverability under RRF**: $\mathrm{MRR}(\mathcal{F}_{\mathrm{RRF}}) \geq \max(\mathrm{MRR}(M_1), \mathrm{MRR}(M_2))$
+
+If all three hold, the failure is due to **score scale mismatch**, not information redundancy. Condition (2) is often misused as evidence for redundancy, but (3) invalidates that conclusion.
+
+**Empirical evidence**: Cosine + SPLADE on Belebele ($\tau=0.86$) and NarrativeQA ($\tau=0.85$) — RRF restores perfect performance.
+
+### 6.9.4 Hybrid Compatibility Profile for Similarity Metrics
+
+The **Hybrid Compatibility Profile** (Journal B, Definition 3) for two similarity metrics is:
+
+$$\big(\tau(\pi_1,\pi_2),\; \mathrm{RRF\text{-}recoverable}(\mathcal{G}_1,\mathcal{G}_2),\; T\big)$$
+
+This provides a **pre-fusion diagnostic** to choose the fusion operator before sweeping.
+
+**Decision rule** (retrospectively consistent with 9 datasets):
+
+- High $\tau$, single-hop task → check Complementarity Illusion; confirm with RRF test; use RRF
+- Low/moderate $\tau$, multi-hop task → independent magnitude-relevant signals; use linear
+- High $\tau$, no RRF restoration → genuine redundancy; drop weaker metric
+- Score variance collapse ($\sigma_S^2 \rightarrow 0$) → representational problem; no operator fixes this
+
+### 6.9.5 Taxonomy of Fusion Failures for Similarity Metrics
+
+```
+Fusion Failure
+├── Signal Failure          (metrics carry no exploitable information)
+│     ├── True redundancy         — τ ≈ 1
+│     └── Feature ceiling         — metric adds nothing beyond base similarity
+├── Operator Failure        (operator discards information task needs)
+│     ├── Scale mismatch          — score spaces incommensurate
+│     └── Magnitude destruction   — rank-only operator discards magnitude
+└── Representation Failure  (similarity's encoding has structural ceiling)
+      ├── Compositional gap       — no mechanism to compose multi-hop evidence
+      └── Score concentration     — dynamic range collapses with pool size
+```
+
+Each leaf maps to a distinct diagnosis and solution.
+
+### 6.9.6 Score Concentration for Similarity Metrics
+
+The **Score Concentration Principle** (Journal B, §4.3) applies to similarity scores: as candidate pool size $N$ grows, the dynamic range of similarity scores compresses. For SF's Cosine similarity with $\|\mathbf{q}\|_1 = K \approx 410$, $d=4096$, $\rho=0.10$:
+
+$$\mathbb{E}[s] = K\rho \approx 41.0, \quad \mathrm{Var}[s] \approx 36.9, \quad \sigma[s] \approx 6.07$$
+
+This is bounded regardless of $N$. On NQ-REaR (~1,039 docs), SF scores compress to 0.034–0.051 (CV ≈ 0.15), indistinguishable from noise, while BM25 remains well-separated (mean 5.2, std 4.1).
+
+---
+
+## 6.10 Recommended Configuration
 
 **Table 6.4: Recommended Similarity Configuration for SF+SPLADE**
 

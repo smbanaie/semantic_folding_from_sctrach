@@ -508,24 +508,41 @@ Both variants produce **identical metrics** to the baseline (MRR=0.865 across th
 | **HotpotQA** | Entity chain breaks | MRR=0.857 — similar to 2Wiki, composition fails |
 | **NQ-REaR** | Score compression | All scores within 0.034–0.051 — no discrimination |
 | **BioASQ** | Score compression + query complexity | MRR=0.288 — 71.2% of first relevant docs not at rank 1 |
+| **SciFact (deep pool)** | Deep-Pool Collapse | MRR=0.0109 (SF), 0.0095 (BM25), 0.0004 (SF+SPLADE RRF) — near-random |
 
 **Fixes that help**:
 
-1. **L2 normalization** (+4.0% MRR on Belebele) — treats documents equally regardless of length
-2. **Higher t-SNE perplexity** (+4.0% MRR on Belebele, +1.5% on PubMedQA) — better local clustering
-3. **SF+SPLADE hybrid** (+21% Belebele, +28% HotpotQA, +62% on MuSiQue vs BM25) — learned expansion complements semantic matching
-4. **FAISS-accelerated OOV expansion** (30s → 0.075s per query, 400× speedup) — enables OOV expansion without bottleneck
-5. **Batch query processing** (~25× speedup) — critical for scaling benchmarks to 50+ queries
-6. **Query decomposition** (+19.6% NQ-REaR) — helps factoid retrieval but hurts multi-hop QA
+### 7.3.5 Deep-Pool Collapse and the Limits of Small-Pool Evaluation
 
-**Fixes that do NOT help**:
+Journal B identifies a critical limitation: **small-pool MRR scores are upper bounds of re-ranking conditioned on a strong first-stage retriever, not full-corpus retrieval accuracy**.
 
-1. Cross-attention (−87% MRR) — architectural mismatch
-2. Snippet ranking (0% effect) — redundant with SF scoring
-3. Adaptive spreading (0% effect) — no additional coverage needed
-4. Learned grid (−79% vs t-SNE) — cannot beat unsupervised manifold learning
-5. MeSH ontology expansion (0% effect) — expert queries already use precise terms
-6. NoOOV (0% effect, 6 datasets verified) — rare terms have negligible discriminative power
+On SciFact full-corpus evaluation (5,183 documents, ~101 retrievals/query):
+- SF-only: MRR = 0.0109
+- BM25: MRR = 0.0095  
+- SF+SPLADE RRF: MRR = 0.0004
+- Full-corpus SF-only retrieves gold in top-5 for 0 of 50 queries
+
+This collapse is an **Operator Failure III: Deep-Pool Collapse** — the score geometry becomes indistinguishable from noise at scale. The same pattern appears on BioASQ (1075 docs) and NQ-REaR (~1039 docs).
+
+**Implication**: All small-pool (20 passages) results in this thesis represent re-ranking performance, not first-stage retrieval accuracy. This aligns with standard IR benchmarks like BEIR.
+
+### 7.3.6 Locality-Induced Feature Ceiling and Score Concentration
+
+Journal B establishes two fundamental principles that constrain SF's performance:
+
+#### Locality-Induced Feature Ceiling Principle
+For SDRs with spatially localized active bits (Morton-ordering), any feature $f(\mathbf{q},\mathbf{d})$ constructed as a function of spatial overlap is informationally equivalent to $\mathbf{q} \cdot \mathbf{d}$. Feature engineering satisfying locality (snippet ranking, adaptive spreading, OOV, BM25 filtering, query decomposition) **cannot improve ranking** beyond measurement noise.
+
+Only features breaking locality (non-static learning grid, cross-attention) change performance — and they degrade it (−19.3% and −21.5% respectively). This is a **conjecture** for SDR-type architectures.
+
+#### Score Concentration Principle
+For a query fingerprint with $\|\mathbf{q}\|_1 = K \approx 410$ at $d=4096$, $
+ho=0.10$:
+
+$$\mathbb{E}[s] = K
+ho \approx 41.0, \quad \mathrm{Var}[s] \approx 36.9, \quad \sigma[s] \approx 6.07$$
+
+This dynamic range is bounded regardless of corpus size. As $N \to \infty$, scores compress to a narrow range. On NQ-REaR (~1,039 docs), SF scores compress to 0.034–0.051 (CV ≈ 0.15), indistinguishable from noise, while BM25 remains well-separated (mean 5.2, std 4.1).
 
 ---
 

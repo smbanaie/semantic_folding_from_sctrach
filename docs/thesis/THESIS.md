@@ -21,9 +21,11 @@ We make the following contributions:
 
 3. **A glossary integration mechanism** that allows domain-specific terminologies (MeSH terms, legal citations, chemical formulas) to be directly incorporated into the semantic grid, improving retrieval for specialized vocabulary without retraining.
 
-4. **A comprehensive multi-dataset benchmark** across 13 datasets spanning biomedical, narrative, reading comprehension, multi-hop QA, legal, financial, and discrete reasoning domains, demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
+4. **A comprehensive multi-dataset benchmark** across 9 datasets spanning biomedical, narrative, reading comprehension, multi-hop QA, and discrete reasoning domains, demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
 
 5. **A hybrid SF+SPLADE architecture** that achieves **perfect MRR=1.0** on Belebele (+13.6% over baseline), **surpassing BM25 (0.995)** — the first configuration where SF outperforms a strong lexical baseline on a standard benchmark.
+
+6. **A diagnostic theory of hybrid retrieval** (Journal B) that formalizes score geometry, proves the Operator Information Preservation claim (RRF preserves only order, linear preserves order+magnitude), defines the Complementarity Illusion and Hybrid Compatibility Profile, and provides a taxonomy of hybrid failures (Signal, Operator, Representation) with a pre-fusion diagnostic pipeline.
 
 Our results demonstrate that sparse methods trade peak performance for zero-shot capability — a fundamental architectural choice with clear implications for deployment in emerging domains where training data is unavailable and interpretability is required.
 
@@ -364,11 +366,14 @@ The following files in `docs/thesis/archive/` contain detailed technical documen
 
 - Zahn, O., et al. (2026). Attention Is Not Retention: The Orthogonality Constraint. arXiv:2601.15313.
 
-### Hybrid Retrieval
+### Hybrid Retrieval & Score Geometry
 
-- Chen, J., et al. (2024). GeAR: Graph Expansion for Complex QA. *ACL 2025 Findings*. arXiv:2412.18431.
-- Gao, Y., et al. (2024). DEXTER: Benchmark for Complex QA. arXiv:2406.17158.
-- Ma, X., et al. (2024). HiRAG: Hierarchical Retrieval for Multi-hop QA. arXiv:2408.11875.
+- Banaei, M., & Rahgozar, M. (2025). Toward a Diagnostic Theory of Score Geometry in Hybrid Retrieval. *Journal B submission*.
+- Banaei, M., & Rahgozar, M. (2025). Beyond Vocabulary Mismatch: Investigating Zero-Shot Semantic Folding and the Task-Dependent Limits of Hybrid Fusion. *Journal A submission*.
+- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). Reciprocal Rank Fusion outperforms Condorcet and Individual Rank Learning Methods. *SIGIR 2009*.
+- Fox, E. A., & Shaw, J. A. (1994). Combination of Multiple Searches. *TREC-2*.
+- Hermosillo-Valadez, J., et al. (2022). Exploiting Hierarchical Dependence Structures for Unsupervised Rank Fusion in Information Retrieval. arXiv:2208.05574.
+- Montague, M., & Aslam, J. A. (2001). Relevance score normalization for metasearch. *CIKM 2001*.
 
 ### Medical & Biomedical Retrieval
 

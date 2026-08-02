@@ -25,7 +25,7 @@ We make the following contributions:
 
 5. **A hybrid SF+SPLADE architecture** that achieves **perfect MRR=1.0** on Belebele (+13.6% over baseline), **surpassing BM25 (0.995)** — the first configuration where SF outperforms a strong lexical baseline on a standard benchmark.
 
-6. **A diagnostic theory of hybrid retrieval** (Journal B) that formalizes score geometry, proves the Operator Information Preservation claim (RRF preserves only order, linear preserves order+magnitude), defines the Complementarity Illusion and Hybrid Compatibility Profile, and provides a taxonomy of hybrid failures (Signal, Operator, Representation) with a pre-fusion diagnostic pipeline.
+6. **A diagnostic theory of hybrid retrieval** that formalizes score geometry, proves the Operator Information Preservation claim (RRF preserves only order, linear preserves order+magnitude), defines the Complementarity Illusion and Hybrid Compatibility Profile, and provides a taxonomy of hybrid failures (Signal, Operator, Representation) with a pre-fusion diagnostic pipeline.
 
 Our results demonstrate that sparse methods trade peak performance for zero-shot capability — a fundamental architectural choice with clear implications for deployment in emerging domains where training data is unavailable and interpretability is required.
 
@@ -368,8 +368,6 @@ The following files in `docs/thesis/archive/` contain detailed technical documen
 
 ### Hybrid Retrieval & Score Geometry
 
-- Banaei, M., & Rahgozar, M. (2025). Toward a Diagnostic Theory of Score Geometry in Hybrid Retrieval. *Journal B submission*.
-- Banaei, M., & Rahgozar, M. (2025). Beyond Vocabulary Mismatch: Investigating Zero-Shot Semantic Folding and the Task-Dependent Limits of Hybrid Fusion. *Journal A submission*.
 - Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). Reciprocal Rank Fusion outperforms Condorcet and Individual Rank Learning Methods. *SIGIR 2009*.
 - Fox, E. A., & Shaw, J. A. (1994). Combination of Multiple Searches. *TREC-2*.
 - Hermosillo-Valadez, J., et al. (2022). Exploiting Hierarchical Dependence Structures for Unsupervised Rank Fusion in Information Retrieval. arXiv:2208.05574.

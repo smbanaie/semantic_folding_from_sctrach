@@ -199,9 +199,9 @@ The Orthogonality Constraint (Zahn et al., 2026) provides a theoretical framewor
 
 **SPLADE backbone note.** The results in this thesis use the standard SPLADE checkpoint (naver/splade-cocondenser-ensembledistil) from 2021. Given the rapid progress in learned sparse models, replacing this with the latest variants could further push the performance ceiling. **Mistral-SPLADE** (Echo-Mistral-SPLADE) uses a decoder-only LLM (Mistral-7B) with echo embeddings to achieve state-of-the-art performance on BEIR benchmark (avg NDCG@10 = 55.07), outperforming all SPLADE variants. The hybrid architecture is model-agnostic — any learned sparse model can serve as the SPLADE component, allowing immediate adoption of Mistral-SPLADE for improved performance.
 
-### 8.6.4 A Diagnostic Theory of Hybrid Retrieval (Journal B Framework)
+### 8.6.4 A Diagnostic Theory of Hybrid Retrieval
 
-The findings from Journal B provide a comprehensive diagnostic framework that recontextualizes our experimental results:
+Our diagnostic framework provides a comprehensive diagnostic framework that recontextualizes our experimental results:
 
 #### The Taxonomy of Hybrid Failures
 All hybrid retrieval failures fall into three categories independent of retriever choice:

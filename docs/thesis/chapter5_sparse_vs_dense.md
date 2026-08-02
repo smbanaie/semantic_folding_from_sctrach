@@ -220,7 +220,7 @@ Recent evidence confirms hybrid sparse+dense pipelines outperform single-method 
 
 ### 5.7.3 Score Geometry and Operator Information Preservation
 
-A fundamental contribution from our diagnostic theory (Journal B) is the **Score Geometry framework** — a coordinate system for analyzing fusion operators based on measurable properties of retrieval signals.
+A fundamental contribution from our diagnostic framework is the **Score Geometry framework** — a coordinate system for analyzing fusion operators based on measurable properties of retrieval signals.
 
 #### 5.7.3.1 Score Geometry (Definition 1)
 

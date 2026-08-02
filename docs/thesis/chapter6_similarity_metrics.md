@@ -186,11 +186,11 @@ LambdaMART re-ranks the top-K documents from SF+SPLADE using 35 features per (qu
 
 ## 6.9 The Complementarity Illusion and Hybrid Fusion Diagnostics
 
-The framework from Journal B provides a diagnostic vocabulary for understanding when and why hybrid fusion succeeds or fails. This section integrates those findings into the similarity metrics context.
+Our diagnostic framework provides a diagnostic vocabulary for understanding when and why hybrid fusion succeeds or fails. This section integrates those findings into the similarity metrics context.
 
 ### 6.9.1 Score Geometry for Similarity Metrics
 
-The **Score Geometry** framework (Journal B, Definition 1) applies directly to similarity metrics. For a similarity metric $M$ and query $q$, the observable score geometry is:
+The **Score Geometry** framework (Definition 1) applies directly to similarity metrics. For a similarity metric $M$ and query $q$, the observable score geometry is:
 
 $$\mathcal{G}_M(q) = \big(\pi,\; \mathbf{s},\; \mu_S,\; \sigma_S^2\big)$$
 
@@ -198,7 +198,7 @@ where $\pi$ is the ranking, $\mathbf{s}$ is the empirical similarity score vecto
 
 ### 6.9.2 Operator Information Preservation for Similarity Fusion
 
-When combining similarity metrics (e.g., Cosine + SPLADE), the **Operator Information Preservation** claim (Journal B, §3.2) determines what information survives fusion:
+When combining similarity metrics (e.g., Cosine + SPLADE), the **Operator Information Preservation** claim (§3.2) determines what information survives fusion:
 
 | Operator | Preserves Order ($\pi$) | Preserves Magnitude ($\mathbf{s}$) | Scale-invariant |
 |----------|------------------------|-----------------------------------|:---:|
@@ -221,7 +221,7 @@ If all three hold, the failure is due to **score scale mismatch**, not informati
 
 ### 6.9.4 Hybrid Compatibility Profile for Similarity Metrics
 
-The **Hybrid Compatibility Profile** (Journal B, Definition 3) for two similarity metrics is:
+The **Hybrid Compatibility Profile** (Definition 3) for two similarity metrics is:
 
 $$\big(\tau(\pi_1,\pi_2),\; \mathrm{RRF\text{-}recoverable}(\mathcal{G}_1,\mathcal{G}_2),\; T\big)$$
 
@@ -253,7 +253,7 @@ Each leaf maps to a distinct diagnosis and solution.
 
 ### 6.9.6 Score Concentration for Similarity Metrics
 
-The **Score Concentration Principle** (Journal B, §4.3) applies to similarity scores: as candidate pool size $N$ grows, the dynamic range of similarity scores compresses. For SF's Cosine similarity with $\|\mathbf{q}\|_1 = K \approx 410$, $d=4096$, $\rho=0.10$:
+The **Score Concentration Principle** (§4.3) applies to similarity scores: as candidate pool size $N$ grows, the dynamic range of similarity scores compresses. For SF's Cosine similarity with $\|\mathbf{q}\|_1 = K \approx 410$, $d=4096$, $\rho=0.10$:
 
 $$\mathbb{E}[s] = K\rho \approx 41.0, \quad \mathrm{Var}[s] \approx 36.9, \quad \sigma[s] \approx 6.07$$
 

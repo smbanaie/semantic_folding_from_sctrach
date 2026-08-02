@@ -514,7 +514,7 @@ Both variants produce **identical metrics** to the baseline (MRR=0.865 across th
 
 ### 7.3.5 Deep-Pool Collapse and the Limits of Small-Pool Evaluation
 
-Journal B identifies a critical limitation: **small-pool MRR scores are upper bounds of re-ranking conditioned on a strong first-stage retriever, not full-corpus retrieval accuracy**.
+Our diagnostic framework identifies a critical limitation: **small-pool MRR scores are upper bounds of re-ranking conditioned on a strong first-stage retriever, not full-corpus retrieval accuracy**.
 
 On SciFact full-corpus evaluation (5,183 documents, ~101 retrievals/query):
 - SF-only: MRR = 0.0109
@@ -528,7 +528,7 @@ This collapse is an **Operator Failure III: Deep-Pool Collapse** — the score g
 
 ### 7.3.6 Locality-Induced Feature Ceiling and Score Concentration
 
-Journal B establishes two fundamental principles that constrain SF's performance:
+Our diagnostic framework establishes two fundamental principles that constrain SF's performance:
 
 #### Locality-Induced Feature Ceiling Principle
 For SDRs with spatially localized active bits (Morton-ordering), any feature $f(\mathbf{q},\mathbf{d})$ constructed as a function of spatial overlap is informationally equivalent to $\mathbf{q} \cdot \mathbf{d}$. Feature engineering satisfying locality (snippet ranking, adaptive spreading, OOV, BM25 filtering, query decomposition) **cannot improve ranking** beyond measurement noise.

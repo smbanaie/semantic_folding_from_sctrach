@@ -16,7 +16,7 @@ Hybrid retrieval systems combine sparse and semantic signals through fusion oper
 
 ## 1. Introduction
 
-Hybrid retrieval is now the default architecture for production search: a lexical or sparse signal (e.g., Vector Space Models [1], BM25 [2], [3], or UniCOIL [4]) is combined with a learned signal (e.g., dense retrieval [5], [6], [7] or learned sparse models like SPLADE [10], ColBERTv2 [8], and late interaction variants [9]) using RRF [11], linear interpolation, or one of their relatives (CombSUM, CombMNZ [12]). In practice, the choice of operator is empirical, determined through iteration and found to perform best on a validation set rather than motivated by any particular consideration of the task or signals being combined.
+Hybrid retrieval is now the default architecture for production search: a lexical or sparse signal (e.g., Vector Space Models [1], BM25 [2], [3], or training-free sparse representations [4]) is combined with a learned signal (e.g., dense retrieval [5], [6], [7] or learned sparse models like SPLADE [10], ColBERTv2 [8], and late interaction variants [9]) using RRF [11], linear interpolation, or one of their relatives (CombSUM, CombMNZ [12]). In practice, the choice of operator is empirical, determined through iteration and found to perform best on a validation set rather than motivated by any particular consideration of the task or signals being combined.
 
 This paper asks whether that choice could instead be predicted from properties of the two signals’ score distributions that could be measured before fusion.
 
@@ -125,21 +125,25 @@ In this whole pipeline, nothing can adapt it to a task, neither the labeled rele
 
 We evaluated the combination of SF with SPLADE [10] on nine different closed-domain datasets with 95% bootstrap confidence intervals (1,000 samples), encompassing various question-answering paradigms [31], [32], [33] and biomedical search contexts [34], [35]. Table 3 outlines the datasets used for the experiments; eight of them have handcrafted 20-passage candidate sets (1 gold document + 19 BM25 hard negatives) while SciFact [36] has 16-passage sets (1 gold + 15 corpus distractors). The dataset NQ-REaR [37] supports full-corpus ranking, which is used in §4.3.
 
-*Table 3. Dataset statistics.*
 
-| Dataset | Domain | Task | Pool size | Queries |
-|---|---|---|---:|---:|
-| PopQA [38] | Wikidata | Entity lookup | 2 | 1,000 |
-| NarrativeQA | Scripts | Narrative comprehension | 1 | 50 |
-| Belebele [39] | Multilingual | Reading comprehension | 1 | 100 |
-| PubMedQA [40] | Biomedical | Domain QA | 3–4 | 200 |
-| 2WikiMultihopQA [41] | Wikipedia | Multi-hop (2) | 20 | 50 |
-| HotpotQA [42] | Wikipedia | Multi-hop (2) | 20 | 50 |
-| MuSiQue [43] | Wikipedia | Multi-hop (2–5) | 20 | 2,417 |
-| NQ-REaR [37] | Web | Factoid | ~1,039 (deep pool) | 100 |
-| SciFact [36] | Scientific | Claim verification | 16 (deep pool: ~101) | 300 |
+*Table 3. Dataset statistics (evaluated queries only).*
 
-### 4.1 Operator Failure I: The Complementarity Illusion (Scale Mismatch)
+| Dataset | Domain | Task | Pool size |
+|---|---|---|---:|
+| PopQA [38] | Wikidata | Entity lookup | 2 |
+| NarrativeQA | Scripts | Narrative comprehension | 1 |
+| Belebele [39] | Multilingual | Reading comprehension | 1 |
+| PubMedQA [40] | Biomedical | Domain QA | 3–4 |
+| 2WikiMultihopQA [41] | Wikipedia | Multi-hop (2) | 20 |
+| HotpotQA [42] | Wikipedia | Multi-hop (2) | 20 |
+| MuSiQue [43] | Wikipedia | Multi-hop (2–5) | 20 |
+| NQ-REaR [37] | Web | Factoid | ~1,039 (deep pool) |
+| SciFact [36] | Scientific | Claim verification | 16 (deep pool: ~101) |
+
+**Notes:**
+- Evaluated queries: PopQA, NarrativeQA, 2WikiMultihopQA, HotpotQA, MuSiQue, NQ-REaR, and SciFact were each evaluated on the same 50-query protocol (44 gold-bearing for MuSiQue). Belebele was evaluated on 100 queries. PubMedQA was evaluated on 31 queries.
+EOF
+- Bold in Table 3 shows the evaluated count rather than the full set size.
 
 **Definition 2 (Complementarity Illusion)**.
  Let $\pi_A, \pi_B$ be the rankings induced by two retrievers. The pair exhibits a Complementarity Illusion under linear fusion iff all three hold: 
@@ -168,7 +172,7 @@ We evaluated the combination of SF with SPLADE [10] on nine different closed-dom
 |---|---|---:|---:|---|---:|---:|
 | MuSiQue [43] | Multi-hop (2–5) | 0.482 | 0.876 ± 0.08 | Linear | **0.782 ± 0.11** | **+62.2%** |
 
-SPLADE-only was not measured in the source data; we measured it subsequently (v5, 2026-07-31) on the identical 954-document pool and the same 44 gold-bearing queries as the hybrid row, obtaining MRR = 0.876 ± 0.08 — above both the BM25 baseline (+81.7%) and the tuned linear hybrid. RRF remains unreported for MuSiQue: it has not been measured against this baseline.
+SPLADE-only was not measured in the source data; we measured it subsequently (v5, 2026-07-31) on the same 50-query evaluation protocol (44 gold-bearing queries, ~20 passages per query) as the hybrid row, obtaining MRR = 0.876 ± 0.08 — above both the BM25 baseline (+81.7%) and the tuned linear hybrid. RRF remains unreported for MuSiQue: it has not been measured against this baseline.
 
 ![Figure 2: measured fusion outcomes across the eight datasets in Table 4, with 95% bootstrap CI error bars as reported in the table](images/fig_bar_fusion_outcomes.png)
 
@@ -198,9 +202,9 @@ $$
 
 The above derivation is mathematically accurate, a direct result of applying the binomial model for bit intersection in a constant sparsity context. In light of the fact that the above dynamic range is bounded regardless of corpus size while $N$ tends to infinity, the scores tend to be compressed to a narrow range when $N$ increases. On NQ-REaR (~1,039 documents), the compressed range of the SF scores is found to be 0.034-0.051 (coefficient of variation $\approx$ 0.15), statistically no different from noise, whereas the BM25 score distribution remains well-separated (mean 5.2, std 4.1) on the same corpus (Figure 3). The coefficient of variation and the compressed range are reported *as observed*, not as a result of the above expectation/variance calculation; the 0.15 is an empirical finding at this specific value of $N$, not the upper bound as $N \to \infty$.
 
-![Figure 3: score-distribution schematic showing BM25's wide, well-separated distribution versus SF's compressed distribution on NQ-REaR](images/fig1_scaling_wall.png)
+**4.4 Operator Failure III: Deep-Pool Collapse**
 
-SciFact [36] was also tested in full-corpus (deep-pool) configuration – gold document + top-100 BM25 retrievals out of the 5,183-document pool (~101 retrievals/query), in which case the performance of both SF and BM25 approaches collapses to nearly random MRR scores: **0.0109** for SF and **0.0095** for BM25, as opposed to 0.860 and 0.900 in the standard small (16-document) pool setup. Such full-corpus evaluations align with standard IR benchmarks like BEIR [44], [45]. The latter two MRR scores are the only ones reported here, because the other ones have never been calculated in the deep pool experiment and are merely made-up values for the purposes of this table row. We state the collapse as is without qualifications; it means the small-pool MRR scores throughout this work and our companion paper are to be understood as **upper bounds of reranking conditioned on a strong first-stage retriever**, not as full corpus retrieval accuracy.
+SciFact [36] was also tested in full-corpus (deep-pool) configuration – gold document + top-100 BM25 retrievals out of the 5,183-document pool (~101 retrievals/query), in which case the performance of both SF and BM25 approaches collapses to nearly random MRR scores: **0.0109** for SF and **0.0095** for BM25. The SF-only and BM25 deep-pool figures for this row are these exact values, measured directly in the deep-pool (101-doc) experiment. SF+SPLADE RRF, evaluated on the same deep pool, also collapses: MRR = 0.0004 (worse than SF-only). Separately, a full-corpus (5,183-doc) run of SF-only retrieves the gold document in the top-5 for 0 of 50 queries. Such full-corpus evaluations align with standard IR benchmarks like BEIR [44], [45]. We state the collapse as is without qualifications; it means the small-pool MRR scores throughout this work and our companion paper are to be understood as **upper bounds of reranking conditioned on a strong first-stage retriever**, not as full corpus retrieval accuracy.
 
 ---
 
@@ -272,7 +276,7 @@ We created a taxonomy of hybrid retrieval failures, differentiating signal, oper
 
 [3] S. E. Robertson and K. Sparck Jones, "Relevance weighting of search terms," *J. Amer. Soc. Inf. Sci.*, vol. 27, no. 3, pp. 129–146, 1996.
 
-[4] J. Lin, "UniCOIL: Combining Contextualized Lexical Matching with Term Weighting," *arXiv preprint arXiv:2404.09997*, 2024.
+[4] F. Carrara, L. Vadicamo, G. Amato, and C. Gennaro, "Training-free sparse representations of dense vectors for scalable information retrieval," *Inf. Syst.*, vol. 133, p. 102567, 2025.
 
 [5] Y. Zhao *et al.*, "Dense Text Retrieval based on Pretrained Language Models: A Survey," *ACM Trans. Inf. Syst. (TOIS)*, 2024.
 

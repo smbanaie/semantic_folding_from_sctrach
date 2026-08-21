@@ -27,7 +27,7 @@ Rather than present SF as a retriever, we use it as a **controlled diagnostic pr
 
 ### 1.2 Why fusion is not operator-neutral
 
-A standard hybrid system fuses two retrievers with either Reciprocal Rank Fusion (RRF) or linear interpolation. We show these are not interchangeable: RRF rescues single-hop performance to BM25 parity but degrades multi-hop retrieval by a large margin (−15.5 points MRR on 2WikiMultihopQA), while linear interpolation inverts this pattern, improving multi-hop MRR by 62.2% on MuSiQue yet matching or underperforming on single-hop tasks. The divergence is not a tuning artifact. It is a *structural* property of what each operator preserves:
+A standard hybrid system fuses two retrievers with either Reciprocal Rank Fusion (RRF) or linear interpolation. We show these are not interchangeable. The choice of operator changes which score properties survive fusion, and this matters unevenly across tasks: on one multi-hop dataset (HotpotQA) raw score-space fusion (CombSUM, MRR=1.000) substantially outperforms rank-only RRF (0.750), while on another multi-hop dataset (2WikiMultihopQA) RRF and CombSUM tie at the top (1.000), and on a third (MuSiQue) they are statistically indistinguishable (0.95 vs 0.95). Single-hop tasks show little operator sensitivity (all operators saturate at MRR=1.000 on Belebele). The divergence is not a tuning artifact. It is a *structural* property of what each operator preserves — but the direction and magnitude of the effect is itself task- and score-geometry dependent, not a fixed law:
 
 - **Rank-only operators** (RRF, Borda) discard absolute scores and keep only ordinal position. They are robust to score-scale mismatch but blind to magnitude.
 - **Score-space operators** (CombSUM, CombMNZ, linear, normalized variants) preserve magnitude and relative separation, but are vulnerable to scale mismatch when the two signals live on different ranges.
@@ -272,7 +272,7 @@ We extend Bruch et al. (2024): they characterize what fusion functions do to sco
 
 ### 9.4 What the Results Do NOT Establish
 
-We do **not** claim RRF is intrinsically unsuitable for multi-hop retrieval. We identify conditions under which rank-only fusion discards useful score information. We do **not** claim a universal law; the Task-Operator Compatibility is a hypothesis, scoped to the tested operators, datasets, and retriever pairs.
+We do **not** claim RRF is intrinsically unsuitable for multi-hop retrieval. Our own experiments show RRF ties CombSUM at MRR=1.000 on 2WikiMultihopQA and is statistically indistinguishable on MuSiQue (0.95 vs 0.95); only on HotpotQA does rank-only fusion clearly trail (RRF 0.750 vs CombSUM 1.000). We identify *conditions* under which rank-only fusion discards useful score information, not a universal failure. We do **not** claim a universal law; the Task-Operator Compatibility is a hypothesis, scoped to the tested operators, datasets, and retriever pairs, and we report where the effect reverses.
 
 ### 9.5 Deployment Considerations
 

@@ -146,7 +146,37 @@ Cannot run until E: space freed or cache/run-dirs redirected.
 
 **NUANCE (important for honest framing):** On MuSiQue, RRF (0.950) ≈ CombSUM (0.950) — rank-only does NOT lose to magnitude-preserving fusion here, unlike HotpotQA. The operator spread (0.85–0.95) is much narrower than HotpotQA (0.57–1.00). **This confirms the magnitude advantage is dataset/score-geometry dependent, NOT a universal law** — exactly the careful framing the advisor demanded. The phenomenon follows the task AND the score distribution, not a fixed operator ranking.
 
-**Phase 1 Status:** ✅ Belebele + HotpotQA + MuSiQue done (SF+SPLADE); ⏳ 2WikiMultihopQA + NQ-REaR + others pending; DPR pairs pending
+### 1.8 2WikiMultihopQA (multi-hop 2-hop) — ✅ COMPLETE
+**Raw results:** `outputs/2wikimultihopqa_benchmark/benchmarks/benchmark_20260822_021058/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| rrf | **1.000** | 1.000–1.000 | 0.7854 | 1.000 | 0.800 |
+| combsum | **1.000** | 1.000–1.000 | 0.7854 | 1.000 | 0.800 |
+| combmnz | 1.000 | 1.000–1.000 | 0.7492 | 1.000 | 0.800 |
+| zscore | 1.000 | 1.000–1.000 | 0.7921 | 1.000 | 0.850 |
+| borda | 0.950 | 0.850–1.000 | 0.6667 | 0.900 | 0.800 |
+| linear | 0.933 | 0.800–1.000 | 0.6771 | 0.900 | 0.750 |
+| minmax | 0.933 | 0.800–1.000 | 0.6771 | 0.900 | 0.750 |
+
+**CRITICAL REVISION:** On 2WikiMultihopQA, **RRF=1.000 ties CombSUM=1.000** at the top. This CONTRADICTS the conference paper's claim that RRF degrades multi-hop by −15.5 MRR on 2Wiki. With the current (corrected) pipeline, RRF does NOT fail on this multi-hop dataset. **Implication:** the "RRF fails on multi-hop" narrative is NOT robust — it was likely an artifact of the old single-query subprocess / parameter configuration. This strongly validates the advisor's pushback and our dataset-dependent framing. The journal paper must NOT claim RRF universally fails; instead it shows operator suitability varies by dataset/score geometry.
+
+### 1.9 PopQA (single-hop factoid) — ✅ COMPLETE
+**Raw results:** `outputs/popqa_benchmark/benchmarks/benchmark_20260822_022611/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| linear | 1.000 | 1.000–1.000 | 0.500 | 1.000 | 0.500 |
+| rrf | 1.000 | 1.000–1.000 | 0.500 | 1.000 | 0.500 |
+| combsum | 1.000 | 1.000–1.000 | 0.500 | 1.000 | 0.500 |
+| combmnz | 1.000 | 1.000–1.000 | 0.550 | 1.000 | 0.550 |
+| borda | 1.000 | 1.000–1.000 | 0.750 | 1.000 | 0.750 |
+| zscore | 1.000 | 1.000–1.000 | 0.500 | 1.000 | 0.500 |
+| minmax | 1.000 | 1.000–1.000 | 0.650 | 1.000 | 0.650 |
+
+**Confirmed:** Single-hop tasks saturate at MRR=1.000 for ALL operators — no operator sensitivity (ceiling effect). Reinforces that operator choice matters only when the task is hard enough to discriminate (multi-hop, especially HotpotQA).
+
+**Phase 1 Status:** ✅ Belebele + HotpotQA + MuSiQue + 2Wiki + PopQA done (SF+SPLADE); ⏳ PubMedQA/NarrativeQA (single-hop) + NQ-REaR pending; DPR pairs pending
 **Raw Results Path:** `outputs/belebele_benchmark/benchmarks/benchmark_20260822_013622/`
 **Code artifacts:** `semantic_folding/fusion_operators.py`, `semantic_folding/dpr_scorer.py`, patch to `query_processor.py` + `generic_benchmark.py`, `temp/test_fusion_operators.py`
 

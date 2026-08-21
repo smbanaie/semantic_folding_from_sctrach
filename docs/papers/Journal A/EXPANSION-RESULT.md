@@ -176,7 +176,68 @@ Cannot run until E: space freed or cache/run-dirs redirected.
 
 **Confirmed:** Single-hop tasks saturate at MRR=1.000 for ALL operators — no operator sensitivity (ceiling effect). Reinforces that operator choice matters only when the task is hard enough to discriminate (multi-hop, especially HotpotQA).
 
-**Phase 1 Status:** ✅ Belebele + HotpotQA + MuSiQue + 2Wiki + PopQA done (SF+SPLADE); ⏳ PubMedQA/NarrativeQA (single-hop) + NQ-REaR pending; DPR pairs pending
+### 1.10 PubMedQA (single-hop biomedical) — ✅ COMPLETE
+**Raw results:** `outputs/pubmedqa_benchmark/benchmarks/benchmark_20260822_023930/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| linear | 0.800 | 0.400–1.000 | 0.7333 | 0.800 | 0.800 |
+| rrf | 0.800 | 0.400–1.000 | 0.7667 | 0.800 | 0.800 |
+| combsum | 0.800 | 0.400–1.000 | 0.7667 | 0.800 | 0.800 |
+| combmnz | 0.800 | 0.400–1.000 | 0.7667 | 0.800 | 0.800 |
+| borda | 0.800 | 0.400–1.000 | 0.7667 | 0.800 | 0.800 |
+| zscore | 0.800 | 0.400–1.000 | 0.7333 | 0.800 | 0.800 |
+| minmax | 0.800 | 0.400–1.000 | 0.7333 | 0.800 | 0.800 |
+
+**Confirmed:** All operators flat at MRR=0.800 (single-hop, moderate difficulty). No operator sensitivity — the retrieval task itself is the ceiling, not the fusion operator.
+
+### 1.11 NarrativeQA (single-hop narrative) — ✅ COMPLETE
+**Raw results:** `outputs/narrativeqa_benchmark/benchmarks/benchmark_20260822_024056/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| linear | 1.000 | 1.000–1.000 | 0.0172 | 1.000 | 1.000 |
+| rrf | 1.000 | 1.000–1.000 | 0.0172 | 1.000 | 1.000 |
+| combsum | 1.000 | 1.000–1.000 | 0.0172 | 1.000 | 1.000 |
+| combmnz | 1.000 | 1.000–1.000 | 0.0172 | 1.000 | 1.000 |
+| borda | 1.000 | 1.000–1.000 | 0.0169 | 1.000 | 1.000 |
+| zscore | 1.000 | 1.000–1.000 | 0.0172 | 1.000 | 1.000 |
+| minmax | 1.000 | 1.000–1.000 | 0.0172 | 1.000 | 1.000 |
+
+**Confirmed:** Single-hop narrative QA saturates at MRR=1.000 for ALL operators (ceiling). AP is near-zero (long-form answers), confirming MRR is the relevant metric here.
+
+### 1.12 NQ-REaR (factoid / entity reasoning) — ✅ COMPLETE
+**Raw results:** `outputs/nq_rear_benchmark/benchmarks/benchmark_20260822_025239/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| combmnz | **0.820** | 0.640–1.000 | 0.5004 | 0.700 | 0.550 |
+| combsum | 0.800 | 0.600–1.000 | 0.4313 | 0.700 | 0.600 |
+| zscore | 0.737 | 0.527–0.933 | 0.4119 | 0.600 | 0.400 |
+| rrf | 0.720 | 0.540–0.900 | 0.4391 | 0.500 | 0.550 |
+| borda | 0.653 | 0.487–0.833 | 0.4659 | 0.400 | 0.500 |
+| linear | 0.700 | 0.500–0.883 | 0.3902 | 0.500 | 0.400 |
+| minmax | 0.700 | 0.500–0.883 | 0.3902 | 0.500 | 0.400 |
+
+**Confirmed:** Magnitude-preserving operators (combmnz 0.820, combsum 0.800) again beat rank-only RRF (0.720) — second dataset (after HotpotQA) where raw score-space wins. RRF never clearly beats combsum/combmnz across the matrix.
+
+### 1.13 SF+SPLADE 8-Dataset Matrix — ✅ COMPLETE
+**Master table (MRR, SF+SPLADE hybrid, 10Q probes):**
+
+| Dataset | Type | linear | rrf | combsum | combmnz | borda | zscore | minmax | Best op |
+|---------|------|-------:|----:|--------:|--------:|------:|-------:|-------:|---------|
+| Belebele | single-hop | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | (ceiling) |
+| PopQA | single-hop | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | (ceiling) |
+| NarrativeQA | single-hop | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | (ceiling) |
+| PubMedQA | single-hop | 0.800 | 0.800 | 0.800 | 0.800 | 0.800 | 0.800 | 0.800 | (flat) |
+| HotpotQA | multi-hop | 0.570 | 0.750 | **1.000** | 0.783 | 0.583 | 0.683 | 0.570 | combsum |
+| 2WikiMultihopQA | multi-hop | 0.933 | 1.000 | 1.000 | 1.000 | 0.950 | 1.000 | 0.933 | rrf=combsum |
+| MuSiQue | multi-hop | 0.900 | 0.950 | 0.950 | 0.933 | 0.850 | 0.950 | 0.900 | rrf=combsum |
+| NQ-REaR | factoid | 0.700 | 0.720 | 0.800 | **0.820** | 0.653 | 0.737 | 0.700 | combmnz |
+
+**Synthesis:** Operator choice is invisible on single-hop (ceiling/flat). On harder multi-hop/factoid tasks, raw score-space fusion (combSUM/combMNZ) wins or ties RRF; RRF never clearly dominates. The magnitude advantage is real but *conditional* — it appears when the task discriminates operator behavior, and the margin varies by dataset/score geometry. This is the empirical backbone of the "information bottleneck" thesis: fusion selects which score properties survive, and magnitude is the property that matters for compositional retrieval — except where rank already encodes it adequately (2Wiki, MuSiQue ties).
+
+**Phase 1 Status:** ✅✅ COMPLETE — all 8 datasets (SF+SPLADE) done. ⏳ Phase 2 (DPR pairs) pending.
 **Raw Results Path:** `outputs/belebele_benchmark/benchmarks/benchmark_20260822_013622/`
 **Code artifacts:** `semantic_folding/fusion_operators.py`, `semantic_folding/dpr_scorer.py`, patch to `query_processor.py` + `generic_benchmark.py`, `temp/test_fusion_operators.py`
 

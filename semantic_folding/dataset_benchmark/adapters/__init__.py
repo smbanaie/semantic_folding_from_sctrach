@@ -12,6 +12,7 @@ from .nq_rear_adapter import NQRearAdapter
 from .narrativeqa_adapter import NarrativeQAAdapter
 from .hotpotqa_adapter import HotpotQAAdapter
 from .twowiki_adapter import TwoWikiMultihopQAAdapter
+from .musique_adapter import MuSiQueAdapter
 from .beir_adapter import (
     NFCorpusAdapter, SciFactAdapter, QuoraAdapter,
     TRECCOVIDAdapter, DBPediaAdapter, SciDocsAdapter,
@@ -41,6 +42,7 @@ ADAPTER_REGISTRY = {
     "narrativeqa": NarrativeQAAdapter,
     "hotpotqa": HotpotQAAdapter,
     "2wikimultihopqa": TwoWikiMultihopQAAdapter,
+    "musique": MuSiQueAdapter,
     "nfcorpus": NFCorpusAdapter,
     "scifact": SciFactAdapter,
     "quora": QuoraAdapter,

@@ -245,36 +245,32 @@ Cannot run until E: space freed or cache/run-dirs redirected.
 
 ## Phase 2: Second Model Pair
 
-### 2.1 DPR Integration — ✅ CODE COMPLETE (run blocked on disk)
+### 2.1 DPR Integration — ✅ CODE COMPLETE + ✅ RUN-VERIFIED (2026-08-22)
 New module **`semantic_folding/dpr_scorer.py`** mirroring SPLADEScorer interface
 (`score_all(query) -> List[(doc_idx, score)]`), with disk-cached corpus vectors.
 Wired into:
 - `query_processor.py` Stage 4b: new `signal_a ∈ {sf, bm25}` + `retriever_b ∈ {splade, dpr, bm25, none}` → enables **all 4 model pairs** (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR).
-- `generic_benchmark.py`: `--signal-a`, `--retriever-b`, `--dpr-ctx-model`, `--dpr-qry-model-free` flags + `params` plumbing + `step6_args`.
-- CLI flags verified present on both `query_processor.py` and `generic_benchmark.py`.
+- `generic_benchmark.py`: `--signal-a`, `--retriever-b`, `--dpr-ctx-model`, `--dpr-qry-model` flags + `params` plumbing + `step6_args`.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| DPR model loading (ctx+qry encoders) | ✅ | facebook/dpr-*-single-nq-base defaults |
-| Corpus encoding (cached) | ✅ | L2-normalized dot-product |
+| DPR model loading (ctx+qry encoders) | ✅ | facebook/dpr-*-single-nq-base defaults; ~113s/encoder load on CPU, 0.14s/doc after |
+| Corpus encoding (cached) | ✅ | L2-normalized dot-product; `dpr_corpus_vectors.npy` cache created |
 | DPR scoring function | ✅ | Compatible with fusion interface |
-| Verification on 1 dataset | ⏳ | Needs GPU/disk + model download (blocked) |
-| 4 model pairs × 8 datasets × 7 ops | ⏳ | Needs runs (disk blocked) |
+| Verification on 1 dataset | ✅ | Belebele 3Q SF+DPR ran end-to-end, `dpr_corpus_vectors.npy` written (no silent fallback) |
+| 4 model pairs × 8 datasets × 7 ops | ⏳ IN PROGRESS | SF+DPR HotpotQA/NQ-REaR running; BM25+SPLADE, BM25+DPR pending |
 
-**Ad-hoc verification (2026-08-22):** all 4 files parse; dpr_scorer imports;
-CLI flags `--signal-a/--retriever-b/--dpr-ctx-model/--dpr-qry-model` present in
-both `query_processor` and `generic_benchmark`. PASS (code-level, not run-level).
+**Run-level verification (2026-08-22):** Belebele 3Q SF+DPR completed (ALL_OK); `outputs/belebele_benchmark/runs/run_20260822_030740/dpr_corpus_vectors.npy` confirms DPR encode path executed. DPR bottleneck is model load (~4 min/operator subprocess) not scoring.
 
-### 2.2 Four Model Pairs × 8 Datasets × 7 Operators — ⏳ BLOCKED (disk)
+### 2.2 Four Model Pairs × 8 Datasets × 7 Operators — ⏳ IN PROGRESS
 | Model Pair | Datasets Complete | Operators Tested | Status |
 |------------|-------------------|------------------|--------|
-| BM25+SPLADE | /8 | /7 | ⏳ |
-| BM25+DPR | /8 | /7 | ⏳ |
-| SF+SPLADE | /8 | /7 | ⏳ (from Phase 1) |
-| SF+DPR | /8 | /7 | ⏳ |
+| SF+SPLADE | 8/8 | 7/7 | ✅ Phase 1 complete |
+| SF+DPR | 1/8 (Belebele probe) + HotpotQA/NQ-REaR running | linear,rrf,combsum | 🔄 running |
+| BM25+SPLADE | /8 | /7 | ⏳ pending |
+| BM25+DPR | /8 | /7 | ⏳ pending |
 
-**Phase 2 Status:** ⚠ Code done; runs blocked on E: disk-full
-**Raw Results Path (planned):** `outputs/<dataset>_benchmark/full_matrix_<ts>/op_<op>/summary.json` (per pair)
+**Phase 2 Status:** ✅ DPR verified at run level; ⏳ SF+DPR discriminating datasets running; BM25 pairs pending
 
 ---
 

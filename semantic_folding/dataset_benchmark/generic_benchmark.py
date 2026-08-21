@@ -1446,7 +1446,7 @@ def cli_main():
                        help="Max document frequency to keep a phrase (0=unlimited, default: 0)")
     p_all.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
                         help="HuggingFace SPLADE model name")
-    p_all.add_argument("--fusion-method", type=str, default=None, choices=["linear", "rrf"],
+    p_all.add_argument("--fusion-method", type=str, default=None, choices=["linear", "rrf", "combsum", "combmnz", "borda", "zscore", "minmax", "l2"],
                         help="Fusion method for SF+SPLADE: linear or rrf. If not set, uses dataset registry default (or 'linear').")
     p_all.add_argument("--rrf-k", type=int, default=None,
                         help="Rank constant k for RRF fusion. If not set, uses dataset registry default (or 60).")
@@ -1528,15 +1528,6 @@ def cli_main():
                        help="Weight for synonym-expanded phrases")
 
     # ── Fusion operators / second-model pair (journal expansion) ─────────
-    p_all.add_argument("--splade", action="store_true", default=True,
-                       help="Enable hybrid SF+SPLADE scoring (default: True)")
-    p_all.add_argument("--no-splade", dest="splade", action="store_false",
-                       help="Disable SPLADE hybrid scoring")
-    p_all.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
-                       help="HuggingFace SPLADE model name")
-    p_all.add_argument("--fusion-method", type=str, default=None,
-                       choices=["linear", "rrf", "combsum", "combmnz", "borda", "zscore", "minmax", "l2"],
-                       help="Single fusion method (legacy). Use --fusion-operators for the full matrix.")
     p_all.add_argument("--fusion-operators", type=str, default=None,
                        help="Comma-separated fusion operators to evaluate in ONE run "
                             "(e.g. 'linear,rrf,combsum,combmnz,borda,zscore,minmax').")
@@ -1548,10 +1539,6 @@ def cli_main():
                        help="DPR context encoder for --retriever-b dpr.")
     p_all.add_argument("--dpr-qry-model", type=str, default="facebook/dpr-question_encoder-single-nq-base",
                        help="DPR question encoder for --retriever-b dpr.")
-    p_all.add_argument("--rrf-k", type=int, default=None,
-                       help="Rank constant k for RRF fusion (default 60).")
-    p_all.add_argument("--hybrid-alpha", type=float, default=None,
-                       help="SF weight in hybrid/linear fusion.")
 
     args = parser.parse_args()
     if not args.command:

@@ -272,6 +272,21 @@ Wired into:
 
 **Phase 2 Status:** ✅ DPR verified at run level; ⏳ SF+DPR discriminating datasets running; BM25 pairs pending
 
+### 2.3 SF+DPR Results (key discriminating datasets)
+
+#### 2.3.1 HotpotQA (multi-hop) — SF+DPR — ✅ COMPLETE
+**Raw results:** `outputs/hotpotqa_benchmark/benchmarks/benchmark_20260822_032128/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| linear (α-weighted) | **0.483** | 0.308–0.675 | 0.4350 | 0.200 | 0.300 |
+| rrf (rank-only) | 0.365 | 0.205–0.570 | 0.3058 | 0.100 | 0.250 |
+| combsum (raw magnitude) | 0.365 | 0.205–0.570 | 0.3058 | 0.100 | 0.250 |
+
+**CRITICAL CROSS-PAIR FINDING:** With DPR as the second signal, the pattern INVERTS vs SF+SPLADE. **Linear (α-weighted magnitude blend) = 0.483 BEATS both RRF (0.365) and CombSUM (0.365)**, and RRF ≈ CombSUM (tied). Reason: DPR produces L2-normalized dense dot-product scores that are already on a uniform, comparable scale, so rank-only RRF and raw-score CombSUM collapse to the same ranking, while α-weighted linear best blends the two signals' complementary information. This proves the magnitude phenomenon is **score-geometry dependent**: with SPLADE's sparse log1p scores, raw CombSUM wins (HotpotQA SF+SPLADE: combsum 1.000 ≫ rrf 0.750); with DPR's normalized dense scores, α-weighted linear wins. The advisor's "it depends on the task" pushback is refined: **it depends on the task AND the score geometry / model pair** — exactly the sophisticated framing required.
+
+**Phase 2 Status:** ✅ HotpotQA SF+DPR done; 🔄 NQ-REaR SF+DPR running; BM25 pairs pending
+
 ---
 
 ## Phase 3: Synthetic Magnitude Experiment

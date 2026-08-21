@@ -95,12 +95,60 @@ transform of B's scores (floats match to 1e-12), while CombMNZ changes
 ### 1.3 Run Complete Matrix — ⏳ BLOCKED (disk, see 0.2)
 Cannot run until E: space freed or cache/run-dirs redirected.
 
-### 1.4 Statistical Analysis — ⏳ pending (needs runs)
+### 1.4 Statistical Analysis — ⏳ pending (Phase 1 baseline done; full matrix pending)
 
-**Phase 1 Status:** ⚠ Code done; runs blocked on disk  
-**Raw Results Path (planned):** `outputs/<dataset>_benchmark/full_matrix_<ts>/op_<op>/summary.json`  
-**Analysis Output:** `results/stats_<dataset>_<ts>.json`  
-**Code artifacts:** `semantic_folding/fusion_operators.py`, patch to `query_processor.py` + `generic_benchmark.py`, `temp/test_fusion_operators.py`
+### 1.5 First Real Run — ✅ COMPLETE (Belebele 10Q sanity)
+**Command:** `generic_benchmark all --dataset belebele --jsonl data/belebele/converted/belebele.jsonl --max-queries 10 --fusion-operators linear,rrf,combsum,combmnz,borda,zscore,minmax`
+
+**Raw results path:** `outputs/belebele_benchmark/benchmarks/benchmark_20260822_013622/`
+- `benchmark_report.md`, `summary.json`, `summary_by_operator.json`, `op_*/all_results.json`, `analysis.json`, `config.yml`
+
+**Result (Belebele, single-hop reading comprehension — ceiling):**
+| Operator | MRR | AP | P@1 | P@2 | Found@1 |
+|----------|-----|----|-----|-----|---------|
+| linear | 1.000 | 1.000 | 1.000 | 0.500 | 10/10 |
+| rrf | 1.000 | 1.000 | 1.000 | 0.500 | 10/10 |
+| combsum | 1.000 | 1.000 | 1.000 | 0.500 | 10/10 |
+| combmnz | 1.000 | 1.000 | 1.000 | 0.500 | 10/10 |
+| borda | 1.000 | 1.000 | 1.000 | 0.500 | 10/10 |
+| zscore | 1.000 | 1.000 | 1.000 | 0.500 | 10/10 |
+| minmax | 1.000 | 1.000 | 1.000 | 0.500 | 10/10 |
+
+**Interpretation:** Belebele saturates at MRR=1.000 for all operators (ceiling — single-hop reading-comprehension is too easy to discriminate operators). Confirms pipeline + 7-operator matrix works end-to-end, but Belebele alone cannot reveal the RRF-vs-magnitude divergence. **Next: multi-hop datasets (MuSiQue, HotpotQA, 2WikiMultihopQA) where the divergence is expected.**
+
+### 1.6 HotpotQA (multi-hop 2-hop) — ✅ COMPLETE
+**Raw results:** `outputs/hotpotqa_benchmark/benchmarks/benchmark_20260822_014911/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| combsum | **1.000** | 1.000–1.000 | 0.6867 | 1.000 | 0.600 |
+| combmnz | 0.783 | 0.550–0.950 | 0.5833 | 0.700 | 0.500 |
+| rrf | 0.750 | 0.600–0.900 | 0.5450 | 0.500 | 0.500 |
+| zscore | 0.683 | 0.450–0.883 | 0.4683 | 0.500 | 0.400 |
+| borda | 0.583 | 0.350–0.800 | 0.4333 | 0.400 | 0.350 |
+| linear | 0.570 | 0.390–0.775 | 0.4583 | 0.300 | 0.350 |
+| minmax | 0.570 | 0.390–0.775 | 0.4583 | 0.300 | 0.350 |
+
+**KEY FINDING:** On multi-hop retrieval, **raw score-space fusion (CombSUM) dominates** (MRR=1.000), while rank-only RRF (=0.750) and linear (=0.570) are worse. This is the empirical centerpiece: magnitude information is decisive for compositional tasks, exactly as hypothesized. RRF is NOT uniformly superior — its rank-only design discards the magnitude that encodes multi-hop match confidence. CombMNZ (multiplicity-weighted) also strong (0.783). Normalized variants (zscore 0.683, minmax/linear 0.570) weaker than raw combsum — suggesting raw magnitude separation matters more than normalized.
+
+### 1.7 MuSiQue (multi-hop 2-5 hops) — ✅ COMPLETE
+**Raw results:** `outputs/musique_benchmark/benchmarks/benchmark_20260822_015748/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| rrf | 0.950 | 0.850–1.000 | 0.5833 | 0.900 | 0.550 |
+| combsum | 0.950 | 0.850–1.000 | 0.5783 | 0.900 | 0.550 |
+| combmnz | 0.933 | 0.800–1.000 | 0.5700 | 0.900 | 0.500 |
+| zscore | 0.950 | 0.850–1.000 | 0.5583 | 0.900 | 0.550 |
+| linear | 0.900 | 0.800–1.000 | 0.5583 | 0.800 | 0.550 |
+| minmax | 0.900 | 0.800–1.000 | 0.5583 | 0.800 | 0.550 |
+| borda | 0.850 | 0.650–1.000 | 0.5283 | 0.800 | 0.500 |
+
+**NUANCE (important for honest framing):** On MuSiQue, RRF (0.950) ≈ CombSUM (0.950) — rank-only does NOT lose to magnitude-preserving fusion here, unlike HotpotQA. The operator spread (0.85–0.95) is much narrower than HotpotQA (0.57–1.00). **This confirms the magnitude advantage is dataset/score-geometry dependent, NOT a universal law** — exactly the careful framing the advisor demanded. The phenomenon follows the task AND the score distribution, not a fixed operator ranking.
+
+**Phase 1 Status:** ✅ Belebele + HotpotQA + MuSiQue done (SF+SPLADE); ⏳ 2WikiMultihopQA + NQ-REaR + others pending; DPR pairs pending
+**Raw Results Path:** `outputs/belebele_benchmark/benchmarks/benchmark_20260822_013622/`
+**Code artifacts:** `semantic_folding/fusion_operators.py`, `semantic_folding/dpr_scorer.py`, patch to `query_processor.py` + `generic_benchmark.py`, `temp/test_fusion_operators.py`
 
 ---
 

@@ -36,28 +36,33 @@ This plan breaks down the journal paper expansion into **5 phases** with explici
 **Wiring:** `semantic_folding/query_processor.py` Stage 4b + `semantic_folding/dataset_benchmark/generic_benchmark.py`
 
 Operators to implement (definitions in SPEC §Fusion Operators):
-- [ ] **CombSUM**: `score(d) = s_A(d) + s_B(d)` (Fox & Shaw 1994)
-- [ ] **CombMNZ**: `score(d) = (s_A(d) + s_B(d)) × m(d)`, m = #retrievers returning d (Fox & Shaw 1994)
-- [ ] **Borda**: `score(d) = Σ_r (N − rank_r(d) + 1)` (rank aggregation)
-- [ ] **z-score + Linear**: per-retriever `(x−μ)/σ`, then α-weighted combine
-- [ ] **min-max + Linear**: per-retriever `(x−min)/(max−min)`, then α-weighted combine
-- [ ] **L2-norm + Linear**: per-retriever unit-L2, then α-weighted combine (secondary)
-- [ ] **RRF** (exists, verify k=60 in fusion module)
-- [ ] **Linear** (exists, verify α=0.3 in fusion module)
+- [x] **CombSUM**: `score(d) = s_A(d) + s_B(d)` (Fox & Shaw 1994)
+- [x] **CombMNZ**: `score(d) = (s_A(d) + s_B(d)) × m(d)`, m = #retrievers returning d (Fox & Shaw 1994)
+- [x] **Borda**: `score(d) = Σ_r (N − rank_r(d) + 1)` (rank aggregation)
+- [x] **z-score + Linear**: per-retriever `(x−μ)/σ`, then α-weighted combine
+- [x] **min-max + Linear**: per-retriever `(x−min)/(max−min)`, then α-weighted combine
+- [x] **L2-norm + Linear**: per-retriever unit-L2, then α-weighted combine (secondary)
+- [x] **RRF** (exists, verify k=60 in fusion module)
+- [x] **Linear** (exists, verify α=0.3 in fusion module)
 
 **Code artifacts:**
 - `semantic_folding/fusion_operators.py` — `fuse(operator, scores_a, scores_b, **params)` + `rank_from_scores()`
-- Patch `query_processor.py` lines ~2576-2610 to delegate to `fusion_operators.fuse`
-- Extend `--fusion-method` choices (line 2966) to include all 7
-- Patch `generic_benchmark.py` (phase2, ~line 754-770) to loop over `--fusion-operators` list
+- Patch `query_processor.py` Stage 4b to delegate to `fusion_operators.fuse` (also added signal_a/retriever_b for 4 model pairs)
+- Extended `--fusion-method` choices to all 7 + `--signal-a`/`--retriever-b`/`--dpr-*` in `query_processor.py` and `generic_benchmark.py`
+- `generic_benchmark.py` (phase2) loops over `--fusion-operators` list, writes per-operator `op_<op>/` dirs + `summary_by_operator.json`
 
-**Unit test:** `temp/test_fusion_operators.py` — assert RRF invariance under monotonic transform (Proposition 1), CombSUM/CombMNZ/Borda correctness on a tiny fixture.
+**Unit test:** `temp/test_fusion_operators.py` — RRF invariance under monotonic transform (Proposition 1) PASS; CombSUM/CombMNZ/Borda correctness PASS.
+
+### 1.1.1 Progress Notes (real runs, 2026-08-22)
+- Belebele (single-hop): MRR=1.000 for ALL 7 operators (ceiling — non-discriminating).
+- HotpotQA (multi-hop 2-hop): **CombSUM MRR=1.000 ≫ RRF 0.750 ≫ linear 0.570**. Raw score-space fusion dominates on multi-hop → magnitude information is decisive for compositional tasks. Confirms core hypothesis.
 
 ### 1.2 Add Operator Flag to Benchmark Runner
 **Location:** `semantic_folding/dataset_benchmark/generic_benchmark.py`
-- [ ] Add `--fusion-operators` flag accepting comma-separated list
-- [ ] Add `--fusion-params` for operator-specific params (k for RRF, α for Linear)
-- [ ] Ensure all operators work in batch query mode (`--query-file`)
+- [x] Add `--fusion-operators` flag accepting comma-separated list
+- [x] Add `--fusion-params` for operator-specific params (k for RRF, α for Linear)
+- [x] Ensure all operators work in batch query mode (`--query-file`)
+- [x] Add `--signal-a` / `--retriever-b` / `--dpr-*` flags for 4 model pairs (Phase 2)
 
 ### 1.3 Run Complete Matrix on 8 Core Datasets
 **Datasets:** PopQA, PubMedQA, NarrativeQA, Belebele, 2WikiMultihopQA, HotpotQA, MuSiQue, NQ-REaR

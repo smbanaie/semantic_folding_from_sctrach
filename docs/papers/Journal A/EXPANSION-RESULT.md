@@ -1,0 +1,375 @@
+# Journal Paper Expansion — EXPANSION RESULTS LOG
+
+**Started:** 2026-08-21  
+**SPEC:** `docs/papers/Journal A/SPEC.md`  
+**PLAN:** `docs/papers/Journal A/PLAN.md`  
+
+---
+
+## Phase 0: Setup & Baseline Verification
+
+### 0.1 Environment Verification
+| Check | Command | Result | Status |
+|-------|---------|--------|--------|
+| Python env | `.venv\Scripts\python -c "import semantic_folding; print('OK')"` | OK | ☑ |
+| Datasets available | `ls data/*/converted/*.jsonl` | 14 jsonl found (incl. 8 core + BEIR) | ☑ |
+| Benchmark runner | `.venv\Scripts\python -m semantic_folding.dataset_benchmark.generic_benchmark --help` | OK (index/benchmark/report/analyze/all) | ☑ |
+| Sanity check (Belebele 10Q) | `... all --max-queries 10` | Index OK; **batch FAILED** — see blocker below | ⚠ |
+
+### 0.2 BLOCKER — E: drive full (12 MB free of 118 GB)
+The sanity run's Step 6 (SPLADE scoring) crashed writing the cached SPLADE
+corpus vectors to `data/belebele/converted/`:
+```
+OSError: 5921268 requested and 0 written   (np.save splade_corpus_vectors.npy)
+```
+`df -h` confirms E: is 100% full (12M available). This blocks **any** run that
+writes SPLADE/DPR caches or large outputs on E:.
+
+**Mitigation options (choose one before running real benchmarks):**
+1. Free space on E: (delete/archive large outputs, old `.npy` caches).
+2. Point SPLADE cache + `--run-dir`/`--output` at another drive:
+   C: (15 GB free), D: (9.2 GB), G: (14 GB). The `splade_scorer` cache_dir is
+   derived from `corpus_path.parent`; pass a corpus copy on C:/D:/G: or set an
+   env override.
+3. For no-SPLADE operator tests (SF-only fusion matrix is not meaningful; fusion
+   needs 2 signals) we still need SPLADE or a second retriever.
+
+**Decision needed from user:** free E: space, or approve redirecting cache/run
+dirs to C:/D:/G:.
+
+### 0.3 Current State Audit (from BENCHMARK_RESULTS.md)
+| Dataset | SF-Only | BM25 | SPLADE-only | SF+SPLADE Linear | SF+SPLADE RRF |
+|---------|---------|------|-------------|------------------|---------------|
+| PopQA | 0.980 | 1.000 | 1.000 | 1.000 | 1.000 |
+| PubMedQA | 0.955 | 1.000 | 0.952 | 0.968 | 0.968 |
+| NarrativeQA | 0.939 | 0.980 | 0.967 | 0.940 | 0.967 |
+| Belebele | 0.880 | 0.995 | 1.000 | 0.920 | 1.000 |
+| 2WikiMultihopQA | 0.788 | 0.921 | 0.797 | 0.901 | 0.761 |
+| HotpotQA | 0.726 | 0.869 | 0.957 | 0.872 | 0.857 |
+| MuSiQue | 0.453 | 0.482 | 0.876 | 0.782 | — (missing) |
+| NQ-REaR | 0.574 | 0.675 | 0.677 | 0.632 | 0.631 |
+| SciFact (16-doc pool) | 0.860 | 0.900 | — | 0.900 | 0.960 |
+
+**Gaps:** No CombSUM/CombMNZ/Borda/z-score/min-max; no DPR; no BM25+SPLADE/BM25+DPR/SF+DPR;
+MuSiQue RRF missing; no CIs/significance; no full-corpus (except SciFact deep-pool).
+
+**Phase 0 Status:** ⚠ BLOCKED on disk (code/infra verified, runs need space)
+
+---
+
+## Phase 1: Complete Operator Matrix on Existing Datasets
+
+### 1.1 Implement Missing Fusion Operators — ✅ CODE COMPLETE
+New module **`semantic_folding/fusion_operators.py`** (retriever-agnostic
+`fuse(operator, scores_a, scores_b, **params)`). Wired into:
+- `query_processor.py` Stage 4b (replaces inline linear/RRF branch; import added; `--fusion-method` choices expanded to all 7).
+- `generic_benchmark.py` (`--fusion-method` choices + new `--fusion-operators` list flag + per-operator batch loop via `_run_operator_batch`; writes `op_<op>/summary.json` + `summary_by_operator.json`; `phase3_report`/`analyze` updated to per-operator layout).
+
+| Operator | Location | Status | Unit-tested |
+|----------|----------|--------|-------------|
+| CombSUM | fusion_operators.combsum | ✅ | ✅ |
+| CombMNZ | fusion_operators.combmnz | ✅ | ✅ |
+| Borda | fusion_operators.borda | ✅ | ✅ |
+| z-score + Linear | fusion_operators.zscore_linear | ✅ | ✅ |
+| min-max + Linear | fusion_operators.minmax_linear | ✅ | ✅ |
+| L2 + Linear | fusion_operators.l2_linear | ✅ | ✅ |
+| RRF | fusion_operators.rrf (k=60) | ✅ | ✅ |
+| Linear | fusion_operators.linear (α=0.3) | ✅ | ✅ |
+
+**Verification:** `temp/test_fusion_operators.py` — all 7 operators correct on a
+fixture; **Proposition 1 confirmed**: RRF invariant under strictly monotonic
+transform of B's scores (floats match to 1e-12), while CombMNZ changes
+(magnitude-sensitive). All tests PASSED.
+
+**Definitions used (literature-backed, to cite in §2.2):**
+- RRF: Cormack, Clarke & Buettcher (2009, SIGIR).
+- CombSUM/CombMNZ: Fox & Shaw (1994, TREC-2).
+- Borda: rank-aggregation tally.
+- Linear/z-score/min-max: α-weighted after per-retriever normalization.
+- Positioning anchor: Bruch, Gai & Ingber (2024, TOIS 42(1)).
+
+### 1.2 Benchmark Runner Updates — ✅ complete
+- `--fusion-operators linear,rrf,combsum,combmnz,borda,zscore,minmax` runs all in one pass.
+- CLI choices + `params["fusion_operators"]` plumbing verified via `--help` and import.
+
+### 1.3 Run Complete Matrix — ⏳ BLOCKED (disk, see 0.2)
+Cannot run until E: space freed or cache/run-dirs redirected.
+
+### 1.4 Statistical Analysis — ⏳ pending (needs runs)
+
+**Phase 1 Status:** ⚠ Code done; runs blocked on disk  
+**Raw Results Path (planned):** `outputs/<dataset>_benchmark/full_matrix_<ts>/op_<op>/summary.json`  
+**Analysis Output:** `results/stats_<dataset>_<ts>.json`  
+**Code artifacts:** `semantic_folding/fusion_operators.py`, patch to `query_processor.py` + `generic_benchmark.py`, `temp/test_fusion_operators.py`
+
+---
+
+## Phase 2: Second Model Pair
+
+### 2.1 DPR Integration — ✅ CODE COMPLETE (run blocked on disk)
+New module **`semantic_folding/dpr_scorer.py`** mirroring SPLADEScorer interface
+(`score_all(query) -> List[(doc_idx, score)]`), with disk-cached corpus vectors.
+Wired into:
+- `query_processor.py` Stage 4b: new `signal_a ∈ {sf, bm25}` + `retriever_b ∈ {splade, dpr, bm25, none}` → enables **all 4 model pairs** (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR).
+- `generic_benchmark.py`: `--signal-a`, `--retriever-b`, `--dpr-ctx-model`, `--dpr-qry-model-free` flags + `params` plumbing + `step6_args`.
+- CLI flags verified present on both `query_processor.py` and `generic_benchmark.py`.
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| DPR model loading (ctx+qry encoders) | ✅ | facebook/dpr-*-single-nq-base defaults |
+| Corpus encoding (cached) | ✅ | L2-normalized dot-product |
+| DPR scoring function | ✅ | Compatible with fusion interface |
+| Verification on 1 dataset | ⏳ | Needs GPU/disk + model download (blocked) |
+| 4 model pairs × 8 datasets × 7 ops | ⏳ | Needs runs (disk blocked) |
+
+**Ad-hoc verification (2026-08-22):** all 4 files parse; dpr_scorer imports;
+CLI flags `--signal-a/--retriever-b/--dpr-ctx-model/--dpr-qry-model` present in
+both `query_processor` and `generic_benchmark`. PASS (code-level, not run-level).
+
+### 2.2 Four Model Pairs × 8 Datasets × 7 Operators — ⏳ BLOCKED (disk)
+| Model Pair | Datasets Complete | Operators Tested | Status |
+|------------|-------------------|------------------|--------|
+| BM25+SPLADE | /8 | /7 | ⏳ |
+| BM25+DPR | /8 | /7 | ⏳ |
+| SF+SPLADE | /8 | /7 | ⏳ (from Phase 1) |
+| SF+DPR | /8 | /7 | ⏳ |
+
+**Phase 2 Status:** ⚠ Code done; runs blocked on E: disk-full
+**Raw Results Path (planned):** `outputs/<dataset>_benchmark/full_matrix_<ts>/op_<op>/summary.json` (per pair)
+
+---
+
+## Phase 3: Synthetic Magnitude Experiment
+
+### 3.1 Synthetic Score Generator
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Score generator script | ☐ | `synthetic_magnitude_experiment.py` |
+| Condition 1 (45 vs 12) | ☐ | Large margin |
+| Condition 2 (20 vs 18) | ☐ | Small margin |
+| Condition 3 (12 vs 45) | ☐ | Reversed margin |
+| Systematic margin sweep | ☐ | 45/12, 40/15, 35/20, 30/25, 25/30... |
+
+### 3.2 Operator Behavior on Synthetic Data
+| Operator | Cond 1 (A>B?) | Cond 2 (A>B?) | Cond 3 (A>B?) | Margin Sweep Plot |
+|----------|---------------|---------------|---------------|-------------------|
+| Linear | | | | |
+| RRF | | | | |
+| CombSUM | | | | |
+| CombMNZ | | | | |
+| Borda | | | | |
+| z-score | | | | |
+| min-max | | | | |
+
+### 3.3 Rank-Preserving Transformation Test
+| Transformation | RRF Invariant? | Score Fusion Changes? | Notes |
+|----------------|----------------|----------------------|-------|
+| log | | | |
+| sqrt | | | |
+| exp | | | |
+| sigmoid | | | |
+| min-max | | | |
+| z-score | | | |
+
+### 3.4 Connection to Real Data
+| Analysis | Status | Result |
+|----------|--------|--------|
+| Extract real SPLADE score distributions | ☐ | |
+| Multi-hop vs single-hop margin comparison | ☐ | |
+| Synthetic mimics real behavior | ☐ | |
+
+**Phase 3 Status:** ☐ COMPLETE  
+**Raw Results Path:** `results/synthetic_magnitude_<timestamp>.json`  
+**Figures:** `results/figures/synthetic_magnitude_*.png`
+
+---
+
+## Phase 4: Full-Corpus Evaluation
+
+### 4.1 Dataset Selection
+| Dataset | Corpus Size | Status | Notes |
+|---------|-------------|--------|-------|
+| SciFact (BEIR) | 5,183 docs | ☐ | Infrastructure exists |
+| HotpotQA full | 5.2M paragraphs | ☐ | May need sampling |
+| MS MARCO dev (subset) | ~1M passages | ☐ | Alternative |
+
+### 4.2 Full-Corpus Pipeline
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Full-corpus mode in runner | ☐ | `generic_benchmark.py` |
+| BM25 top-1000 candidate gen | ☐ | |
+| Reranking with SF/SPLADE/DPR | ☐ | |
+| Recall@k evaluation | ☐ | Not just MRR |
+
+### 4.3 Results: Controlled vs Full-Corpus
+| Dataset | Regime | SF | SPLADE | DPR | Best Fusion | Key Finding |
+|---------|--------|----|--------|-----|-------------|-------------|
+| SciFact | Controlled (16-doc) | | | | | |
+| SciFact | Deep-pool (101) | 0.0109 | | | | Pool artifact |
+| SciFact | Full-corpus | | | | | |
+| HotpotQA | Controlled (20-doc) | | | | | |
+| HotpotQA | Full-corpus | | | | | |
+
+**Phase 4 Status:** ☐ COMPLETE  
+**Raw Results Path:** `outputs/*_benchmark/fullcorpus_*/`
+
+---
+
+## Phase 5: Feature Invariance & Score Concentration
+
+### 5.1 Feature Invariance — Adversarial Features
+| Feature | Collinear with Overlap? (corr) | ΔMRR when Added | Status |
+|---------|-------------------------------|-----------------|--------|
+| Term rarity (IDF) | | | ☐ |
+| Doc length normalization | | | ☐ |
+| Phrase coverage | | | ☐ |
+| Query-term diversity | | | ☐ |
+| Proximity | | | ☐ |
+| Entropy | | | ☐ |
+| Score margin | | | ☐ |
+| Independent BM25 score | | | ☐ |
+
+**Plot:** corr(feature, overlap) vs ΔMRR
+
+### 5.2 Score Concentration — Scaling Experiment
+| Candidate Size (N) | SF: CV | SF: MRR | SF: Gold Rank | BM25: CV | BM25: MRR | SPLADE: CV | SPLADE: MRR | DPR: CV | DPR: MRR |
+|--------------------|--------|---------|---------------|----------|-----------|------------|-------------|---------|----------|
+| 20 | | | | | | | | | |
+| 50 | | | | | | | | | |
+| 100 | | | | | | | | | |
+| 250 | | | | | | | | | |
+| 500 | | | | | | | | | |
+| 1,000 | | | | | | | | | |
+| 5,000 | | | | | | | | | |
+| 10,000 | | | | | | | | | |
+
+**Theoretical:** E[overlap] = Kρ, Var = Kρ(1-ρ) — compare to empirical CV
+
+**Phase 5 Status:** ☐ COMPLETE  
+**Raw Results Path:** `results/scaling_<timestamp>.json`, `results/feature_invariance_<timestamp>.json`  
+**Figures:** `results/figures/scaling_*.png`, `results/figures/feature_invariance_*.png`
+
+---
+
+## Phase 6: Paper Writing & Restructuring
+
+### 6.1 Section Completion
+| Section | Target | Status | Notes |
+|---------|--------|--------|-------|
+| Title (Option 4) | "What Does Fusion Preserve? Task-Dependent Information Loss in Hybrid IR" | ☐ | |
+| Abstract | 4 contributions, new framing | ☐ | |
+| 1. Introduction | Problem, fusion not operator-neutral, RQs, contributions | ☐ | |
+| 2. Background | Hybrid retrieval, fusion, rank vs score, multi-hop, SF/SDR, Bruch et al. | ☐ | |
+| 3. Conceptual Framework | Signal properties, rank info, score magnitude, complementarity, hypothesis, proposition | ☐ | |
+| 4. Methodology | Datasets, task topology, candidate regimes, models, operators, stats | ☐ | |
+| 5. Zero-Shot Signal | SF vs BM25, SF vs learned, where succeeds/fails | ☐ | Tone down SF claims |
+| 6. Fusion Analysis | Complete matrix, rank vs score, normalization, topology, 2nd model, complementarity | ☐ | Main contribution |
+| 7. Magnitude Hypothesis | Rank invariance, synthetic control, real traces, single vs multi-hop | ☐ | Causal evidence |
+| 8. Boundaries | Feature invariance, non-collinear, score concentration, scaling, full-corpus | ☐ | |
+| 9. Discussion | Task-operator compatibility, Bruch relation, guidelines, what NOT established | ☐ | |
+| 10. Limitations | Model dependence, dataset dependence, candidate construction, calibration, etc. | ☐ | |
+| Appendices A-G | Architecture, hyperparams, stats, sensitivity, traces, datasets, reproducibility | ☐ | |
+
+### 6.2 Figures & Tables Generated
+| Figure/Table | Status | Location |
+|--------------|--------|----------|
+| Master table (8×7×4) | ☐ | Paper Table 2 |
+| Synthetic magnitude figure | ☐ | Paper Figure 3 |
+| Scaling experiment (CV vs N) | ☐ | Paper Figure 4 |
+| Feature invariance (corr vs ΔMRR) | ☐ | Paper Figure 5 |
+| Operator topology matrix | ☐ | Paper Figure 2 |
+| Full-corpus vs controlled | ☐ | Paper Figure 6 |
+| All stats tables (CIs, p-values) | ☐ | Appendix C |
+
+### 6.3 Statistical Validation
+| Check | Status |
+|-------|--------|
+| All MRR with 95% bootstrap CI | ☐ |
+| All pairwise comparisons with p-values | ☐ |
+| Holm correction applied | ☐ |
+| Effect sizes reported | ☐ |
+
+### 6.4 Reviewer Test Answers
+| Reviewer | Question | Answer Supported by Evidence? |
+|----------|----------|-------------------------------|
+| #1 | Is this just SF? | ☐ |
+| #2 | Isn't this known from Bruch et al.? | ☐ |
+| #3 | Isn't this just score-scale mismatch? | ☐ |
+| #4 | Isn't multi-hop result SPLADE-specific? | ☐ |
+| #5 | Are you actually doing retrieval? | ☐ |
+
+### 6.5 Cleanup Verification
+| Must Remove | Verified Removed? |
+|-------------|-------------------|
+| "RRF must be strictly dominant" | ☐ |
+| "Linear fusion must be strictly dominant" | ☐ |
+| "Operator-Topology Constraint" as universal law | ☐ |
+| "O(√N) drop" / "BM25 scores scale O(N)" | ☐ |
+| "blazingly fast" | ☐ |
+| "compositional confidence" unvalidated | ☐ |
+| "SF cannot be used for first-stage retrieval" unproven | ☐ |
+
+**Phase 6 Status:** ☐ COMPLETE  
+**Paper Draft:** `docs/papers/Journal A/Beyond Vocabulary Mismatch Investigating Zero-Shot Semantic Folding and the Task-Dependent Limits of Hybrid Fusion_journal.md`
+
+---
+
+## Phase 6: Paper Writing & Restructuring
+
+### 6.1 Draft skeleton — ✅ COMPLETE (placeholders for empirical tables)
+Journal draft created: `docs/papers/Journal A/Beyond Vocabulary Mismatch Investigating Zero-Shot Semantic Folding and the Task-Dependent Limits of Hybrid Fusion_journal.md`
+- New title (Option 4 per advisor): "What Does Fusion Preserve? Task-Dependent Information Loss in Hybrid Retrieval"
+- 10-section structure + 7 appendices per PLAN §6.1
+- 4 contributions reframed (empirical / mechanistic / causal / boundary)
+- SF repositioned as controlled probe (not principal contribution)
+- Proposition 1 (rank-invariance) + Magnitude Fallacy as *empirical phenomenon* (not theorem)
+- "Operator-Topology Constraint" → "Task-Operator Compatibility Hypothesis"
+- Explicit Bruch et al. (2024, TOIS) positioning (§2.2, §9.2)
+- O(√N) Scaling Wall → "score concentration under candidate growth" (§8.3)
+- All empirical tables marked `[TO BE FILLED FROM RUNS]`
+
+### 6.2–6.5 — ⏳ pending (depend on Phase 1–5 runs)
+Figures/tables, statistical validation, reviewer-test answers → filled after benchmarks complete.
+
+**Phase 6 Status:** ⚠ Draft skeleton done; empirical content blocked on disk
+
+---
+
+## Summary Achievement Table
+
+| Phase | Milestone | Target Date | Actual Date | Status | Key Output |
+|-------|-----------|-------------|-------------|--------|------------|
+| 0 | Setup & Audit | Day 1 | 2026-08-21 | ⚠ | Audit + **E: disk-full blocker** |
+| 1 | Complete Operator Matrix (code) | Day 7-10 | 2026-08-22 | ✅ code / ⏳ runs | `fusion_operators.py` + wiring + unit tests |
+| 2 | Second Model Pair (code) | Day 14-17 | 2026-08-22 | ✅ code / ⏳ runs | `dpr_scorer.py` + 4-pair wiring |
+| 3 | Synthetic Magnitude Exp | Day 20 | | ⏳ | Causal evidence |
+| 4 | Full-Corpus Evaluation | Day 25 | | ⏳ | Generalization test |
+| 5 | Invariance + Scaling | Day 30 | | ⏳ | Boundary conditions |
+| 6 | Paper Draft | Day 40-45 | 2026-08-22 | ⚠ skeleton | Journal draft (10 sec) |
+
+---
+
+## Overall Progress
+
+**Phases code-complete:** 1, 2 (DPR), 6 (skeleton)
+**Experiments Run:** 0/224 (Phase 1) + 0/224 (Phase 2) + 0 (Phase 3) + 0 (Phase 4) + 0 (Phase 5)  — **BLOCKED: E: drive 100% full (12 MB)**
+**Paper Sections Drafted:** 10/10 skeleton (empirical cells pending runs)
+**Reviewer Questions Answered:** 0/5 (need runs)
+**Ad-hoc code verification:** PASS (fusion operators + Prop1; DPR wiring; CLI flags)
+
+---
+
+## Open Blocker — Needs User Decision
+
+**E: drive full (12 MB / 118 GB).** SPLADE/DPR cache writes fail (np.save OSError).
+Options: (a) free E: space, or (b) redirect cache/run/output to C:/D:/G:.
+No benchmark can run until resolved.
+
+## Next Action
+> Resolve disk blocker → run Phase 1 full operator matrix (8 datasets × 7 operators, SF+SPLADE) → fill §6 master table → Phase 2 (DPR pairs) → Phase 3 (synthetic) → etc.
+
+---
+
+---
+
+*Update this file after each completed step with raw results paths and achievement metrics.*

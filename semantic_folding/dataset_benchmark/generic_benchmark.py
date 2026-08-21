@@ -758,9 +758,28 @@ class GenericBenchmarkRunner:
             if self.params.get("corpus_path"):
                 step6_args.extend(["--corpus", self.params["corpus_path"]])
             fusion_method = self.params.get("fusion_method", "linear")
-            if fusion_method == "rrf":
-                step6_args.extend(["--fusion-method", "rrf"])
-                step6_args.extend(["--rrf-k", str(self.params.get("rrf_k", 60))])
+            if fusion_method != "linear":
+                step6_args.extend(["--fusion-method", fusion_method])
+                if fusion_method == "rrf":
+                    step6_args.extend(["--rrf-k", str(self.params.get("rrf_k", 60))])
+        # Second-model pair (journal Phase 2): signal_a + retriever_b
+        signal_a = self.params.get("signal_a", "sf")
+        retriever_b = self.params.get("retriever_b")
+        if signal_a and signal_a != "sf":
+            step6_args.extend(["--signal-a", signal_a])
+        if retriever_b:
+            step6_args.extend(["--retriever-b", retriever_b])
+            if retriever_b == "dpr":
+                step6_args.extend([
+                    "--dpr-ctx-model", self.params.get("dpr_ctx_model", "facebook/dpr-ctx_encoder-single-nq-base"),
+                    "--dpr-qry-model", self.params.get("dpr_qry_model", "facebook/dpr-question_encoder-single-nq-base"),
+                ])
+            if retriever_b == "splade":
+                step6_args.extend(["--splade", "--splade-model", self.params.get("splade_model", "naver/splade-cocondenser-ensembledistil")])
+                if self.params.get("corpus_path"):
+                    step6_args.extend(["--corpus", self.params["corpus_path"]])
+            if retriever_b in ("bm25", "dpr") and self.params.get("corpus_path"):
+                step6_args.extend(["--corpus", self.params["corpus_path"]])
         if self.params.get("doc_norm", "sqrt_nnz") != "sqrt_nnz":
             step6_args.extend(["--doc-norm", self.params["doc_norm"]])
         if self.params.get("sim_metric", "cosine") != "cosine":
@@ -835,29 +854,89 @@ class GenericBenchmarkRunner:
 
         # ── Synonym weight ─────────────────────────────────────────────────────
         if self.params.get("synonym_weight", 0.5) != 0.5:
-            step6_args.extend(["--synonym-weight", str(self.params["synonym_weight"])])
+            step6_args.extend(["--synonym-weight", str(self.params.get("synonym_weight"))])
 
         if llm_query_phrases_path:
             step6_args.extend(["--llm-query-phrases", str(llm_query_phrases_path)])
 
-        # ── Single subprocess call for ALL queries ────────────────────────
-        t0 = time.time()
-        ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT, "Step 6 query_processor (batch)", timeout=3600)
-        batch_elapsed = time.time() - t0
+        # ── Fusion operators ─────────────────────────────────────────────────
+        # Single operator (legacy) or a list (full matrix). The fusion-method
+        # flag is NOT part of step6_args; it is appended per-operator in the loop.
+        fusion_methods = self.params.get("fusion_operators")
+        if isinstance(fusion_methods, str):
+            fusion_methods = [fusion_methods]
+        if not fusion_methods:
+            fusion_methods = [self.params.get("fusion_method", "linear")]
 
-        if not ok:
-            logger.error(f"Batch query processor FAILED after {batch_elapsed:.0f}s — {len(batch_entries)} queries lost")
-            failed = len(batch_entries)
+        operator_summaries = {}
+        for op in fusion_methods:
+            op_label = op if op else "linear"
+            bench_op_dir = bench_dir / f"op_{op_label}"
+            bench_op_dir.mkdir(parents=True, exist_ok=True)
+            op_step6 = list(step6_args)
+            if op and op != "linear":
+                op_step6.extend(["--fusion-method", op])
+                if op == "rrf":
+                    op_step6.extend(["--rrf-k", str(self.params.get("rrf_k", 60))])
+            op_batch_output = bench_op_dir / "all_results.json"
+            op_step6.extend(["--output", str(op_batch_output)])
+            ok = self._run_operator_batch(
+                op_label, op_step6, batch_entries, bench_op_dir,
+                op_batch_output, query_doc_map, query_gold, candidate_ids_key=None,
+            )
+            if ok is not None:
+                operator_summaries[op_label] = ok
+
+        if not operator_summaries:
             update_run_status(bench_dir, self.adapter.dataset_name, "failed_batch")
+            logger.error("All fusion operators failed")
             return bench_dir
 
-        logger.info(f"Batch query processor completed in {batch_elapsed:.0f}s ({len(batch_entries)} queries)")
+        # Combined summary across operators
+        combined = {
+            "dataset": self.adapter.dataset_name,
+            "display_name": self.adapter.display_name,
+            "num_queries": next(iter(operator_summaries.values())).get("num_queries", 0),
+            "operators": operator_summaries,
+            "best_operator_by_mrr": max(
+                operator_summaries, key=lambda k: operator_summaries[k].get("mean_mrr", 0.0)
+            ),
+        }
+        with open(bench_dir / "summary_by_operator.json", "w") as f:
+            json.dump(combined, f, indent=2)
+        update_run_status(bench_dir, self.adapter.dataset_name, "completed")
+        logger.success(
+            f"Benchmark complete - operators={list(operator_summaries)} "
+            f"best={combined['best_operator_by_mrr']} "
+            f"MRR={operator_summaries[combined['best_operator_by_mrr']]['mean_mrr']:.4f}"
+        )
+        return bench_dir
 
-        # ── Read batch results ────────────────────────────────────────────
+    # ------------------------------------------------------------------
+    def _run_operator_batch(self, op_label: str, step6_args: List[str],
+                            batch_entries: list, bench_op_dir: Path,
+                            batch_output: Path, query_doc_map, query_gold,
+                            candidate_ids_key=None) -> Optional[dict]:
+        """Run the query_processor batch subprocess for ONE fusion operator,
+        read the results, compute per-query metrics, and return an aggregated
+        summary dict (with bootstrap MRR CI). Returns None on hard failure."""
+        t0 = time.time()
+        ok = run_step(STEP_SCRIPTS[6], step6_args, PROJECT_ROOT,
+                      f"Step 6 query_processor (batch) op={op_label}", timeout=3600)
+        batch_elapsed = time.time() - t0
+        if not ok:
+            logger.error(f"  [op={op_label}] batch FAILED after {batch_elapsed:.0f}s")
+            return None
+        logger.info(f"  [op={op_label}] batch done in {batch_elapsed:.0f}s")
+
         with open(batch_output, encoding="utf-8") as f:
             all_query_results = json.load(f)
 
-        # ── Pass 2: split results back per-query, compute metrics ────────
+        all_metrics = []
+        results_log = bench_op_dir / "results_log.csv"
+        per_query_dir_root = bench_op_dir / "per_query"
+        per_query_dir_root.mkdir(exist_ok=True)
+
         for i, be in enumerate(batch_entries):
             q_idx = be["q_idx"]
             query_text = be["query_text"]
@@ -866,26 +945,22 @@ class GenericBenchmarkRunner:
             spread_reason = be["spread_reason"]
             candidate_ids = be["candidate_ids"]
             gold_ids = be["gold_ids"]
-            query_out_dir = be["query_out_dir"]
-
-            result_json = query_out_dir / "query_results.json"
+            query_out_dir = per_query_dir_root / f"{q_idx:04d}"
+            query_out_dir.mkdir(exist_ok=True)
 
             raw = all_query_results[i] if i < len(all_query_results) else {"results": []}
             full_results = raw.get("results", [])
-
-            # Save raw per-query result
-            with open(result_json, "w") as f:
+            with open(query_out_dir / "query_results.json", "w") as f:
                 json.dump([raw], f, indent=2)
 
             candidate_results = filter_results_to_candidates(full_results, candidate_ids)
-
             with open(query_out_dir / "filtered_results.json", "w") as f:
                 json.dump({
                     "query_idx": q_idx,
                     "query": query_text,
                     "query_word_count": n_words,
                     "spreading_steps_used": spread,
-                    "spreading_reason": spread_reason,
+                    "spread_reason": spread_reason,
                     "gold": gold_ids,
                     "candidates": candidate_ids,
                     "filtered_ranked": [(doc_id, float(score)) for doc_id, score in candidate_results],
@@ -897,110 +972,42 @@ class GenericBenchmarkRunner:
                                       top_k_list=[1, 2, 3, 5, self.params["top_k"]])
             metrics["spreading_steps"] = spread
             all_metrics.append(metrics)
+            logger.info(f"  [op={op_label} {q_idx:04d}] MRR={metrics['mrr']:.3f} "
+                        f"AP={metrics['ap']:.3f} P@2={metrics['p@2']:.3f}")
 
-            logger.info(f"  [{q_idx:04d}/{query_end - 1}] MRR={metrics['mrr']:.3f} AP={metrics['ap']:.3f} "
-                        f"P@2={metrics['p@2']:.3f} spread={spread}[{spread_reason[:5]}]  ({i+1}/{len(batch_entries)})")
+        if not all_metrics:
+            logger.warning(f"  [op={op_label}] no metrics collected")
+            return None
 
-        # ── Write CSV ────────────────────────────────────────────────────
         with open(results_log, "w", newline="", encoding="utf-8") as csv_f:
             writer = csv.writer(csv_f)
-            header = ["query_idx", "query", "n_words", "spread", "spread_reason",
-                      "mrr", "ap", "p@1", "p@2", "p@3", "p@5", "r@2", "ndcg@2",
-                      "found_at", "elapsed_s"]
-            writer.writerow(header)
-            for be, metrics in zip(batch_entries, all_metrics):
-                writer.writerow([
-                    be["q_idx"], be["query_text"][:60], be["n_words"], be["spread"], be["spread_reason"],
-                    f"{metrics['mrr']:.4f}", f"{metrics['ap']:.4f}",
-                    f"{metrics['p@1']:.4f}", f"{metrics['p@2']:.4f}",
-                    f"{metrics['p@3']:.4f}", f"{metrics['p@5']:.4f}",
-                    f"{metrics['r@2']:.4f}", f"{metrics['ndcg@2']:.4f}",
-                    metrics.get("found_at", "none"), f"{batch_elapsed / len(batch_entries):.1f}",
-                ])
+            writer.writerow(["query_idx", "mrr", "ap", "p@1", "p@2", "p@3", "p@5", "found_at"])
+            for be, m in zip(batch_entries, all_metrics):
+                writer.writerow([be["q_idx"], f"{m['mrr']:.4f}", f"{m['ap']:.4f}",
+                                 f"{m['p@1']:.4f}", f"{m['p@2']:.4f}", f"{m['p@3']:.4f}",
+                                 f"{m['p@5']:.4f}", m.get("found_at", "none")])
 
-        if all_metrics:
-            agg = defaultdict(list)
-            for m in all_metrics:
-                for k, v in m.items():
-                    agg[k].append(v)
-
-            summary = {
-                "dataset": self.adapter.dataset_name,
-                "display_name": self.adapter.display_name,
-                "num_queries": len(all_metrics),
-                "failed": failed,
-                "batch_elapsed_s": round(batch_elapsed, 1),
-                "full_corpus": bool(self.params.get("full_corpus", False)),
-            }
-            for k, vals in agg.items():
-                summary[f"mean_{k}"] = sum(vals) / len(vals)
-                summary[f"min_{k}"] = min(vals)
-                summary[f"max_{k}"] = max(vals)
-
-            # Bootstrap 95% CI on MRR (SIGIR reporting standard)
-            per_query_mrr = [m["mrr"] for m in all_metrics]
-            ci = bootstrap_ci(per_query_mrr)
-            summary["per_query_mrr"] = per_query_mrr
-            summary["mrr_ci95_low"] = ci["ci_low"]
-            summary["mrr_ci95_high"] = ci["ci_high"]
-
-            with open(bench_dir / "summary.json", "w") as f:
-                json.dump(summary, f, indent=2)
-
-            # Per-spreading breakdown (only meaningful when dynamic_spreading is on)
-            by_spread = defaultdict(list)
-            for m in all_metrics:
-                by_spread[int(m.get("spreading_steps", self.params["spreading_steps"]))].append(m)
-            by_spread_summary = {}
-            for spread_val, ms in sorted(by_spread.items()):
-                sub_agg = defaultdict(list)
-                for m in ms:
-                    for k, v in m.items():
-                        if k == "spreading_steps":
-                            continue
-                        sub_agg[k].append(v)
-                by_spread_summary[str(spread_val)] = {
-                    "n": len(ms),
-                    **{f"mean_{k}": sum(vs) / len(vs) for k, vs in sub_agg.items()},
-                }
-            with open(bench_dir / "summary_by_spreading.json", "w") as f:
-                json.dump(by_spread_summary, f, indent=2)
-
-            # Clean, focused params file (for at-a-glance review)
-            params_snapshot = {
-                "dataset": self.adapter.dataset_name,
-                "display_name": self.adapter.display_name,
-                "run_dir": str(run_dir),
-                "num_queries": len(all_metrics),
-                "failed": failed,
-                "pipeline": {
-                    "grid_size": self.params["grid_size"],
-                    "spreading_steps": self.params["spreading_steps"],
-                    "dynamic_spreading": self.params.get("dynamic_spreading", False),
-                    "short_query_max_words": self.params.get("short_query_max_words", 10),
-                    "spreading_steps_long": self.params.get("spreading_steps_long", 2),
-                    "top_k": self.params["top_k"],
-                    "weighting": self.params["weighting"],
-                    "top_percent": self.params["top_percent"],
-                    "smoothing_sigma": self.params["smoothing_sigma"],
-                    "morton": self.params["morton"],
-                    "keep_verbs": self.params["keep_verbs"],
-                    "min_word_length": self.params["min_word_length"],
-                    "min_freq": self.params["min_freq"],
-                },
-                "generated": datetime.now().isoformat(timespec="seconds"),
-            }
-            with open(bench_dir / "params.json", "w") as f:
-                json.dump(params_snapshot, f, indent=2)
-
-            update_run_status(bench_dir, self.adapter.dataset_name, "completed")
-            logger.success(f"Benchmark complete - {len(all_metrics)} queries, "
-                           f"mean MRR={summary['mean_mrr']:.4f}, AP={summary['mean_ap']:.4f}")
-            return bench_dir
-        else:
-            update_run_status(bench_dir, self.adapter.dataset_name, "failed")
-            logger.warning("No metrics collected")
-            return None
+        agg = defaultdict(list)
+        for m in all_metrics:
+            for k, v in m.items():
+                agg[k].append(v)
+        summary = {
+            "operator": op_label,
+            "num_queries": len(all_metrics),
+            "batch_elapsed_s": round(batch_elapsed, 1),
+        }
+        for k, vals in agg.items():
+            summary[f"mean_{k}"] = sum(vals) / len(vals)
+            summary[f"min_{k}"] = min(vals)
+            summary[f"max_{k}"] = max(vals)
+        per_query_mrr = [m["mrr"] for m in all_metrics]
+        ci = bootstrap_ci(per_query_mrr)
+        summary["per_query_mrr"] = per_query_mrr
+        summary["mrr_ci95_low"] = ci["ci_low"]
+        summary["mrr_ci95_high"] = ci["ci_high"]
+        with open(bench_op_dir / "summary.json", "w") as f:
+            json.dump(summary, f, indent=2)
+        return summary
 
     # ------------------------------------------------------------------
     # Phase 3
@@ -1010,8 +1017,6 @@ class GenericBenchmarkRunner:
 
         with open(bench_dir / "config.yml", encoding="utf-8") as f:
             config = yaml.safe_load(f)
-        with open(bench_dir / "summary.json", encoding="utf-8") as f:
-            summary = json.load(f)
 
         run_dir = Path(config["phase2"]["run_dir"])
         run_config_path = run_dir / "config.yml"
@@ -1020,13 +1025,20 @@ class GenericBenchmarkRunner:
             with open(run_config_path, encoding="utf-8") as f:
                 run_config = yaml.safe_load(f)
 
-        per_query = sorted(bench_dir.glob("per_query/[0-9]*"))
-        queries_data = []
-        for qd in per_query:
-            fpath = qd / "filtered_results.json"
-            if fpath.exists():
-                with open(fpath) as f:
-                    queries_data.append(json.load(f))
+        # Per-operator summaries (new structure)
+        op_summaries = {}
+        combined_path = bench_dir / "summary_by_operator.json"
+        if combined_path.exists():
+            with open(combined_path, encoding="utf-8") as f:
+                combined = json.load(f)
+            op_summaries = combined.get("operators", {})
+        else:
+            # Legacy single-operator fallback
+            sj = bench_dir / "summary.json"
+            if sj.exists():
+                with open(sj, encoding="utf-8") as f:
+                    s = json.load(f)
+                op_summaries["linear"] = s
 
         pipe = config.get("pipeline", {})
         report_lines = [
@@ -1042,59 +1054,70 @@ class GenericBenchmarkRunner:
         ]
         for k, v in pipe.items():
             report_lines.append(f"| `{k}` | {v} |")
+
         report_lines += [
             f"\n| Query range | {config['phase2']['query_start']}-{config['phase2']['query_end'] - 1 if config['phase2']['query_end'] is not None else 'N/A'} |",
             f"| Run docs    | {run_config.get('phase1', {}).get('num_docs', '?')} |",
-            f"| Queries     | {summary.get('num_queries', '?')} |\n",
+            f"| Operators  | {', '.join(op_summaries.keys()) or '?'} |\n",
             f"---\n",
-            f"## Aggregate Results\n",
-            f"| Metric | Mean | Min | Max |",
-            f"|--------|------|-----|-----|",
+            f"## Aggregate Results by Fusion Operator\n",
+            f"| Operator | MRR (mean) | MRR 95% CI low | MRR 95% CI high | AP | P@1 | P@2 |",
+            f"|----------|-----------:|---------------:|---------------:|---:|---:|---:|",
         ]
-        for metric in ["mrr", "ap", "p@1", "p@2", "p@3", "p@5", "r@2", "r@5", "ndcg@2", "ndcg@5"]:
-            mean_k = f"mean_{metric}"; min_k = f"min_{metric}"; max_k = f"max_{metric}"
-            if mean_k in summary:
-                report_lines.append(
-                    f"| **{metric.upper()}** | {summary[mean_k]:.4f} | "
-                    f"{summary[min_k]:.4f} | {summary[max_k]:.4f} |"
-                )
-        report_lines += [
-            f"\n**Queries evaluated:** {summary.get('num_queries', '?')}",
-            f"\n**Failed:** {summary.get('failed', 0)}\n",
-            f"---\n",
-            f"## Per-Query Results\n",
-            f"| # | Query | MRR | AP | P@1 | P@2 | R@2 | NDCG@2 | Time |",
-            f"|---|-------|-----|-----|-----|-----|-----|--------|------|",
-        ]
-
-        not_found = found_r1 = found_r2 = 0
-        for qd in queries_data:
-            q_idx = qd["query_idx"]
-            query_short = qd["query"][:50]
-            gold = qd["gold"]
-            ranked = qd.get("filtered_ranked", [])
-            m = compute_metrics(ranked, gold, [1, 2, 3, 5])
+        for op, s in op_summaries.items():
             report_lines.append(
-                f"| {q_idx:04d} | {query_short}... | "
-                f"{m['mrr']:.3f} | {m['ap']:.3f} | {m['p@1']:.3f} | "
-                f"{m['p@2']:.3f} | {m['r@2']:.3f} | {m['ndcg@2']:.3f} | "
-                f"{qd.get('elapsed_s', '?'):>5}s |"
+                f"| {op} | {s.get('mean_mrr', 0):.4f} | "
+                f"{s.get('mrr_ci95_low', 0):.4f} | {s.get('mrr_ci95_high', 0):.4f} | "
+                f"{s.get('mean_ap', 0):.4f} | {s.get('mean_p@1', 0):.4f} | {s.get('mean_p@2', 0):.4f} |"
             )
-            fa = m.get("found_at", 0)
-            if fa == 0:
-                not_found += 1
-            elif fa <= 2:
-                found_r2 += 1
-            if fa == 1:
-                found_r1 += 1
+
+        # Per-query detail for each operator
+        for op, s in op_summaries.items():
+            op_dir = bench_dir / f"op_{op}"
+            per_query = sorted(op_dir.glob("per_query/[0-9]*")) if op_dir.exists() else []
+            queries_data = []
+            for qd in per_query:
+                fpath = qd / "filtered_results.json"
+                if fpath.exists():
+                    with open(fpath) as f:
+                        queries_data.append(json.load(f))
+            if not queries_data:
+                continue
+            report_lines += [
+                f"\n---\n",
+                f"### Operator: {op}\n",
+                f"| # | Query | MRR | AP | P@1 | P@2 | R@2 | NDCG@2 | Time |",
+                f"|---|-------|-----|-----|-----|-----|-----|--------|------|",
+            ]
+            not_found = found_r1 = found_r2 = 0
+            for qd in queries_data:
+                q_idx = qd["query_idx"]
+                query_short = qd["query"][:50]
+                gold = qd["gold"]
+                ranked = qd.get("filtered_ranked", [])
+                m = compute_metrics(ranked, gold, [1, 2, 3, 5])
+                report_lines.append(
+                    f"| {q_idx:04d} | {query_short}... | "
+                    f"{m['mrr']:.3f} | {m['ap']:.3f} | {m['p@1']:.3f} | "
+                    f"{m['p@2']:.3f} | {m['r@2']:.3f} | {m['ndcg@2']:.3f} | "
+                    f"{qd.get('elapsed_s', '?'):>5}s |"
+                )
+                fa = m.get("found_at", 0)
+                if fa == 0:
+                    not_found += 1
+                elif fa <= 2:
+                    found_r2 += 1
+                if fa == 1:
+                    found_r1 += 1
+            report_lines += [
+                f"\n**Found at rank 1:** {found_r1}/{len(queries_data)}",
+                f"\n**Found at rank <= 2:** {found_r1 + found_r2}/{len(queries_data)}",
+                f"\n**Not found:** {not_found}/{len(queries_data)}\n",
+            ]
 
         report_lines += [
-            f"\n### Distribution\n",
-            f"\n**Found at rank 1:** {found_r1}/{len(queries_data)}",
-            f"\n**Found at rank <= 2:** {found_r1 + found_r2}/{len(queries_data)}",
-            f"\n**Not found:** {not_found}/{len(queries_data)}\n",
-            f"---\n",
-            f"*Report generated by `generic_benchmark.py --mode report`*",
+            f"\n---\n",
+            f"*Report generated by `generic_benchmark.py --mode report`*\n",
         ]
 
         with open(report_path, "w", encoding="utf-8") as f:
@@ -1107,9 +1130,12 @@ class GenericBenchmarkRunner:
     # ------------------------------------------------------------------
     def analyze(self, bench_dir: Path) -> Optional[dict]:
         """Run the same analysis as benchmark_analyzer.py, dataset-aware."""
-        per_query = sorted(bench_dir.glob("per_query/[0-9]*"))
+        # Per-query results now live under op_<operator>/per_query/
+        per_query_dirs = sorted(bench_dir.glob("op_*/per_query/[0-9]*"))
+        if not per_query_dirs:
+            per_query_dirs = sorted(bench_dir.glob("per_query/[0-9]*"))
         results = []
-        for qd in per_query:
+        for qd in per_query_dirs:
             fpath = qd / "filtered_results.json"
             if fpath.exists():
                 with open(fpath) as f:
@@ -1118,8 +1144,12 @@ class GenericBenchmarkRunner:
             logger.error("No per-query results found")
             return None
 
-        with open(bench_dir / "summary.json", encoding="utf-8") as f:
-            summary = json.load(f)
+        op_summaries = {}
+        combined_path = bench_dir / "summary_by_operator.json"
+        if combined_path.exists():
+            with open(combined_path, encoding="utf-8") as f:
+                combined = json.load(f)
+            op_summaries = combined.get("operators", {})
 
         analysis = {
             "dataset": self.adapter.dataset_name,
@@ -1127,7 +1157,8 @@ class GenericBenchmarkRunner:
             "benchmark": bench_dir.name,
             "generated_at": datetime.now().isoformat(),
             "num_queries": len(results),
-            "summary": summary,
+            "operator_summaries": op_summaries,
+            "summary": next(iter(op_summaries.values()), {}),
             "metrics_distribution": {},
             "found_at_distribution": defaultdict(int),
             "failures": [],
@@ -1278,8 +1309,21 @@ def cli_main():
                        help="Max document frequency to keep a phrase (0=unlimited, default: 0)")
     p_bm.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
                        help="HuggingFace SPLADE model name")
-    p_bm.add_argument("--fusion-method", type=str, default=None, choices=["linear", "rrf"],
+    p_bm.add_argument("--fusion-method", type=str, default=None,
+                       choices=["linear", "rrf", "combsum", "combmnz", "borda", "zscore", "minmax", "l2"],
                        help="Fusion method for SF+SPLADE: linear or rrf. If not set, uses dataset registry default (or 'linear').")
+    p_bm.add_argument("--fusion-operators", type=str, default=None,
+                      help="Comma-separated list of fusion operators to evaluate in ONE run "
+                           "(e.g. 'linear,rrf,combsum,combmnz,borda,zscore,minmax'). "
+                           "Produces a per-operator benchmark matrix. Overrides --fusion-method.")
+    p_bm.add_argument("--signal-a", type=str, default="sf", choices=["sf", "bm25"],
+                      help="First fusion signal (default sf). Set 'bm25' for BM25+X pairs.")
+    p_bm.add_argument("--retriever-b", type=str, default=None, choices=["splade", "dpr", "bm25", "none"],
+                      help="Second fusion signal. 'dpr' enables the second-model pair (reviewer #4).")
+    p_bm.add_argument("--dpr-ctx-model", type=str, default="facebook/dpr-ctx_encoder-single-nq-base",
+                      help="DPR context encoder for --retriever-b dpr.")
+    p_bm.add_argument("--dpr-qry-model", type=str, default="facebook/dpr-question_encoder-single-nq-base",
+                      help="DPR question encoder for --retriever-b dpr.")
     p_bm.add_argument("--rrf-k", type=int, default=None,
                        help="Rank constant k for RRF fusion. If not set, uses dataset registry default (or 60).")
     p_bm.add_argument("--multi-resolution", action="store_true",
@@ -1483,6 +1527,32 @@ def cli_main():
     p_all.add_argument("--synonym-weight", type=float, default=PIPELINE_DEFAULTS["synonym_weight"],
                        help="Weight for synonym-expanded phrases")
 
+    # ── Fusion operators / second-model pair (journal expansion) ─────────
+    p_all.add_argument("--splade", action="store_true", default=True,
+                       help="Enable hybrid SF+SPLADE scoring (default: True)")
+    p_all.add_argument("--no-splade", dest="splade", action="store_false",
+                       help="Disable SPLADE hybrid scoring")
+    p_all.add_argument("--splade-model", type=str, default="naver/splade-cocondenser-ensembledistil",
+                       help="HuggingFace SPLADE model name")
+    p_all.add_argument("--fusion-method", type=str, default=None,
+                       choices=["linear", "rrf", "combsum", "combmnz", "borda", "zscore", "minmax", "l2"],
+                       help="Single fusion method (legacy). Use --fusion-operators for the full matrix.")
+    p_all.add_argument("--fusion-operators", type=str, default=None,
+                       help="Comma-separated fusion operators to evaluate in ONE run "
+                            "(e.g. 'linear,rrf,combsum,combmnz,borda,zscore,minmax').")
+    p_all.add_argument("--signal-a", type=str, default="sf", choices=["sf", "bm25"],
+                       help="First fusion signal (default sf). 'bm25' for BM25+X pairs.")
+    p_all.add_argument("--retriever-b", type=str, default=None, choices=["splade", "dpr", "bm25", "none"],
+                       help="Second fusion signal. 'dpr' = second-model pair (reviewer #4).")
+    p_all.add_argument("--dpr-ctx-model", type=str, default="facebook/dpr-ctx_encoder-single-nq-base",
+                       help="DPR context encoder for --retriever-b dpr.")
+    p_all.add_argument("--dpr-qry-model", type=str, default="facebook/dpr-question_encoder-single-nq-base",
+                       help="DPR question encoder for --retriever-b dpr.")
+    p_all.add_argument("--rrf-k", type=int, default=None,
+                       help="Rank constant k for RRF fusion (default 60).")
+    p_all.add_argument("--hybrid-alpha", type=float, default=None,
+                       help="SF weight in hybrid/linear fusion.")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -1536,6 +1606,15 @@ def cli_main():
         params["splade_model"] = args.splade_model
     if hasattr(args, "fusion_method") and args.fusion_method is not None:
         params["fusion_method"] = args.fusion_method
+    if hasattr(args, "fusion_operators") and args.fusion_operators:
+        params["fusion_operators"] = [o.strip() for o in args.fusion_operators.split(",") if o.strip()]
+    if hasattr(args, "signal_a") and args.signal_a and args.signal_a != "sf":
+        params["signal_a"] = args.signal_a
+    if hasattr(args, "retriever_b") and args.retriever_b:
+        params["retriever_b"] = args.retriever_b
+        if args.retriever_b == "dpr":
+            params["dpr_ctx_model"] = getattr(args, "dpr_ctx_model", "facebook/dpr-ctx_encoder-single-nq-base")
+            params["dpr_qry_model"] = getattr(args, "dpr_qry_model", "facebook/dpr-question_encoder-single-nq-base")
     if hasattr(args, "rrf_k") and args.rrf_k is not None:
         params["rrf_k"] = args.rrf_k
     if hasattr(args, "full_corpus"):

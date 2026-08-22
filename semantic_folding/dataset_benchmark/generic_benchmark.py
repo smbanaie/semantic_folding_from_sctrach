@@ -300,6 +300,76 @@ def build_combined_corpus(entries: List[dict]):
     return corpus_lines, query_doc_map, query_gold
 
 
+def build_deep_pool_corpus(entries: List[dict], N: int, seed: int = 42):
+    """
+    Deep-pool variant for the candidate-size scaling sweep (§8.4).
+
+    Each query keeps its native paragraphs (gold + dataset distractors) and is
+    *additionally* padded with (N - native_count) distractor paragraphs drawn from
+    a global pool of non-gold paragraphs across all queries. This holds the query
+    fixed while growing the candidate set size to exactly N, so we can measure
+    whether gold rank/MRR degrades as the pool grows (score-concentration test).
+    Distractors are sampled without replacing a query's own gold paragraphs.
+    """
+    import random
+    rng = random.Random(seed)
+
+    # Build a global pool of (title, text, gid-less) paragraphs marked non-gold.
+    global_paras = []  # (title, text)
+    for entry in entries:
+        for p in entry.get("paragraphs", []):
+            if not p.get("is_supporting", False):
+                global_paras.append((p.get("title", ""), p.get("paragraph_text", "")))
+
+    seen = {}
+    corpus_lines = []
+    query_doc_map = {}
+    query_gold = {}
+    next_id = 0
+
+    def _assign(title, text):
+        nonlocal next_id
+        key = (title, text)
+        if key not in seen:
+            gid = f"doc_{next_id:06d}"
+            seen[key] = gid
+            corpus_lines.append(f"{gid}, {title} {text}")
+            next_id += 1
+        return seen[key]
+
+    for q_idx, entry in enumerate(entries):
+        doc_ids = []
+        gold_ids = []
+        native = []
+        for p in entry.get("paragraphs", []):
+            gid = _assign(p.get("title", ""), p.get("paragraph_text", ""))
+            native.append(gid)
+            doc_ids.append(gid)
+            if p.get("is_supporting", False):
+                gold_ids.append(gid)
+        # Pad to N with distractors from the global non-gold pool.
+        needed = max(0, N - len(doc_ids))
+        if needed > 0:
+            # Exclude this query's own paragraphs from the distractor draw.
+            own_keys = {(p.get("title", ""), p.get("paragraph_text", "")) for p in entry.get("paragraphs", [])}
+            pool = [pt for pt in global_paras if pt not in own_keys]
+            if len(pool) < needed:
+                # Reuse with replacement if the global pool is smaller than needed.
+                sampled = rng.choices(pool, k=needed) if pool else []
+            else:
+                sampled = rng.sample(pool, needed)
+            for (title, text) in sampled:
+                gid = _assign(title, text)
+                doc_ids.append(gid)
+        query_doc_map[str(q_idx)] = doc_ids
+        if gold_ids:
+            query_gold[str(q_idx)] = gold_ids
+
+    logger.info(f"Deep-pool corpus: {len(corpus_lines)} paragraphs, pool size N={N}, "
+                f"{len(entries)} queries")
+    return corpus_lines, query_doc_map, query_gold
+
+
 def build_full_corpus(global_corpus_path: Path, entries: List[dict]):
     """
     Full-corpus variant: the candidate set for EVERY query is the entire corpus.
@@ -445,7 +515,7 @@ class GenericBenchmarkRunner:
         logger.info(f"Index run: {run_dir.name} ({len(entries)} queries, "
                     f"params: {self.params})")
 
-        # Build combined corpus (pool mode) or full corpus (--full-corpus)
+        # Build combined corpus (pool mode), deep pool (N-sweep), or full corpus (--full-corpus)
         if self.params.get("full_corpus"):
             global_corpus_path = Path(str(jsonl_path).replace(".jsonl", "_corpus.txt"))
             if not global_corpus_path.exists():
@@ -454,6 +524,9 @@ class GenericBenchmarkRunner:
                     f"Run the adapter's convert_to_full_corpus_format() first."
                 )
             corpus_lines, query_doc_map, query_gold = build_full_corpus(global_corpus_path, entries)
+        elif self.params.get("deep_pool"):
+            N = int(self.params["deep_pool"])
+            corpus_lines, query_doc_map, query_gold = build_deep_pool_corpus(entries, N)
         else:
             corpus_lines, query_doc_map, query_gold = build_combined_corpus(entries)
 
@@ -1361,6 +1434,8 @@ def cli_main():
                        help="Similarity metric for document ranking")
     p_bm.add_argument("--full-corpus", action="store_true", default=False,
                       help="Rank over the ENTIRE corpus (full-corpus evaluation). The run-dir's query_doc_map.json must already contain all corpus ids (built by `index --full-corpus`).")
+    p_bm.add_argument("--deep-pool", type=int, default=None,
+                      help="Candidate-size scaling sweep (§8.4): pad each query's candidate set to N documents (native + sampled distractors) to test score concentration.")
     p_bm.add_argument("--asymmetric", action="store_true", help="Use asymmetric containment/coverage scoring")
     p_bm.add_argument("--asym-alpha", type=float, default=0.7, help="Containment weight in asymmetric mode")
     p_bm.add_argument("--score-norm", type=str, default="none",
@@ -1469,6 +1544,8 @@ def cli_main():
                         help="Rank constant k for RRF fusion. If not set, uses dataset registry default (or 60).")
     p_all.add_argument("--full-corpus", action="store_true", default=False,
                         help="Rank over the ENTIRE corpus (full-corpus evaluation) instead of the gold+distractor pool. Requires the <name>_full_corpus.txt sidecar from the adapter's convert_to_full_corpus_format().")
+    p_all.add_argument("--deep-pool", type=int, default=None,
+                        help="Candidate-size scaling sweep (§8.4): pad each query's candidate set to N documents (native + sampled distractors) to test score concentration.")
     p_all.add_argument("--multi-resolution", action="store_true",
                         help="Apply multi-resolution spreading (spread at multiple radii and combine)")
     p_all.add_argument("--doc-norm", type=str, default="l2", choices=["sqrt_nnz", "l2", "l1", "max"])
@@ -1623,6 +1700,8 @@ def cli_main():
         params["rrf_k"] = args.rrf_k
     if hasattr(args, "full_corpus"):
         params["full_corpus"] = args.full_corpus
+    if hasattr(args, "deep_pool") and args.deep_pool is not None:
+        params["deep_pool"] = args.deep_pool
     if hasattr(args, "multi_resolution"):
         params["multi_resolution"] = args.multi_resolution
     if hasattr(args, "doc_norm"):

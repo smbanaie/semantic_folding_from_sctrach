@@ -595,24 +595,50 @@ Figures/tables, statistical validation, reviewer-test answers → filled after b
 
 ---
 
-## Overall Progress
+## Session Log — 2026-08-22 (evening, continuation)
 
-**Phases code-complete:** 1, 2 (DPR), 6 (skeleton)
-**Experiments Run:** 0/224 (Phase 1) + 0/224 (Phase 2) + 0 (Phase 3) + 0 (Phase 4) + 0 (Phase 5)  — **BLOCKED: E: drive 100% full (12 MB)**
-**Paper Sections Drafted:** 10/10 skeleton (empirical cells pending runs)
-**Reviewer Questions Answered:** 0/5 (need runs)
-**Ad-hoc code verification:** PASS (fusion operators + Prop1; DPR wiring; CLI flags)
+**Context:** E: drive freed by user; all Phase 1 (SF+SPLADE 8-dataset matrix) and Phase 2 (4-pair × 2-dataset design) benchmarks already COMPLETE and committed. This session filled the remaining empirical + honest-status gaps in the journal draft.
+
+### Work done this session
+1. **§6.6 Kendall τ complementarity** — filled with REAL numbers from existing run artifacts via `temp/tau_complementarity.py` (ad-hoc verified: HotpotQA-SPLADE rrf vs combsum τ=+0.800; HotpotQA-DPR rrf vs combsum τ=+1.000 confirming the collapse).
+2. **§8.4 Candidate-Size Scaling** — honest status: harness does fixed top-5 reranking (pool=5), so the N∈{20…10k} sweep is marked FUTURE WORK (not fabricated); real within-pool separation ratios reported (1.18/1.12/1.06).
+3. **§8.2 Non-Collinear Feature Tests** + **§8.5 Full-Corpus Evaluation** — honest FUTURE WORK status (need new harness code: adversarial-feature ablation; per-adapter `convert_to_full_corpus_format` sidecar — only `beir_adapter` has it).
+4. **§5 SF-Only baselines** — RAN real SF-only baselines (`--retriever-b none`) on all 8 datasets:
+   | Dataset | SF-Only | BM25 | Verdict |
+   |---------|--------:|-----:|---------|
+   | Belebele | 1.000 | 0.995 | ceiling match |
+   | PopQA | 1.000 | 1.000 | ceiling match |
+   | NarrativeQA | 1.000 (AP 0.017) | 0.980 | MRR edge, AP caveat |
+   | PubMedQA | 0.800 | 1.000 | < BM25 (single-hop moderate) |
+   | 2WikiMultihopQA | 0.858 | 0.921 | < BM25 (multi-hop) |
+   | HotpotQA | 0.365 | 0.869 | ≪ BM25 (multi-hop collapse) |
+   | MuSiQue | 0.720 | 0.482 | > BM25 (multi-hop edge) |
+   | NQ-REaR | 0.725 | 0.675 | > BM25 (edge) |
+   SPLADE-Only column honestly flagged as needing a `--signal-a splade` mode (future work).
+5. **§4.5** stale placeholder removed; **References** populated with the canonical citations already used inline in §2 (Fox&Shaw 1994, Cormack 2009, Bruch 2024, DPR, SPLADE, datasets, Kanerva 1988, Hawkins 2016) + explicit verification-pending note (web-blocked).
+
+### Remaining honest gaps (flagged in draft, not blockers)
+- §8.2 (adversarial-feature ablation) — needs harness code.
+- §8.4 full N-sweep — needs deep-pool harness.
+- §8.5 full-corpus — needs per-adapter sidecar.
+- SPLADE-Only column (§5) — needs `--signal-a splade`.
+- References DOI/venue disambiguation — needs web verification (blocked).
+- No merge to main (user standing rule: merge only after explicit confirmation).
 
 ---
 
-## Open Blocker — Needs User Decision
+## Overall Progress
 
-**E: drive full (12 MB / 118 GB).** SPLADE/DPR cache writes fail (np.save OSError).
-Options: (a) free E: space, or (b) redirect cache/run/output to C:/D:/G:.
-No benchmark can run until resolved.
+**Phases code-complete:** 1, 2 (DPR + 4-pair design), 3 (synthetic control), 4 (SF limitations), 5 (SF baselines)
+**Experiments Run:** Phase 1 = 8 datasets × 7 operators (SF+SPLADE) ✅; Phase 2 = 4 model pairs × 2 discriminating datasets (HotpotQA, NQ-REaR) ✅; §5 = 8 SF-only baselines ✅
+**Paper Sections:** empirical cells filled for §5, §6, §7, §9; §8.2/8.4-sweep/8.5 marked honest future work
+**Reviewer Questions Answered:** 4/5 (RQ2 second-model ✅, RQ3 synthetic ✅, RQ4 task-geometry ✅, magnitude fallacy ✅; remaining: full-corpus scale validation)
+**Ad-hoc code verification:** PASS (fusion operators + Prop1; DPR wiring; CLI flags; tau/separation analysis scripts on real artifacts)
+
+---
 
 ## Next Action
-> Resolve disk blocker → run Phase 1 full operator matrix (8 datasets × 7 operators, SF+SPLADE) → fill §6 master table → Phase 2 (DPR pairs) → Phase 3 (synthetic) → etc.
+> Optional strengtheners: run §8.2/§8.4/§8.5 harness code (future-work items), or expand 10Q probes to 50Q for tighter CIs. Otherwise the empirical core is complete and the draft is submission-ready pending reference verification and a final read-through. No merge to main until user confirms.
 
 ---
 

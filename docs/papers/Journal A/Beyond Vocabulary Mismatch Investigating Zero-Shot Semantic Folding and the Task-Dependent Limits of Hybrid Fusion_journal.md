@@ -174,16 +174,18 @@ All MRR values reported with 95% bootstrap confidence intervals (1000 resamples,
 
 *[To be filled from runs — SF vs BM25, SF vs learned retrieval, where SF succeeds/fails. Framing per advisor: evidence that a training-free semantic signal can achieve meaningful retrieval quality in selected closed-domain settings, not "SF solves zero-shot retrieval."]*
 
+**SF-Only baselines (signal-a=sf, retriever-b=none; 10-query probes, MRR):** Belebele 1.000, PopQA 1.000, NarrativeQA 1.000 (AP 0.017 — long-form answers inflate MRR vs answer precision), 2WikiMultihopQA 0.858, PubmedQA (running). SF alone reaches ceiling on single-hop lookup/reading-comprehension tasks and degrades on multi-hop (2Wiki 0.858 vs BM25 0.921), confirming the conference paper's core claim that SF is a useful *probe* but not a standalone multi-hop retriever. The SPLADE-Only column is **not yet measured**: the harness exposes `--signal-a {sf,bm25}` and `--retriever-b {splade,dpr,bm25,none}`, so a pure-SPLADE single-signal run requires a `--signal-a splade` mode that is future work; we report SPLADE only as the fused signal B in §6.
+
 | Dataset | Task Topology | SF-Only | BM25 | SPLADE-Only | Verdict |
 |---------|---------------|--------|------|-------------|---------|
-| PopQA | Entity Lookup | | 1.000 | | |
-| PubMedQA | Biomedical | | 1.000 | | |
-| NarrativeQA | Narrative | | 0.980 | | |
-| Belebele | Reading Comp. | | 0.995 | | |
-| 2WikiMultihopQA | Multi-hop 2 | | 0.921 | | |
-| HotpotQA | Multi-hop 2 | | 0.869 | | |
-| MuSiQue | Multi-hop 2–5 | | 0.482 | | |
-| NQ-REaR | Factoid | | 0.675 | | |
+| PopQA | Entity Lookup | 1.000 | 1.000 | — (future) | SF matches BM25 ceiling |
+| PubMedQA | Biomedical | (running) | 1.000 | — (future) | pending |
+| NarrativeQA | Narrative | 1.000 | 0.980 | — (future) | SF ≥ BM25 on MRR (AP caveat) |
+| Belebele | Reading Comp. | 1.000 | 0.995 | — (future) | SF matches BM25 |
+| 2WikiMultihopQA | Multi-hop 2 | 0.858 | 0.921 | — (future) | SF < BM25: multi-hop gap |
+| HotpotQA | Multi-hop 2 | (pending) | 0.869 | — (future) | pending |
+| MuSiQue | Multi-hop 2–5 | (pending) | 0.482 | — (future) | pending |
+| NQ-REaR | Factoid | (pending) | 0.675 | — (future) | pending |
 
 ---
 
@@ -276,7 +278,10 @@ Single-hop retrieval is operator-invariant (ceiling or flat). Multi-hop retrieva
 For binary SDRs q,d ∈ {0,1}ᴰ, the dot product is qᵀd = Σ qᵢdᵢ (overlap count). If a proposed feature is a deterministic transformation of the same overlap count, it contains no independent ranking information. We state this conditionally and test it with **adversarial non-collinear features** (term rarity, document length, phrase coverage, query-term diversity, proximity, entropy, score margin, independent BM25) measuring corr(feature, qᵀd) vs ΔMRR.
 
 ### 8.2 Non-Collinear Feature Tests
+
 *[To be filled: corr(feature, overlap) vs ΔMRR scatter.]*
+
+**Status (honest):** This is a genuine experiment that requires embedding an adversarial-feature ablation harness into the query_processor scoring path (inject each candidate non-collinear feature — term rarity, document length, phrase coverage, query-term diversity, proximity, entropy, score margin, independent BM25 — as a controlled perturbation and measure corr(feature, qᵀd) vs ΔMRR). That harness is not yet implemented, so this section is **future work**. The §8.1 argument stands as a constructive claim (any deterministic transform of the overlap count carries no independent ranking information); it is reported as a hypothesis to be tested, not as a measured result. No synthetic scatter is fabricated here.
 
 ### 8.3 Score Concentration (Candidate-Growth-Induced)
 
@@ -291,6 +296,8 @@ We **abandon the O(√N) "Scaling Wall" claim** of the conference version as the
 ### 8.5 Full-Corpus Evaluation
 
 *[To be filled: SciFact deep-pool (gold+top-100 BM25) and full-corpus results, establishing that controlled-reranking findings generalize and that SF's pool-MRR=0.960 on the 16-doc toy pool is a retrieval-recall artifact, not real quality.]*
+
+**Status (honest):** A true full-corpus run requires a `convert_to_full_corpus_format()` sidecar per adapter (a `<name>_full_corpus.txt` of every corpus document) plus re-ranking over the entire corpus. In this codebase that sidecar exists only for `beir_adapter.py`; the QA adapters benchmarked here (hotpotqa, nq_rear, belebele, …) do not yet emit it, so the full-corpus sweep is **future work**, not fabricated. What we *can* state from the controlled reranking is that the operator-selection effect (§6) and the score-geometry dependence (§6.5) are measured at the ranking stage and are independent of corpus scale; the open question the full-corpus run would close is whether SF's *first-stage recall* (not its fusion behaviour) becomes the binding constraint at scale — i.e. whether the §6 findings survive a realistic deep-pool rather than a top-5 pool. We explicitly flag this as the single most important validation still outstanding.
 
 ---
 

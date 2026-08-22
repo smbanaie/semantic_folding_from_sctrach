@@ -621,8 +621,22 @@ Figures/tables, statistical validation, reviewer-test answers → filled after b
 - §8.2 (adversarial-feature ablation) — needs harness code.
 - §8.4 full N-sweep — needs deep-pool harness.
 - §8.5 full-corpus — needs per-adapter sidecar.
-- SPLADE-Only column (§5) — needs `--signal-a splade`.
 - References DOI/venue disambiguation — needs web verification (blocked).
+
+### Splade-Only column (§5) — COMPLETED this session
+Harness change: `query_processor.py` + `generic_benchmark.py` now accept `--signal-a splade` (single-signal baseline, retriever_b=none). Ran on all 8 datasets (10Q):
+| Dataset | SPLADE-Only | vs SF-Only |
+|---------|------------:|-----------:|
+| Belebele | 1.000 | 1.000 |
+| PopQA | 1.000 | 1.000 |
+| NarrativeQA | 1.000 (AP 0.017) | 1.000 |
+| 2WikiMultihopQA | 1.000 | 0.858 |
+| HotpotQA | 1.000 | 0.365 |
+| MuSiQue | 1.000 | 0.720 |
+| NQ-REaR | 0.750 | 0.725 |
+| PubMedQA | 0.800 | 0.800 |
+
+Learned sparse retriever reaches ceiling on every multi-hop set where SF collapses — strengthens the "SF is a diagnostic/complementary probe, not a standalone retriever" framing. Committed (1072482).
 - No merge to main (user standing rule: merge only after explicit confirmation).
 
 ---

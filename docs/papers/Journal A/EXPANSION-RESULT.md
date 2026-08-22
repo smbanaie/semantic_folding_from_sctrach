@@ -308,6 +308,24 @@ Wired into:
 
 **Phase 2 Status:** ✅ SF+DPR (HotpotQA, NQ-REaR, Belebele probe) done. ⏳ BM25+SPLADE / BM25+DPR pending (optional; add if time permits for completeness of 4-pair matrix).
 
+### 2.5 BM25+SPLADE (signal A = BM25) — ⏳ IN PROGRESS
+Tests whether the magnitude-wins pattern generalizes when BM25 (not SF) is signal A with SPLADE as B.
+
+#### 2.5.1 NQ-REaR (factoid) — BM25+SPLADE — ✅ COMPLETE
+**Raw results:** `outputs/nq_rear_benchmark/benchmarks/benchmark_20260822_033334/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| linear | 0.700 | 0.450–0.950 | 0.2911 | 0.600 | 0.500 |
+| rrf (rank-only) | 0.750 | 0.450–1.000 | 0.3307 | 0.700 | 0.500 |
+| combsum (raw magnitude) | 0.750 | 0.450–1.000 | 0.3674 | 0.700 | 0.550 |
+
+**Contrast with SF+SPLADE (NQ-REaR):** SF+SPLADE gave combsum 0.800 > rrf 0.720 > linear 0.700. BM25+SPLADE gives rrf = combsum = 0.750 > linear 0.700. So with BM25 as A, raw magnitude (combsum) still ties/beats RRF (consistent), but the α-weighted linear blend underperforms — the linear optimum depends on whether signal A is SF (magnitude-rich) or BM25 (already magnitude-sparse). Reinforces: operator optimality depends on BOTH signals' geometries, not the task alone.
+
+**Note (2026-08-22):** First HotpotQA BM25+SPLADE attempt hit a transient `runs_registry.yml` YAML collision from two concurrent background runs writing the shared registry; the file is valid on re-read and the run was relaunched successfully. No code defect.
+
+**Phase 2 Status:** ✅ SF+DPR (2 datasets) + NQ-REaR BM25+SPLADE done; 🔄 HotpotQA BM25+SPLADE relaunched; BM25+DPR pending.
+
 ---
 
 ## Phase 3: Synthetic Magnitude Experiment

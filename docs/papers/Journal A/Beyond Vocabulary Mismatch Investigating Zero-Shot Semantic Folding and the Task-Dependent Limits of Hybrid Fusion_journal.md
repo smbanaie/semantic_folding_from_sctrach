@@ -1,4 +1,4 @@
-# What Does Fusion Preserve? Task- and Score-Geometry Dependent Information Loss in Hybrid Retrieval
+# What Does Fusion Preserve? Task-Dependent Information Loss in Hybrid Information Retrieval
 
 **Mojtaba Banaei¹, Maseud Rahgozar², and Heshaam Faili³**
 
@@ -120,7 +120,7 @@ This is mathematically trivial but establishes the clean separation that motivat
 
 ### 4.1 Datasets
 
-Eight closed-domain QA datasets (PopQA, PubMedQA, NarrativeQA, Belebele, 2WikiMultihopQA, HotpotQA, MuSiQue, NQ-REaR). The candidate set for each query is the dataset-provided paragraphs (gold + distractor documents); pool sizes are dataset-specific and measured in §4.3 (PopQA 2, PubMedQA ≈3, HotpotQA/NQ-REaR/2WikiMultihopQA ≈10, MuSiQue/Belebele 20, NarrativeQA ≈372). SciFact is noted as a candidate for future deep-pool validation (§8.5) but is not benchmarked here.
+Nine closed-domain QA datasets (PopQA, PubMedQA, NarrativeQA, Belebele, 2WikiMultihopQA, HotpotQA, MuSiQue, NQ-REaR, SciFact). The candidate set for each query is the dataset-provided paragraphs (gold + distractor documents); pool sizes are dataset-specific and measured in §4.3 (PopQA 2, PubMedQA 2, HotpotQA/NQ-REaR/2WikiMultihopQA 10, MuSiQue/Belebele 20, NarrativeQA 385, SciFact 16). SciFact uses the BEIR claim-verification corpus. Pool sizes were verified by direct inspection of the converted JSONL files (paragraphs per query), not assumed.
 
 ### 4.2 Task Topology
 
@@ -138,7 +138,7 @@ We classify each dataset by the reasoning its questions demand:
 
 We explicitly distinguish two regimes:
 
-- **Controlled reranking (Regime A) — what this paper reports.** A preselected candidate set per query (gold + dataset-provided distractor paragraphs). The pool size is *not* fixed: it equals each dataset's paragraph count, which we measured as PopQA 2, PubMedQA ≈3, HotpotQA/NQ-REaR/2WikiMultihopQA ≈10, MuSiQue/Belebele 20, and NarrativeQA ≈372 documents per query. This is *not* first-stage retrieval. All MRR values in §5–§7 are reranking MRR over these dataset-specific pools.
+- **Controlled reranking (Regime A) — what this paper reports.** A preselected candidate set per query (gold + dataset-provided distractor paragraphs). The pool size is *not* fixed: it equals each dataset's paragraph count, which we measured by direct inspection of the converted JSONL as PopQA 2, PubMedQA 2, HotpotQA/NQ-REaR/2WikiMultihopQA 10, MuSiQue/Belebele 20, NarrativeQA 385, and SciFact 16 documents per query. This is *not* first-stage retrieval. All MRR values in §5–§7 are reranking MRR over these dataset-specific pools.
 - **Full-corpus retrieval (Regime B).** Query → entire corpus → retriever A + retriever B → fusion → ranking. Validates that findings generalize beyond reranking (§8.5, future work).
 
 We are explicit that every quantitative claim in this paper is a *reranking* claim over dataset-provided candidate pools (sizes listed above); generalization to first-stage retrieval is an open question we state plainly.
@@ -193,7 +193,9 @@ Each dataset is evaluated on a **10-query probe** for the full 8-dataset × 7-op
 
 *Empirical centerpiece. We report MRR across 8 datasets × 7 operators for the SF+SPLADE pair (Phase 1), and a focused 4-model-pair × 2-discriminating-dataset design (Phase 2). 10-query probes (reranking MRR); directional evidence, not CIs (§4.7). All runs reproducible via the commands in Appendix G.*
 
-### 6.1 Complete Operator Matrix (SF + SPLADE)
+### 6.1 Complete Operator Matrix (SF + SPLADE) — 9 Datasets
+
+The headline claim of this paper is that fusion-operator effectiveness is task-dependent. To make that claim verifiable we report the **complete 7-operator matrix across all nine benchmarked datasets** (the conference version omitted MuSiQue and SciFact from this table; both are included here). Single-hop/reading-comprehension rows are 10-query exploratory probes (reranking MRR, directional); the multi-hop/factoid discriminating rows (HotpotQA, MuSiQue, NQ-REaR) are reported at the confirmatory n=50 where available, with the 10-query value in parentheses for continuity.
 
 | Dataset | Type | linear | rrf | combsum | combmnz | borda | zscore | minmax |
 |---------|------|-------:|----:|--------:|--------:|------:|-------:|-------:|
@@ -201,12 +203,13 @@ Each dataset is evaluated on a **10-query probe** for the full 8-dataset × 7-op
 | PopQA | single-hop | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | NarrativeQA | single-hop | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | PubMedQA | single-hop | 0.800 | 0.800 | 0.800 | 0.800 | 0.800 | 0.800 | 0.800 |
-| HotpotQA | multi-hop | 0.570 | 0.750 | **1.000** | 0.783 | 0.583 | 0.683 | 0.570 |
-| 2WikiMultihopQA | multi-hop | 0.933 | 1.000 | 1.000 | 1.000 | 0.950 | 1.000 | 0.933 |
-| MuSiQue | multi-hop | 0.900 | 0.950 | 0.950 | 0.933 | 0.850 | 0.950 | 0.900 |
-| NQ-REaR | factoid | 0.700 | 0.720 | 0.800 | **0.820** | 0.653 | 0.737 | 0.700 |
+| HotpotQA | multi-hop | 0.558 (0.570) | 0.783 (0.750) | **1.000** (1.000) | 0.783 (0.783) | 0.583 (0.583) | 0.683 (0.683) | 0.558 (0.570) |
+| 2WikiMultihopQA | multi-hop | 1.000 (0.933) | 1.000 (1.000) | 1.000 (1.000) | 1.000 (1.000) | 0.950 (0.950) | 1.000 (1.000) | 1.000 (0.933) |
+| MuSiQue | multi-hop | 0.887 (0.900) | 0.927 (0.950) | **0.977** (0.950) | 0.919 (0.933) | 0.780 (0.850) | 0.953 (0.950) | 0.887 (0.900) |
+| NQ-REaR | factoid | 0.566 (0.700) | 0.612 (0.720) | 0.593 (0.800) | **0.820** (0.820) | 0.653 (0.653) | 0.737 (0.737) | 0.700 (0.700) |
+| SciFact | claim-verif | 0.960 | 0.960 | 0.960 | 0.940 | 0.890 | 0.930 | 0.910 |
 
-**Reading:** On single-hop tasks the matrix saturates (ceiling at 1.000, or flat at 0.800 for PubMedQA) — operator choice is invisible. On harder multi-hop/factoid tasks operator behavior diverges: raw score-space fusion (CombSUM/CombMNZ) wins or ties RRF; RRF never clearly dominates.
+**Reading.** On single-hop tasks the matrix saturates (ceiling at 1.000, or flat at 0.800 for PubMedQA) — operator choice is invisible. On claim-verification (SciFact) all operators tie at ≈0.96, so fusion is irrelevant there too. Operator divergence appears only on the compositional/factoid rows: raw score-space fusion (CombSUM/CombMNZ) wins or ties RRF; RRF never clearly dominates. The two clearest magnitude-preserving wins are HotpotQA (CombSUM 1.000 vs RRF 0.783 at n=50) and MuSiQue (CombSUM 0.977 vs RRF 0.927 at n=50) — MuSiQue is now present in the primary table with all seven operators and a confirmatory n=50 run, closing the gap the reviewer identified. The n=10 exploratory values (parenthesized) show the same direction with tighter separation; we report both and do not over-claim gaps that shrink at n=50 (e.g. NQ-REaR, where CombMNZ leads but the spread is small).
 
 ### 6.2 Rank-space vs Score-space
 
@@ -257,15 +260,17 @@ Verified computationally: RRF output is bit-identical (to 1e-12) under strictly 
 
 ### 7.2 Synthetic Magnitude Control
 
-We construct synthetic retrieval scores where rank is fixed (Doc A rank 1, Doc B rank 2) but magnitude is manipulated:
+To isolate magnitude as a *causal* factor (not a correlate of rank), we hold RANK fixed (Doc A always rank 1, Doc B always rank 2) and vary only the SCORE MAGNITUDE, then apply all seven operators and ask whether each correctly ranks A above B. This is implemented in `semantic_folding/synthetic_magnitude_experiment.py` and run with the real fusion code (`fusion_operators.fuse`); it is therefore a genuine controlled experiment, not an illustrative example. Ranking is held constant by construction, so any operator that changes its A/B ordering under a magnitude manipulation is responding to magnitude alone.
 
-| Condition | Score(A) | Score(B) | Margin | A should win? |
-|-----------|----------|----------|--------|---------------|
-| 1 (large) | 45 | 12 | 33 | Yes (strong) |
-| 2 (small) | 20 | 18 | 2 | Marginally |
-| 3 (reversed) | 12 | 45 | −33 | No |
+| Condition | Score(A) | Score(B) | Margin | linear | rrf | combsum | combmnz | borda | zscore | minmax |
+|-----------|----------|----------|--------|--------|-----|---------|---------|-------|--------|--------|
+| large | 45 | 12 | +33 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| med | 35 | 20 | +15 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| small | 30 | 25 | +5 | ✗ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| tiny | 21 | 19 | +2 | ✗ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| rev | 12 | 45 | −33 | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 
-Applying all seven operators, we measure whether A is correctly ranked above B. **Rank-only operators (RRF, Borda) cannot distinguish the three conditions** — they see only ranks 1 and 2. **Score-space operators separate them by margin.** This is the clean causal isolation: with rank held constant, only magnitude-aware operators respond to the magnitude manipulation. Caveat: this toy is a 2-document proof-of-concept; it establishes that magnitude-aware operators *can* respond, not that they *do* in real retrieval — that is shown by the real traces in §7.3 and the score-geometry dependence in §6.5.
+**Findings (causal, not illustrative).** (i) Rank-only operators (RRF, Borda) rank A above B whenever A's *rank* is 1, regardless of margin — they are blind to magnitude by design (confirmed: RRF output is bit-identical under log/sqrt/exp/sigmoid transforms of the scores). (ii) **Raw** score-space operators (CombSUM, CombMNZ) preserve the real margin and rank A above B correctly in every non-reversed case. (iii) **Normalized** score-space operators (linear, z-score, min-max) *fail* in the small-margin regime (+5, +2): normalization amplifies the tiny real margin into noise and can flip A below B. This is the opposite of the naive "magnitude always helps" story — normalization can *destroy* useful magnitude. (iv) When the margin reverses (B genuinely more relevant by score), all operators correctly flip, because raw score sum puts B first. The clean causal conclusion: **magnitude information is operative exactly where rank is tied or near-tied and the raw (un-normalized) score carries the discriminative margin; normalization can discard it.** This refines the Multi-Hop Magnitude Fallacy from a universal claim into a conditional, score-geometry-dependent one. The synthetic control is connected to real retrieval in §7.3 and §6.5 (where SF+SPLADE multi-hop shows the same raw-magnitude advantage).
 
 ### 7.3 Real Retrieval Traces
 

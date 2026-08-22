@@ -2,420 +2,246 @@
 
 ## Version Control
 
-- **Branch:** `feature/journal-a-expansion` (created 2026-08-22 from `main`)
-- **Workflow:** All expansion code (fusion operators, DPR scorer, pipeline wiring) and docs (SPEC/PLAN/EXPANSION-RESULT/journal draft) live on this branch. Per project convention, this branch is merged into `main` only after explicit user confirmation.
-- **New files on branch:** `semantic_folding/fusion_operators.py`, `semantic_folding/dpr_scorer.py`, `docs/papers/Journal A/SPEC.md`, `docs/papers/Journal A/PLAN.md`, `docs/papers/Journal A/EXPANSION-RESULT.md`, journal draft `_journal.md`.
-- **Modified files on branch:** `semantic_folding/query_processor.py`, `semantic_folding/dataset_benchmark/generic_benchmark.py`.
+- **Branch:** `main` (merged from `feature/journal-a-expansion` at 2fc83a0)
+- All expansion code and docs live on `main`. Per project convention, merge to main requires explicit confirmation (already done for the prior cycle).
 
 ## Project Context
 
-**Conference Paper:** `docs/papers/Journal A/Beyond Vocabulary Mismatch Investigating Zero-Shot Semantic Folding and the Task-Dependent Limits of Hybrid Fusion_conference.md`
-
-**Advisor Expansion Plan:** `docs/papers/Journal A/Conference-2-Journal-Expansion-Plan.md`
-
-**Source Pipeline:** `semantic_folding/` — Semantic Folding pipeline with benchmark infrastructure
-
-**Existing Results:** `docs/reports/` — 9-dataset benchmark results (BENCHMARK_RESULTS.md, REPORTS.md)
+**Journal manuscript (current):** `docs/papers/Journal A/Beyond Vocabulary Mismatch Investigating Zero-Shot Semantic Folding and the Task-Dependent Limits of Hybrid Fusion_journal.md`
+**Reviewer critique:** `docs/papers/Journal A/SIGIR_REVIEW.md` (hostile SIGIR/TOIS-area review, scores 4.5/10, Reject/Major Revision)
+**Living results:** `docs/EXPANSION-RESULT.md`, `docs/reports/BENCHMARK_RESULTS.md`
 
 ---
 
-## Target Journal
+## Target Venue
 
-**SIGIR / TOIS** (or equivalent top-tier IR journal)
-
----
-
-## Core Conceptual Shift
-
-### From (Conference)
-> "Semantic Folding is a useful zero-shot retriever, and RRF can fail on multi-hop QA."
-
-### To (Journal)
-> **Hybrid retrieval is not operator-agnostic: the information preserved by a fusion operator must be compatible with the information structure of the retrieval task.**
-
-Semantic Folding becomes the **controlled, training-free probe** rather than the principal algorithmic contribution.
+**SIGIR / TOIS** (top-tier IR). Reviewer expects empirical defensibility, no over-claimed theory, full primary tables.
 
 ---
 
-## Four Journal Contributions
+## Reviewer Requirements → Spec Mapping (MUST ADDRESS ALL)
+
+| # | Reviewer complaint | Required fix | Where in paper |
+|---|-------------------|--------------|----------------|
+| R1 | "9 datasets claimed, main fusion table has 8, MuSiQue absent" | Run complete 7-op matrix on MuSiQue + SciFact; build 9×7 master table | §6.1, new master table |
+| R2 | "Pool size = 1 for NarrativeQA/Belebele but MRR<1.0" | Audit actual candidate counts per dataset; report real measured pool sizes; explain MRR<1 with >1 candidate | §4.3 Table 1 |
+| R3 | "Dataset-count inconsistency (9 vs 8)" | Master table must contain all 9 datasets; every figure/table derived from it | §6.1 |
+| R4 | "Theorem 1 is not a theorem; 'strictly dominant' false" | Demote Theorem→Hypothesis; remove "strictly"/"law"/"proves" unless formal proof | §3.5, §3.6, §7.5, §9.4 |
+| R5 | "Kill 'strictly dominant', 'mathematical law', 'proves'" | Global terminology cleanup | all sections |
+| R6 | "Replace with testable Operator–Topology Hypothesis" | Reframe as hypothesis (rank vs magnitude information depends on task+score geometry) | §3.5 |
+| R7 | "Multi-Hop Magnitude Fallacy unproven" | Synthetic magnitude experiment: control magnitude independent of rank | §7.2 (new harness) |
+| R8 | "Case study not enough / not actual logged outputs" | Label synthetic example as illustrative; provide real trace IDs from artifacts | §7.3 |
+| R9 | "O(√N) Scaling Wall rejected" | Replace with empirical Candidate-Set Score Concentration; report CV(N), Δ(N)/σ | §8.3, §8.4 |
+| R10 | "Scaling Wall → empirical phenomenon" | Rename §7.2→"Candidate-Set Score Concentration"; show score distributions | §8.3 |
+| R11 | "4096-bit vs 512 bytes inconsistency" | Fix architecture numbers; reconcile Algorithm 1 with storage claim | §A, §5 |
+| R4b | "Second model pair (is it SPLADE-specific?)" | Run BM25+DPR, SF+DPR full matrix; already have SF+DPR/BM25+DPR runs | §6.5 |
+
+---
+
+## Four Journal Contributions (locked, matches reviewer-scorable claims)
 
 ### C1 — Empirical
-> We provide a controlled cross-task analysis showing that the effectiveness of hybrid fusion depends systematically on the information structure of the retrieval task rather than being an intrinsic property of the retrieval signals alone.
+> Controlled cross-task analysis showing fusion-operator effectiveness depends systematically on task topology AND score geometry of fused signals, not merely signal complementarity.
 
 ### C2 — Mechanistic
-> We identify **magnitude information loss** as a mechanism through which rank-based fusion can degrade compositional retrieval.
+> Magnitude information loss as a mechanism by which rank-based fusion can degrade compositional reranking (demonstrated via synthetic control + real traces).
 
-### C3 — Experimental/Causal (Most Important New Contribution)
-> We isolate the role of score magnitude using controlled perturbation experiments in which ranking and score distributions are independently manipulated.
+### C3 — Experimental/Causal
+> Controlled perturbation experiments where rank and score magnitude are independently manipulated (synthetic + real score extraction).
 
 ### C4 — Boundary/Representation
-> We characterize two independent limitations of the SF probe—feature invariance and score concentration—and distinguish architectural limitations from fusion-operator limitations.
+> Feature invariance (SF scores = deterministic function of overlap) + Candidate-Set Score Concentration as two independent SF-probe limitations; architectural vs operator limitations distinguished.
 
 ---
 
 ## Research Questions
 
-| RQ | Question | Scope |
-|----|----------|-------|
-| **RQ1** | When two retrieval models identify complementary relevant evidence, under what conditions does fusion actually exploit that complementarity? | SF, SPLADE, DPR, BM25; correlation, overlap, complementarity |
-| **RQ2** | Which properties of retrieval scores are preserved or discarded by different fusion operators, and how does this affect retrieval performance across task topologies? | RRF, Borda, CombSUM, CombMNZ, Linear, min-max, z-score |
-| **RQ3** | Does score magnitude itself causally contribute to multi-hop retrieval performance, or is the observed difference merely a consequence of ranking correlation and score normalization? | Synthetic magnitude perturbation; rank-preserving transformations |
-| **RQ4** | What are the representation-level and corpus-scale conditions under which a training-free semantic signal ceases to provide useful information? | Feature Invariance, score concentration, candidate-set size, corpus size, SF limitations |
+| RQ | Question | Answered by |
+|----|----------|-------------|
+| RQ1 | When do two retrievers' complementarity get exploited by fusion? | §6.6 Kendall's τ |
+| RQ2 | Which score properties do operators preserve/discard across topologies? | §6.1–§6.5 |
+| RQ3 | Does magnitude *causally* contribute to multi-hop reranking? | §7.2 synthetic + §7.3 real |
+| RQ4 | Representation/corpus conditions where training-free signal ceases to help? | §8.1–§8.5 |
 
 ---
 
 ## Experimental Design — Two Regimes
 
-### Regime A: Controlled Reranking (Current Setup)
-- **Purpose:** Isolate fusion mechanics, control candidate availability, analyze score distributions, study operator behavior
-- **Input:** 1 gold + 19 BM25 negatives per query (existing)
-- **Use for:** Theoretical analysis, operator behavior, score distributions
-- **Do NOT call this:** first-stage retrieval
+### Regime A: Controlled Reranking (what paper reports)
+- Input: dataset-provided candidate pool (gold + distractors). Pool size = measured per dataset (NOT fixed).
+- Use for: operator behavior, score distributions, synthetic control.
+- Never call this "first-stage retrieval."
 
-### Regime B: Genuine Retrieval (NEW — Must Add)
-- **Purpose:** Validate findings on full corpus
-- **Datasets:** 
-  - Group 1 (Standard IR): BEIR datasets, TREC-style, MS MARCO-style
-  - Group 2 (Multi-hop): HotpotQA, 2WikiMultihopQA, MuSiQue
-- **Pipeline:** Query → Entire Corpus → Retriever A + Retriever B → Fusion → Ranking
-- **Minimum:** Two full-corpus evaluations
+### Regime B: Genuine Full-Corpus Retrieval (validates generalization)
+- Query → entire corpus → retriever A + B → fusion → ranking.
+- Minimum 2 datasets: SciFact (5,183 docs, sidecar ready), HotpotQA (494-doc sidecar ready).
+- Report recall@k + MRR; compare to Regime A.
 
 ---
 
-## Mandatory Experimental Matrix (Master Table)
+## Mandatory Experimental Matrix (Master Table — fixes R1/R3)
 
-| Dataset | BM25 | SF | SPLADE | DPR | Linear | RRF | CombSUM | CombMNZ | Borda | z-score | MinMax |
-|---------|------|----|--------|-----|--------|-----|---------|---------|-------|---------|--------|
-| PopQA | | | | | | | | | | | |
-| PubMedQA | | | | | | | | | | | |
-| NarrativeQA | | | | | | | | | | | |
-| Belebele | | | | | | | | | | | |
-| 2Wiki | | | | | | | | | | | |
-| HotpotQA | | | | | | | | | | | |
-| MuSiQue | | | | | | | | | | | |
-| NQ-REaR | | | | | | | | | | | |
-| SciFact | | | | | | | | | | | |
+**9 datasets × 7 operators × 4 model pairs.** Every cell needs MRR + 95% bootstrap CI + paired significance vs best.
 
-**Every cell needs:** confidence interval, significance comparison, paired bootstrap test
+| Dataset | Topology | linear | rrf | combsum | combmnz | borda | zscore | minmax |
+|---------|----------|--------|-----|---------|---------|-------|--------|--------|
+| PopQA | entity | | | | | | | |
+| PubMedQA | biomed | | | | | | | |
+| NarrativeQA | narrative | | | | | | | |
+| Belebele | reading | | | | | | | |
+| 2Wiki | multi-hop 2 | | | | | | | |
+| HotpotQA | multi-hop 2 | | | | | | | |
+| MuSiQue | multi-hop 2–5 | | | | | | | |
+| NQ-REaR | factoid | | | | | | | |
+| SciFact | claim-verif | | | | | | | |
 
----
-
-## Second Model Pair (Priority 1 — Not Priority 8)
-
-| Signal A | Signal B | Single-hop | Multi-hop |
-|----------|----------|------------|-----------|
-| BM25 | SPLADE | | |
-| BM25 | DPR | | |
-| SF | SPLADE | | |
-| SF | DPR | | |
-
-**Question:** Does the phenomenon follow the **task**, the **score geometry**, or the **model pair**?
+SF+SPLADE pair = §6.1 master table (primary). Other 3 pairs = §6.5 validation.
 
 ---
 
-## Fusion Operators — Complete Set (with authoritative definitions)
+## Model Pairs (fixes R4b)
 
-All operators combine the per-query rankings/scores of two retrievers (A, B) over a candidate set of N documents. For our main pair, A = SF and B = SPLADE; for the second-model pair, A ∈ {SF, BM25} and B ∈ {SPLADE, DPR}. Definitions follow the canonical IR fusion literature: Fox & Shaw (1994, TREC-2), Cormack et al. (2009, SIGIR), and Bruch et al. (2024, TOIS).
+| A | B | Status |
+|---|---|--------|
+| SF | SPLADE | ✅ runs exist (n=50) |
+| SF | DPR | ✅ runs exist (n=50) |
+| BM25 | SPLADE | ✅ runs exist (n=50) |
+| BM25 | DPR | ✅ runs exist (n=50) |
 
-### Rank-Space (discard absolute scores, use ordinal position)
-- **RRF** — Reciprocal Rank Fusion (Cormack et al., 2009). `score(d) = Σ_{r∈{A,B}} 1/(k + rank_r(d))`, k = 60. Tuning-free; robust to score-scale mismatch.
-- **Borda** — Borda count (adapted from combinatorial rank aggregation). `score(d) = Σ_{r∈{A,B}} (N − rank_r(d) + 1)`. Converts each rank to a 1…N point tally, sums across retrievers.
-
-### Raw Score-Space (operate on the retrievers' native scores)
-- **CombSUM** — Fox & Shaw (1994). `score(d) = score_A(d) + score_B(d)`. Simple unnormalized score sum.
-- **CombMNZ** — Fox & Shaw (1994) "MNZ" variant. `score(d) = (score_A(d) + score_B(d)) × m(d)`, where `m(d)` = number of retrievers that retrieved d (0, 1, or 2). Down-weights documents found by only one retriever.
-- **Linear Interpolation** — `score(d) = α·norm(score_A(d)) + (1−α)·norm(score_B(d))`, α = 0.3, where `norm` = per-retriever max-normalization to [0,1] (current SF/SPLADE code). Preserves score magnitude but assumes commensurable scales.
-
-### Normalized Score-Space (transform each retriever's scores before score fusion)
-- **min-max + Linear** — Per retriever, `x̂ = (x − min)/(max − min)` then α-weighted linear combine. Removes scale/offset while preserving relative magnitude.
-- **z-score + Linear** — Per retriever, `x̂ = (x − μ)/σ` then α-weighted linear combine. Removes mean/variance differences.
-- **L2 normalization** (secondary) — Normalize each retriever's whole score vector to unit L2 norm, then linear combine. Useful as a robustness check on the magnitude-perturbation story.
-
-### Implementation design
-- New module `semantic_folding/fusion_operators.py` exposing `fuse(operator, scores_a, scores_b, **params) -> Dict[doc_id, float]` for all 7 operators, plus a `rank_from_scores()` helper.
-- Wire `query_processor.py` Stage 4b to call this module instead of the inline linear/RRF branch; extend `--fusion-method` choices to `linear, rrf, combsum, combmnz, borda, zscore, minmax`.
-- Wire `generic_benchmark.py` to accept `--fusion-operators` (comma list) and run all requested operators in one benchmark pass, writing a per-operator results table.
-
-### Literature citations to add to paper §2.2
-- Fox, E.A., Shaw, J.A. (1994). Combination of Multiple Searches. *TREC-2*. (CombSUM, CombMNZ)
-- Cormack, G.V., Clarke, C.L.A., Buettcher, S. (2009). Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods. *SIGIR 2009*. (RRF)
-- Bruch, S., Gai, S., Ingber, A. (2024). An Analysis of Fusion Functions for Hybrid Retrieval. *ACM TOIS 42(1)*. (convex combination, rank vs score information loss) — our positioning anchor.
+Question: does phenomenon follow task, score geometry, or model pair? Answer (from §6.5): **score geometry of signal B** determines winning family.
 
 ---
 
-## Theoretical Framework
+## Fusion Operators (authoritative definitions — unchanged from prior SPEC, all implemented)
 
-### Proposition 1 — Rank-Fusion Invariance
-Let s(d) be a retrieval score and f be any strictly monotonic transformation.
-Then: rank(s(d)) = rank(f(s(d)))
-Therefore any rank-only fusion operator R satisfies: R(s₁,...,sₘ) = R(f₁(s₁),...,fₘ(sₘ))
-Consequently, rank-only fusion is invariant to: score magnitude, score distance, nonlinear calibration, confidence separation (provided ordering is unchanged).
+Rank-space: RRF (k=60), Borda.
+Raw score-space: CombSUM, CombMNZ, Linear (α=0.3).
+Normalized: min-max+Linear, z-score+Linear.
 
-### Hypothesis H1
-When absolute score differences encode useful evidence for relevance, rank-only fusion may be inferior to appropriately calibrated score fusion.
-
-### Hypothesis H2
-The value of magnitude information increases with the compositionality of the retrieval task.
-
-### Empirical Phenomenon: Multi-Hop Magnitude Fallacy
-> The failure mode that occurs when a rank-only fusion operator treats retrieval results with different score magnitudes as equivalent whenever their ordinal ranks coincide, despite score magnitude carrying useful evidence about compositional relevance.
+Module: `semantic_folding/fusion_operators.py` — `fuse(operator, scores_a, scores_b, **params)`.
 
 ---
 
-## Synthetic Magnitude Experiment (RQ3)
+## Synthetic Magnitude Experiment (fixes R7/R8 — NEW HARNESS)
 
-Construct synthetic retrieval scores where rank is held constant but magnitude is manipulated:
+**File:** `semantic_folding/synthetic_magnitude_experiment.py`
+**Design:**
+- Condition set: rank(A)=1, rank(B)=2 fixed; vary score(A), score(B):
+  - Large margin: (45, 12), (40,15), (35,20), (30,25)
+  - Small margin: (20,18), (21,19)
+  - Reversed: (12,45), (18,20)
+- Apply all 7 operators; measure correct A>B ranking.
+- Rank-preserving transform test: log/sqrt/exp/sigmoid/min-max/z-score on scores; verify RRF invariant, score operators change.
+- Connect to real: extract SPLADE score distributions (multi-hop vs single-hop) from `op_*/all_results.json`; show margin separation.
+- Output: `results/synthetic_magnitude_<ts>.json` + figure.
 
-| Condition | Doc A (genuinely multi-hop) | Doc B (partial-hop) |
-|-----------|----------------------------|---------------------|
-| 1 (large margin) | 45 | 12 |
-| 2 (small margin) | 20 | 18 |
-| 3 (reversed margin) | 12 | 45 |
-
-Rank(A)=1, Rank(B)=2 in all conditions.
-
-Test: Linear, RRF, CombSUM, CombMNZ, Borda
-
-**Key:** Independently manipulate **Rank** and **Magnitude** — this gives clean causal test.
-
----
-
-## Feature Invariance — Extended
-
-### Original Principle
-For binary SDRs: q,d ∈ {0,1}ᴰ, dot product = Σ qᵢdᵢ (overlap count). If a proposed feature is a deterministic transformation of the same overlap count, it contains no independent ranking information.
-
-### Renamed: Overlap-Feature Invariance
-Explicitly define assumptions.
-
-### Adversarial Features (Non-Collinear — Must Add)
-Create features genuinely non-collinear with overlap:
-- Term rarity
-- Document length normalization
-- Phrase coverage
-- Query-term diversity
-- Proximity
-- Entropy
-- Score margin
-- Independent BM25 score
-
-Test: corr(f, qᵀd) and ΔMRR
+**Paper §7.2:** label as "illustrative synthetic control"; provide real query IDs + doc IDs from `op_combsum/all_results.json` in Appendix E.
 
 ---
 
-## Score Concentration — Rewritten (No O(√N) Claims)
+## Score Concentration (fixes R9/R10 — NO O(√N))
 
-### New Claim: Candidate-Growth-Induced Score Concentration
-Start with SDR overlap model:
-- qᵢ,dᵢ ~ Bernoulli(ρ)
-- K = |q|₁
-- E[qᵀd] = Kρ
-- Var(qᵀd) = Kρ(1-ρ)
-
-**Key phenomenon:** Relative separation between relevant and irrelevant candidates becomes harder to maintain as candidate count grows when score distributions are concentrated.
-
-### Scaling Experiment (New Main Figure)
-For each corpus size N ∈ {20, 50, 100, 250, 500, 1k, 5k, 10k, ...} measure:
-- mean, std, CV, max score, gold score, rank of gold, MRR, Recall@k
-
-Compare: SF, BM25, SPLADE, DPR
-
-This turns "Scaling Wall" from speculative theory into **measured scaling phenomenon**.
+**Rename:** "Scaling Wall" → "Candidate-Set Score Concentration".
+**Statistics:** CV(N) = σ(s_N)/μ(s_N); Δ(N) = E[s(d+)] − E[s(d−)]; Δ(N)/σ_d−(N).
+**Harness:** `semantic_folding/score_concentration_scaling.py`
+- N ∈ {20,50,100,250,500,1k,5k,10k} (have 20/50/100/494 on HotpotQA)
+- Sample 1 gold + N−1 BM25 negatives from full corpus
+- Measure mean/std/CV/max/gold-score/gold-rank/MRR/Recall@k per N
+- Derive binomial overlap: E[qᵀd]=Kρ, Var=Kρ(1−ρ)
+**Paper §8.3/§8.4:** empirical phenomenon, not universal asymptotic theorem.
 
 ---
 
-## Candidate Construction Fix
+## Feature Invariance (fixes "not enough" — NEW HARNESS)
 
-### Two Explicit Conditions
-
-**BM25 Candidate Condition (Current):**
-```
-BM25 top-20 → SF/SPLADE fusion
-```
-
-**Independent Candidate Condition (NEW):**
-```
-SF top-k
-SPLADE top-k
-     ↓
-union
-     ↓
-fusion
-```
-
-This distinction is extremely important — explicitly report both.
+**File:** `semantic_folding/feature_invariance.py`
+**Adversarial non-collinear features (controlled perturbations):**
+- Term rarity (IDF), doc length norm, phrase coverage, query-term diversity (entropy), proximity (min span), score margin (top1−top2), independent BM25.
+**Test:** corr(feature, qᵀd) vs ΔMRR when feature injected into SF ranking.
+**Output:** scatter plot + table. Report as hypothesis-test, honestly scoped.
 
 ---
 
-## Terminology Cleanup
+## Terminology Cleanup (fixes R4/R5)
 
-| Old Term | New Term | When to Use |
-|----------|----------|-------------|
-| "zero-shot" | "training-free / label-free / unsupervised adaptation" | No learned parameters optimized using task labels |
-| "zero-data" | "training-free" | Absolute sense |
-| "zero-shot" | "zero-shot" | Only when benchmark/task genuinely unseen, no task-specific fitting |
-
----
-
-## Paper Structure (10 Sections + Appendices)
-
-```
-1. Introduction
-   1.1 Problem
-   1.2 Why fusion is not operator-neutral
-   1.3 Research questions
-   1.4 Contributions
-
-2. Background and Related Work
-   2.1 Hybrid retrieval
-   2.2 Fusion functions
-   2.3 Rank vs score fusion
-   2.4 Multi-hop retrieval
-   2.5 Semantic Folding / SDR
-   2.6 Positioning against prior fusion analyses (Bruch et al.)
-
-3. Conceptual Framework
-   3.1 Retrieval signal properties
-   3.2 Rank information
-   3.3 Score magnitude
-   3.4 Complementarity vs redundancy
-   3.5 Task-operator compatibility hypothesis
-   3.6 Formal rank-invariance proposition
-
-4. Experimental Methodology
-   4.1 Datasets
-   4.2 Task topology
-   4.3 Candidate regimes (controlled reranking / full corpus)
-   4.4 Retrieval models
-   4.5 Fusion operators
-   4.6 Parameter tuning
-   4.7 Statistical testing (paired bootstrap + Holm correction)
-
-5. Zero-Shot Semantic Signal
-   5.1 SF vs BM25
-   5.2 SF vs learned retrieval
-   5.3 Where SF succeeds
-   5.4 Where SF fails
-
-6. Fusion Operator Analysis
-   6.1 Complete operator matrix
-   6.2 Rank-space vs score-space
-   6.3 Normalization
-   6.4 Task topology
-   6.5 Second-model validation
-   6.6 Complementarity vs redundancy
-
-7. The Magnitude Information Hypothesis
-   7.1 Rank invariance
-   7.2 Synthetic magnitude control
-   7.3 Real retrieval traces
-   7.4 Single-hop vs multi-hop
-   7.5 When RRF discards useful information
-
-8. Representation and Scaling Boundaries
-   8.1 Feature Invariance
-   8.2 Non-collinear features
-   8.3 Score concentration
-   8.4 Candidate-size scaling
-   8.5 Full-corpus evaluation
-
-9. Discussion
-   9.1 Task-operator compatibility
-   9.2 Relation to prior fusion theory (Bruch et al.)
-   9.3 Practical hybrid retrieval guidelines
-   9.4 What the results do not establish
-   9.5 Deployment considerations
-
-10. Limitations and Conclusion
-
-Appendices
-A. Complete SF architecture
-B. Hyperparameters
-C. Full statistical tables
-D. k/α sensitivity
-E. Additional retrieval traces
-F. Dataset details
-G. Reproducibility
-```
+| Remove | Replace with |
+|--------|--------------|
+| "strictly dominant" | "tends to dominate under conditions X" |
+| "mathematical law" | "empirical pattern" |
+| "proves" | "is consistent with" (unless formal proof) |
+| "Operator-Topology Constraint" (universal) | "Task-Operator Compatibility Hypothesis" |
+| "O(√N) Scaling Wall" | "Candidate-Set Score Concentration" |
+| "compositional confidence" (unvalidated) | "score magnitude correlated with hop count" |
 
 ---
 
-## Title Options (Select One)
+## Paper Structure (10 sections + appendices — unchanged from prior, but content locked to above)
 
-1. **Strongest:** "When Retrieval Signals Complement: Task-Dependent Information Loss in Hybrid Fusion"
-2. **Strong:** "Beyond Rank: Task-Dependent Information Preservation in Hybrid Retrieval Fusion"
-3. **Keeps SF Visible:** "Beyond Vocabulary Mismatch: Semantic Folding as a Probe of Information Loss in Hybrid Retrieval Fusion"
-4. **Theory-Oriented:** "What Does Fusion Preserve? Task-Dependent Information Loss in Hybrid Information Retrieval"
-
-**Advisor Preference:** Option 4 for TOIS.
-
----
-
-## Statistical Protocol Upgrade
-
-### Current (Insufficient)
-- Overlapping 95% CIs → insignificant
-
-### Required for Journal
-- **Paired bootstrap** for every query pair: resample queries jointly
-- Report: ΔMRR = MRR_A - MRR_B with 95% CI and p-value
-- **Multiple comparison correction:** Holm correction for confirmatory comparisons
-- 8 datasets × many operators × multiple model pairs = multiple comparison problem
+1. Introduction (problem, fusion not operator-neutral, RQs, contributions)
+2. Background (hybrid retrieval, fusion functions, rank vs score, multi-hop, SF/SDR, Bruch et al. positioning)
+3. Conceptual Framework (signal properties, rank, magnitude, complementarity, **Hypothesis not Theorem**, rank-invariance proposition)
+4. Methodology (datasets, topology, **audited pool sizes**, two regimes, models, operators, tuning, **statistical protocol with CIs**)
+5. Zero-Shot SF Signal (honest baselines, AP caveats)
+6. Fusion Operator Analysis (**9×7 master table**, rank vs score, normalization, topology, **4 model pairs**, τ)
+7. Magnitude Hypothesis (**synthetic control**, real traces, single vs multi-hop, when RRF fails)
+8. Representation & Scaling Boundaries (feature invariance, **score concentration not scaling wall**, **N-sweep**, full-corpus)
+9. Discussion (compatibility, Bruch positioning, guidelines, **what we do NOT establish**, deployment)
+10. Limitations & Conclusion
+Appendices A–G (architecture numbers fixed, stats tables with CIs, k/α sensitivity, traces, dataset details, reproducibility)
 
 ---
 
-## What Must Be Removed Completely
-
-- "RRF must be the strictly dominant option"
-- "Linear fusion must be strictly dominant"
-- "Operator-Topology Constraint" as a universal law
-- "O(√N) drop" / "BM25 scores scale O(N)"
-- "blazingly fast"
-- "compositional confidence" unless experimentally validated
-- "SF cannot be used for first-stage retrieval" unless full-corpus experiments establish this
+## Title (advisor preference, Option 4)
+> **"What Does Fusion Preserve? Task-Dependent Information Loss in Hybrid Information Retrieval"**
 
 ---
 
-## OTC → Task-Operator Compatibility Hypothesis
+## Statistical Protocol (upgrade from overlapping-CI to defensible)
 
-Rename: "Operator-Topology Constraint" → "Task-Operator Compatibility Hypothesis" (initially)
-After evidence: "Task-Operator Compatibility Principle"
-
-Concept: Optimal fusion = f(signal properties, task topology, score information) — NOT operator = f(task)
+- Paired bootstrap (1000 resamples) per query pair
+- Report ΔMRR with 95% CI + p-value
+- Holm correction for confirmatory comparisons
+- n=10 reported as exploratory; n=50 as confirmatory
+- Effect sizes: Cliff's delta
 
 ---
 
-## Reviewer Test Questions (Must Answer Before Submission)
+## Reviewer Test Questions (must answer with evidence)
 
-| Reviewer | Question | Required Answer |
-|----------|----------|-----------------|
-| #1 | Is this just SF? | No. SF is a controlled probe for heterogeneous retrieval signals. |
-| #2 | Isn't this already known from Bruch et al.? | Prior work establishes properties of fusion functions; we investigate when the information they discard becomes task-relevant and demonstrate the relationship experimentally across task topology and model pairs. |
-| #3 | Isn't this just score-scale mismatch? | No. We normalize scores, compare multiple score-space operators, use a second model pair, and independently manipulate magnitude while holding rank fixed. |
-| #4 | Isn't the multi-hop result just SPLADE-specific? | The phenomenon persists across model pairs / or, if it does not, we explicitly scope the claim to SPLADE-like score signals. |
-| #5 | Are you actually doing retrieval? | Yes. We separately evaluate controlled reranking and full-corpus retrieval. |
+| # | Question | Required answer (evidence) |
+|---|----------|----------------------------|
+| 1 | Is this just SF? | No — SF is controlled probe (§1.1, §5) |
+| 2 | Already known from Bruch et al.? | We show *when* discarded info matters, across topology+pairs (§2.6, §9.2) |
+| 3 | Just score-scale mismatch? | Normalized operators + 2nd pair + magnitude control (§6.3, §7.2) |
+| 4 | SPLADE-specific? | SF+DPR/BM25+DPR show family set by score geometry (§6.5) |
+| 5 | Actually doing retrieval? | Regime A reranking + Regime B full-corpus SciFact/HotpotQA (§8.5) |
+
+---
+
+## Success Criteria (gate before submission)
+
+- [x] 7 operators implemented
+- [x] 4 model pairs implemented
+- [ ] 9×7 master table complete (MuSiQue + SciFact runs pending)
+- [ ] Pool-size audit fixed (§4.3)
+- [ ] Synthetic magnitude experiment implemented + reported (§7.2)
+- [ ] Full-corpus on ≥2 datasets (SciFact pending; HotpotQA done)
+- [ ] Feature invariance harness + scatter (§8.2)
+- [ ] Score concentration scaling (no O(√N)) (§8.3/§8.4)
+- [ ] Statistical protocol: CIs + Holm (Appendix C)
+- [ ] All "must remove" terms deleted
+- [ ] Title changed to Option 4
+- [ ] Can answer all 5 reviewer questions with evidence
 
 ---
 
 ## Deliverables
 
-1. **SPEC.md** — This document
-2. **PLAN.md** — Step-by-step execution plan with dependencies
-3. **EXPANSION-RESULT.md** — Living document tracking each step's raw results and achievement table
-
----
-
-## Success Criteria
-
-- [ ] All 4 RQs addressed with experimental evidence
-- [ ] Master table complete with all operators, all datasets, CIs, significance
-- [ ] Second model pair (SF+DPR or BM25+DPR) evaluated
-- [ ] Synthetic magnitude experiment implemented and reported
-- [ ] Full-corpus evaluation on ≥2 datasets
-- [ ] Feature Invariance extended with adversarial features
-- [ ] Score concentration rewritten with scaling experiment
-- [ ] Statistical protocol upgraded to paired bootstrap + Holm
-- [ ] Paper restructured to 10-section journal format
-- [ ] All "must remove" items deleted
-- [ ] Title changed to journal-appropriate
-- [ ] Can answer all 5 reviewer test questions with experimental evidence
+1. `SPEC.md` — this document
+2. `PLAN.md` — execution plan
+3. `EXPANSION-RESULT.md` — living results log
+4. `docs/reports/cross-dataset/master_table_v1_<ts>.md` — 9×7 table
+5. `results/synthetic_magnitude_<ts>.json` + figure
+6. `results/scaling_<ts>.json` + figures
+7. `results/feature_invariance_<ts>.json` + scatter
+8. Updated journal draft (all sections per above)

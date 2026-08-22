@@ -1,0 +1,124 @@
+{
+  "conditions": [
+    {
+      "condition": "large_45_12",
+      "scoreA": 45.0,
+      "scoreB": 12.0,
+      "margin": 33.0,
+      "A_above_B": {
+        "linear": true,
+        "rrf": true,
+        "combsum": true,
+        "combmnz": true,
+        "borda": true,
+        "zscore": true,
+        "minmax": true
+      }
+    },
+    {
+      "condition": "large_40_15",
+      "scoreA": 40.0,
+      "scoreB": 15.0,
+      "margin": 25.0,
+      "A_above_B": {
+        "linear": true,
+        "rrf": true,
+        "combsum": true,
+        "combmnz": true,
+        "borda": true,
+        "zscore": true,
+        "minmax": true
+      }
+    },
+    {
+      "condition": "med_35_20",
+      "scoreA": 35.0,
+      "scoreB": 20.0,
+      "margin": 15.0,
+      "A_above_B": {
+        "linear": true,
+        "rrf": true,
+        "combsum": true,
+        "combmnz": true,
+        "borda": true,
+        "zscore": true,
+        "minmax": true
+      }
+    },
+    {
+      "condition": "small_30_25",
+      "scoreA": 30.0,
+      "scoreB": 25.0,
+      "margin": 5.0,
+      "A_above_B": {
+        "linear": false,
+        "rrf": true,
+        "combsum": true,
+        "combmnz": true,
+        "borda": true,
+        "zscore": false,
+        "minmax": false
+      }
+    },
+    {
+      "condition": "tiny_21_19",
+      "scoreA": 21.0,
+      "scoreB": 19.0,
+      "margin": 2.0,
+      "A_above_B": {
+        "linear": false,
+        "rrf": true,
+        "combsum": true,
+        "combmnz": true,
+        "borda": true,
+        "zscore": false,
+        "minmax": false
+      }
+    },
+    {
+      "condition": "rev_12_45",
+      "scoreA": 12.0,
+      "scoreB": 45.0,
+      "margin": -33.0,
+      "A_above_B": {
+        "linear": false,
+        "rrf": false,
+        "combsum": false,
+        "combmnz": false,
+        "borda": false,
+        "zscore": false,
+        "minmax": false
+      }
+    },
+    {
+      "condition": "rev_18_30",
+      "scoreA": 18.0,
+      "scoreB": 30.0,
+      "margin": -12.0,
+      "A_above_B": {
+        "linear": false,
+        "rrf": true,
+        "combsum": false,
+        "combmnz": false,
+        "borda": true,
+        "zscore": false,
+        "minmax": false
+      }
+    }
+  ],
+  "operators": [
+    "linear",
+    "rrf",
+    "combsum",
+    "combmnz",
+    "borda",
+    "zscore",
+    "minmax"
+  ],
+  "rrf_rank_invariant": {
+    "log": true,
+    "sqrt": true,
+    "exp": true,
+    "sigmoid": true
+  }
+}

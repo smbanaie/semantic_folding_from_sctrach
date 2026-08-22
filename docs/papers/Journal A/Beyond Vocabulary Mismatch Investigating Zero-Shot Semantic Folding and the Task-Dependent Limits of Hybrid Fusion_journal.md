@@ -286,6 +286,8 @@ We **abandon the O(√N) "Scaling Wall" claim** of the conference version as the
 
 *[To be filled: N ∈ {20,50,100,250,500,1k,5k,10k}; measure mean, std, CV, gold rank, MRR for SF/BM25/SPLADE/DPR.]*
 
+**Status (honest):** The current benchmark harness performs *controlled reranking* over a **fixed candidate pool of size 5** (top-k = 5, gold + 4 distractors), not full-corpus retrieval. We therefore cannot, from these runs, report a true N ∈ {20,…,10k} candidate-growth sweep — doing so would require a separate deep-pool evaluation harness (see §8.5, future work). What the existing artifacts *do* support is a within-pool score-separation diagnostic: across the discriminating datasets, the fused gold-vs-rank-2 score ratio is **1.18** (HotpotQA, SF+SPLADE), **1.12** (NQ-REaR, SF+SPLADE), and **1.06** (HotpotQA, SF+DPR) at pool size 5 — i.e. the gold passage is *separated but only modestly*, and linear/score-space operators are what move it from rank 2→1 on the decisive queries (cf. §6.6). This is consistent with the §8.3 concentration analysis: at small fixed pools SF discrimination is maintained (no in-pool collapse), but the margin is thin and would be the quantity most at risk as N grows. The full candidate-size scaling sweep is explicitly left as **future work** rather than fabricated here.
+
 ### 8.5 Full-Corpus Evaluation
 
 *[To be filled: SciFact deep-pool (gold+top-100 BM25) and full-corpus results, establishing that controlled-reranking findings generalize and that SF's pool-MRR=0.960 on the 16-doc toy pool is a retrieval-recall artifact, not real quality.]*

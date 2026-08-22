@@ -326,6 +326,19 @@ Tests whether the magnitude-wins pattern generalizes when BM25 (not SF) is signa
 
 **Phase 2 Status:** ✅ SF+DPR (2 datasets) + NQ-REaR BM25+SPLADE done; 🔄 HotpotQA BM25+SPLADE relaunched; BM25+DPR pending.
 
+#### 2.5.2 HotpotQA (multi-hop) — BM25+SPLADE — ✅ COMPLETE
+**Raw results:** `outputs/hotpotqa_benchmark/benchmarks/benchmark_20260822_034347/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| linear | 0.900 | 0.750–1.000 | 0.6333 | 0.800 | 0.650 |
+| rrf (rank-only) | 0.850 | 0.650–1.000 | 0.6083 | 0.800 | 0.600 |
+| combsum (raw magnitude) | **0.950** | 0.850–1.000 | 0.6783 | 0.900 | 0.650 |
+
+**Pattern holds for SPLADE regardless of signal A:** combsum (0.950) > linear (0.900) > rrf (0.850). Same as SF+SPLADE HotpotQA (combsum 1.000). **Conclusion:** when SPLADE is signal B, raw magnitude fusion (CombSUM) wins whether A=SF or A=BM25. The determining factor is the second signal's score geometry (SPLADE sparse log1p → magnitude-preserving wins), not which lexical/dense signal is A.
+
+**Phase 2 Status:** ✅ SF+DPR (2) + BM25+SPLADE (2) done; 🔄 BM25+DPR HotpotQA running; NQ-REaR BM25+DPR pending.
+
 ---
 
 ## Phase 3: Synthetic Magnitude Experiment

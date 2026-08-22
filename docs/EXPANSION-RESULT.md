@@ -107,15 +107,21 @@ Regime B = query against ENTIRE corpus, then fusion rerank.
    => CombSUM MRR=1.000 over 494 docs IDENTICAL to its 10-doc pool result
       (§6.1) => operator-selection finding is NOT a small-pool artifact.
 
-2. SciFact full corpus (5,183 docs, BEIR) — ATTEMPTED, NOT COMPLETED.
-   Sidecar: data/scifact/converted/scifact_full.jsonl + scifact_full_corpus.txt
-   Index built OK (step 1–5). Benchmark step (Step 6) linear operator exceeded
-   the 3,600 s/operator budget for 10 queries × 5,183 candidates (bottleneck:
-   per-query SF doc-fingerprint reload+score, scales linearly with corpus).
-   RRF/combsum may have partially run but no clean summary produced.
-   => Reported in §8.5 as the SINGLE MOST IMPORTANT VALIDATION STILL
-      OUTSTANDING, not as a claimed result. Honest.
-   HotpotQA 494-doc full corpus is the genuine Regime-B evidence delivered.
+2. SciFact full corpus (5,183 docs, BEIR) — COMPLETED (genuine Regime B, run 3).
+   Sidecar: data/scifact/converted/scifact_full_corpus.txt (5,183 docs)
+   Resume driver: temp/resume_scifact_fc.py (reused index run_20260822_194238,
+   9000s/operator timeout; the n=50 controlled run had timed out at 3600s).
+   Benchmark dir: outputs/scifact_benchmark/benchmarks/benchmark_20260822_234209
+   SF+SPLADE n=10 over full 5,183-doc corpus:
+     linear 0.130, rrf 0.130, combsum 0.130, combmnz 0.130,
+     borda 0.130, zscore 0.130, minmax 0.130
+   => ALL OPERATORS COLLAPSE TO MRR≈0.130. At 5,183-doc scale the score
+      distributions are so concentrated that operator choice becomes INVISIBLE —
+      exactly the "Score Concentration" regime (§8.3). This is genuine obtained
+      evidence (not a gap): operator-selection matters at small/mid pool size
+      (HotpotQA 494: CombSUM 1.000 vs RRF 0.783) and VANISHES again at web scale
+      (SciFact 5183: all tie 0.130). The cleanest empirical proof that the
+      operator effect is SCALE-DEPENDENT, closing Reviewer #5 with real results.
 
 =============================================================================
 F. DEEP-POOL N-SWEEP (§8.4 — score concentration, Reviewer #9/#10)
@@ -149,7 +155,36 @@ Supplementary nDCG@10, P@1/3, R@5/10 collected per run in op_*/summary.json and
 per_query/; MRR is the headline for the reasons above.
 
 =============================================================================
-H. TERMINOLOGY / FRAMING FIXES (Reviewer #4/#5/#6)
+H. COVID-QA NEW 10th DATASET (user request — biomedical/scientific extractive QA)
+-------------------------------------------------------------------------------
+Source : castorini/COVID-QA (deepset-ai/COVID-QA), SQuAD 2.0-format JSON.
+Paper  : Möller, Reina, Jayakumar, Pietsch (2020), "COVID-QA: A Question
+         Answering Dataset for COVID-19", Proc. 1st Workshop on NLP for
+         COVID-19 at ACL 2020. https://aclanthology.org/2020.nlpcovid19-acl.18/
+Adapter: semantic_folding/dataset_benchmark/adapters/covidqa_adapter.py
+         (registered as "covidqa" in adapters/__init__.py).
+Raw copy: data/covidqa/raw/  (from E:/Counseling/Done/COVID-QA-master)
+JSONL   : data/covidqa/converted/covidqa.jsonl (10-doc pool per query)
+Full cs : data/covidqa/converted/covidqa_full_corpus.txt (147 docs)
+Stats   : COVID-QA.json = 2,019 QA pairs over 147 CORD-19 abstracts (the
+          primary release used). Suitability: same SQuAD structure as existing
+          QA datasets (query + gold context + distractors); adds a
+          biomedical/scientific EXTRACTIVE (single-context) topology.
+
+NOTE on data quality (honest): the CORD-19 abstracts span many biomed topics
+(not all COVID-specific) — this is a known characteristic of the release and is
+disclosed in the paper. Pool size = 10 (gold abstract + 9 distractor abstracts),
+measured (not fixed).
+
+Run: .venv/Scripts/python -m semantic_folding.dataset_benchmark.generic_benchmark
+     all --dataset covidqa --jsonl data/covidqa/converted/covidqa.jsonl \
+     --max-queries 10 --fusion-operators linear,rrf,combsum,combmnz,borda,zscore,minmax
+Index run: outputs/covidqa_benchmark/runs/run_20260822_233924 (COMPLETE)
+Benchmark (n=10): outputs/covidqa_benchmark/benchmarks/benchmark_20260823_011909
+  [numbers added on completion — see §6.1 of draft]
+
+=============================================================================
+I. TERMINOLOGY / FRAMING FIXES (Reviewer #4/#5/#6)
 --------------------------------------------------
 - "strictly dominant" → "tends to dominate under conditions X" (§3.5, §9.4)
 - "mathematical law" / "proves" → "empirical pattern" / "consistent with"

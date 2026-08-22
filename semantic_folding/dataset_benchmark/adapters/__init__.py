@@ -17,6 +17,7 @@ from .beir_adapter import (
     NFCorpusAdapter, SciFactAdapter, QuoraAdapter,
     TRECCOVIDAdapter, DBPediaAdapter, SciDocsAdapter,
 )
+from .covidqa_adapter import COVIDQAAdapter
 from ._stubs import (
     SciDQAAdapter,
     DropAdapter,
@@ -45,6 +46,7 @@ ADAPTER_REGISTRY = {
     "musique": MuSiQueAdapter,
     "nfcorpus": NFCorpusAdapter,
     "scifact": SciFactAdapter,
+    "covidqa": COVIDQAAdapter,
     "quora": QuoraAdapter,
     "trec-covid": TRECCOVIDAdapter,
     "trec_covid": TRECCOVIDAdapter,
@@ -94,6 +96,7 @@ __all__ = [
     "TwoWikiMultihopQAAdapter",
     "NFCorpusAdapter",
     "SciFactAdapter",
+    "COVIDQAAdapter",
     "QuoraAdapter",
     "TRECCOVIDAdapter",
     "DBPediaAdapter",

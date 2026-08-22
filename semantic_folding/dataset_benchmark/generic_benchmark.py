@@ -1316,7 +1316,7 @@ def cli_main():
                       help="Comma-separated list of fusion operators to evaluate in ONE run "
                            "(e.g. 'linear,rrf,combsum,combmnz,borda,zscore,minmax'). "
                            "Produces a per-operator benchmark matrix. Overrides --fusion-method.")
-    p_bm.add_argument("--signal-a", type=str, default="sf", choices=["sf", "bm25"],
+    p_bm.add_argument("--signal-a", type=str, default="sf", choices=["sf", "bm25", "splade"],
                       help="First fusion signal (default sf). Set 'bm25' for BM25+X pairs.")
     p_bm.add_argument("--retriever-b", type=str, default=None, choices=["splade", "dpr", "bm25", "none"],
                       help="Second fusion signal. 'dpr' enables the second-model pair (reviewer #4).")
@@ -1531,7 +1531,7 @@ def cli_main():
     p_all.add_argument("--fusion-operators", type=str, default=None,
                        help="Comma-separated fusion operators to evaluate in ONE run "
                             "(e.g. 'linear,rrf,combsum,combmnz,borda,zscore,minmax').")
-    p_all.add_argument("--signal-a", type=str, default="sf", choices=["sf", "bm25"],
+    p_all.add_argument("--signal-a", type=str, default="sf", choices=["sf", "bm25", "splade"],
                        help="First fusion signal (default sf). 'bm25' for BM25+X pairs.")
     p_all.add_argument("--retriever-b", type=str, default=None, choices=["splade", "dpr", "bm25", "none"],
                        help="Second fusion signal. 'dpr' = second-model pair (reviewer #4).")

@@ -2568,11 +2568,20 @@ def process_query(
                 corpus_texts = corpus_texts[:min_len]
                 doc_id_list = doc_id_list[:min_len]
 
-            # ── Signal A: SF or BM25 ──
+            # ── Signal A: SF / BM25 / SPLADE ──
             if signal_a == "bm25":
                 _bm25 = BM25Scorer(corpus_texts)
                 _bm25_list = _bm25.score_all(query)
                 signal_a_dict = {doc_id_list[i]: s for i, s in _bm25_list}
+            elif signal_a == "splade":
+                splade_model = getattr(args, "splade_model", "naver/splade-cocondenser-ensembledistil")
+                cache_dir = str(Path(corpus_path).parent)
+                _scorer = _get_splade_scorer(corpus_texts, model_name=splade_model, cache_dir=cache_dir)
+                if _scorer is None:
+                    logger.warning("  [SPLADE] A-signal failed to load — falling back to SF")
+                    signal_a_dict = sf_scores
+                else:
+                    signal_a_dict = {doc_id_list[i]: s for i, s in _scorer.score_all(query)}
             else:
                 signal_a_dict = sf_scores
 
@@ -2603,8 +2612,12 @@ def process_query(
                 signal_b_dict = {doc_id_list[i]: s for i, s in _bm25.score_all(query)}
 
             if signal_b_dict is None:
-                # No usable B-signal: keep A-signal ranking as-is
-                logger.info("  [FUSION] no B-signal available; using A-signal ranking")
+                # No usable B-signal: rank by the A-signal dict directly
+                # (enables single-signal baselines: signal_a=sf/bm25/splade, retriever_b=none)
+                logger.info(f"  [FUSION] no B-signal available; using A-signal ({signal_a}) ranking")
+                if signal_a_dict:
+                    signal_a_sorted = sorted(signal_a_dict.items(), key=lambda x: x[1], reverse=True)
+                    results = signal_a_sorted[: getattr(args, "top_k", 10)]
             else:
                 fusion_method = getattr(args, "fusion_method", "linear")
                 if fusion_method not in fusion_operators.OPERATORS:
@@ -2987,8 +3000,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--signal-a", dest="signal_a", type=str, default="sf",
-        choices=["sf", "bm25"],
-        help="First retrieval signal for fusion (default: sf). Use 'bm25' for BM25+X pairs.",
+        choices=["sf", "bm25", "splade"],
+        help="First retrieval signal for fusion (default: sf). Use 'bm25' for BM25+X pairs, 'splade' for SPLADE-only baseline.",
     )
     parser.add_argument(
         "--retriever-b", dest="retriever_b", type=str, default=None,

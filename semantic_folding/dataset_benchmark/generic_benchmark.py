@@ -178,8 +178,25 @@ def load_registry() -> dict:
         with open(REGISTRY_PATH, "w") as f:
             yaml.dump(empty, f, default_flow_style=False)
         return empty
-    with open(REGISTRY_PATH, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {"runs": {}}
+    try:
+        with open(REGISTRY_PATH, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {"runs": {}}
+        if not isinstance(data, dict) or "runs" not in data:
+            data = {"runs": {}}
+        return data
+    except (yaml.YAMLError, Exception) as e:
+        # Registry corrupted (e.g. concurrent writes clobbered it). Back it up
+        # and start fresh rather than crashing the benchmark that depends on it.
+        backup = REGISTRY_PATH.with_suffix(".corrupt.yml")
+        try:
+            REGISTRY_PATH.replace(backup)
+        except OSError:
+            pass
+        logger.warning(f"Registry corrupted ({e}); backed up to {backup} and reset.")
+        empty = {"runs": {}}
+        with open(REGISTRY_PATH, "w") as f:
+            yaml.dump(empty, f, default_flow_style=False)
+        return empty
 
 
 def save_registry(registry: dict):

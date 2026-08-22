@@ -1,4 +1,4 @@
-# What Does Fusion Preserve? Task-Dependent Information Loss in Hybrid Retrieval
+# What Does Fusion Preserve? Task- and Score-Geometry Dependent Information Loss in Hybrid Retrieval
 
 **Mojtaba Banaei¹, Maseud Rahgozar², and Heshaam Faili³**
 
@@ -11,7 +11,7 @@
 
 ## Abstract
 
-Hybrid retrieval combines the ranked lists or score distributions of multiple retrievers to improve robustness, yet the choice of fusion operator is routinely treated as a tunable hyperparameter. We argue — and demonstrate experimentally — that this choice is not free: the information a fusion operator preserves or discards must be compatible with the information structure that the retrieval task itself depends on. To investigate this in a controlled setting, we use **Semantic Folding (SF)**, a training-free, label-free semantic retriever, as a *heterogeneous probe signal* whose score construction differs fundamentally from learned sparse (SPLADE) and dense (DPR) retrievers. Across eight closed-domain question-answering datasets spanning single-hop, reading-comprehension, and multi-hop topologies, and across seven fusion operators (RRF, Borda, CombSUM, CombMNZ, linear, min-max, z-score) and four retriever pairs (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR), we make four contributions. (1) We show that hybrid fusion effectiveness depends systematically on task topology, not merely on signal complementarity. (2) We isolate **magnitude information loss** as the mechanism by which rank-only fusion can degrade compositional retrieval. (3) Through controlled synthetic magnitude-perturbation experiments in which rank is held fixed while score magnitude is manipulated, we establish that score magnitude can causally determine multi-hop retrieval performance, rather than merely correlating with it. (4) We characterize one boundary condition of the SF probe — **feature invariance** (SF scores are a deterministic function of term-co-occurrence overlap, hence carry no ranking information independent of that overlap) — and we document a second, **score concentration under growing candidate pools**, as an explicit limitation flagged for future deep-pool validation (the current harness reranks a fixed top-5 pool, so the pool-growth sweep is left as honest future work rather than claimed). We separate architectural limitations from fusion-operator limitations. We position our work explicitly against Bruch et al. (TOIS 2024): where they analyze what fusion functions do to score distributions, we ask *when the information they discard becomes task-relevant*, and we demonstrate the answer experimentally across task topology and retriever pairs.
+Hybrid retrieval fuses the ranked lists or score distributions of multiple retrievers to improve robustness, yet the choice of fusion operator is routinely treated as a tunable hyperparameter. We argue — and demonstrate on a controlled candidate-reranking benchmark — that this choice is not free: the information a fusion operator preserves or discards must be compatible with the information structure that the retrieval task itself depends on, and with the score geometry of the signals being fused. To investigate this in a controlled setting, we use **Semantic Folding (SF)**, a training-free, label-free semantic retriever, as a *heterogeneous probe signal* whose score construction differs fundamentally from learned sparse (SPLADE) and dense (DPR) retrievers. Over eight closed-domain question-answering datasets spanning single-hop, reading-comprehension, and multi-hop topologies, and across seven fusion operators (RRF, Borda, CombSUM, CombMNZ, linear, min-max, z-score) and four retriever pairs (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR), we make four contributions. (1) We provide a controlled-probe methodology and an empirical map showing that fusion-operator effectiveness depends systematically on task topology and on the *score geometry of the fused signals*, not merely on signal complementarity. (2) We isolate **magnitude information loss** as the mechanism by which rank-only fusion can degrade compositional reranking. (3) Through controlled synthetic magnitude-perturbation experiments in which rank is held fixed while score magnitude is manipulated, we show that score magnitude can determine multi-hop reranking outcomes, consistent with a causal role rather than mere correlation. (4) We characterize a boundary condition of the SF probe — **feature invariance** (SF scores are a deterministic function of term-co-occurrence overlap, hence carry no ranking information independent of that overlap) — and we document a second, **score concentration under growing candidate pools**, as an explicit limitation flagged for future deep-pool validation (the current harness reranks a fixed top-5 pool, so the pool-growth sweep is left as honest future work rather than claimed). We position our work against Bruch et al. (TOIS 2024): where they analyze what fusion functions do to score distributions, we ask *when the information they discard becomes task-relevant*, and we demonstrate the answer across task topology and retriever pairs. All quantitative claims are scoped to controlled 5-document reranking; generalization to first-stage retrieval is stated as the key open validation.
 
 **Keywords:** Hybrid Retrieval · Fusion Functions · Sparse Distributed Representations · Information Preservation · Multi-Hop Question Answering · Reciprocal Rank Fusion · Task-Operator Compatibility
 
@@ -21,30 +21,30 @@ Hybrid retrieval combines the ranked lists or score distributions of multiple re
 
 ### 1.1 Problem
 
-The cold-start problem in domain-specific question answering is usually framed as data scarcity: neural retrievers need labelled examples to learn from, and such examples are absent in niche domains. This framing obscures a more fundamental question — whether *unsupervised, training-free* retrieval can reach quality sufficient to be a useful component in practical systems. We find a mixed answer: Semantic Folding (SF), a training-free method encoding semantic structure into Sparse Distributed Representations, matches BM25 on single-hop lookup and reading-comprehension questions with no training data (Belebele, PopQA at MRR 1.000), but falls below BM25 on single-hop biomedical QA (PubMedQA 0.800 vs 1.000) and collapses on hard multi-hop compositional reasoning (HotpotQA 0.365), while remaining competitive-to-superior on moderate multi-hop and factoid (MuSiQue 0.720, NQ-REaR 0.725 vs BM25 0.482, 0.675). It is a useful *probe*, not a standalone retriever.
+The cold-start problem in domain-specific question answering is usually framed as data scarcity: neural retrievers need labelled examples to learn from, and such examples are absent in niche domains. This framing obscures a more fundamental question — whether *unsupervised, training-free* retrieval can reach quality sufficient to be a useful component in practical systems. We find a mixed answer: Semantic Folding (SF), a training-free method encoding semantic structure into Sparse Distributed Representations, matches BM25 on single-hop lookup and reading-comprehension questions with no training data (Belebele, PopQA at MRR 1.000 on a 5-document reranking pool), but falls below BM25 on single-hop biomedical QA (PubMedQA 0.800 vs 1.000) and collapses on hard multi-hop compositional reasoning (HotpotQA 0.365), while remaining competitive-to-superior on moderate multi-hop and factoid (MuSiQue 0.720, NQ-REaR 0.725 vs BM25 0.482, 0.675). It is a useful *probe*, not a standalone retriever.
 
 Rather than present SF as a retriever, we use it as a **controlled diagnostic probe**: because its scores are constructed deterministically from distributional co-occurrence statistics and a 2D spatial encoding, SF provides a heterogeneous signal whose behavior we understand completely. This lets us manipulate retrieval signals while holding the fusion machinery fixed — the experimental design a learned retriever cannot offer.
 
 ### 1.2 Why fusion is not operator-neutral
 
-A standard hybrid system fuses two retrievers with either Reciprocal Rank Fusion (RRF) or linear interpolation. We show these are not interchangeable. The choice of operator changes which score properties survive fusion, and this matters unevenly across tasks: on one multi-hop dataset (HotpotQA) raw score-space fusion (CombSUM, MRR=1.000) substantially outperforms rank-only RRF (0.750), while on another multi-hop dataset (2WikiMultihopQA) RRF and CombSUM tie at the top (1.000), and on a third (MuSiQue) they are statistically indistinguishable (0.95 vs 0.95). Single-hop tasks show little operator sensitivity (all operators saturate at MRR=1.000 on Belebele). The divergence is not a tuning artifact. It is a *structural* property of what each operator preserves — but the direction and magnitude of the effect is itself task- and score-geometry dependent, not a fixed law:
+A standard hybrid system fuses two retrievers with either Reciprocal Rank Fusion (RRF) or linear interpolation. We show these are not interchangeable. The choice of operator changes which score properties survive fusion, and this matters unevenly across tasks: on one multi-hop dataset (HotpotQA, SF+SPLADE) raw score-space fusion (CombSUM, MRR=1.000) substantially outperforms rank-only RRF (0.750), while on another multi-hop dataset (2WikiMultihopQA) RRF and CombSUM tie at the top (1.000), and on a third (MuSiQue) they are statistically indistinguishable (0.95 vs 0.95). Single-hop tasks show little operator sensitivity (all operators saturate at MRR=1.000 on Belebele). The divergence is not a tuning artifact. It is a *structural* property of what each operator preserves — but the direction and magnitude of the effect is itself task- and score-geometry dependent, not a fixed law:
 
 - **Rank-only operators** (RRF, Borda) discard absolute scores and keep only ordinal position. They are robust to score-scale mismatch but blind to magnitude.
 - **Score-space operators** (CombSUM, CombMNZ, linear, normalized variants) preserve magnitude and relative separation, but are vulnerable to scale mismatch when the two signals live on different ranges.
 
-The central claim of this paper is that **the relevance of the information a fusion operator discards is task-dependent**. For single-hop matching, rank is often sufficient; for multi-hop composition, absolute score magnitude encodes how many reasoning hops were satisfied, and discarding it is harmful.
+The central claim of this paper is that **the relevance of the information a fusion operator discards is task-dependent AND score-geometry dependent**. For single-hop matching, rank is often sufficient; for multi-hop composition, absolute score magnitude encodes how many reasoning hops were satisfied, and discarding it is harmful — but only when the fused signals carry magnitude on heterogeneous scales.
 
 ### 1.3 Research Questions
 
 - **RQ1 (Complementarity).** When two retrievers identify complementary relevant evidence, under what conditions does fusion actually exploit that complementarity?
-- **RQ2 (Fusion information).** Which properties of retrieval scores are preserved or discarded by different fusion operators, and how does this affect performance across task topologies?
-- **RQ3 (Causality).** Does score magnitude *causally* contribute to multi-hop retrieval performance, or is the observed association merely a consequence of ranking correlation and score normalization?
+- **RQ2 (Fusion information).** Which properties of retrieval scores are preserved or discarded by different fusion operators, and how does this affect performance across task topologies and retriever pairs?
+- **RQ3 (Causality).** Does score magnitude *causally* contribute to multi-hop reranking outcomes, or is the observed association merely a consequence of ranking correlation and score normalization?
 - **RQ4 (Boundaries).** What are the representation-level and corpus-scale conditions under which a training-free semantic signal ceases to provide useful information?
 
 ### 1.4 Contributions
 
-1. A controlled cross-task analysis showing that hybrid fusion effectiveness depends systematically on the information structure of the retrieval task, not merely on the complementarity of the signals.
-2. Identification of **magnitude information loss** as the mechanism through which rank-based fusion degrades compositional retrieval.
+1. A controlled cross-task analysis showing that fusion-operator effectiveness depends systematically on the information structure of the retrieval task *and* on the score geometry of the fused signals, not merely on the complementarity of the signals.
+2. Identification of **magnitude information loss** as the mechanism through which rank-based fusion degrades compositional reranking.
 3. Controlled magnitude-perturbation experiments (synthetic + real) that isolate score magnitude as a causal factor, distinguishing the mechanism from model-specific score behavior and scale mismatch.
 4. Characterization of a boundary condition of the training-free probe — **feature invariance** (SF scores are a deterministic function of term-co-occurrence overlap, hence carry no ranking information independent of that overlap) — plus documentation of a second, **score concentration under growing candidate pools**, as an explicit limitation left for future deep-pool validation, with practical guidance for deploying heterogeneous retrieval signals.
 
@@ -74,7 +74,7 @@ SDRs are binary vectors of large dimensionality where most bits are zero. SF arr
 
 ### 2.6 Positioning Against Prior Fusion Analysis
 
-Bruch et al. (2024) analyze fusion functions; we extend by asking when their information loss matters. Our novelty is the *task-dependent* framing plus the causal isolation (RQ3) and the second-model-pair validation (RQ2) that together show the phenomenon follows the task topology, not a specific retriever's score behavior.
+Bruch et al. (2024) analyze fusion functions; we extend by asking when their information loss matters. Our novelty is twofold and deliberately scoped: (i) a **controlled-probe methodology** — using a fully-characterized training-free signal (SF) as a manipulable heterogeneous probe that a learned retriever cannot offer, letting us hold the fusion machinery fixed while varying score geometry; and (ii) an **empirical map** of operator × retriever-pair × task-topology outcomes showing the winning family is set by the score geometry of signal B, not by the task or retriever identity. We do not claim a new fusion theorem; the rank-invariance proposition (§3.6) is already in the literature. The contribution is the methodology and the conditional, evidence-backed map — and the explicit honesty about where it reverses and where it is unvalidated (§8, §9.4).
 
 ---
 
@@ -100,11 +100,11 @@ Carries additional signal when the *degree* of match matters: in multi-hop QA, a
 
 ### 3.4 Complementarity vs Redundancy
 
-Two retrievers are **complementary** when they surface different relevant documents (low rank correlation, Kendall's τ); **redundant** when they agree (high τ). We use Kendall's τ as a diagnostic: high τ on a multi-hop task suggests true redundancy (fusion is pointless); high τ on a single-hop task suggests switching to RRF.
+Two retrievers are **complementary** when they surface different relevant documents (low rank correlation, Kendall's τ); **redundant** when they agree (high τ). We use Kendall's τ as a diagnostic *between the two fused signals*: high τ suggests the signals rank candidates similarly (fusion is unlikely to add much); low τ suggests the signals disagree and operator choice becomes consequential. This is a property of the signal pair, not of the task alone.
 
-### 3.5 Task-Operator Compatibility Hypothesis
+### 3.5 Task-Operator-Signal-Geometry Compatibility Hypothesis
 
-> The optimal fusion operator is a function of the task's information requirement, not merely of the signals' scale properties: rank-preserving operators suit tasks whose relevance is captured by ordering; magnitude-preserving operators suit tasks whose relevance is captured by score separation.
+> The optimal fusion operator is a function of both the task's information requirement and the score geometry of the fused signals: rank-preserving operators suit tasks whose relevance is captured by ordering and whose signals live on comparable or normalized scales; magnitude-preserving operators suit tasks whose relevance is captured by score separation and whose signals carry magnitude on heterogeneous scales.
 
 We state this as a *hypothesis* to be tested, deliberately avoiding the stronger "constraint"/"law" language of the conference version, which our own 2WikiMultihopQA RRF result already contradicted in edge cases.
 
@@ -120,7 +120,7 @@ This is mathematically trivial but establishes the clean separation that motivat
 
 ### 4.1 Datasets
 
-Eight closed-domain QA datasets (PopQA, PubMedQA, NarrativeQA, Belebele, 2WikiMultihopQA, HotpotQA, MuSiQue, NQ-REaR) plus SciFact for scientific fact-verification. Candidate sets are 1 gold + 19 BM25 hard negatives (or naturallar smaller pools), standard in this benchmark family.
+Eight closed-domain QA datasets (PopQA, PubMedQA, NarrativeQA, Belebele, 2WikiMultihopQA, HotpotQA, MuSiQue, NQ-REaR). Candidate sets are 1 gold + 4 BM25 hard negatives, i.e. a **fixed 5-document reranking pool** (see §4.3). SciFact is noted as a candidate for future deep-pool validation (§8.5) but is not benchmarked here.
 
 ### 4.2 Task Topology
 
@@ -138,8 +138,10 @@ We classify each dataset by the reasoning its questions demand:
 
 We explicitly distinguish two regimes:
 
-- **Controlled reranking (Regime A).** A preselected candidate set (gold + BM25 negatives). Isolates fusion mechanics, candidate availability, and score distributions. *This is not first-stage retrieval.*
-- **Full-corpus retrieval (Regime B).** Query → entire corpus → retriever A + retriever B → fusion → ranking. Validates that findings generalize beyond reranking (§8.5, SciFact deep-pool + full-corpus).
+- **Controlled reranking (Regime A) — what this paper reports.** A preselected candidate set (gold + 4 BM25 negatives, pool size 5). Isolates fusion mechanics, candidate availability, and score distributions. *This is not first-stage retrieval.* All MRR values in §5–§7 are reranking MRR over this 5-document pool.
+- **Full-corpus retrieval (Regime B).** Query → entire corpus → retriever A + retriever B → fusion → ranking. Validates that findings generalize beyond reranking (§8.5, future work).
+
+We are explicit that every quantitative claim in this paper is a *reranking* claim; generalization to first-stage retrieval is an open question we state plainly.
 
 ### 4.4 Retrieval Models
 
@@ -160,37 +162,36 @@ Seven operators spanning three information classes:
 
 ### 4.6 Parameter Tuning
 
-α swept over {0.1, 0.3, 0.5, 0.7} for linear family (§6.5); RRF k fixed at 60 (Elasticsearch convention, sensitivity in Appendix D). Grid 64×64, UMAP, σ=1.5 Gaussian, top 10%, IDF weighting, L2 doc-norm, Morton Z-order, spreading radius 1 / decay 0.5.
+α swept over {0.1, 0.3, 0.5, 0.7} for linear family (§6.5); RRF k fixed at 60 (Elasticsearch convention, sensitivity in Appendix D). SF grid 64×64, UMAP, σ=1.5 Gaussian, top 10%, IDF weighting, L2 doc-norm, Morton Z-order, spreading radius 1 / decay 0.5.
 
-### 4.7 Statistical Testing
+### 4.7 Statistical Testing — and its limits
 
-All MRR values reported with 95% bootstrap confidence intervals (1000 resamples, joint query resampling). Pairwise operator comparisons use paired bootstrap with **Holm correction** for multiple comparisons across the 7-operator × 4-pair matrix. We report ΔMRR with CI and p-value, not overlapping-CI heuristics.
+Each dataset is evaluated on a **10-query probe**. With n=10, bootstrap 95% confidence intervals are too wide to separate operators that differ by 0.05–0.10 in MRR, and per-comparison Holm correction across the 7-operator × 4-pair matrix would overstate certainty. We therefore report the 10-query MRR values as **exploratory, directional evidence** and rely on (a) replication across the four retriever pairs and (b) the synthetic magnitude-control experiment (§7) for causal isolation. A confirmatory study at n ≥ 50 per dataset (with bootstrap CIs and Holm adjustment) is left as future work; Appendix C lists this explicitly rather than presenting spurious precision. The per-query MRR breakdown for every operator/dataset is preserved in the run artifacts (`outputs/*_benchmark/benchmarks/benchmark_*/per_query/`) and is summarized in Appendix E so reviewers can see the within-dataset spread behind each aggregate.
 
 ---
 
 ## 5. Zero-Shot Semantic Signal (SF as Probe)
 
-*[To be filled from runs — SF vs BM25, SF vs learned retrieval, where SF succeeds/fails. Framing per advisor: evidence that a training-free semantic signal can achieve meaningful retrieval quality in selected closed-domain settings, not "SF solves zero-shot retrieval."]*
+**SF-Only baselines (signal-a=sf, retriever-b=none; 10-query probes, reranking MRR over a 5-document pool):** Belebele 1.000, PopQA 1.000, NarrativeQA 1.000 (AP 0.017 — long-form answers inflate MRR vs answer precision), 2WikiMultihopQA 0.858, PubMedQA 0.800, HotpotQA 0.365, MuSiQue 0.720, NQ-REaR 0.725. SF alone reaches ceiling on single-hop lookup/reading-comprehension tasks, degrades on hard multi-hop (HotpotQA 0.365 vs BM25 0.869 — the clearest multi-hop collapse), and is competitive-to-superior on moderate multi-hop/factoid (MuSiQue 0.720 > BM25 0.482; NQ-REaR 0.725 > BM25 0.675). This confirms the conference paper's core claim that SF is a useful *probe* but not a standalone multi-hop retriever, while showing SF's zero-shot semantic signal can beat BM25 on some multi-hop topologies.
 
-**SF-Only baselines (signal-a=sf, retriever-b=none; 10-query probes, MRR):** Belebele 1.000, PopQA 1.000, NarrativeQA 1.000 (AP 0.017 — long-form answers inflate MRR vs answer precision), 2WikiMultihopQA 0.858, PubMedQA 0.800, HotpotQA 0.365, MuSiQue 0.720, NQ-REaR 0.725. SF alone reaches ceiling on single-hop lookup/reading-comprehension tasks, degrades on hard multi-hop (HotpotQA 0.365 vs BM25 0.869 — the clearest multi-hop collapse), and is competitive-to-superior on moderate multi-hop/factoid (MuSiQue 0.720 > BM25 0.482; NQ-REaR 0.725 > BM25 0.675). This confirms the conference paper's core claim that SF is a useful *probe* but not a standalone multi-hop retriever, while showing SF's zero-shot semantic signal can beat BM25 on some multi-hop topologies. **SPLADE-Only baselines (signal-a=splade, retriever-b=none):** ceiling 1.000 on Belebele/PopQA/NarrativeQA/2Wiki/HotpotQA/MuSiQue, 0.800 PubMedQA, 0.750 NQ-REaR. The learned sparse retriever reaches ceiling on every multi-hop set where SF collapses — so the contribution is not "SF beats neural retrievers" but that SF, as a fully-characterized zero-shot signal, *isolates the rank-vs-magnitude information loss* (§6–§7) that a black-box SPLADE ranking does not expose. The honest reading: SF's value is diagnostic and complementary (§6.5), not standalone.
+**SPLADE-Only baselines (signal-a=splade, retriever-b=none):** ceiling 1.000 on Belebele/PopQA/NarrativeQA/2Wiki/HotpotQA/MuSiQue, 0.800 PubMedQA, 0.750 NQ-REaR. The learned sparse retriever reaches ceiling on every multi-hop set where SF collapses — so the contribution is not "SF beats neural retrievers" but that SF, as a fully-characterized zero-shot signal, *isolates the rank-vs-magnitude information loss* (§6–§7) that a black-box SPLADE ranking does not expose. The honest reading: SF's value is diagnostic and complementary (§6.5), not standalone.
 
 | Dataset | Task Topology | SF-Only | BM25 | SPLADE-Only | Verdict |
 |---------|---------------|--------|------|-------------|---------|
 | PopQA | Entity Lookup | 1.000 | 1.000 | 1.000 | all ceiling |
 | PubMedQA | Biomedical | 0.800 | 1.000 | 0.800 | SF=SPLADE < BM25 |
-| NarrativeQA | Narrative | 1.000 | 0.980 | 1.000 | SF=SPLADE > BM25 (AP caveat) |
+| NarrativeQA | Narrative | 1.000 | 0.980 | 1.000 | SF=SPLADE ≈ BM25 (AP caveat) |
 | Belebele | Reading Comp. | 1.000 | 0.995 | 1.000 | all ceiling |
 | 2WikiMultihopQA | Multi-hop 2 | 0.858 | 0.921 | 1.000 | SPLADE ≫ SF, BM25 |
-| HotpotQA | Multi-hop 2 | 0.365 | 0.869 | 1.000 | SPLADE ≫ SF ≫ BM25 collapse for SF |
+| HotpotQA | Multi-hop 2 | 0.365 | 0.869 | 1.000 | SPLADE ≫ SF; SF collapses vs BM25 |
 | MuSiQue | Multi-hop 2–5 | 0.720 | 0.482 | 1.000 | SPLADE ≫ SF > BM25 |
 | NQ-REaR | Factoid | 0.725 | 0.675 | 0.750 | SPLADE > SF ≈ BM25 |
 
-
----
+*Caveat:* NarrativeQA measures MRR over a 5-document pool but its answers are long-form narratives, so MRR=1.000 reflects passage ranking, not answer exactness (AP 0.017 in the SF-only run). The NarrativeQA row should not be read as SF "solving" narrative QA; it shows SF ranks the gold passage top-1 in the reranking pool.
 
 ## 6. Fusion Operator Analysis
 
-*Empirical centerpiece. We report MRR across 8 datasets × 7 operators for the SF+SPLADE pair (Phase 1), and a focused 4-model-pair × 2-discriminating-dataset design (Phase 2). 10-query probes; 95% CIs in Appendix. All runs reproducible via the commands in §10.*
+*Empirical centerpiece. We report MRR across 8 datasets × 7 operators for the SF+SPLADE pair (Phase 1), and a focused 4-model-pair × 2-discriminating-dataset design (Phase 2). 10-query probes (reranking MRR); directional evidence, not CIs (§4.7). All runs reproducible via the commands in Appendix G.*
 
 ### 6.1 Complete Operator Matrix (SF + SPLADE)
 
@@ -208,15 +209,19 @@ All MRR values reported with 95% bootstrap confidence intervals (1000 resamples,
 **Reading:** On single-hop tasks the matrix saturates (ceiling at 1.000, or flat at 0.800 for PubMedQA) — operator choice is invisible. On harder multi-hop/factoid tasks operator behavior diverges: raw score-space fusion (CombSUM/CombMNZ) wins or ties RRF; RRF never clearly dominates.
 
 ### 6.2 Rank-space vs Score-space
+
 RRF (rank-only) and CombSUM (raw score-space) tie on 2WikiMultihopQA (1.000 each) and MuSiQue (0.950 each), but CombSUM clearly beats RRF on HotpotQA (1.000 vs 0.750) and NQ-REaR (0.800 vs 0.720). The divergence is not universal — it appears exactly where the task discriminates operator behavior, and the margin varies by dataset and score geometry (see §6.5).
 
 ### 6.3 Normalization (min-max / z-score)
-Normalized score-space variants (zscore, minmax) track linear on single-hop (1.000) but underperform raw CombSUM on multi-hop (HotpotQA: zscore 0.683, minmax 0.570 vs combsum 1.000). Raw magnitude separation matters more than normalized — normalization washes out the very magnitude signal that helps compositional retrieval.
+
+Normalized score-space variants (zscore, minmax) track linear on single-hop (1.000) but underperform raw CombSUM on multi-hop (HotpotQA: zscore 0.683, minmax 0.570 vs combsum 1.000). Raw magnitude separation matters more than normalized — normalization washes out the very magnitude signal that helps compositional reranking.
 
 ### 6.4 Task Topology
+
 Operator sensitivity is a function of task difficulty/type, not a fixed operator ordering. Single-hop → no sensitivity; multi-hop/factoid → magnitude-preserving operators win or tie. But the *direction* of the magnitude advantage is itself dataset-dependent (HotpotQA: large; 2Wiki/MuSiQue: tie) — so task topology sets the *stage* for divergence without determining its *sign*.
 
 ### 6.5 Second-Model Validation (SF+DPR, BM25+SPLADE, BM25+DPR)
+
 To answer whether the phenomenon is SPLADE-specific (reviewer #4), we replicated the matrix with a second dense retriever, DPR, and swapped signal A (SF ↔ BM25). Full 4-pair × 2-discriminating-dataset design (HotpotQA, NQ-REaR; linear/rrf/combsum):
 
 | Pair (A + B) | HotpotQA (lin/rrf/combsum) | NQ-REaR (lin/rrf/combsum) | Winning family |
@@ -245,6 +250,7 @@ To quantify *when* fusion adds versus duplicates information, we compute the mea
 ## 7. The Magnitude Information Hypothesis
 
 ### 7.1 Rank Invariance (Proposition 1)
+
 Verified computationally: RRF output is bit-identical (to 1e-12) under strictly monotonic transforms of component scores, while CombMNZ changes — confirming magnitude sensitivity.
 
 ### 7.2 Synthetic Magnitude Control
@@ -257,16 +263,19 @@ We construct synthetic retrieval scores where rank is fixed (Doc A rank 1, Doc B
 | 2 (small) | 20 | 18 | 2 | Marginally |
 | 3 (reversed) | 12 | 45 | −33 | No |
 
-Applying all seven operators, we measure whether A is correctly ranked above B. **Rank-only operators (RRF, Borda) cannot distinguish the three conditions** — they see only ranks 1 and 2. **Score-space operators separate them by margin.** This is the clean causal isolation: with rank held constant, only magnitude-aware operators respond to the magnitude manipulation.
+Applying all seven operators, we measure whether A is correctly ranked above B. **Rank-only operators (RRF, Borda) cannot distinguish the three conditions** — they see only ranks 1 and 2. **Score-space operators separate them by margin.** This is the clean causal isolation: with rank held constant, only magnitude-aware operators respond to the magnitude manipulation. Caveat: this toy is a 2-document proof-of-concept; it establishes that magnitude-aware operators *can* respond, not that they *do* in real retrieval — that is shown by the real traces in §7.3 and the score-geometry dependence in §6.5.
 
 ### 7.3 Real Retrieval Traces
+
 Across the SF+SPLADE 8-dataset matrix, multi-hop queries consistently expose the largest operator gaps: HotpotQA shows CombSUM 1.000 vs RRF 0.750 (Δ0.25) and vs linear 0.570 (Δ0.43); NQ-REaR shows CombMNZ 0.820 vs borda 0.653 (Δ0.17). Single-hop queries close the gap entirely (Belebele/PopQA/NarrativeQA: all operators 1.000). The gap widens exactly on compositional tasks, where the gold passage's score margin over distractors is what raw magnitude preserves and rank-only fusion discards.
 
 ### 7.4 Single-hop vs Multi-hop
-Single-hop retrieval is operator-invariant (ceiling or flat). Multi-hop retrieval is operator-sensitive, but the *sign* of the sensitivity is dataset-dependent: CombSUM dominates on HotpotQA, ties RRF on 2WikiMultihopQA and MuSiQue. This is the empirical reason we frame the claim as conditional, not universal (see §9.4).
+
+Single-hop reranking is operator-invariant (ceiling or flat). Multi-hop reranking is operator-sensitive, but the *sign* of the sensitivity is dataset-dependent: CombSUM dominates on HotpotQA, ties RRF on 2WikiMultihopQA and MuSiQue. This is the empirical reason we frame the claim as conditional, not universal (see §9.4).
 
 ### 7.5 When RRF Discards Useful Information
-**Magnitude Fallacy (empirical phenomenon, not a theorem):** the failure mode occurring when a rank-only fusion operator treats retrieval results with different score magnitudes as equivalent whenever their ordinal ranks coincide, despite score magnitude carrying useful evidence about compositional relevance. We document this as an *observed phenomenon* with a Proposition (rank-invariance, §7.1) and a Hypothesis (magnitude matters more for compositional tasks), supported by synthetic control (§7.2) and real traces (§7.3) — deliberately avoiding the unprovable "theorem" wording of the conference version. Critically, our own experiments show RRF does **not** universally fail multi-hop (it ties CombSUM on 2WikiMultihopQA and MuSiQue); the fallacy manifests only where raw magnitude carries the compositional signal and the fused signals have heterogeneous scale (SF+SPLADE multi-hop).
+
+**Magnitude-Blindness Failure Mode (empirical phenomenon, not a theorem):** the failure mode occurring when a rank-only fusion operator treats retrieval results with different score magnitudes as equivalent whenever their ordinal ranks coincide, despite score magnitude carrying useful evidence about compositional relevance. We document this as an *observed phenomenon* with a Proposition (rank-invariance, §7.1) and a Hypothesis (magnitude matters more for compositional tasks), supported by synthetic control (§7.2) and real traces (§7.3) — deliberately avoiding the unprovable "theorem" wording of the conference version. Critically, our own experiments show RRF does **not** universally fail multi-hop (it ties CombSUM on 2WikiMultihopQA and MuSiQue); the failure mode manifests only where raw magnitude carries the compositional signal and the fused signals have heterogeneous scale (SF+SPLADE multi-hop).
 
 ---
 
@@ -274,7 +283,7 @@ Single-hop retrieval is operator-invariant (ceiling or flat). Multi-hop retrieva
 
 ### 8.1 Feature Invariance (Overlap-Feature Invariance)
 
-For binary SDRs q,d ∈ {0,1}ᴰ, the dot product is qᵀd = Σ qᵢdᵢ (overlap count). If a proposed feature is a deterministic transformation of the same overlap count, it contains no independent ranking information. We state this as a constructive claim and specify the **adversarial non-collinear feature** test that would establish it (term rarity, document length, phrase coverage, query-term diversity, proximity, entropy, score margin, independent BM25; corr(feature, qᵀd) vs ΔMRR) — implemented as the future-work harness in §8.2.
+For **binary SDR overlap** q,d ∈ {0,1}ᴰ, the dot product is qᵀd = Σ qᵢdᵢ (overlap count). If a proposed feature is a deterministic transformation of the same overlap count, it contains no independent ranking information. We state this as a constructive claim *for the raw overlap representation* and specify the **adversarial non-collinear feature** test that would establish it (term rarity, document length, phrase coverage, query-term diversity, proximity, entropy, score margin, independent BM25; corr(feature, qᵀd) vs ΔMRR) — implemented as the future-work harness in §8.2. Important caveat: the full SF pipeline adds UMAP projection, Gaussian smoothing, and spreading activation *after* the binary overlap, so the *emitted* SF score is not necessarily qᵀd; whether those transforms introduce non-overlap ranking information is exactly what §8.2 would test. The invariance bound therefore applies to the raw SDR overlap, and the pipeline-level claim is a hypothesis.
 
 ### 8.2 Non-Collinear Feature Tests
 
@@ -304,7 +313,7 @@ We **abandon the O(√N) "Scaling Wall" claim** of the conference version as the
 
 ### 9.1 Task-Operator Compatibility
 
-Synthesis: operator optimality is governed by the **score geometry of the fused signals**, not by the task alone. Where signal B is a sparse, heterogeneous-scale retriever (SPLADE, log1p-pooled), magnitude-preserving fusion (CombSUM/CombMNZ) wins on compositional tasks (HotpotQA, NQ-REaR). Where signal B is a normalized dense retriever (DPR, L2-dot), rank-only RRF and raw-score CombSUM collapse to identical rankings and the α-weighted linear operator — which controls the magnitude trade-off — is optimal on harder multi-hop retrieval. The choice of signal A (SF vs BM25) does not change the family. This is a compatibility hypothesis supported by the multi-pair, multi-operator, magnitude-control evidence, and explicitly scoped (we report where the effect reverses).
+Synthesis: operator optimality is governed by the **score geometry of the fused signals**, not by the task alone. Where signal B is a sparse, heterogeneous-scale retriever (SPLADE, log1p-pooled), magnitude-preserving fusion (CombSUM/CombMNZ) wins on compositional tasks (HotpotQA, NQ-REaR). Where signal B is a normalized dense retriever (DPR, L2-dot), rank-only RRF and raw-score CombSUM collapse to identical rankings and the α-weighted linear operator — which controls the magnitude trade-off — is optimal on harder multi-hop reranking. The choice of signal A (SF vs BM25) does not change the family. This is a compatibility hypothesis supported by the multi-pair, multi-operator, magnitude-control evidence, and explicitly scoped (we report where the effect reverses).
 
 ### 9.2 Relation to Prior Fusion Theory
 
@@ -319,19 +328,19 @@ We extend Bruch et al. (2024): they characterize what fusion functions do to sco
 
 ### 9.4 What the Results Do NOT Establish
 
-We do **not** claim RRF is intrinsically unsuitable for multi-hop retrieval. Our own experiments show RRF ties CombSUM at MRR=1.000 on 2WikiMultihopQA and is statistically indistinguishable on MuSiQue (0.95 vs 0.95); only on HotpotQA does rank-only fusion clearly trail (RRF 0.750 vs CombSUM 1.000). We identify *conditions* under which rank-only fusion discards useful score information, not a universal failure. We do **not** claim a universal law; the Task-Operator Compatibility is a hypothesis, scoped to the tested operators, datasets, and retriever pairs, and we report where the effect reverses.
+We do **not** claim RRF is intrinsically unsuitable for multi-hop retrieval. Our own experiments show RRF ties CombSUM at MRR=1.000 on 2WikiMultihopQA and is statistically indistinguishable on MuSiQue (0.95 vs 0.95); only on HotpotQA does rank-only fusion clearly trail (RRF 0.750 vs CombSUM 1.000). We identify *conditions* under which rank-only fusion discards useful score information, not a universal failure. We do **not** claim a universal law; the Task-Operator Compatibility is a hypothesis, scoped to the tested operators, datasets, and retriever pairs, and we report where the effect reverses. We further do **not** claim these results transfer to first-stage retrieval at corpus scale — every number is a 5-document reranking result (§4.3, §8.5).
 
 ### 9.5 Deployment Considerations
 
-No GPU; CPU-only query; ~512 B/doc (6× smaller than DPR). For teams facing cold-start, the comparison shifts from "zero-shot vs fine-tuned" to "GPU-hosted vs CPU-only."
+No GPU; CPU-only query; ~512 B/doc (6× smaller than DPR). For teams facing cold-start, the comparison shifts from "zero-shot vs fine-tuned" to "GPU-hosted vs CPU-only." These deployment claims apply to SF as a reranking signal over a retrieved shortlist, not as a standalone first-stage retriever.
 
 ---
 
 ## 10. Limitations and Conclusion
 
-**Limitations:** model dependence (frozen SPLADE/DPR checkpoints); dataset dependence (English QA); candidate construction (BM25 negatives); score calibration (magnitude semantics vary by retriever); multi-hop interpretation (magnitude as compositional confidence is inferred, not directly observed); corpus scale (score concentration not validated at MS MARCO scale); language (English only); SF-specificity; fusion-operator coverage (seven, not exhaustive); generalization beyond QA.
+**Limitations:** model dependence (frozen SPLADE/DPR checkpoints); dataset dependence (English QA); candidate construction (BM25 negatives); score calibration (magnitude semantics vary by retriever); multi-hop interpretation (magnitude as compositional confidence is inferred, not directly observed); corpus scale (score concentration not validated at MS MARCO scale — all results are 5-doc reranking); language (English only); SF-specificity; fusion-operator coverage (seven, not exhaustive); generalization beyond QA; sample size (10-query probes, exploratory — §4.7).
 
-**Conclusion.** Fusion operators act as information bottlenecks whose suitability depends on which score properties carry task-relevant evidence. Using SF as a controlled probe, we showed this is not operator-agnostic: rank-only fusion discards magnitude that compositional tasks require, and the effect survives multiple operators, a second retriever pair, and synthetic magnitude control. This reframes hybrid retrieval design from "pick a fusion function" to "match the operator to the task's information structure."
+**Conclusion.** Fusion operators act as information bottlenecks whose suitability depends on which score properties carry task-relevant evidence. Using SF as a controlled probe, we showed this is not operator-agnostic: rank-only fusion discards magnitude that compositional tasks require, and the effect survives multiple operators, a second retriever pair, and synthetic magnitude control. This reframes hybrid retrieval design from "pick a fusion function" to "match the operator to the task's information structure and to the score geometry of the signals being fused." All claims are scoped to controlled reranking; the jump to first-stage retrieval at scale remains the key open validation.
 
 ---
 
@@ -339,7 +348,7 @@ No GPU; CPU-only query; ~512 B/doc (6× smaller than DPR). For teams facing cold
 
 - **A.** Complete SF architecture (phrase extraction, term-context, UMAP, Morton, Gaussian, spreading activation, complexity).
 - **B.** Hyperparameters.
-- **C.** Full statistical tables (per-dataset MRR with 95% CI, Holm-adjusted p-values).
+- **C.** Full statistical tables — *planned*: per-dataset MRR with 95% bootstrap CI and Holm-adjusted p-values at n ≥ 50 (not yet run; 10-query probes reported as directional evidence per §4.7).
 - **D.** k/α sensitivity.
 - **E.** Additional retrieval traces.
 - **F.** Dataset details.
@@ -357,9 +366,14 @@ No GPU; CPU-only query; ~512 B/doc (6× smaller than DPR). For teams facing cold
 4. Karpukhin, V., Oğuz, B., Min, S., et al. (2020). Dense passage retrieval for open-domain question answering. *EMNLP*. (DPR.)
 5. Formal, T., Lasseri, C., Piwowarski, B., & Clinchant, S. (2021). SPLADE: Sparse lexical and expansion models for first stage ranking. *SIGIR*. (SPLADE.)
 6. Yang, Z., Qi, P., Zhang, S., et al. (2018). HotpotQA: A dataset for diverse, explainable multi-hop question answering. *EMNLP*. (HotpotQA.)
-7. Trivedi, H., Balasubramanian, N., Khot, T., & Sabharwal, A. (2017/2022). MuSiQue / 2WikiMultihopQA. (Multi-hop QA datasets.)
-8. Berant, J., Chou, A., Frostig, R., & Liang, P. (2013). Semantic parsing on Freebase from question-answer pairs. *EMNLP*. (WebQuestions / NQ-REaR lineage.)
+7. Trivedi, H., Balasubramanian, N., Khot, T., & Sabharwal, A. (2022). MuSiQue: Multihop questions via single-hop supervision. *ACL*. (MuSiQue.)
+   Trivedi, H., et al. (2017). 2WikiMultihopQA. *EMNLP*. (2WikiMultihopQA.)
+8. Kwiatkowski, T., Palomaki, J., Redfield, O., et al. (2019). Natural Questions: a benchmark for question answering research. *TACL*. (NQ; NQ-REaR is the multi-hop REaR variant derived from Natural Questions.)
 9. Welbl, J., Liu, P., & Riedel, S. (2017). Crowdsourcing multiple choice science questions. *NeurIPS Workshop*. (NarrativeQA-adjacent; PubMedQA: Jin et al., 2019, *BioNLP*.)
 10. Banditov, A., et al. (2023). BELEBELE: a parallel reading comprehension dataset in 122 languages. *TACL*. (Belebele; PopQA: Mallen et al., 2022, *arXiv*.)
 11. Kanerva, P. (1988). *Sparse Distributed Memory*. MIT Press. (SDR foundation for Semantic Folding.)
 12. Hawkins, J., & Ahmad, S. (2016). Why neurons have thousands of synapses, and the bounded specificity hypothesis. *Frontiers in Neural Circuits*. (HTM / SDR theoretical basis.)
+
+
+
+

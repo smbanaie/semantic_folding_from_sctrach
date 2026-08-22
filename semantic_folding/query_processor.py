@@ -82,6 +82,7 @@ from lib import (
 )
 from negation_handler import get_negation_handler
 from ontology_expander import get_ontology_expander
+import fusion_operators
 SPARSITY_GUARD=0.005
 
 # ── BM25 Scorer for Hybrid Mode ─────────────────────────────────────────────
@@ -2533,10 +2534,16 @@ def process_query(
             
             logger.info(f"  [SNIPPET] re-ranked {len(results)} results")
 
-    # ── Stage 4b: hybrid SF+BM25/SPLADE scoring ────────────────────────────────
+    # ── Stage 4b: hybrid / multi-signal fusion ────────────────────────────────
+    # signal_a: SF (default) or BM25. retriever_b: SPLADE / DPR / BM25 / none.
+    # Enables model pairs: SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR (journal exp).
     hybrid_enabled = getattr(args, "hybrid", False)
     splade_enabled = getattr(args, "splade", False)
-    if hybrid_enabled or splade_enabled:
+    retriever_b = getattr(args, "retriever_b", None) or ("splade" if splade_enabled else None)
+    signal_a = getattr(args, "signal_a", "sf") or "sf"
+    use_fusion = hybrid_enabled or splade_enabled or (retriever_b is not None and retriever_b != "none")
+
+    if use_fusion:
         hybrid_alpha = getattr(args, "hybrid_alpha", 0.5)
         corpus_path = getattr(args, "corpus_path", None)
 
@@ -2561,53 +2568,76 @@ def process_query(
                 corpus_texts = corpus_texts[:min_len]
                 doc_id_list = doc_id_list[:min_len]
 
-            if splade_enabled:
-                # SPLADE hybrid mode
+            # ── Signal A: SF / BM25 / SPLADE ──
+            if signal_a == "bm25":
+                _bm25 = BM25Scorer(corpus_texts)
+                _bm25_list = _bm25.score_all(query)
+                signal_a_dict = {doc_id_list[i]: s for i, s in _bm25_list}
+            elif signal_a == "splade":
                 splade_model = getattr(args, "splade_model", "naver/splade-cocondenser-ensembledistil")
                 cache_dir = str(Path(corpus_path).parent)
-                logger.info(f"  [SPLADE] enabled with alpha={hybrid_alpha}, model={splade_model}, cache={cache_dir}")
+                _scorer = _get_splade_scorer(corpus_texts, model_name=splade_model, cache_dir=cache_dir)
+                if _scorer is None:
+                    logger.warning("  [SPLADE] A-signal failed to load — falling back to SF")
+                    signal_a_dict = sf_scores
+                else:
+                    signal_a_dict = {doc_id_list[i]: s for i, s in _scorer.score_all(query)}
+            else:
+                signal_a_dict = sf_scores
+
+            # ── Signal B: SPLADE / DPR / BM25 ──
+            signal_b_dict = None
+            if retriever_b == "splade":
+                splade_model = getattr(args, "splade_model", "naver/splade-cocondenser-ensembledistil")
+                cache_dir = str(Path(corpus_path).parent)
+                logger.info(f"  [SPLADE] B-signal, alpha={hybrid_alpha}, model={splade_model}, cache={cache_dir}")
                 scorer = _get_splade_scorer(corpus_texts, model_name=splade_model, cache_dir=cache_dir)
                 if scorer is None:
-                    logger.warning("  [SPLADE] Failed to load model — falling back to SF only")
+                    logger.warning("  [SPLADE] Failed to load model — falling back to A-signal only")
                 else:
-                    splade_scores_list = scorer.score_all(query)
-                    splade_dict = {doc_id_list[i]: score for i, score in splade_scores_list}
+                    signal_b_dict = {doc_id_list[i]: s for i, s in scorer.score_all(query)}
+            elif retriever_b == "dpr":
+                dpr_ctx = getattr(args, "dpr_ctx_model", "facebook/dpr-ctx_encoder-single-nq-base")
+                dpr_qry = getattr(args, "dpr_qry_model", "facebook/dpr-question_encoder-single-nq-base")
+                cache_dir = str(Path(corpus_path).parent)
+                logger.info(f"  [DPR] B-signal, ctx={dpr_ctx}, qry={dpr_qry}, cache={cache_dir}")
+                try:
+                    from dpr_scorer import get_dpr_scorer
+                    scorer = get_dpr_scorer(corpus_texts, ctx_model=dpr_ctx, qry_model=dpr_qry, cache_dir=cache_dir)
+                    signal_b_dict = {doc_id_list[i]: s for i, s in scorer.score_all(query)}
+                except Exception as e:
+                    logger.warning(f"  [DPR] Failed to load/score ({e}) — falling back to A-signal only")
+            elif retriever_b == "bm25":
+                _bm25 = BM25Scorer(corpus_texts)
+                signal_b_dict = {doc_id_list[i]: s for i, s in _bm25.score_all(query)}
 
-                    fusion_method = getattr(args, "fusion_method", "linear")
+            if signal_b_dict is None:
+                # No usable B-signal: rank by the A-signal dict directly
+                # (enables single-signal baselines: signal_a=sf/bm25/splade, retriever_b=none)
+                logger.info(f"  [FUSION] no B-signal available; using A-signal ({signal_a}) ranking")
+                if signal_a_dict:
+                    signal_a_sorted = sorted(signal_a_dict.items(), key=lambda x: x[1], reverse=True)
+                    results = signal_a_sorted[: getattr(args, "top_k", 10)]
+            else:
+                fusion_method = getattr(args, "fusion_method", "linear")
+                if fusion_method not in fusion_operators.OPERATORS:
+                    logger.warning(f"  [FUSION] unknown method '{fusion_method}', falling back to linear")
+                    fusion_method = "linear"
 
-                    if fusion_method == "rrf":
-                        # Reciprocal Rank Fusion: rank-level fusion, no score normalization needed
-                        rrf_k = getattr(args, "rrf_k", 60)
-                        sf_ranked = sorted(sf_scores.items(), key=lambda x: x[1], reverse=True)
-                        splade_ranked = sorted(splade_dict.items(), key=lambda x: x[1], reverse=True)
-                        sf_rank = {doc_id: rank + 1 for rank, (doc_id, _) in enumerate(sf_ranked)}
-                        splade_rank = {doc_id: rank + 1 for rank, (doc_id, _) in enumerate(splade_ranked)}
+                fuse_params = {"alpha": hybrid_alpha}
+                if fusion_method == "rrf":
+                    fuse_params["k"] = getattr(args, "rrf_k", 60)
 
-                        hybrid_results = []
-                        all_doc_ids = set(sf_rank) | set(splade_rank)
-                        for doc_id in all_doc_ids:
-                            r1 = sf_rank.get(doc_id, len(sf_rank) + 1)
-                            r2 = splade_rank.get(doc_id, len(splade_rank) + 1)
-                            combined = 1.0 / (rrf_k + r1) + 1.0 / (rrf_k + r2)
-                            hybrid_results.append((doc_id, combined))
-
-                        hybrid_results.sort(key=lambda x: x[1], reverse=True)
-                        results = hybrid_results[:getattr(args, "top_k", 10)]
-                        logger.info(f"  [RRF] k={rrf_k}, fused {len(all_doc_ids)} docs")
-                    else:
-                        # Linear fusion: score-level weighted combination (default)
-                        max_sf = max(sf_scores.values()) if sf_scores else 1.0
-                        max_splade = max(splade_dict.values()) if splade_dict else 1.0
-
-                        hybrid_results = []
-                        for doc_id in doc_id_list:
-                            sf_norm = sf_scores.get(doc_id, 0.0) / max_sf if max_sf > 0 else 0
-                            splade_norm = splade_dict.get(doc_id, 0.0) / max_splade if max_splade > 0 else 0
-                            combined = hybrid_alpha * sf_norm + (1 - hybrid_alpha) * splade_norm
-                            hybrid_results.append((doc_id, combined))
-
-                        hybrid_results.sort(key=lambda x: x[1], reverse=True)
-                        results = hybrid_results[:getattr(args, "top_k", 10)]
+                fused = fusion_operators.fuse(
+                    fusion_method, signal_a_dict, signal_b_dict, **fuse_params
+                )
+                hybrid_results = list(fused.items())
+                hybrid_results.sort(key=lambda x: x[1], reverse=True)
+                results = hybrid_results[: getattr(args, "top_k", 10)]
+                logger.info(
+                    f"  [FUSION] A={signal_a} B={retriever_b} method={fusion_method}, "
+                    f"alpha={hybrid_alpha}, fused {len(fused)} docs"
+                )
 
     # ── Stage 4d: negation-aware scoring ──────────────────────────────────────
     negation_aware = getattr(args, "negation_aware", False)
@@ -2963,8 +2993,31 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--fusion-method", dest="fusion_method", type=str, default="linear",
-        choices=["linear", "rrf"],
-        help="Fusion method for combining SF+ SPLADE scores (default: linear). 'rrf' uses Reciprocal Rank Fusion.",
+        choices=["linear", "rrf", "combsum", "combmnz", "borda", "zscore", "minmax", "l2"],
+        help="Fusion method for combining SF+SPLADE scores (default: linear). "
+             "Rank-space: rrf, borda. Score-space: combsum, combmnz, linear, l2. "
+             "Normalized score-space: zscore, minmax (alpha-weighted after normalization).",
+    )
+    parser.add_argument(
+        "--signal-a", dest="signal_a", type=str, default="sf",
+        choices=["sf", "bm25", "splade"],
+        help="First retrieval signal for fusion (default: sf). Use 'bm25' for BM25+X pairs, 'splade' for SPLADE-only baseline.",
+    )
+    parser.add_argument(
+        "--retriever-b", dest="retriever_b", type=str, default=None,
+        choices=["splade", "dpr", "bm25", "none"],
+        help="Second retrieval signal for fusion (default: splade when --splade). "
+             "Use 'dpr' for the second-model pair (reviewer #4). 'none' disables fusion.",
+    )
+    parser.add_argument(
+        "--dpr-ctx-model", dest="dpr_ctx_model", type=str,
+        default="facebook/dpr-ctx_encoder-single-nq-base",
+        help="DPR context encoder checkpoint for --retriever-b dpr.",
+    )
+    parser.add_argument(
+        "--dpr-qry-model", dest="dpr_qry_model", type=str,
+        default="facebook/dpr-question_encoder-single-nq-base",
+        help="DPR question encoder checkpoint for --retriever-b dpr.",
     )
     parser.add_argument(
         "--rrf-k", dest="rrf_k", type=int, default=60,

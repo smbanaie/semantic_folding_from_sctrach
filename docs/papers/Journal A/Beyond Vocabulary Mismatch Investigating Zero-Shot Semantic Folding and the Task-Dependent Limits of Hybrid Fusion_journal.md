@@ -274,7 +274,7 @@ Single-hop retrieval is operator-invariant (ceiling or flat). Multi-hop retrieva
 
 ### 8.1 Feature Invariance (Overlap-Feature Invariance)
 
-For binary SDRs q,d ∈ {0,1}ᴰ, the dot product is qᵀd = Σ qᵢdᵢ (overlap count). If a proposed feature is a deterministic transformation of the same overlap count, it contains no independent ranking information. We state this conditionally and test it with **adversarial non-collinear features** (term rarity, document length, phrase coverage, query-term diversity, proximity, entropy, score margin, independent BM25) measuring corr(feature, qᵀd) vs ΔMRR.
+For binary SDRs q,d ∈ {0,1}ᴰ, the dot product is qᵀd = Σ qᵢdᵢ (overlap count). If a proposed feature is a deterministic transformation of the same overlap count, it contains no independent ranking information. We state this as a constructive claim and specify the **adversarial non-collinear feature** test that would establish it (term rarity, document length, phrase coverage, query-term diversity, proximity, entropy, score margin, independent BM25; corr(feature, qᵀd) vs ΔMRR) — implemented as the future-work harness in §8.2.
 
 ### 8.2 Non-Collinear Feature Tests
 

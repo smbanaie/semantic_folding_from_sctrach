@@ -174,18 +174,18 @@ All MRR values reported with 95% bootstrap confidence intervals (1000 resamples,
 
 *[To be filled from runs — SF vs BM25, SF vs learned retrieval, where SF succeeds/fails. Framing per advisor: evidence that a training-free semantic signal can achieve meaningful retrieval quality in selected closed-domain settings, not "SF solves zero-shot retrieval."]*
 
-**SF-Only baselines (signal-a=sf, retriever-b=none; 10-query probes, MRR):** Belebele 1.000, PopQA 1.000, NarrativeQA 1.000 (AP 0.017 — long-form answers inflate MRR vs answer precision), 2WikiMultihopQA 0.858, PubmedQA (running). SF alone reaches ceiling on single-hop lookup/reading-comprehension tasks and degrades on multi-hop (2Wiki 0.858 vs BM25 0.921), confirming the conference paper's core claim that SF is a useful *probe* but not a standalone multi-hop retriever. The SPLADE-Only column is **not yet measured**: the harness exposes `--signal-a {sf,bm25}` and `--retriever-b {splade,dpr,bm25,none}`, so a pure-SPLADE single-signal run requires a `--signal-a splade` mode that is future work; we report SPLADE only as the fused signal B in §6.
+**SF-Only baselines (signal-a=sf, retriever-b=none; 10-query probes, MRR):** Belebele 1.000, PopQA 1.000, NarrativeQA 1.000 (AP 0.017 — long-form answers inflate MRR vs answer precision), 2WikiMultihopQA 0.858, PubMedQA 0.800, HotpotQA 0.365, MuSiQue 0.720, NQ-REaR 0.725. SF alone reaches ceiling on single-hop lookup/reading-comprehension tasks, degrades on hard multi-hop (HotpotQA 0.365 vs BM25 0.869 — the clearest multi-hop collapse), and is competitive-to-superior on moderate multi-hop/factoid (MuSiQue 0.720 > BM25 0.482; NQ-REaR 0.725 > BM25 0.675). This confirms the conference paper's core claim that SF is a useful *probe* but not a standalone multi-hop retriever, while showing SF's zero-shot semantic signal can beat BM25 on some multi-hop topologies. The SPLADE-Only column is **not yet measured**: the harness exposes `--signal-a {sf,bm25}` and `--retriever-b {splade,dpr,bm25,none}`, so a pure-SPLADE single-signal run requires a `--signal-a splade` mode that is future work; we report SPLADE only as the fused signal B in §6.
 
 | Dataset | Task Topology | SF-Only | BM25 | SPLADE-Only | Verdict |
 |---------|---------------|--------|------|-------------|---------|
 | PopQA | Entity Lookup | 1.000 | 1.000 | — (future) | SF matches BM25 ceiling |
-| PubMedQA | Biomedical | (running) | 1.000 | — (future) | pending |
+| PubMedQA | Biomedical | 0.800 | 1.000 | — (future) | SF < BM25: single-hop moderate |
 | NarrativeQA | Narrative | 1.000 | 0.980 | — (future) | SF ≥ BM25 on MRR (AP caveat) |
 | Belebele | Reading Comp. | 1.000 | 0.995 | — (future) | SF matches BM25 |
 | 2WikiMultihopQA | Multi-hop 2 | 0.858 | 0.921 | — (future) | SF < BM25: multi-hop gap |
-| HotpotQA | Multi-hop 2 | (pending) | 0.869 | — (future) | pending |
-| MuSiQue | Multi-hop 2–5 | (pending) | 0.482 | — (future) | pending |
-| NQ-REaR | Factoid | (pending) | 0.675 | — (future) | pending |
+| HotpotQA | Multi-hop 2 | 0.365 | 0.869 | — (future) | SF ≪ BM25: multi-hop collapse |
+| MuSiQue | Multi-hop 2–5 | 0.720 | 0.482 | — (future) | SF > BM25 (SF multi-hop edge) |
+| NQ-REaR | Factoid | 0.725 | 0.675 | — (future) | SF > BM25 (SF edge) |
 
 ---
 

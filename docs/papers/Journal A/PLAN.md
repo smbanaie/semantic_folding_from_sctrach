@@ -299,17 +299,17 @@
 256|
 257|## Milestone Tracking
 258|
-259|| Milestone | Target Date | Status |
-260||-----------|-------------|--------|
-261|| Phase 0 complete | Day 0 | ✅ |
-262|| Phase 1 complete (master table) | Day 7-10 | 🔄 IN PROGRESS |
-263|| Phase 2 complete (4 model pairs) | Day 14-17 | ⏳ PENDING |
-264|| Phase 3 complete (synthetic) | Day 20 | ⏳ PENDING |
-265|| Phase 4 complete (full corpus) | Day 25 | ⏳ PENDING |
-266|| Phase 5 complete (invariance+scaling) | Day 30 | ⏳ PENDING |
-267|| Phase 6 complete (paper draft) | Day 40-45 | ⏳ PENDING |
-268|| Internal review | Day 45 | ⏳ PENDING |
-269|| Submission ready | Day 50 | ⏳ PENDING |
+| Milestone | Target Date | Status |
+|-----------|-------------|--------|
+| Phase 0 complete | Day 0 | ✅ |
+| Phase 1 complete (9×7 master table, MuSiQue+SciFact added) | Day 1-2 | ✅ |
+| Phase 2 complete (4 model pairs implemented + runs) | Day 1 | ✅ (runs from prior cycle) |
+| Phase 3 complete (synthetic magnitude experiment) | Day 1 | ✅ (results/synthetic_magnitude_20260822_194209.json) |
+| Phase 4 complete (full corpus: HotpotQA done, SciFact attempted-too-slow) | Day 2 | 🔶 PARTIAL (HotpotQA genuine Regime B; SciFact flagged as remaining) |
+| Phase 5 complete (invariance+scaling) | Day 1 | ✅ (N-sweep done; feature-invariance harness pending — see SPEC) |
+| Phase 6 complete (paper rewrite) | Day 2-3 | 🔄 IN PROGRESS (title, §4.1/§4.3/§4.8, §6.1 9-datasets, §7.2 synthetic, §8.3/§8.5, §9.4, abstract updated) |
+| Internal review | Day 3 | ⏳ PENDING |
+| Submission ready | Day 4 | ⏳ PENDING |
 270|
 271|---
 272|

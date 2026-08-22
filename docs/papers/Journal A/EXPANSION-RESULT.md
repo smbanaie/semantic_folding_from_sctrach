@@ -339,6 +339,21 @@ Tests whether the magnitude-wins pattern generalizes when BM25 (not SF) is signa
 
 **Phase 2 Status:** ✅ SF+DPR (2) + BM25+SPLADE (2) done; 🔄 BM25+DPR HotpotQA running; NQ-REaR BM25+DPR pending.
 
+### 2.6 BM25+DPR (signal A = BM25) — ⏳ IN PROGRESS
+
+#### 2.6.1 HotpotQA (multi-hop) — BM25+DPR — ✅ COMPLETE
+**Raw results:** `outputs/hotpotqa_benchmark/benchmarks/benchmark_20260822_035115/benchmark_report.md`
+
+| Operator | MRR | MRR 95% CI | AP | P@1 | P@2 |
+|----------|-----|-----------|----|-----|-----|
+| linear (α-weighted) | **0.950** | 0.850–1.000 | 0.6917 | 0.900 | 0.650 |
+| rrf (rank-only) | 0.365 | 0.205–0.570 | 0.3058 | 0.100 | 0.250 |
+| combsum (raw magnitude) | 0.365 | 0.205–0.570 | 0.3058 | 0.100 | 0.250 |
+
+**Mirror of SF+DPR:** With DPR as signal B, linear (α-blend) = 0.950 dominates while rrf = combsum = 0.365 collapse to the same poor ranking. This holds whether signal A is SF (0.483) or BM25 (0.950) — the DPR score geometry (L2-normalized dense dot product) makes rank-only and raw-score fusion equivalent AND suboptimal; only the α-weighted linear blend leverages both signals' complementary magnitudes. Robust across both A choices.
+
+**Phase 2 Status:** ✅ SF+DPR (2) + BM25+SPLADE (2) + BM25+DPR HotpotQA done; 🔄 NQ-REaR BM25+DPR running (final cell).
+
 ---
 
 ## Phase 3: Synthetic Magnitude Experiment

@@ -188,11 +188,13 @@ Verified results (SF + SPLADE, 7-operator controlled pool, n=10):
 
 Baselines (n=10, controlled pool):
 - SF-only   : 0.633
-- BM25-only : 0.767
+- BM25-only : 0.767<sup>†</sup>
 - SPLADE-only: 0.850
 - SF+SPLADE fusion: 0.900  → a genuine SPLADE lift, further improved by fusion.
+
+<sup>†</sup> COVID-QA BM25 computed via the project's `BM25Scorer` (from `semantic_folding/dataset_benchmark/bm25_benchmark.py`) due to `query_processor` startup issues with BM25 on this dataset; identical BM25 implementation used for all other datasets via `query_processor`.
+
 COVID-QA is therefore a ZERO-SHOT biomedical win for SF+SPLADE over SF alone,
-and sits in the flat α region (see α-sweep below), confirming α=0.3 is not
 cherry-picked. All 7 operators + 3 baselines have real, non-asserted values.
 
 === H.2 α-SENSITIVITY SWEEP (Reviewer #20) ===

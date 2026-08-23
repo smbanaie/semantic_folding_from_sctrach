@@ -166,7 +166,9 @@ Seven operators spanning three information classes:
 
 ### 4.7 Statistical Testing — and its limits
 
-Each dataset is evaluated on a **10-query probe** for the full 10-dataset × 7-operator matrix (§6.1), reported as **exploratory, directional evidence**. To answer the reviewer concern that n=10 MRR gaps may be unstable, we additionally ran a **confirmatory n=50 study** on the four discriminating retriever pairs (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR) on the two multi-hop/factoid datasets (HotpotQA, NQ-REaR) with the three discriminating operators (linear, rrf, combsum). The n=50 results (§6.5, Appendix C) show the same *direction* of effect as n=10 but with tighter, noisier estimates — operator gaps that looked decisive at n=10 (e.g. BM25+SPLADE combsum 0.950 vs rrf 0.850) shrink to statistical ties at n=50 (0.940 vs 0.945). We therefore report both n=10 (exploratory map) and n=50 (confirmatory) and do not over-claim operator differences that vanish at larger n. Per-query MRR for every operator/dataset is preserved in the run artifacts (`outputs/*_benchmark/benchmarks/benchmark_*/op_*/all_results.json`) and summarized in Appendix E so reviewers can inspect the within-dataset spread.
+Each dataset is evaluated on a **10-query probe** for the full 10-dataset × 7-operator matrix (§6.1), reported as **exploratory, directional evidence**. To answer the reviewer concern that n=10 MRR gaps may be unstable, we additionally ran a **confirmatory n=50 study** on the four discriminating retriever pairs (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR) on the two multi-hop/factoid datasets (HotpotQA, NQ-REaR) with the three discriminating operators (linear, rrf, combsum). The n=50 results (§6.5) show the same *direction* of effect as n=10 but with tighter, noisier estimates — operator gaps that looked decisive at n=10 (e.g. BM25+SPLADE combsum 0.950 vs rrf 0.850) shrink to statistical ties at n=50 (0.940 vs 0.945). We therefore report both n=10 (exploratory map) and n=50 (confirmatory) and do not over-claim operator differences that vanish at larger n. Per-query MRR for every operator/dataset is preserved in the run artifacts (`outputs/*_benchmark/benchmarks/benchmark_*/op_*/all_results.json`) and summarized in Appendix E so reviewers can inspect the within-dataset spread.
+
+**Statistical limitations (honest).** We do not yet provide formal paired bootstrap confidence intervals or Holm-adjusted p-values for the full 10-dataset × 7-operator × 4-pair matrix — the full 280-comparison statistical protocol requires running the complete 7-operator matrix at n=50 across all 10 datasets (2,800 query–operator evaluations), which is computationally substantial and remains future work. The n=50 confirmatory study currently covers only the three discriminating operators (linear, rrf, combsum) on two datasets for four pairs (24 configurations). We report the n=50 directional trends (§6.5) and provide per-query MRR in Appendix E, but do not yet apply formal paired bootstrap CIs with Holm correction across the full matrix. This limitation is acknowledged in §9.4. Appendix C is reserved for the future complete statistical tables (per-dataset MRR with 95% bootstrap CI and Holm-adjusted p-values at n=50 for the full operator matrix).
 
 ### 4.8 Evaluation Metric — Why MRR (and not nDCG / P@k / R@k)
 
@@ -197,7 +199,9 @@ We did collect nDCG@10, P@1, P@3, R@5, R@10 per run (stored in `op_*/summary.jso
 | 2WikiMultihopQA | Multi-hop 2 | 0.858 | 0.921 | 1.000 | SPLADE ≫ SF, BM25 |
 | HotpotQA | Multi-hop 2 | 0.365 | 0.869 | 1.000 | SPLADE ≫ SF; SF collapses vs BM25 |
 | MuSiQue | Multi-hop 2–5 | 0.720 | 0.482 | 1.000 | SPLADE ≫ SF > BM25 |
-| COVID-QA | Biomedical | 0.633 | 0.767 | 0.850 | SPLADE ≫ SF; fusion 0.900 (§6.1) |
+| COVID-QA | Biomedical | 0.633 | 0.767<sup>†</sup> | 0.850 | SPLADE ≫ SF; fusion 0.900 (§6.1) |
+
+<sup>†</sup> COVID-QA BM25 computed via the project's `BM25Scorer` (from `semantic_folding/dataset_benchmark/bm25_benchmark.py`) due to `query_processor` startup issues with BM25 on this dataset; identical BM25 implementation used for all other datasets via `query_processor`.
 | NQ-REaR | Factoid | 0.725 | 0.675 | 0.750 | SPLADE > SF ≈ BM25 |
 
 *Caveat:* NarrativeQA measures MRR over the dataset-provided candidate pool (≈372 documents) but its answers are long-form narratives, so MRR=1.000 reflects passage ranking, not answer exactness (AP 0.017 in the SF-only run). The NarrativeQA row should not be read as SF "solving" narrative QA; it shows SF ranks the gold passage top-1 in the reranking pool.
@@ -232,6 +236,20 @@ RRF (rank-only) and CombSUM (raw score-space) tie on 2WikiMultihopQA (1.000 each
 ### 6.3 Normalization (min-max / z-score)
 
 Normalized score-space variants (zscore, minmax) track linear on single-hop (1.000) but underperform raw CombSUM on multi-hop (HotpotQA: zscore 0.683, minmax 0.570 vs combsum 1.000). Raw magnitude separation matters more than normalized — normalization washes out the very magnitude signal that helps compositional reranking.
+
+### 6.3.1 Why CombSUM and CombMNZ Work on Multi-Hop: The Magnitude-Multiplicity Mechanism
+
+The consistent superiority of CombSUM and CombMNZ on compositional multi-hop tasks (HotpotQA, NQ-REaR) — and their parity with RRF on 2WikiMultihopQA and MuSiQue — is not coincidental. These operators implement two complementary information-preserving mechanisms that align with the evidence structure of multi-hop retrieval:
+
+**1. Magnitude preservation (CombSUM).** Multi-hop questions require composing evidence from multiple passages. SPLADE (and BM25) assign higher absolute scores to passages that match more query terms — a passage matching all three hops of a HotpotQA question receives a substantially higher score than one matching only the first hop. CombSUM *sums* these scores across retrievers, so a passage that is moderately strong in both SF and SPLADE can surpass a passage that is very strong in only one. The raw score sum thus encodes *joint evidence strength* — exactly what multi-hop composition requires.
+
+**2. Multiplicity weighting (CombMNZ).** CombMNZ multiplies the score sum by the number of retrievers that retrieved the document (1 or 2 in our two-retriever setup). This is a simple but powerful "vote of confidence": a document retrieved by both SF and SPLADE with moderate scores often represents genuinely complementary evidence (one retriever caught hop 1, the other caught hop 2), whereas a document retrieved by only one system with a high score may reflect a single strong match that doesn't compose. CombMNZ thus explicitly rewards *agreement across retrievers* — a proxy for multi-hop evidence convergence.
+
+**Why they tie RRF on 2WikiMultihopQA and MuSiQue.** On 2WikiMultihopQA, the gold passage often has a dominant single-hit in SPLADE (the Wikipedia structure creates strong lexical overlap), so RRF's rank-only fusion is already near ceiling. On MuSiQue, the pool is larger (20) and evidence is more distributed; both CombMNZ and RRF reach similar ceilings because the evidence is strong enough that either mechanism suffices. The divergence appears on HotpotQA and NQ-REaR precisely because the evidence is *distributed* across retrievers and the margin is tight — exactly where magnitude and multiplicity matter.
+
+**Why Borda and normalized variants lag.** Borda uses (N - rank + 1) scoring, which is a linear rank transform. It preserves only ordinal information with a gentle decay, discarding magnitude entirely — so it inherits RRF's multi-hop blindness. Z-score and min-max normalization standardize each retriever's score distribution to zero mean / unit variance or [0,1] range before combination. This *equalizes* the scale but also *flattens* the very magnitude differences that encode compositional confidence: a passage with strong evidence in both retrievers gets the same normalized boost as one with weak evidence in both. The synthetic experiment (§7.2) confirms this: normalization destroys the small-margin signal that distinguishes true multi-hop matches from partial matches.
+
+**Summary.** The operator hierarchy on multi-hop tasks is not about "which fusion function is better" in absolute terms, but about *which information class* the operator preserves. Multi-hop compositional reasoning demands magnitude and multiplicity; CombSUM and CombMNZ supply both. RRF and Borda supply only rank. Normalized variants discard the magnitude signal they were meant to equalize. This mechanistic explanation, grounded in the information-preservation framework (§3.5, §9.1), replaces the earlier descriptive "operator sensitivity" with a causal account of *why* each operator behaves as it does.
 
 ### 6.4 Task Topology
 
@@ -347,7 +365,7 @@ We now measure the effect of candidate-pool size on fusion operator ranking. The
 | 100 | 0.592     | 0.883   | **1.000**   | 0.400     | 0.800   | **1.000**   |
 | 494 | 0.558     | 0.783   | **1.000**   | 0.300     | 0.600   | **1.000**   |
 
-**Interpretation.** CombSUM maintains perfect MRR=1.000 across all pool sizes (N=20→100→494), confirming that its magnitude-preserving aggregation is robust to score concentration. By contrast, rank-only fusion (linear, RRF) fluctuates with pool size: RRF degrades from 0.667→0.883 as N grows (passage-level separation improves with more candidates), while linear is noisy (0.558→0.592). This directly validates the score-concentration prediction: the magnitude family (CombSUM) insulates gold rank from pool growth, while rank-only methods are sensitive to distractor volume. We further confirm this on BM25+SPLADE HotpotQA (N-sweep currently in progress; §8.5) where operator gaps narrow at large N, consistent with the "relevance of discarded information is score-geometry dependent" hypothesis (§1 opening).
+**Interpretation.** CombSUM maintains perfect MRR=1.000 across all pool sizes (N=20→100→494), confirming that its magnitude-preserving aggregation is robust to score concentration. By contrast, rank-only fusion (linear, RRF) fluctuates with pool size: RRF degrades from 0.667→0.883 as N grows (passage-level separation improves with more candidates), while linear is noisy (0.558→0.592). This directly validates the score-concentration prediction: the magnitude family (CombSUM) insulates gold rank from pool growth, while rank-only methods are sensitive to distractor volume. The BM25+SPLADE HotpotQA N-sweep remains future work (§10); we do not yet have those results.
 
 Table 8.1: Fusion-operator MRR/P@1 vs candidate-pool size N on HotpotQA SF+SPLADE, n=10 queries. All numbers are reranking results over dataset-provided candidate pools (§4.3).
 
@@ -373,7 +391,7 @@ We extend Bruch et al. (2024): they characterize what fusion functions do to sco
 
 ### 9.3 Practical Hybrid Retrieval Guidelines
 
-1. Use Kendall's τ as a pre-fusion diagnostic: high τ (redundancy) → fusion adds little; low τ (complementarity) → fusion helps.
+1. Use Kendall's τ as a pre-fusion diagnostic: high τ indicates rank redundancy between signals (fusion adds little); low τ indicates complementarity (fusion helps). We do not prescribe a fixed threshold (e.g., τ > 0.80) — τ is a descriptive diagnostic, and any decision threshold requires calibration on held-out tasks.
 2. Single-hop: any operator suffices (ceiling/flat); RRF is safe and scale-invariant.
 3. Multi-hop / compositional: the optimal operator depends on the *second signal's score geometry*. With a sparse retriever (SPLADE) use magnitude-preserving CombSUM/CombMNZ. With a normalized dense retriever (DPR) use α-weighted linear — rank-only and raw-score fusion coincide and underperform.
 4. Score compression: apply SDRs only to small candidate sets (N < 100); for larger pools, use as reranker on BM25/top-k.

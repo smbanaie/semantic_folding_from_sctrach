@@ -537,6 +537,324 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\belebele_benchmark\runs\run_20260822_000904
     status: completed
     type: index
+  covidqa__benchmark_20260823_001502:
+    created_at: '2026-08-23T00:15:04.791880'
+    dataset: covidqa
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\runs\run_20260822_233924\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\benchmarks\benchmark_20260823_001502
+    status: running
+    type: benchmark
+  covidqa__benchmark_20260823_011909:
+    created_at: '2026-08-23T01:19:12.062946'
+    dataset: covidqa
+    params:
+      attention_temperature: '1.0'
+      block_size: '8'
+      cross_attention: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      grid_size: '64'
+      keep_verbs: 'True'
+      max_doc_freq: '20'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      rrf_k: '60'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      synonym_weight: '0.5'
+      top_k: '10'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\benchmarks\benchmark_20260823_011909
+    status: completed
+    type: benchmark
+  covidqa__benchmark_20260823_020920:
+    created_at: '2026-08-23T02:09:21.756062'
+    dataset: covidqa
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\runs\run_20260823_013836\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\benchmarks\benchmark_20260823_020920
+    status: completed
+    type: benchmark
+  covidqa__run_20260822_233924:
+    created_at: '2026-08-22T23:39:27.707422'
+    dataset: covidqa
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\runs\run_20260822_233924\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\runs\run_20260822_233924
+    status: completed
+    type: index
+  covidqa__run_20260823_013836:
+    created_at: '2026-08-23T01:38:38.995663'
+    dataset: covidqa
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\runs\run_20260823_013836\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\covidqa_benchmark\runs\run_20260823_013836
+    status: completed
+    type: index
   hotpotqa__benchmark_20260707_145440:
     created_at: '2026-07-07T14:54:40.540506'
     dataset: hotpotqa
@@ -803,6 +1121,142 @@ runs:
       use_morton: 'True'
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\hotpotqa_benchmark\runs\run_20260707_150206
+    status: completed
+    type: index
+  musique__benchmark_20260822_192335:
+    created_at: '2026-08-22T19:23:36.260356'
+    dataset: musique
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\musique_benchmark\runs\run_20260822_191925\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\musique_benchmark\benchmarks\benchmark_20260822_192335
+    status: completed
+    type: benchmark
+  musique__run_20260822_191925:
+    created_at: '2026-08-22T19:19:26.703586'
+    dataset: musique
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\musique_benchmark\runs\run_20260822_191925\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\musique_benchmark\runs\run_20260822_191925
     status: completed
     type: index
   narrativeqa__benchmark_20260707_142958:
@@ -5572,6 +6026,437 @@ runs:
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\benchmarks\benchmark_20260720_234437
     status: failed_batch
     type: benchmark
+  scifact__benchmark_20260822_182428:
+    created_at: '2026-08-22T18:24:29.533689'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_182254\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\benchmarks\benchmark_20260822_182428
+    status: running
+    type: benchmark
+  scifact__benchmark_20260822_183132:
+    created_at: '2026-08-22T18:31:33.313567'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_182943\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\benchmarks\benchmark_20260822_183132
+    status: running
+    type: benchmark
+  scifact__benchmark_20260822_191646:
+    created_at: '2026-08-22T19:16:47.270998'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_191507\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\benchmarks\benchmark_20260822_191646
+    status: completed
+    type: benchmark
+  scifact__benchmark_20260822_201250:
+    created_at: '2026-08-22T20:12:51.098399'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_194238\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'True'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\benchmarks\benchmark_20260822_201250
+    status: running
+    type: benchmark
+  scifact__benchmark_20260822_214130:
+    created_at: '2026-08-22T21:41:32.085394'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_210748\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'True'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\benchmarks\benchmark_20260822_214130
+    status: failed_batch
+    type: benchmark
+  scifact__benchmark_20260822_234209:
+    created_at: '2026-08-22T23:42:10.938022'
+    dataset: scifact
+    params:
+      attention_temperature: '1.0'
+      block_size: '8'
+      cross_attention: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      grid_size: '64'
+      keep_verbs: 'True'
+      max_doc_freq: '20'
+      method: tsne
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      short_query_max_words: '10'
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      synonym_weight: '0.5'
+      top_k: '10'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\benchmarks\benchmark_20260822_234209
+    status: completed
+    type: benchmark
   scifact__run_20260720_123235:
     created_at: '2026-07-20T12:32:35.950336'
     dataset: scifact
@@ -6679,5 +7564,395 @@ runs:
       use_morton: 'True'
       weighting: idf
     path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260720_182429
+    status: completed
+    type: index
+  scifact__run_20260822_182254:
+    created_at: '2026-08-22T18:22:55.621075'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_182254\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_182254
+    status: completed
+    type: index
+  scifact__run_20260822_182943:
+    created_at: '2026-08-22T18:29:43.988059'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_182943\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_182943
+    status: completed
+    type: index
+  scifact__run_20260822_191507:
+    created_at: '2026-08-22T19:15:08.345835'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_191507\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'False'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_191507
+    status: completed
+    type: index
+  scifact__run_20260822_194238:
+    created_at: '2026-08-22T19:42:39.424539'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_194238\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'True'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_194238
+    status: completed
+    type: index
+  scifact__run_20260822_210748:
+    created_at: '2026-08-22T21:07:49.378919'
+    dataset: scifact
+    params:
+      adaptive_spreading: 'False'
+      asym_alpha: '0.7'
+      asymmetric: 'False'
+      attention_temperature: '1.0'
+      block_size: '8'
+      corpus_path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_210748\corpus.txt
+      cross_attention: 'False'
+      decompose: 'False'
+      doc_norm: l2
+      dynamic_spreading: 'False'
+      full_corpus: 'True'
+      fusion_method: rrf
+      fusion_operators: '[''linear'', ''rrf'', ''combsum'', ''combmnz'', ''borda'',
+        ''zscore'', ''minmax'']'
+      geometric: 'False'
+      grid_size: '64'
+      hybrid: 'False'
+      hybrid_alpha: '0.5'
+      keep_verbs: 'True'
+      llm_batch_size: '4'
+      max_doc_freq: '0'
+      method: umap
+      min_freq: '1'
+      min_word_length: '3'
+      morton: 'True'
+      multi_resolution: 'False'
+      negation_aware: 'False'
+      negation_boost: '0.3'
+      negation_penalty: '0.5'
+      normalization: l2
+      normalize_after_spreading: 'False'
+      oov_expansion: 'False'
+      perplexity: '50'
+      rerank: 'False'
+      rerank_model: None
+      rerank_top_k: '100'
+      rrf_k: '60'
+      score_norm: none
+      short_query_max_words: '10'
+      sim_metric: cosine
+      smoothing_sigma: '1.5'
+      snippet_ranking: 'False'
+      snippet_stride: '2'
+      snippet_window: '3'
+      splade: 'True'
+      splade_alpha: '0.3'
+      splade_model: naver/splade-cocondenser-ensembledistil
+      spreading_decay: '0.5'
+      spreading_steps: '1'
+      spreading_steps_long: '1'
+      storage: file
+      synonym_weight: '0.5'
+      tfidf_alpha: '0.3'
+      tfidf_rerank: 'False'
+      top_k: '5'
+      top_percent: '0.1'
+      tsne_iter: '1000'
+      tsne_perplexity: '50'
+      tuning: '{''best_profile'': ''sf_splade'', ''generated'': ''2026-07-20'', ''grid'':
+        {''sf_only'': {''winner'': ''umap_mdf0'', ''mrr'': {''umap_mdf0'': 0.86, ''umap_mdf05pct'':
+        0.8066666666666668, ''tsne_mdf0'': 0.85, ''tsne_mdf05pct'': 0.8233333333333333},
+        ''time'': {''umap_mdf0'': 143.4, ''umap_mdf05pct'': 132.6, ''tsne_mdf0'':
+        105.1, ''tsne_mdf05pct'': 120.0}}, ''sf_splade'': {''winner'': ''tsne_mdf0'',
+        ''mrr'': {''umap_mdf0'': 0.95, ''umap_mdf05pct'': 0.95, ''tsne_mdf0'': 0.95,
+        ''tsne_mdf05pct'': 0.94}, ''time'': {''umap_mdf0'': 225.8, ''umap_mdf05pct'':
+        223.0, ''tsne_mdf0'': 209.8, ''tsne_mdf05pct'': 225.0}}}}'
+      umap_metric: cosine
+      umap_min_dist: '0.0'
+      umap_n_neighbors: '15'
+      use_morton: 'True'
+      weighting: idf
+    path: E:\PHD\GraphRag-Implementations\YaALI\knowledge-graph-builder\outputs\scifact_benchmark\runs\run_20260822_210748
     status: completed
     type: index

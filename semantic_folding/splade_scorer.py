@@ -83,8 +83,8 @@ class SPLADEScorer:
             from transformers import AutoModelForMaskedLM, AutoTokenizer
             import torch
             logger.info(f"  [SPLADE] Loading model: {self.model_name}")
-            tokenizer = AutoTokenizer.from_pretrained(self.model_name, token=False)
-            model = AutoModelForMaskedLM.from_pretrained(self.model_name, token=False)
+            tokenizer = AutoTokenizer.from_pretrained(self.model_name, token=None)
+            model = AutoModelForMaskedLM.from_pretrained(self.model_name, token=None)
             model.eval()
             _MODEL_CACHE[self.model_name] = (model, tokenizer, torch)
             self._model = model

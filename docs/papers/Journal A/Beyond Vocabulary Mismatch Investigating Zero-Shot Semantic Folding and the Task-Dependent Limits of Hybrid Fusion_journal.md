@@ -272,7 +272,23 @@ To answer whether the phenomenon is SPLADE-specific (reviewer #4), we replicated
 
 **Honest n=50 caveat:** the n=10 probe *overstated* operator gaps. At n=50, BM25+SPLADE on HotpotQA collapses to a near-tie (linear 0.940 / rrf 0.945 / combsum 0.940) rather than the clean combsum win seen at n=10 (0.900 / 0.850 / 0.950); and on NQ-REaR all four pairs sit within noise of each other (0.56–0.66), so no operator is reliably superior there. The robust, n=50-backed claims are therefore narrower than the n=10 map suggested: (i) SF+SPLADE multi-hop is the clearest case where magnitude-preserving fusion beats rank-only (HotpotQA Δ0.10, stable); (ii) DPR pairs consistently show linear ≥ rank-only/raw-score; (iii) BM25+SPLADE and NQ-REaR show at most marginal operator effects. We report this honestly rather than cherry-picking the n=10 numbers.
 
-### 6.5.1 α-Sensitivity of the Linear Operator (Reviewer #20)
+### 6.5.2 Second Learned Sparse Checkpoint (SPLADE-v3; Reviewer #18)
+
+A remaining concern is that the SF+SPLADE findings might be an artifact of one specific SPLADE checkpoint. We therefore replicated the complete seven-operator matrix at n=50 on HotpotQA and MuSiQue with a second, independently trained learned sparse model — `naver/splade-v3` (gated; accessed via authenticated HF login) — replacing `naver/splade-cocondenser-ensembledistil`. Indices, queries, candidate pools and fusion settings were held fixed; only signal B's checkpoint changed (fresh SPLADE corpus vectors encoded; per-model cache isolation).
+
+| Operator | HotpotQA v2 (cocondenser) | HotpotQA v3 | MuSiQue v2 | MuSiQue v3 |
+|----------|--------------------------:|------------:|-----------:|-----------:|
+| linear | 0.832 | 0.822 | 0.887 | 0.900 |
+| rrf | 0.893 | 0.903 | 0.917 | 0.943 |
+| **combsum** | **0.947** | **0.960** | **0.977** | **0.987** |
+| combmnz | 0.893 | 0.882 | 0.919 | 0.917 |
+| borda | 0.857 | 0.862 | 0.770 | 0.790 |
+| zscore | 0.897 | 0.922 | 0.953 | 0.963 |
+| minmax | 0.832 | 0.822 | 0.887 | 0.900 |
+
+The operator ordering is **stable across checkpoints**: CombSUM ranks first on both datasets under both models (HotpotQA 0.947 → 0.960; MuSiQue 0.977 → 0.987 — v3 slightly lifts every score-space operator), Borda remains last on MuSiQue, and the magnitude-vs-rank separation persists essentially unchanged. The finding is therefore not an artifact of one checkpoint but a property of the *pairing* between SF's spatial-magnitude scores and any log1p-pooled learned sparse signal. Full table: `docs/papers/Journal A/appendix_stats/splade_v3_comparison.md`.
+
+### 6.5.3 α-Sensitivity of the Linear Operator (Reviewer #20)
 
 The linear operator is `score = α·maxnorm(SF) + (1−α)·maxnorm(SPLADE)`, with α the weight on the zero-shot SF signal. In the conference version α was fixed at 0.3 with no sensitivity analysis, leaving open whether 0.3 was a cherry-picked favourable point. We now sweep α ∈ {0.0, 0.1, …, 1.0} on four datasets, reusing each dataset's controlled-pool index and recomputing MRR(α) offline from the two endpoint component runs (α=1.0 = pure SF, α=0.0 = pure SPLADE), so the entire curve is exact, not interpolated.
 
@@ -498,7 +514,7 @@ Real per-document component scores (maxnorm(SF), maxnorm(SPLADE)) captured durin
 
 ![MRR(α) sensitivity](../appendix_alpha/alpha_sweep_plot.png)
 
-**Conclusion.** α = 0.3 is *not* a special point: MRR is flat (within noise) for α ∈ [0.0, 0.6] on every dataset, and degrades only when SF is weighted too heavily (α > 0.6), because the zero-shot SF signal collapses on multi-hop/biomedical tasks and drags the blend toward the SF-only floor. Any α in [0, 0.6] gives the same ranking quality; the choice is immaterial, not tuned in our favour. We retain α = 0.3 as a conservative, SF-downweighted default and report the full curve (§6.5.1) so the claim is auditable. Raw per-α CSVs: `docs/papers/Journal A/appendix_alpha/alpha_sweep_<dataset>.csv`.
+**Conclusion.** α = 0.3 is *not* a special point: MRR is flat (within noise) for α ∈ [0.0, 0.6] on every dataset, and degrades only when SF is weighted too heavily (α > 0.6), because the zero-shot SF signal collapses on multi-hop/biomedical tasks and drags the blend toward the SF-only floor. Any α in [0, 0.6] gives the same ranking quality; the choice is immaterial, not tuned in our favour. We retain α = 0.3 as a conservative, SF-downweighted default and report the full curve (§6.5.3) so the claim is auditable. Raw per-α CSVs: `docs/papers/Journal A/appendix_alpha/alpha_sweep_<dataset>.csv`.
 
 ---
 

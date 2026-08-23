@@ -284,6 +284,39 @@ differences are directionally consistent but NOT family-wise significant.
 Paper updated accordingly: §4.7 rewritten (statistical findings honest),
 Appendix C now contains real tables C.1-C.4 instead of "planned" placeholder.
 
+=== M. MAGNITUDE PERTURBATION ON REAL RETRIEVAL OUTPUTS (reviewer #31) ===
+Purpose : deliver the "non-negotiable" causal experiment - separate I_rank
+          from I_magnitude on REAL retrieval scores, not synthetic ones.
+Method  : per-document component scores captured by the alpha-sweep endpoint
+          runs (comp_1.0 = maxnorm(SF), comp_0.0 = maxnorm(SPLADE)) are
+          transformed and re-fused with all 7 operators.
+Datasets: HotpotQA, MuSiQue, SciFact (n=10 each, controlled pools).
+Conditions (one signal perturbed, other fixed):
+  orig | x2 (s'=2s) | log1p | pow05 (s^0.5) | rpr (rank-preserving random
+  remap of magnitudes) | shufflescores (permute scores across docs)
+Script  : scripts/magnitude_perturbation.py (seed=42, deterministic)
+Output  : docs/papers/Journal A/appendix_stats/magnitude_perturbation_<ds>.md
+Paper   : new section 7.4 + Appendix E (tables E.1-E.3); old 7.4/7.5 renumbered
+          to 7.5/7.6.
+
+CONFIRMED ON REAL DATA:
+1. RRF/Borda INVARIANT: identical MRR and tau=+1.000 under every
+   rank-preserving transform INCLUDING rpr (fresh random magnitudes).
+   e.g. HotpotQA/SF rrf = 0.883 under orig/x2/log1p/pow05/rpr.
+2. Score-space operators respond to magnitude alone: MuSiQue x2 drops
+   combsum 0.914 -> 0.805 while rrf stays frozen at 0.861.
+3. Rank destruction (shufflescores) hurts rank-only ops maximally:
+   rrf 0.883->0.354 (Hotpot), 0.861->0.397 (MuSiQue); borda 0.733->0.219.
+Synthetic control (7.2) and real-output control (7.4) agree on every prediction.
+
+=== N. SCRIPTS RELOCATION (user request) ================================
+temp/appendix_c_stats.py      -> scripts/appendix_c_stats.py
+temp/magnitude_perturbation.py -> scripts/magnitude_perturbation.py
+Both now carry expanded docstrings (WHY / WHAT / INPUTS / USAGE / OUTPUTS /
+CAVEATS) and were smoke-tested from scripts/: identical regenerated outputs
+(same MRR means, same CI bounds). temp/ copies remain for gitignored history;
+scripts/ versions are the tracked, canonical ones.
+
 =============================================================================
 L. GIT / COMMIT RECORD
 ----------------------

@@ -1,4 +1,4 @@
-# What Does Fusion Preserve? Task-Dependent Information Loss in Hybrid Information Retrieval
+# What Does Fusion Preserve? Task- and Score-Geometry Dependence in Hybrid Retrieval
 
 **Mojtaba Banaei¹, Maseud Rahgozar², and Heshaam Faili³**
 
@@ -79,6 +79,15 @@ SDRs are binary vectors of large dimensionality where most bits are zero. SF arr
 ### 2.6 Positioning Against Prior Fusion Analysis
 
 Bruch et al. (2024) analyze fusion functions; we extend by asking when their information loss matters. Our novelty is twofold and deliberately scoped: (i) a **controlled-probe methodology** — using a fully-characterized training-free signal (SF) as a manipulable heterogeneous probe that a learned retriever cannot offer, letting us hold the fusion machinery fixed while varying score geometry; and (ii) an **empirical map** of operator × retriever-pair × task-topology outcomes showing the winning family is set by the *joint score geometry of the fused signals*, not by the task or retriever identity. We do not claim a new fusion theorem; the rank-invariance proposition (§3.6) is already in the literature. The contribution is the methodology and the conditional, evidence-backed map, together with explicit documentation of where the effect reverses and where it remains unvalidated (§8, §9.4).
+
+**Table 2.1: Positioning against prior fusion analysis**
+
+| Work | Operators | Score-geometry theory | Task topology | Multiple retriever pairs | Magnitude intervention |
+|------|:---------:|:--------------------:|:-------------:|:------------------------:|:----------------------:|
+| Fox & Shaw (1994) | ✓ CombSUM/MNZ | | | | |
+| Cormack et al. (2009) | ✓ RRF | ✓ (rank-only property) | | | |
+| Bruch et al. (2024) | ✓ 7 families | ✓ | limited (task-level observations) | | |
+| **This work** | ✓ 7 families | ✓ | ✓ (11 datasets, multi-hop vs single-hop) | ✓ (4 pairs + 2nd checkpoint) | ✓ (synthetic + real-score perturbation) |
 
 ---
 
@@ -326,6 +335,22 @@ To quantify *when* fusion adds versus duplicates information, we compute the mea
 
 **Interpretation (the bottleneck view):** even when MRR diverges sharply (HotpotQA BM25+SPLADE: combsum 0.950 vs rrf 0.850), operator rankings remain highly correlated (τ≈0.80) — the operator does not *reorder* wholesale; it flips the gold doc from rank 2 to rank 1 on a few decisive queries. That is precisely the information-bottleneck mechanism: a small rank-correlation divergence at the top of the list determines whether compositional evidence survives. On DPR (HotpotQA BM25+DPR) the bottleneck is fully closed for rank-only vs raw-score fusion (τ=1.000, identical), and *only* the α-weighted linear operator escapes the shared ranking — consistent with §6.5. Kendall's τ here is a *rank-agreement diagnostic*: it characterizes ordinal agreement between signals before fusion, but as §9.3 notes, its predictive value for fusion gains is not yet established — our own data show high τ coexisting with large MRR differences at the top ranks.
 
+### 6.6.1 Operator Identifiability
+
+The DPR-pair result above — RRF and CombSUM producing *identical* rankings and MRRs (0.611 = 0.611; 0.867 = 0.867) — motivates a metric we call **operator identifiability**: the fraction of queries for which two operators induce the *same fused ranking* on the same candidate pool. Operator choice can only matter when different operators actually produce different orderings; when identifiability is 1.0 (rankings always coincide), no amount of operator tuning changes the outcome.
+
+Computing this over real component scores (`scripts/operator_identifiability.py`; SF+SPLADE, α=0.3, all 21 operator pairs × 10 queries × 3 datasets):
+
+| Dataset | linear vs rrf | combsum vs rrf | linear vs minmax | combsum vs combmnz |
+|---------|--------------:|---------------:|-----------------:|-------------------:|
+| HotpotQA | 0.00 | 0.00 | **1.00** | **1.00** |
+| MuSiQue | 0.00 | 0.00 | **1.00** | **1.00** |
+| SciFact | 0.00 | 0.00 | **1.00** | **1.00** |
+
+Two regimes emerge cleanly. *Cross-family* pairs (magnitude-preserving vs rank-only, e.g. combsum vs rrf) have an identifiability gap of 1.00 — they never agree on any query, so operator selection genuinely matters and the geometry analysis of §6.5 applies. *Within-family* pairs are largely degenerate: linear ≡ minmax on every query in every dataset (both reduce to affine rescalings whose sums preserve the same ordering under maxnorm'd inputs), and CombSUM ≡ CombMNZ whenever each query has a single dominant top-scorer (MNZ's multiplicity term becomes constant). Mean pairwise identical-ranking rate across all 21 pairs per dataset: 0.105 (HotpotQA), 0.048 (MuSiQue), 0.105 (SciFact) — most operator pairs are identifiable; the exceptions are exactly the mathematically equivalent ones.
+
+**Implication.** Fusion operator choice matters only where the joint score geometry provides degrees of freedom that distinct operators exploit differently. For signal pairs where operators collapse to identical rankings, effort should shift from operator selection toward signal acquisition or calibration. Full table: `docs/papers/Journal A/appendix_stats/operator_identifiability.md`.
+
 ---
 
 ## 7. The Magnitude Information Hypothesis
@@ -352,7 +377,7 @@ To isolate magnitude as a *controlled* factor (not a correlate of rank), we hold
 
 Across the SF+SPLADE 10-dataset matrix, multi-hop queries consistently expose the largest operator gaps: HotpotQA shows CombSUM 1.000 vs RRF 0.750 (Δ0.25) and vs linear 0.570 (Δ0.43); NQ-REaR shows CombMNZ 0.820 vs borda 0.653 (Δ0.17). Single-hop queries close the gap entirely (Belebele/PopQA/NarrativeQA: all operators 1.000). The gap widens exactly on compositional tasks, where the gold passage's score margin over distractors is what raw magnitude preserves and rank-only fusion discards.
 
-### 7.4 Magnitude Perturbation on Real Retrieval Outputs (Causal Control)
+### 7.4 Magnitude Perturbation on Real Retrieval Outputs (Controlled Intervention)
 
 To convert the rank-invariance proposition (§7.1) from a mathematical observation into measured evidence, we perturb **real per-document component scores** captured during the α-sweep endpoint runs (HotpotQA, MuSiQue, SciFact; n=10 queries each) and re-fuse with all seven operators. Conditions applied to one signal (SF or SPLADE), the other held fixed: `x2` (s′=2s), `log1p`, `pow05` (s^0.5), `rpr` (rank-preserving random remap of magnitudes), and `shufflescores` (permute scores across documents — preserves the magnitude distribution, destroys ranks). Full tables in Appendix E; generator `scripts/magnitude_perturbation.py` (tracked; seed=42).
 
@@ -364,11 +389,25 @@ To convert the rank-invariance proposition (§7.1) from a mathematical observati
 
 This completes the controlled-intervention argument: the information classes are not merely definitional (Proposition 1) but *operationally separable on real retrieval outputs* — rank-preserving magnitude changes leave I_rank-fusion untouched yet measurably alter I_magnitude-fusion, and vice versa. We claim operator *sensitivity* to distinct information classes, not that magnitude causes real-relevance outcomes; the relevance-grounding question is addressed in §7.2 and remains scoped there. The synthetic control (§7.2) and this real-output experiment agree in every prediction.
 
-### 7.5 Single-hop vs Multi-hop
+### 7.5 Score Margin vs Fusion Error (Where Rank-Only Fusion Fails)
+
+The perturbation experiment shows rank-only fusion *can* respond to magnitude; this analysis locates *where on real queries* that response decides outcomes. For each query we compute the **joint normalized margin**: per signal, margin = (best gold score − best non-gold score)/max|score| (negative = a distractor outscores gold in that signal), then average the two signals. We bin queries by joint margin and measure the rescue rate — P(RRF top-1 wrong ∧ CombSUM top-1 correct) (`scripts/margin_vs_error.py`; real component scores; Figure 7.1).
+
+![Score margin vs fusion error](figures/margin_vs_error.png)
+
+**Findings (n=10 per dataset; interpret as directional):**
+
+1. **RRF/CombSUM top-1 disagreement is pervasive** — 9/10 (HotpotQA), 8/10 (MuSiQue), 10/10 (SciFact) queries — yet rescue is rare (1, 2, 0 respectively): the operators usually disagree on *distractor ordering above gold*, not on gold recovery. This is the operator-identifiability observation (§6.6.1) at query level.
+2. **The rescue that does occur sits at the smallest margin bin**: MuSiQue's single negative-joint-margin query (gold below a distractor in one signal) is rescued by CombSUM — exactly the regime where magnitude information is decisive and rank-only fusion cannot see it. HotpotQA's rescue falls in the lowest positive bin [0, 0.10).
+3. **Large positive margins → no rescues anywhere** (SciFact [0.30+]: 0/6): when gold already dominates both signals, every operator succeeds and magnitude adds nothing — consistent with the operator-invariant single-hop ceiling of §6.1.
+
+The pattern supports H2's conditional form: magnitude information is operative in the small/negative-margin regime and inert where rank already separates gold cleanly. With n=10 per dataset these rates are illustrative; the margin-binning protocol scales to larger query sets unchanged. Full table: `docs/papers/Journal A/appendix_stats/margin_vs_error.md`.
+
+### 7.6 Single-hop vs Multi-hop
 
 Single-hop reranking is operator-invariant (ceiling or flat). Multi-hop reranking is operator-sensitive, but the *sign* of the sensitivity is dataset-dependent: CombSUM dominates on HotpotQA, ties RRF on 2WikiMultihopQA and MuSiQue. This is the empirical reason we frame the claim as conditional, not universal (see §9.4).
 
-### 7.6 When RRF Discards Useful Information
+### 7.7 When RRF Discards Useful Information
 
 **Magnitude-Blindness Failure Mode (empirical phenomenon, not a theorem):** the failure mode occurring when a rank-only fusion operator treats retrieval results with different score magnitudes as equivalent whenever their ordinal ranks coincide, despite score magnitude carrying useful evidence about compositional relevance. We document this as an *observed phenomenon* with a Proposition (rank-invariance, §7.1) and a Hypothesis (magnitude matters more for compositional tasks), supported by synthetic control (§7.2) and real traces (§7.3) — deliberately avoiding "theorem" wording. Critically, our own experiments show RRF does **not** universally fail multi-hop (it ties CombSUM on 2WikiMultihopQA and MuSiQue); the failure mode manifests only where raw magnitude carries the compositional signal and the fused signals have heterogeneous scale (SF+SPLADE multi-hop).
 

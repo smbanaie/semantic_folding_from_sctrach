@@ -248,7 +248,44 @@ Synthetic magnitude experiment:
     --output results/synthetic_magnitude_<ts>.json
 
 =============================================================================
-J. GIT / COMMIT RECORD
+K. n=50 STATISTICAL STUDY (7-operator × 3-dataset, bootstrap CI + Wilcoxon + Holm)
+-------------------------------------------------------------------------------
+Purpose : deliver Appendix C (reviewer #21: paired testing + multiple-comparison
+          correction) with real per-query data instead of a placeholder.
+Design  : complete 7-operator matrix (linear, rrf, combsum, combmnz, borda,
+          zscore, minmax), SF+SPLADE pair, 50 queries/dataset.
+Datasets: HotpotQA (index run_20260701_225837), MuSiQue (run_20260822_191925),
+          NQ-REaR (run_20260822_153548).
+
+Benchmark runs (all BENCH_OK):
+- hotpotqa: outputs/hotpotqa_benchmark/benchmarks/benchmark_20260823_144631
+            (linear/rrf/combsum) + benchmark_20260823_152138 (rest)
+- musique : outputs/musique_benchmark/benchmarks/benchmark_20260823_160823
+- nq_rear : outputs/nq_rear_benchmark/benchmarks/benchmark_20260823_160836
+
+Stats script: temp/appendix_c_stats.py
+  - paired bootstrap 95% CI (10,000 resamples, seed=42)
+  - two-sided Wilcoxon signed-rank per operator pair (21 pairs/dataset)
+  - Holm-Bonferroni family-wise correction per dataset
+Output tables: docs/papers/Journal A/appendix_stats/appendix_c_<ds>.md
+
+HEADLINE NUMBERS (MRR, n=50):
+              combsum  combmnz   rrf   zscore  linear  minmax  borda
+HotpotQA      0.947    0.893   0.893   0.897   0.832   0.832   0.857
+MuSiQue       0.977    0.919   0.917   0.953   0.887   0.887   0.770
+NQ-REaR       0.657    0.679   0.633   0.617   0.628   0.628   0.587
+
+SIGNIFICANCE (honest): after Holm correction at alpha=0.05, only ONE of 63
+pairwise comparisons survives: borda vs combmnz on MuSiQue
+(D=-0.149, raw p=0.0018, p_Holm=0.035). CombSUM vs linear on HotpotQA is the
+largest effect (+0.114) but inflates from raw p=0.0064 to p_Holm=0.135.
+=> Operator ORDERING replicates on all three datasets; individual pairwise
+differences are directionally consistent but NOT family-wise significant.
+Paper updated accordingly: §4.7 rewritten (statistical findings honest),
+Appendix C now contains real tables C.1-C.4 instead of "planned" placeholder.
+
+=============================================================================
+L. GIT / COMMIT RECORD
 ----------------------
 - b8d34c4 docs(journal-a): 9-dataset master table (MuSiQue n=50 + SciFact),
   synthetic magnitude causal experiment, title change, PLAN/SPEC reviewer fixes

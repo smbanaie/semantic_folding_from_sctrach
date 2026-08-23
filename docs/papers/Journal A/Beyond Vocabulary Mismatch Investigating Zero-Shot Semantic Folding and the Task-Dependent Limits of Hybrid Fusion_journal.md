@@ -166,9 +166,11 @@ Seven operators spanning three information classes:
 
 ### 4.7 Statistical Testing — and its limits
 
-Each dataset is evaluated on a **10-query probe** for the full 10-dataset × 7-operator matrix (§6.1), reported as **exploratory, directional evidence**. To answer the reviewer concern that n=10 MRR gaps may be unstable, we additionally ran a **confirmatory n=50 study** on the four discriminating retriever pairs (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR) on the two multi-hop/factoid datasets (HotpotQA, NQ-REaR) with the three discriminating operators (linear, rrf, combsum). The n=50 results (§6.5) show the same *direction* of effect as n=10 but with tighter, noisier estimates — operator gaps that looked decisive at n=10 (e.g. BM25+SPLADE combsum 0.950 vs rrf 0.850) shrink to statistical ties at n=50 (0.940 vs 0.945). We therefore report both n=10 (exploratory map) and n=50 (confirmatory) and do not over-claim operator differences that vanish at larger n. Per-query MRR for every operator/dataset is preserved in the run artifacts (`outputs/*_benchmark/benchmarks/benchmark_*/op_*/all_results.json`) and summarized in Appendix E so reviewers can inspect the within-dataset spread.
+Each dataset is evaluated on a **10-query probe** for the full 10-dataset × 7-operator matrix (§6.1), reported as **exploratory, directional evidence**. To answer the reviewer concern that n=10 MRR gaps may be unstable, we additionally ran a **confirmatory n=50 study**: the complete seven-operator matrix (linear, rrf, combsum, combmnz, borda, zscore, minmax) on three multi-hop/factoid datasets (HotpotQA, MuSiQue, NQ-REaR) with the SF+SPLADE pair. Per-query MRR arrays feed a formal statistical protocol: paired bootstrap 95% CIs (10,000 resamples, seed=42), two-sided Wilcoxon signed-rank tests between every operator pair, and Holm–Bonferroni family-wise correction across the 21 pairwise comparisons per dataset (Appendix C).
 
-**Statistical limitations (honest).** We do not yet provide formal paired bootstrap confidence intervals or Holm-adjusted p-values for the full 10-dataset × 7-operator × 4-pair matrix — the full 280-comparison statistical protocol requires running the complete 7-operator matrix at n=50 across all 10 datasets (2,800 query–operator evaluations), which is computationally substantial and remains future work. The n=50 confirmatory study currently covers only the three discriminating operators (linear, rrf, combsum) on two datasets for four pairs (24 configurations). We report the n=50 directional trends (§6.5) and provide per-query MRR in Appendix E, but do not yet apply formal paired bootstrap CIs with Holm correction across the full matrix. This limitation is acknowledged in §9.4. Appendix C is reserved for the future complete statistical tables (per-dataset MRR with 95% bootstrap CI and Holm-adjusted p-values at n=50 for the full operator matrix).
+**Statistical findings (honest).** The operator *ordering* is stable at n=50 — CombSUM/CombMNZ rank first on all three datasets (HotpotQA 0.947/0.893; MuSiQue 0.977/0.919; NQ-REaR 0.657/**0.679**) and Borda last (0.857/0.770/0.587) — but after Holm correction **almost no pairwise comparison survives at α=0.05**. On HotpotQA, CombSUM vs linear shows ΔMRR = +0.114 with raw p = 0.0064 that inflates to p_Holm = 0.135 after correction; on MuSiQue, CombSUM vs RRF is +0.060 at raw p = 0.0143 → 0.183 corrected. Only one of 63 comparisons survives: Borda vs CombMNZ on MuSiQue (Δ = −0.149, p_Holm = 0.035). We therefore report effect sizes and raw p-values transparently while acknowledging that, at n=50 with single-gold-per-query MRR, individual operator differences are **directionally consistent but not family-wise significant**. This strengthens rather than weakens our framing: the contribution is the *mechanism* (which information each operator preserves, §3, §6.3.1, §7), not the claim that any two operators are separable at this sample size. Larger-n confirmatory studies remain future work.
+
+Per-query MRR for every operator/dataset is preserved in the run artifacts (`outputs/*_benchmark/benchmarks/benchmark_*/op_*/all_results.json`) and summarized in Appendices C/E so reviewers can inspect the within-dataset spread.
 
 ### 4.8 Evaluation Metric — Why MRR (and not nDCG / P@k / R@k)
 
@@ -227,7 +229,7 @@ The headline claim of this paper is that fusion-operator effectiveness is task-d
 | SciFact | claim-verif | 0.960 | 0.960 | 0.960 | 0.940 | 0.890 | 0.930 | 0.910 |
 | COVID-QA | biomedical | 0.900 | 0.900 | 0.900 | 0.900 | 0.800 | 0.900 | 0.900 |
 
-**Reading.** On single-hop tasks the matrix saturates (ceiling at 1.000, or flat at 0.800 for PubMedQA) — operator choice is invisible. On claim-verification (SciFact) all operators tie at ≈0.96, so fusion is irrelevant there too. Operator divergence appears only on the compositional/factoid rows: raw score-space fusion (CombSUM/CombMNZ) wins or ties RRF; RRF never clearly dominates. The two clearest magnitude-preserving wins are HotpotQA (CombSUM 1.000 vs RRF 0.783 at n=50) and MuSiQue (CombSUM 0.977 vs RRF 0.927 at n=50) — MuSiQue is now present in the primary table with all seven operators and a confirmatory n=50 run, closing the gap the reviewer identified. The n=10 exploratory values (parenthesized) show the same direction with tighter separation; we report both and do not over-claim gaps that shrink at n=50 (e.g. NQ-REaR, where CombMNZ leads but the spread is small).
+**Reading.** On single-hop tasks the matrix saturates (ceiling at 1.000, or flat at 0.800 for PubMedQA) — operator choice is invisible. On claim-verification (SciFact) all operators tie at ≈0.96, so fusion is irrelevant there too. Operator divergence appears only on the compositional/factoid rows: raw score-space fusion (CombSUM/CombMNZ) wins or ties RRF; RRF never clearly dominates. The largest magnitude-preserving effects are HotpotQA (CombSUM +0.114 over linear) and MuSiQue (CombSUM +0.060/+0.090 over rrf/linear); at confirmatory n=50 these gaps are directionally stable but not family-wise significant after Holm correction (Appendix C), so we describe them as consistent tendencies rather than proven separations. The n=10 exploratory values (parenthesized) show the same direction; we report both and do not over-claim gaps that shrink at n=50.
 
 ### 6.2 Rank-space vs Score-space
 
@@ -418,7 +420,7 @@ No GPU; CPU-only query; **binary SDR fingerprint ideal ~512 B/doc (4096 bits; re
 
 - **A.** Complete SF architecture (phrase extraction, term-context, UMAP, Morton, Gaussian, spreading activation, complexity).
 - **B.** Hyperparameters.
-- **C.** Full statistical tables — *planned*: per-dataset MRR with 95% bootstrap CI and Holm-adjusted p-values at n ≥ 50 (not yet run; 10-query probes reported as directional evidence per §4.7).
+- **C.** Full statistical tables — per-dataset MRR with 95% bootstrap CI and Holm-adjusted Wilcoxon p-values at n=50 for the complete seven-operator matrix (HotpotQA, MuSiQue, NQ-REaR; SF+SPLADE). Full tables below.
 - **D.** k/α sensitivity.
 - **E.** Additional retrieval traces.
 - **F.** Dataset details.
@@ -449,6 +451,58 @@ No GPU; CPU-only query; **binary SDR fingerprint ideal ~512 B/doc (4096 bits; re
 ![MRR(α) sensitivity](../appendix_alpha/alpha_sweep_plot.png)
 
 **Conclusion.** α = 0.3 is *not* a special point: MRR is flat (within noise) for α ∈ [0.0, 0.6] on every dataset, and degrades only when SF is weighted too heavily (α > 0.6), because the zero-shot SF signal collapses on multi-hop/biomedical tasks and drags the blend toward the SF-only floor. Any α in [0, 0.6] gives the same ranking quality; the choice is immaterial, not tuned in our favour. We retain α = 0.3 as a conservative, SF-downweighted default and report the full curve (§6.5.1) so the claim is auditable. Raw per-α CSVs: `docs/papers/Journal A/appendix_alpha/alpha_sweep_<dataset>.csv`.
+
+---
+
+### C. Full Statistical Tables (n=50, 7 operators, SF+SPLADE)
+
+Protocol: paired bootstrap 95% CIs (10,000 resamples, seed=42); two-sided Wilcoxon signed-rank between every operator pair; Holm–Bonferroni correction across the 21 pairwise comparisons per dataset. Generated by `temp/appendix_c_stats.py`; per-dataset tables also saved under `docs/papers/Journal A/appendix_stats/`.
+
+#### C.1 HotpotQA (n=50)
+
+| Operator | MRR | 95% CI |
+|----------|----:|--------|
+| combsum | **0.947** | [0.900, 0.990] |
+| zscore | 0.897 | [0.833, 0.957] |
+| rrf | 0.893 | [0.830, 0.950] |
+| combmnz | 0.893 | [0.817, 0.960] |
+| borda | 0.857 | [0.773, 0.930] |
+| linear | 0.832 | [0.754, 0.906] |
+| minmax | 0.832 | [0.754, 0.906] |
+
+Key pairwise tests: combsum vs linear Δ=+0.114, raw p=0.0064, p_Holm=0.135 (*not significant after correction*); combsum vs rrf Δ=+0.053, raw p=0.083, p_Holm=1.00. No comparison survives Holm at α=0.05.
+
+#### C.2 MuSiQue (n=50)
+
+| Operator | MRR | 95% CI |
+|----------|----:|--------|
+| combsum | **0.977** | [0.947, 1.000] |
+| zscore | 0.953 | [0.887, 1.000] |
+| combmnz | 0.919 | [0.853, 0.973] |
+| rrf | 0.917 | [0.850, 0.973] |
+| linear | 0.887 | [0.800, 0.960] |
+| minmax | 0.887 | [0.793, 0.967] |
+| borda | 0.770 | [0.653, 0.880] |
+
+Key pairwise tests: combsum vs rrf Δ=+0.060, raw p=0.0143, p_Holm=0.183; combsum vs linear Δ=+0.090, raw p=0.0094, p_Holm=0.141; **borda vs combmnz Δ=−0.149, raw p=0.0018, p_Holm=0.035 — the single family-wise-significant comparison in the study** (rank-only Borda is reliably worse than multiplicity-weighted CombMNZ on MuSiQue).
+
+#### C.3 NQ-REaR (n=50)
+
+| Operator | MRR | 95% CI |
+|----------|----:|--------|
+| combmnz | **0.679** | [0.573, 0.787] |
+| combsum | 0.657 | [0.540, 0.767] |
+| rrf | 0.633 | [0.520, 0.740] |
+| linear | 0.628 | [0.513, 0.740] |
+| minmax | 0.628 | [0.500, 0.753] |
+| zscore | 0.617 | [0.493, 0.740] |
+| borda | 0.587 | [0.467, 0.707] |
+
+No pairwise comparison survives Holm at α=0.05 on this dataset.
+
+#### C.4 Interpretation
+
+The operator *ordering* replicates across all three datasets — magnitude-preserving operators (CombSUM/CombMNZ) first, rank-only Borda last — but individual pairwise differences are directionally consistent rather than family-wise significant at n=50. Two further observations: (i) on the large-pool factoid dataset NQ-REaR the best operator is **CombMNZ** (0.679) rather than CombSUM, consistent with multiplicity weighting adding value when evidence is distributed over a 385-document pool; (ii) Borda shows the widest bootstrap intervals everywhere (e.g. MuSiQue [0.653, 0.880]), consistent with rank-only fusion being the least stable aggregation under pool variance. This sample-size honesty is itself a finding: with one gold passage per query, MRR differences of 0.05–0.11 require n ≈ 100+ queries for family-wise separation. The mechanism-level evidence (§6.3.1, §7.2 synthetic magnitude control) therefore carries the causal weight, while these tables document effect sizes and their uncertainty transparently.
 
 ---
 

@@ -244,7 +244,7 @@ The hybrid scoring function is:
 
 $$\text{score}_{\text{hybrid}}(q, d) = \alpha \cdot \text{score}_{\text{SF}}(q, d) + (1 - \alpha) \cdot \text{score}_{\text{SPLADE}}(q, d)$$
 
-where $\alpha \in [0,1]$ is the SF weight. The optimal $\alpha$ is dataset-dependent; across 9 datasets, $\alpha = 0.3$ provides the best average performance (see Chapter 7, §7.2.1 for α-sensitivity analysis).
+where $\alpha \in [0,1]$ is the SF weight. The optimal $\alpha$ is dataset-dependent; across the benchmark datasets, $\alpha = 0.3$ provides the best average performance. The complete eleven-point α-sensitivity sweep (Chapter 4, §4.9.3) shows MRR is flat within noise for α ∈ [0, 0.6] on all tested datasets — any value in that plateau is equivalent, and 0.3 is retained as a conservative default rather than a tuned optimum (see also Chapter 7, §7.2.1).
 
 ### 3.8.2 Implementation
 

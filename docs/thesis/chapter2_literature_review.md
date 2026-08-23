@@ -171,6 +171,16 @@ Recent work confirms hybrid sparse+dense pipelines outperform single-method base
 - **HiRAG** (arXiv:2408.11875): Hierarchical sparse+dense for multi-hop QA
 - **GeAR** (arXiv:2412.18431): Graph expansion + sparse retriever, >10% improvement on MuSiQue
 
+#### 2.6.2.1 The Fusion-Function Literature
+
+Beyond pipeline-level hybrid systems, a dedicated line of work analyzes *what fusion functions do to the information carried by their inputs* — the direct theoretical ancestor of this thesis's diagnostic framework:
+
+- **Fox & Shaw (1994)** introduced the CombSUM/CombMNZ family ("Combination of score distributions"), establishing score-space fusion as an alternative to rank aggregation and showing combination of evidence can outperform either source alone.
+- **Cormack, Clarke & Buettcher (2009)** proved reciprocal rank fusion "outperforms Condorcet and individual rank learning methods" in practice, giving RRF its standard justification — notably as a *rank-only* method whose robustness comes precisely from discarding scores.
+- **Bruch, Gai & Ingber (2024)** provide the most comprehensive modern analysis of fusion functions for hybrid retrieval, characterizing score normalization and aggregation choices and observing that no single fusion function dominates across conditions.
+
+What this literature leaves open — and what Chapter 7 contributes — is a *task-conditioned, geometry-conditioned* account of *when* the information a fusion function discards matters: prior work establishes that operators differ in what they preserve (definitional) and that performance differs across datasets (empirical), but not which signal/task properties select the winning operator, nor whether the differences survive formal multiple-comparison correction.
+
 ### 2.6.3 Semantic Folding in Context
 
 SF's unique contribution is **unsupervised semantic matching**. While SPLADE requires training data, SF adapts instantly to new domains. This is valuable for closed-domain QA where labeled data may not exist (e.g., emerging biomedical subfields).
@@ -204,6 +214,9 @@ Recent work by Cai et al. (2024) introduces SSDB-100, the first evaluation datas
 
 ## References
 
+- Bruch, S., Gai, S., & Ingber, A. (2024). An Analysis of Fusion Functions for Hybrid Retrieval. *ACM Transactions on Information Systems (TOIS)*.
+- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods. *SIGIR 2009*, 758–759.
+- Fox, E. A., & Shaw, J. A. (1994). Combination of Multiple Searches. *TREC-2*, 243–252.
 - Cai, K., Chen, Z., Guo, H., Wang, S., Li, G., Li, J., Chen, F., & Feng, H. (2024). An Evaluative Baseline for Sentence-Level Semantic Division. *Machine Learning and Knowledge Extraction*, 6(1), 41–52. https://doi.org/10.3390/make6010003
 - Dengel, A. (2015). Semantic Folding. *Technical Report*.
 - Formal, T., et al. (2021). SPLADE. *SIGIR 2021*.

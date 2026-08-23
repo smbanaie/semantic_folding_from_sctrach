@@ -21,11 +21,11 @@ We make the following contributions:
 
 3. **A glossary integration mechanism** that allows domain-specific terminologies (MeSH terms, legal citations, chemical formulas) to be directly incorporated into the semantic grid, improving retrieval for specialized vocabulary without retraining.
 
-4. **A comprehensive multi-dataset benchmark** across 9 datasets spanning biomedical, narrative, reading comprehension, multi-hop QA, and discrete reasoning domains, demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
+4. **A comprehensive multi-dataset benchmark** across 11 datasets spanning biomedical, narrative, reading comprehension, multi-hop QA, factoid retrieval, entity lookup, and claim-verification domains, demonstrating that SF achieves 88-98% of BM25 performance on single-hop tasks and matches/exceeds DPR on SciFact (0.755 vs 0.675).
 
 5. **A hybrid SF+SPLADE architecture** that achieves **perfect MRR=1.0** on Belebele (+13.6% over baseline), **surpassing BM25 (0.995)** — the first configuration where SF outperforms a strong lexical baseline on a standard benchmark.
 
-6. **A diagnostic theory of hybrid retrieval** that formalizes score geometry, proves the Operator Information Preservation claim (RRF preserves only order, linear preserves order+magnitude), defines the Complementarity Illusion and Hybrid Compatibility Profile, and provides a taxonomy of hybrid failures (Signal, Operator, Representation) with a pre-fusion diagnostic pipeline.
+6. **A diagnostic theory of hybrid retrieval** that formalizes score geometry, proves the Operator Information Preservation claim (RRF preserves only order, linear preserves order+magnitude), defines the Complementarity Illusion and Hybrid Compatibility Profile, provides a taxonomy of hybrid failures (Signal, Operator, Representation) with a pre-fusion diagnostic pipeline — and validates it empirically along every manipulable axis: a complete seven-operator × eleven-dataset matrix, confirmatory paired statistics at n=50 with Holm correction, replication under a second independently trained SPLADE checkpoint (v3), causal magnitude perturbation applied to real retrieval scores, and candidate-pool growth sweeps in two signal pairings showing that pool size does not separate operators while score geometry does.
 
 Our results demonstrate that sparse methods trade peak performance for zero-shot capability — a fundamental architectural choice with clear implications for deployment in emerging domains where training data is unavailable and interpretability is required.
 

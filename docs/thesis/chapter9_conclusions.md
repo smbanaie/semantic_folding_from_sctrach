@@ -163,9 +163,11 @@ The Phase 2c/3/4 results establish a general principle: **improvements must add 
 
 2. **What is the upper bound of SF+SPLADE performance?** Adding a cross-encoder re-ranker could push MRR higher but would require training data.
 
-3. **Is the Complementarity Principle universal or architecture-specific?** Testing on other sparse methods (e.g., BM25 + SPLADE) would determine generality.
+3. **Is the Complementarity Principle universal or architecture-specific?** — *Partially answered (journal extension)*: the four-pair matrix (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR) shows the operator-selection effect generalizes across retriever pairs, with signal-B score geometry (SPLADE vs DPR) setting the winning family. Testing on non-QA retrieval tasks and additional learned sparse checkpoints beyond SPLADE-v3 remains open.
 
-4. **How do SF scores behave at corpus sizes between 1K and 1M documents?** The mathematical derivation (Chapter 7, §7.3.3) predicts O(√N) score range scaling, but this is not empirically verified beyond 1,075 documents.
+4. **How do SF scores behave at corpus sizes between 1K and 1M documents?** The mathematical derivation (Chapter 7, §7.3.3) predicts O(√N) score range scaling; the two-pairing padded-pool sweep now empirically covers N up to 494 with flat operator MRR throughout, while full-corpus SciFact (5,183) shows collapse. The 10K–1M range remains unverified.
+
+5. **Which magnitude-preserving operator should practitioners default to? (new)** CombSUM leads at n=50 everywhere it matters, CombMNZ wins on large pools (NQ-REaR), yet almost no pairwise difference survives Holm correction. Whether larger samples reveal reliable separation — or whether operators within the magnitude family are practically interchangeable — is open and directly relevant to deployment guidance.
 
 ---
 
@@ -185,11 +187,17 @@ SF occupies a unique position in the retrieval landscape: the only method provid
 
 The negative results documented in this thesis — 7 failed improvement attempts — are as valuable as the positive findings. They establish that **SF's architecture is well-optimized**, and that future improvements must add genuinely non-overlapping signal rather than duplicating existing capabilities.
 
+**Journal-extension findings** strengthen and refine these conclusions:
+
+1. **Fusion-operator selection is real but geometry-conditioned, not topology-determined.** The complete seven-operator matrix shows magnitude-preserving operators (CombSUM/CombMNZ) leading on every multi-hop/factoid dataset at n=50 — an ordering that replicates under a second SPLADE checkpoint (v3) — while single-hop rows are operator-invariant. After Holm correction, however, individual operator pairs are almost never separable at n=50; the claim rests on replicated orderings, not single tests.
+2. **Rank vs magnitude information is causally separable on real retrieval outputs**: rank-preserving magnitude transforms leave RRF bit-identical (τ=1.000); rank destruction collapses it maximally; score-space operators respond to magnitude alone.
+3. **Pool size does not separate operators**: padded-pool sweeps in two pairings show flat MRR from N=20 to N=494, with gap structure tracking signal-A score geometry — refining the deep-pool collapse account into a two-regime picture (small/medium pools: operator choice matters; full corpus: operator choice vanishes).
+
 ---
 
 ## 9.8 Practitioner's Decision Guide
 
-Based on the 9-dataset benchmark results, we provide the following decision rule for retrieval system selection:
+Based on the 11-dataset benchmark results, we provide the following decision rule for retrieval system selection:
 
 **Table 9.4: Decision Guide for Retrieval Method Selection**
 
@@ -202,12 +210,15 @@ Based on the 9-dataset benchmark results, we provide the following decision rule
 | No training data available | **SF-only** | 0.20–0.93 | Zero-shot deployment |
 | GPU available + training data exists | **SPLADE or DPR** | 0.68–0.99 | Peak performance |
 | Interpretability required | **SF+SPLADE** | 0.85–0.93 | Grid visualization explains matches |
+| Hybrid reranking over heterogeneous-score signals (new) | **SF+SPLADE with CombSUM** | 0.89–0.99 | Magnitude-preserving fusion leads at n=50 on compositional/factoid tasks; ordering checkpoint-robust |
+| Hybrid reranking over uniform-scale signals, e.g. DPR pair (new) | **α-blend linear** | — | Scale-invariant operators waste magnitude-free signals; explicit α controls the trade-off |
 
 **Decision tree**:
 1. Is training data available? → No: Use SF-only or SF+SPLADE (off-the-shelf SPLADE)
 2. Is the candidate pool large (> 1000 docs)? → Yes: Use BM25 baseline + SPLADE re-ranking
 3. Is the task multi-hop reasoning? → Yes: Use SPLADE-only or dense method
 4. Is vocabulary mismatch high? → Yes: Use SF+SPLADE; No: Use BM25
+5. (new) Fusing two signals for reranking? → Check signal-B score geometry: heterogeneous/log-pooled magnitudes → CombSUM-family; L2-normalized/uniform → α-blend linear; and note that within the winning family, individual operator choice is second-order (orderings replicate, pairwise gaps rarely family-wise significant)
 
 ---
 

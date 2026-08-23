@@ -180,6 +180,8 @@ No other method provides unsupervised semantic matching, interpretable grids, an
 1. **Binary relevance**: Ground truth uses binary relevance. Graded relevance would improve NDCG discrimination.
 2. **Dimensionality reduction stochasticity**: t-SNE and UMAP results vary with random seed. We verified key results with 3 seeds; MRR variation is ±0.015 (t-SNE) to ±0.008 (UMAP).
 3. **Query-count differences**: PubMedQA has 31 queries; Belebele has 100; others have 50. Affects statistical confidence.
+4. **Statistical power for operator separation (journal extension)**: the n=50 confirmatory protocol with Holm–Bonferroni correction shows that single-gold-per-query MRR requires larger samples to separate individual operator pairs — only one of 63 pairwise comparisons is family-wise significant. Claims therefore rest on replicated orderings across datasets, checkpoints, and perturbation conditions rather than on any single test.
+5. **Checkpoint coverage**: two learned sparse checkpoints (SPLADE-cocondenser, SPLADE-v3) agree in operator ordering; DPR is tested at one checkpoint, so the geometry-conditioning claim for dense signal B rests on score-scale arguments plus the four-pair matrix rather than checkpoint replication.
 
 ---
 
@@ -225,6 +227,8 @@ Our SF+SPLADE experiments map directly to this taxonomy:
 - **MuSiQue**: Signal + Operator Failure → SPLADE-only outperforms hybrid
 - **NQ-REaR**: Signal Failure → True Redundancy (τ=0.82, no RRF recovery)
 - **BioASQ, NQ-REaR, SciFact (deep pool)**: Representation Failure → Score Concentration / Deep-Pool Collapse
+
+**Refinements from the journal-extension evidence** (Chapter 7, §§7.2.9–7.2.12): the Operator Failure branch is now quantified across all seven operators — magnitude-preserving operators (CombSUM/CombMNZ) lead on every multi-hop/factoid dataset at n=50, with the single family-wise-significant pairwise separation being Borda vs CombMNZ on MuSiQue. The Magnitude Destruction mechanism is now established *causally*: rank-preserving magnitude transforms leave RRF's fused ranking bit-identical while reordering score-space fusion, and rank destruction collapses RRF maximally — separating the two information channels experimentally rather than by definition. The Score Concentration branch is likewise refined: controlled pool growth from 20 to 494 documents moves no operator's MRR in either pairing; concentration effects bind only at full-corpus scale (SciFact 5,183), not gradually.
 
 #### Score Geometry and Operator Information Preservation
 The **Score Geometry** framework provides a coordinate system $\mathcal{G}_R(q) = (\pi, \mathbf{s}, \mu_S, \sigma_S^2)$ that captures exactly what fusion operators act upon. The proven claim that **RRF preserves only ordering while linear interpolation preserves both ordering and magnitude** is a theoretical result from operator definitions, not empirical observation.

@@ -253,14 +253,22 @@ Two retrievers exhibit a **Complementarity Illusion** under linear fusion iff al
 
 If all three hold, the apparent failure is due to **incommensurate score geometry**, not information redundancy. Condition (2) is often misused as evidence for redundancy, but (3) invalidates that conclusion. This explains why SF+SPLADE fails under linear fusion on Belebele ($\tau=0.86$) and NarrativeQA ($\tau=0.85$) — RRF restores performance perfectly.
 
-#### 5.7.3.4 The Operator-Topology Constraint
+#### 5.7.3.4 The Operator-Topology Constraint (Revised: Score-Geometry-Conditioned)
 
-**Claim**: The optimal fusion operator is determined by task topology:
+**Claim (original form)**: The optimal fusion operator is determined by task topology:
 
 - **Single-hop matching** → RRF (scale-invariant, fixes Complementarity Illusion)
 - **Multi-hop compositional reasoning** → Linear interpolation (preserves magnitude = compositional confidence)
 
-*Proof sketch*: For multi-hop QA, absolute SPLADE scores express compositional confidence (high score = multiple hops matched). RRF transforms both into rank-only scores, losing the 3× difference between a full compositional match (s=45) and a partial match (s=15). Linear interpolation preserves this difference. Evidence: on 2WikiMultihopQA, RRF is 15.5 MRR points worse than linear; on MuSiQue, linear increases MRR from BM25 0.482 to 0.782 (+62.2%), impossible for RRF.
+*Evidence that motivated the original claim*: on 2WikiMultihopQA, RRF was 15.5 MRR points worse than linear in early runs; on MuSiQue, linear increased MRR from BM25 0.482 to 0.782 (+62.2%), impossible for a rank-only operator.
+
+**Revision after the full evidence base**: the complete seven-operator × eleven-dataset matrix, confirmatory n=50 statistics with Holm–Bonferroni correction, replication under a second SPLADE checkpoint (v3), and causal magnitude perturbation of real retrieval scores require refining this claim in three ways:
+
+1. **The multi-hop winner is CombSUM-family, not linear specifically.** At n=50, CombSUM leads every multi-hop/factoid dataset tested (HotpotQA 0.947, MuSiQue 0.977, NQ-REaR best magnitude operator 0.657–0.679); linear trails CombSUM wherever they differ. What matters is preservation of *magnitude*, which both score-space families provide — not the specific α-blend.
+2. **"Strictly dominant" is too strong at achievable sample sizes.** After Holm correction across all pairwise comparisons, only one of 63 tests separates two operators (Borda vs CombMNZ on MuSiQue, Δ = −0.149, p_Holm = 0.035). The honest statement is: the *ordering* (magnitude-preserving > rank-only on compositional tasks) replicates across datasets and checkpoints, while individual gaps are directionally consistent rather than family-wise significant at n=50.
+3. **Signal-B score geometry gates the effect.** With B = SPLADE (log1p-pooled, heterogeneous scale), the magnitude-vs-rank gap appears; with B = DPR (L2-normalized, uniform scale), RRF and raw-score fusion collapse to identical rankings and only α-weighted linear — which explicitly controls the magnitude trade-off — wins; swapping signal A from SF to BM25 compresses the gap to a stable band but never inverts it.
+
+**Revised claim**: the optimal fusion operator is conditioned on task topology *interacting with* score geometry: when fused signals carry heterogeneous magnitudes encoding task-relevant evidence (compositional confidence, term-saturation strength), magnitude-preserving operators are required; when magnitudes are uniform or carry no such evidence, scale-invariant rank-only fusion suffices and avoids calibration burden entirely. The definitional basis (§5.7.3.2) is unchanged; what this thesis adds is the empirical mapping of *when the distinction bites*, established causally via real-score perturbation (Chapter 7, §7.2.9) rather than inferred from observational gaps alone.
 
 ### 5.7.4 Hybrid Compatibility Profile (Definition 3)
 
@@ -270,15 +278,14 @@ $$\big(\tau(\pi_A,\pi_B),\; \mathrm{RRF\text{-}recoverable}(\mathcal{G}_A,\mathc
 
 — rank redundancy, scale compatibility (RRF-recoverability), and task topology $T$. This profile provides a **pre-fusion diagnostic** to choose the operator before fusion rather than through exhaustive sweeping.
 
-**Proposed decision rule** (retrospectively consistent with 9 datasets):
+**Proposed decision rule** (retrospectively consistent with 9 datasets; updated status below):
 
 - High $\tau$, one-hop task → check Complementarity Illusion; confirm with RRF test; fuse with RRF
-- Low/moderate $\tau$, multi-hop task → independent magnitude-relevant information; use linear
+- Low/moderate $\tau$, multi-hop task → independent magnitude-relevant information; use a magnitude-preserving operator (CombSUM-family preferred; α-blend linear when explicit scale control is needed)
 - High $\tau$, no RRF restoration → genuine redundancy; drop weaker signal
-- Score variance collapse ($\sigma_S^2 
-ightarrow 0$) → representational problem; no operator fixes this
+- Score variance collapse ($\sigma_S^2 ightarrow 0$) → representational problem; no operator fixes this
 
-**Status**: Valid on 9 datasets (SF+SPLADE); not yet validated out-of-sample or on other retriever pairs.
+**Status (updated)**: now supported by the expanded evidence base — 11 datasets, 7 operators, 4 retriever pairs, and a second SPLADE checkpoint replicating the operator ordering. The multi-hop branch is revised from "use linear" to "use a magnitude-preserving operator" (CombSUM leads at n=50 on every multi-hop/factoid dataset), and the profile's task-topology axis is explicitly conditioned on signal-B score geometry (§5.7.3.4). Out-of-sample validation beyond these datasets remains future work.
 
 ### 5.7.5 Taxonomy of Hybrid Retrieval Failures
 

@@ -166,7 +166,7 @@ Seven operators spanning three information classes:
 
 ### 4.7 Statistical Testing — and its limits
 
-Each dataset is evaluated on a **10-query probe** for the full 10-dataset × 7-operator matrix (§6.1), reported as **exploratory, directional evidence**. To answer the reviewer concern that n=10 MRR gaps may be unstable, we additionally ran a **confirmatory n=50 study**: the complete seven-operator matrix (linear, rrf, combsum, combmnz, borda, zscore, minmax) on three multi-hop/factoid datasets (HotpotQA, MuSiQue, NQ-REaR) with the SF+SPLADE pair. Per-query MRR arrays feed a formal statistical protocol: paired bootstrap 95% CIs (10,000 resamples, seed=42), two-sided Wilcoxon signed-rank tests between every operator pair, and Holm–Bonferroni family-wise correction across the 21 pairwise comparisons per dataset (Appendix C).
+Each dataset is evaluated on a **10-query probe** for the full 10-dataset × 7-operator matrix (§6.1), reported as **exploratory, directional evidence**. To answer the reviewer concern that n=10 MRR gaps may be unstable, we additionally ran a **confirmatory n=50 study**: the complete seven-operator matrix (linear, rrf, combsum, combmnz, borda, zscore, minmax) on three multi-hop/factoid datasets (HotpotQA, MuSiQue, NQ-REaR) with the SF+SPLADE pair. Per-query MRR arrays feed a formal statistical protocol: paired bootstrap 95% CIs (10,000 resamples, seed=42), two-sided Wilcoxon signed-rank tests between every operator pair, and Holm–Bonferroni family-wise correction across the 21 pairwise comparisons per dataset (Appendix C). *For these three datasets the Appendix C n=50 tables supersede the parenthetical n=10 values shown in §6.1; the parentheticals are retained only for continuity with the exploratory map.*
 
 **Statistical findings (honest).** The operator *ordering* is stable at n=50 — CombSUM/CombMNZ rank first on all three datasets (HotpotQA 0.947/0.893; MuSiQue 0.977/0.919; NQ-REaR 0.657/**0.679**) and Borda last (0.857/0.770/0.587) — but after Holm correction **almost no pairwise comparison survives at α=0.05**. On HotpotQA, CombSUM vs linear shows ΔMRR = +0.114 with raw p = 0.0064 that inflates to p_Holm = 0.135 after correction; on MuSiQue, CombSUM vs RRF is +0.060 at raw p = 0.0143 → 0.183 corrected. Only one of 63 comparisons survives: Borda vs CombMNZ on MuSiQue (Δ = −0.149, p_Holm = 0.035). We therefore report effect sizes and raw p-values transparently while acknowledging that, at n=50 with single-gold-per-query MRR, individual operator differences are **directionally consistent but not family-wise significant**. This strengthens rather than weakens our framing: the contribution is the *mechanism* (which information each operator preserves, §3, §6.3.1, §7), not the claim that any two operators are separable at this sample size. Larger-n confirmatory studies remain future work.
 
@@ -290,7 +290,7 @@ The operator ordering is **stable across checkpoints**: CombSUM ranks first on b
 
 ### 6.5.3 α-Sensitivity of the Linear Operator (Reviewer #20)
 
-The linear operator is `score = α·maxnorm(SF) + (1−α)·maxnorm(SPLADE)`, with α the weight on the zero-shot SF signal. In the conference version α was fixed at 0.3 with no sensitivity analysis, leaving open whether 0.3 was a cherry-picked favourable point. We now sweep α ∈ {0.0, 0.1, …, 1.0} on four datasets, reusing each dataset's controlled-pool index and recomputing MRR(α) offline from the two endpoint component runs (α=1.0 = pure SF, α=0.0 = pure SPLADE), so the entire curve is exact, not interpolated.
+The linear operator is `score = α·maxnorm(SF) + (1−α)·maxnorm(SPLADE)`, with α the weight on the zero-shot SF signal. In the conference version α was fixed at 0.3 with no sensitivity analysis, leaving open whether 0.3 was a cherry-picked favourable point. We now sweep α ∈ {0.0, 0.1, …, 1.0} on four datasets, reusing each dataset's controlled-pool index and recomputing MRR(α) offline from the two endpoint component runs (α=1.0 = pure SF, α=0.0 = pure SPLADE). Because the fused score is *linear* in the two maxnorm'd signals, every intermediate α value computed this way is exactly what an end-to-end run at that α would produce — the curve is a complete enumeration, not an interpolation or approximation.
 
 | α | 2Wiki | HotpotQA | MuSiQue | SciFact |
 |---|------:|---------:|--------:|--------:|
@@ -399,7 +399,7 @@ We measure the effect of candidate-pool size on fusion operator ranking along tw
 
 CombSUM maintains perfect MRR=1.000 across all pool sizes — its magnitude-preserving aggregation is robust to score concentration — while rank-only fusion fluctuates with pool size (RRF swings 0.667→0.883→0.783) and linear stays noisy around 0.56–0.61.
 
-**(b) BM25+SPLADE.** To test whether this signature depends on signal A being SF, we repeated the full sweep with BM25 replacing SF as signal A (`--signal-a bm25`), same dataset, same seven operators, n=10 queries per N, each N a freshly built padded pool (pool sizes verified exactly 20/50/100/494 from `query_doc_map.json`; configs in `outputs/hotpotqa_benchmark/runs/run_2026082{3_*}`):
+**(b) BM25+SPLADE.** To test whether this signature depends on signal A being SF, we repeated the full sweep with BM25 replacing SF as signal A (`--signal-a bm25`), same dataset, same seven operators, n=10 queries per N, each N a freshly built padded pool (pool sizes verified exactly 20/50/100/494 from each run's `query_doc_map.json`; e.g. the N=494 index lives at `outputs/hotpotqa_benchmark/runs/run_20260823_220549`, with the other three N values in its sibling `run_20260823_*` directories created minutes earlier):
 
 | N   | linear | rrf | borda | combsum | combmnz | zscore | minmax |
 |-----|-------:|----:|------:|--------:|--------:|-------:|-------:|
@@ -496,9 +496,21 @@ Real per-document component scores (maxnorm(SF), maxnorm(SPLADE)) captured durin
 | rpr | 0.925 / +0.834 | **0.861 / +1.000** | 0.905 / +0.803 | 0.903 / +0.833 | 0.855 / +1.000 | 0.950 / +0.914 | 0.925 / +0.831 |
 | shufflescores | 0.900 / +0.522 | 0.397 / +0.509 | 0.565 / +0.463 | 0.523 / +0.594 | 0.293 / +0.551 | 0.950 / +0.578 | 0.933 / +0.518 |
 
-(SciFact table and the SPLADE-perturbed variants show the same pattern; see the generated files.)
+(The SPLADE-perturbed variants show the same pattern; see the generated files.)
 
-#### E.3 Reading
+#### E.3 SciFact — SF signal perturbed
+
+| Condition | linear | rrf | combsum | combmnz | borda | zscore | minmax |
+|---|---|---|---|---|---|---|---|
+| orig | 0.823 / +1.000 | 0.821 / +1.000 | 0.820 / +1.000 | 0.820 / +1.000 | 0.821 / +1.000 | 0.823 / +1.000 | 0.823 / +1.000 |
+| x2 | 0.823 / +1.000 | **0.821 / +1.000** | 0.818 / +0.913 | 0.818 / +0.913 | 0.821 / +1.000 | 0.823 / +1.000 | 0.823 / +1.000 |
+| pow05 | 0.824 / +0.901 | **0.821 / +1.000** | 0.822 / +0.865 | 0.822 / +0.865 | 0.821 / +1.000 | 0.824 / +0.910 | 0.824 / +0.901 |
+| rpr | 0.823 / +0.733 | **0.821 / +1.000** | 0.826 / +0.711 | 0.827 / +0.712 | 0.821 / +1.000 | 0.824 / +0.819 | 0.825 / +0.735 |
+| shufflescores | 0.817 / +0.694 | 0.206 / +0.434 | 0.516 / +0.543 | 0.425 / +0.525 | 0.290 / +0.428 | 0.819 / +0.686 | 0.819 / +0.696 |
+
+SciFact replicates the pattern on a claim-verification task: RRF is bit-frozen under every rank-preserving transform (including `rpr`) yet collapses to 0.206 under rank destruction, while score-space operators reorder internally (τ down to 0.71) with essentially unchanged MRR. The SPLADE-perturbed variants for all three datasets (not shown) follow the same shape; see `magnitude_perturbation_<dataset>.md`.
+
+#### E.4 Reading
 
 - The `rrf` column is *frozen* across all five rank-preserving conditions on every dataset — including `rpr`, where magnitudes are replaced by fresh random draws — confirming Proposition 1 operationally on real scores.
 - Score-space operators reorder internally under the same transforms (τ as low as 0.69) even when MRR happens to hold at ceiling — magnitude changes alter their fused rankings without necessarily moving gold past rank 1 in this pool.

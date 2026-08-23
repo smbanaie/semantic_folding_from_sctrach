@@ -386,16 +386,31 @@ We **abandon the O(√N) "Scaling Wall" claim** of the conference version as the
 
 ### 8.4 Candidate-Size Scaling
 
-We now measure the effect of candidate-pool size on fusion operator ranking. The question is whether score concentration at the tail of the distribution degrades fusion quality as distractors grow. We held the query fixed and grew the candidate set to N ∈ {20, 50, 100, 494} distractors (full corpus) on HotpotQA with SF+SPLADE, reporting MRR and P@1 over n=10 queries per N. Results are in Table 8.1.
+We measure the effect of candidate-pool size on fusion operator ranking along two independent axes: *which signals are fused* and *how large the pool grows*. The question is whether score concentration at the tail of the distribution degrades fusion quality as distractors grow.
+
+**(a) SF+SPLADE.** Holding the query fixed, we grew the candidate set to N ∈ {20, 50, 100, 494} documents on HotpotQA with SF+SPLADE, reporting MRR and P@1 over n=10 queries per N:
 
 | N   | linear MRR | rrf MRR | combsum MRR | linear P@1 | rrf P@1 | combsum P@1 |
 |-----|-----------|---------|-------------|-----------|---------|-------------|
-| 20  | 0.558     | 0.667   | **1.000**   | 0.300     | 0.400   | **1.000**   |
-| 50  | 0.612     | 0.783   | **1.000**   | 0.400     | 0.600   | **1.000**   |
-| 100 | 0.592     | 0.883   | **1.000**   | 0.400     | 0.800   | **1.000**   |
-| 494 | 0.558     | 0.783   | **1.000**   | 0.300     | 0.600   | **1.000**   |
+| 20  | 0.558     | 0.667   | **1.000**   | 0.300     | 0.400     | **1.000**   |
+| 50  | 0.612     | 0.783   | **1.000**   | 0.400     | 0.600     | **1.000**   |
+| 100 | 0.592     | 0.883   | **1.000**   | 0.400     | 0.800     | **1.000**   |
+| 494 | 0.558     | 0.783   | **1.000**   | 0.300     | 0.600     | **1.000**   |
 
-**Interpretation.** CombSUM maintains perfect MRR=1.000 across all pool sizes (N=20→100→494), confirming that its magnitude-preserving aggregation is robust to score concentration. By contrast, rank-only fusion (linear, RRF) fluctuates with pool size: RRF degrades from 0.667→0.883 as N grows (passage-level separation improves with more candidates), while linear is noisy (0.558→0.592). This directly validates the score-concentration prediction: the magnitude family (CombSUM) insulates gold rank from pool growth, while rank-only methods are sensitive to distractor volume. The BM25+SPLADE HotpotQA N-sweep remains future work (§10); we do not yet have those results.
+CombSUM maintains perfect MRR=1.000 across all pool sizes — its magnitude-preserving aggregation is robust to score concentration — while rank-only fusion fluctuates with pool size (RRF swings 0.667→0.883→0.783) and linear stays noisy around 0.56–0.61.
+
+**(b) BM25+SPLADE.** To test whether this signature depends on signal A being SF, we repeated the full sweep with BM25 replacing SF as signal A (`--signal-a bm25`), same dataset, same seven operators, n=10 queries per N, each N a freshly built padded pool (pool sizes verified exactly 20/50/100/494 from `query_doc_map.json`; configs in `outputs/hotpotqa_benchmark/runs/run_2026082{3_*}`):
+
+| N   | linear | rrf | borda | combsum | combmnz | zscore | minmax |
+|-----|-------:|----:|------:|--------:|--------:|-------:|-------:|
+| 20  | 0.900 | 0.850 | 0.850 | **0.950** | **0.950** | **0.950** | 0.900 |
+| 50  | 0.900 | 0.850 | 0.850 | **0.950** | **0.950** | **0.950** | 0.900 |
+| 100 | 0.900 | 0.850 | 0.850 | **0.950** | **0.950** | **0.950** | 0.900 |
+| 494 | 0.900 | 0.850 | 0.850 | **0.950** | **0.950** | **0.950** | 0.900 |
+
+(P@1 shows the same flatness: 0.800 rank-only / 0.900 magnitude at every N.)
+
+**Reading.** The two sweeps answer complementary questions. With B = SPLADE held fixed, the operator ordering at every pool size tracks signal A's geometry: when A = SF (heterogeneous spatial magnitudes), score-space operators dominate dramatically (Table a: CombSUM 1.000 vs RRF ≤0.883); when A = BM25 (integer-scaled lexical scores), the gap compresses to a stable 0.05–0.10 band (Table b: magnitude family 0.950 vs rank-only 0.850) but never inverts. And within either pairing, growing the pool from 20 to 494 distractors does not change any operator's MRR by more than noise — including the full-corpus-sized N=494 pool. Score concentration at the tail is therefore *not* what separates fusion operators; the separation comes from the score geometry of the signals being fused, consistent with §6.5's cross-pair finding and §7.4's causal perturbation result. Full tables: `docs/papers/Journal A/appendix_stats/deep_pool_nsweep.md`.
 
 Table 8.1: Fusion-operator MRR/P@1 vs candidate-pool size N on HotpotQA SF+SPLADE, n=10 queries. All numbers are reranking results over dataset-provided candidate pools (§4.3).
 

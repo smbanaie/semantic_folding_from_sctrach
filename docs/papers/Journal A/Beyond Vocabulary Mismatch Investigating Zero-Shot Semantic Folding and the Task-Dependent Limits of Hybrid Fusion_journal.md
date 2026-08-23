@@ -351,6 +351,18 @@ Two regimes emerge cleanly. *Cross-family* pairs (magnitude-preserving vs rank-o
 
 **Implication.** Fusion operator choice matters only where the joint score geometry provides degrees of freedom that distinct operators exploit differently. For signal pairs where operators collapse to identical rankings, effort should shift from operator selection toward signal acquisition or calibration. Full table: `docs/papers/Journal A/appendix_stats/operator_identifiability.md`.
 
+### 6.6.2 Can Learning the Fusion Weights Beat the Diagnostic Choice?
+
+If "match operator to score geometry" is sound guidance, a small learned fuser should not substantially outperform the correctly-chosen fixed operator — otherwise the diagnosis would be a detour around simply training the weights. We test this with logistic regression over four features per document ([s_A, s_B] raw + maxnorm-normalized), trained with **leave-one-query-out cross-validation**: for each held-out query, the model sees only documents of the other queries, so no leakage is possible (`scripts/learned_fusion_baseline.py`).
+
+| Dataset | n | rrf | combsum | learned (LOQO-CV) |
+|---------|--:|----:|--------:|------------------:|
+| HotpotQA | 10 | 0.883 | 1.000 | 1.000 |
+| MuSiQue | 10 | 0.861 | 0.914 | **0.933** |
+| SciFact | 10 | 0.821 | 0.820 | 0.823 |
+
+The learned fuser matches CombSUM where geometry favors it (HotpotQA), adds a marginal gain on MuSiQue (+0.019 — within the noise band established in §4.7), and ties on SciFact. With n=10 queries these differences are not statistically meaningful; the substantive point is that a trained fusion function does *not* escape the score-geometry analysis — its weights are largest exactly on the features our framework predicts matter (normalized separation in the informative regime), and it cannot conjure ranking information the signals do not contain (SciFact ties both fixed operators). Learning the weights is a viable deployment shortcut once labeled queries exist; the diagnostic framework tells you *before* collecting labels whether the fusion stage has headroom at all.
+
 ---
 
 ## 7. The Magnitude Information Hypothesis
@@ -362,6 +374,24 @@ Verified computationally: RRF output is bit-identical (to 1e-12) under strictly 
 ### 7.2 Synthetic Magnitude Control
 
 To isolate magnitude as a *controlled* factor (not a correlate of rank), we hold RANK fixed (Doc A always rank 1, Doc B always rank 2) and vary only the SCORE MAGNITUDE, then apply all seven operators and ask whether each correctly ranks A above B. This is implemented in `semantic_folding/synthetic_magnitude_experiment.py` and run with the real fusion code (`fusion_operators.fuse`); it is therefore a genuine controlled experiment, not an illustrative example. Ranking is held constant by construction, so any operator that changes its A/B ordering under a magnitude manipulation is responding to magnitude alone.
+
+**Operator phase diagram (controlled simulation).** The 2-document toy establishes the mechanism; a full simulation (`scripts/synthetic_operator_phase.py`) maps *where* each operator family wins across 81 conditions: pool sizes N ∈ {20, 100, 500}, magnitude-distribution families (concentrated / spread / heavy-tail), signal-B scale ratios ×{1, 10, 100}, and three relevance regimes — *rank-dominant* (gold = top-ranked document, magnitude uninformative), *magnitude-dominant* (gold sits mid-rank but carries a large signal-B spike), and *mixed* (half trials each). Results:
+
+| family | regime | linear | rrf | combsum | combmnz | borda | zscore | minmax | winner |
+|--------|--------|-------:|----:|--------:|--------:|------:|-------:|-------:|--------|
+| any | rank-dominant | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | all tie |
+| concentrated | magnitude-dominant | 1.000 | 0.000 | 1.000 | 1.000 | 0.000 | 1.000 | 1.000 | score-space |
+| spread | magnitude-dominant | 1.000 | 0.000 | 1.000 | 1.000 | 0.000 | 1.000 | 1.000 | score-space |
+| heavy-tail | magnitude-dominant | 1.000 | 0.000 | 0.996 | 0.996 | 0.000 | 1.000 | 1.000 | score-space |
+| any | mixed | 1.000 | 0.000 | 1.000 | 1.000 | 0.000 | 1.000 | 1.000 | score-space |
+
+**Phase structure (54/81 cells differentiate operators; deterministic seeds):**
+
+- In **rank-dominant conditions every operator ties at 1.000** — when relevance is fully encoded in rank, fusion choice is unidentifiable (§6.6.1) and magnitude adds nothing.
+- In **magnitude-dominant and mixed conditions the families separate perfectly**: score-space operators recover gold at ≈1.000 accuracy while rank-only operators fail on essentially every such query (0.000). Normalized variants succeed here because the spike dominates after normalization too; their failure mode in the 2-doc toy (§7.2 table above) is specific to *small-margin* regimes where normalization noise swamps the signal.
+- Distribution shape barely matters for the phase boundary — concentrated vs heavy-tail changes only CombSUM/CombMNZ at the margin (0.996 vs 1.000).
+
+This is the operator phase diagram the hypothesis predicts: **the winning operator family is determined by whether task-relevant information lives in rank alone or also in magnitude — not by distributional details.** Full per-cell results: `docs/papers/Journal A/appendix_stats/operator_phase_diagram.md`.
 
 | Condition | Score(A) | Score(B) | Margin | linear | rrf | combsum | combmnz | borda | zscore | minmax |
 |-----------|----------|----------|--------|--------|-----|---------|---------|-------|--------|--------|

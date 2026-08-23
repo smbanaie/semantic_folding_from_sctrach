@@ -182,8 +182,8 @@
   "n=20|heavy-tail|x1|mixed": {
     "linear": 1.0,
     "rrf": 0.0,
-    "combsum": 1.0,
-    "combmnz": 1.0,
+    "combsum": 0.9666666666666667,
+    "combmnz": 0.9666666666666667,
     "borda": 0.0,
     "zscore": 1.0,
     "minmax": 1.0
@@ -668,8 +668,8 @@
   "n=500|heavy-tail|x1|mixed": {
     "linear": 1.0,
     "rrf": 0.0,
-    "combsum": 1.0,
-    "combmnz": 1.0,
+    "combsum": 0.9,
+    "combmnz": 0.9,
     "borda": 0.0,
     "zscore": 1.0,
     "minmax": 1.0

@@ -1,6 +1,6 @@
-# Synthetic Operator Phase Diagram — v2 (Item 15)
+# Synthetic Operator Phase Diagram (Item 15)
 
-30 trials/cell; N in {20,100,500}; families control signal-A variance/tails; signal-B carries a magnitude spike on the gold doc in magnitude-relevant regimes; B scaled x{1,10,100}; deterministic seeds.
+30 trials/cell; N in {20,100,500}; families shape signal A; signal B carries a magnitude spike on the gold doc in magnitude-relevant regimes; B scaled x{1,10,100}; deterministic seeds.
 
 ## Mean top-1 accuracy (averaged over pool sizes and scales)
 
@@ -14,4 +14,4 @@
 | spread | mixed | 1.000 | 0.000 | 1.000 | 1.000 | 0.000 | 1.000 | 1.000 | **linear** |
 | heavy-tail | rank-dominant | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | **linear** *(all tie)* |
 | heavy-tail | magnitude-dominant | 1.000 | 0.000 | 0.996 | 0.996 | 0.000 | 1.000 | 1.000 | **linear** |
-| heavy-tail | mixed | 1.000 | 0.000 | 1.000 | 1.000 | 0.000 | 1.000 | 1.000 | **linear** |
+| heavy-tail | mixed | 1.000 | 0.000 | 0.985 | 0.985 | 0.000 | 1.000 | 1.000 | **linear** |

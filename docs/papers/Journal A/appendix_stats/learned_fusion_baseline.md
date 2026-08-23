@@ -1,6 +1,6 @@
 # Learned Fusion Baseline vs Fixed Operators (Item 20)
 
-Logistic regression over [s_A, s_B, s_A_norm, s_B_norm], trained with leave-one-query-out CV (train on other queries' documents, score the held-out query). Identical pools/golds as section 7.5.
+Logistic regression over [s_A, s_B, s_A_norm, s_B_norm]; leave-one-query-out CV (train on other queries' documents, score the held-out query). Identical pools/golds as §7.5.
 
 | Dataset | n | rrf | combsum | learned (LOQO-CV) |
 |---------|--:|----:|--------:|------------------:|

@@ -1,0 +1,38 @@
+{
+  "hotpotqa": {
+    "n": 100,
+    "combsum_wins": 21,
+    "rrf_wins": 1,
+    "ties": 78,
+    "win_pct": 21.0,
+    "rank1_changed_queries": 10,
+    "rank1_change_pct": 10.0,
+    "mean_delta": 0.093,
+    "dz": 0.446,
+    "n_needed_for_power80": 40
+  },
+  "musique": {
+    "n": 100,
+    "combsum_wins": 8,
+    "rrf_wins": 0,
+    "ties": 92,
+    "win_pct": 8.0,
+    "rank1_changed_queries": 4,
+    "rank1_change_pct": 4.0,
+    "mean_delta": 0.0433,
+    "dz": 0.291,
+    "n_needed_for_power80": 93
+  },
+  "nq_rear": {
+    "n": 100,
+    "combsum_wins": 18,
+    "rrf_wins": 11,
+    "ties": 71,
+    "win_pct": 18.0,
+    "rank1_changed_queries": 18,
+    "rank1_change_pct": 18.0,
+    "mean_delta": 0.0278,
+    "dz": 0.127,
+    "n_needed_for_power80": 488
+  }
+}

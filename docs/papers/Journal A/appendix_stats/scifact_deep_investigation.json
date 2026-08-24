@@ -1,0 +1,30 @@
+{
+  "pool_size": 5183,
+  "per_query": {},
+  "op_mrr": {
+    "linear": 0.13,
+    "rrf": 0.13,
+    "combsum": 0.13,
+    "combmnz": 0.13,
+    "borda": 0.13,
+    "zscore": 0.13,
+    "minmax": 0.13
+  },
+  "gold_ranks_combsum": [
+    10,
+    5,
+    1
+  ],
+  "oracle_best_rank_any_op": [
+    10,
+    5,
+    1
+  ],
+  "score_cv_mean": 0.05831,
+  "top1_margin_mean": 0.003346,
+  "top10_intersection_ratio_mean": 1.0,
+  "verdict": [
+    "candidate/pool failure dominates: gold present in only 3/10 pools, so MRR is bounded at ~0.13 regardless of operator (7 queries have zero gold in pool)",
+    "fusion saturation: operators produce near-identical rankings (top-10 intersection = 1.0 \u2014 all seven operators rank the pool identically at the top)"
+  ]
+}

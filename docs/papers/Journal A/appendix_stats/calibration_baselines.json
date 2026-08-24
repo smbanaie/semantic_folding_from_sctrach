@@ -1,0 +1,137 @@
+{
+  "hotpotqa": {
+    "n_queries": 10,
+    "mrr": {
+      "raw": {
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "linear": 1.0
+      },
+      "minmax": {
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "linear": 1.0
+      },
+      "zscore": {
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "linear": 1.0
+      },
+      "l2": {
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "linear": 1.0
+      },
+      "rank_gauss": {
+        "combsum": 0.9,
+        "combmnz": 0.9,
+        "linear": 1.0
+      },
+      "sigmoid": {
+        "combsum": 0.883,
+        "combmnz": 0.883,
+        "linear": 0.883
+      },
+      "quantile": {
+        "combsum": 0.683,
+        "combmnz": 0.683,
+        "linear": 0.95
+      },
+      "softmax": {
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "linear": 1.0
+      }
+    }
+  },
+  "musique": {
+    "n_queries": 10,
+    "mrr": {
+      "raw": {
+        "combsum": 0.914,
+        "combmnz": 0.903,
+        "linear": 0.95
+      },
+      "minmax": {
+        "combsum": 0.917,
+        "combmnz": 0.905,
+        "linear": 0.95
+      },
+      "zscore": {
+        "combsum": 0.92,
+        "combmnz": 0.911,
+        "linear": 0.95
+      },
+      "l2": {
+        "combsum": 0.905,
+        "combmnz": 0.903,
+        "linear": 0.95
+      },
+      "rank_gauss": {
+        "combsum": 0.95,
+        "combmnz": 0.911,
+        "linear": 0.92
+      },
+      "sigmoid": {
+        "combsum": 0.853,
+        "combmnz": 0.853,
+        "linear": 0.82
+      },
+      "quantile": {
+        "combsum": 0.855,
+        "combmnz": 0.853,
+        "linear": 0.911
+      },
+      "softmax": {
+        "combsum": 0.92,
+        "combmnz": 0.914,
+        "linear": 0.95
+      }
+    }
+  },
+  "scifact": {
+    "n_queries": 10,
+    "mrr": {
+      "raw": {
+        "combsum": 0.82,
+        "combmnz": 0.82,
+        "linear": 0.823
+      },
+      "minmax": {
+        "combsum": 0.82,
+        "combmnz": 0.82,
+        "linear": 0.823
+      },
+      "zscore": {
+        "combsum": 0.82,
+        "combmnz": 0.82,
+        "linear": 0.823
+      },
+      "l2": {
+        "combsum": 0.821,
+        "combmnz": 0.821,
+        "linear": 0.823
+      },
+      "rank_gauss": {
+        "combsum": 0.824,
+        "combmnz": 0.824,
+        "linear": 0.82
+      },
+      "sigmoid": {
+        "combsum": 0.828,
+        "combmnz": 0.828,
+        "linear": 0.826
+      },
+      "quantile": {
+        "combsum": 0.821,
+        "combmnz": 0.821,
+        "linear": 0.82
+      },
+      "softmax": {
+        "combsum": 0.82,
+        "combmnz": 0.82,
+        "linear": 0.823
+      }
+    }
+  }
+}

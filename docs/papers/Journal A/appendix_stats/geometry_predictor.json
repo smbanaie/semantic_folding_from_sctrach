@@ -1,0 +1,31 @@
+{
+  "n_queries_total": 40,
+  "family_counts_by_dataset": {
+    "hotpotqa": {
+      "rank_only": 0,
+      "score_space": 2,
+      "tie": 8
+    },
+    "musique": {
+      "rank_only": 0,
+      "score_space": 2,
+      "tie": 8
+    },
+    "scifact": {
+      "rank_only": 1,
+      "score_space": 1,
+      "tie": 8
+    },
+    "2wikimultihopqa": {
+      "rank_only": 0,
+      "score_space": 0,
+      "tie": 10
+    }
+  },
+  "lodo_accuracy_mean": 0.75,
+  "majority_baseline_mean": 1.0,
+  "per_fold_accuracy": [
+    1.0,
+    0.5
+  ]
+}

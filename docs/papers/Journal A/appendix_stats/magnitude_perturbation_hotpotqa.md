@@ -13,6 +13,9 @@ Signal X transformed, other signal fixed. Each cell: MRR | tau(fused vs orig-fus
 | pow05 | MRR=1.000 tau=+0.853 | MRR=0.883 tau=+1.000 | MRR=1.000 tau=+0.821 | MRR=1.000 tau=+0.821 | MRR=0.733 tau=+1.000 | MRR=1.000 tau=+0.867 | MRR=1.000 tau=+0.853 |
 | rpr | MRR=1.000 tau=+0.689 | MRR=0.883 tau=+0.993 | MRR=1.000 tau=+0.687 | MRR=1.000 tau=+0.690 | MRR=0.733 tau=+0.989 | MRR=1.000 tau=+0.730 | MRR=1.000 tau=+0.687 |
 | shufflescores | MRR=0.883 tau=+0.653 | MRR=0.354 tau=+0.427 | MRR=0.520 tau=+0.552 | MRR=0.587 tau=+0.546 | MRR=0.219 tau=+0.437 | MRR=0.900 tau=+0.682 | MRR=0.850 tau=+0.654 |
+| compress | MRR=1.000 tau=+0.699 | MRR=0.883 tau=+1.000 | MRR=1.000 tau=+0.829 | MRR=1.000 tau=+0.829 | MRR=0.733 tau=+1.000 | MRR=1.000 tau=+0.734 | MRR=1.000 tau=+0.699 |
+| amplify | MRR=1.000 tau=+0.894 | MRR=0.883 tau=+1.000 | MRR=0.733 tau=+0.826 | MRR=0.733 tau=+0.826 | MRR=0.733 tau=+1.000 | MRR=1.000 tau=+0.901 | MRR=1.000 tau=+0.894 |
+| magswap | MRR=1.000 tau=+0.999 | MRR=0.883 tau=+1.000 | MRR=1.000 tau=+1.000 | MRR=1.000 tau=+1.000 | MRR=0.733 tau=+1.000 | MRR=1.000 tau=+1.000 | MRR=1.000 tau=+0.999 |
 
 **Perturbed signal: SPLADE**
 
@@ -24,3 +27,6 @@ Signal X transformed, other signal fixed. Each cell: MRR | tau(fused vs orig-fus
 | pow05 | MRR=0.617 tau=+0.887 | MRR=0.883 tau=+1.000 | MRR=0.933 tau=+0.908 | MRR=0.933 tau=+0.908 | MRR=0.733 tau=+1.000 | MRR=0.617 tau=+0.896 | MRR=0.617 tau=+0.887 |
 | rpr | MRR=0.470 tau=+0.799 | MRR=0.883 tau=+0.986 | MRR=0.537 tau=+0.837 | MRR=0.537 tau=+0.840 | MRR=0.733 tau=+0.981 | MRR=0.462 tau=+0.825 | MRR=0.475 tau=+0.800 |
 | shufflescores | MRR=0.523 tau=+0.476 | MRR=0.489 tau=+0.440 | MRR=0.488 tau=+0.325 | MRR=0.454 tau=+0.367 | MRR=0.210 tau=+0.418 | MRR=0.498 tau=+0.472 | MRR=0.448 tau=+0.461 |
+| compress | MRR=0.470 tau=+0.819 | MRR=0.883 tau=+1.000 | MRR=0.453 tau=+0.651 | MRR=0.453 tau=+0.651 | MRR=0.733 tau=+1.000 | MRR=0.470 tau=+0.849 | MRR=0.470 tau=+0.819 |
+| amplify | MRR=1.000 tau=+0.717 | MRR=0.883 tau=+1.000 | MRR=1.000 tau=+0.644 | MRR=1.000 tau=+0.644 | MRR=0.733 tau=+1.000 | MRR=1.000 tau=+0.709 | MRR=1.000 tau=+0.717 |
+| magswap | MRR=0.633 tau=+0.992 | MRR=0.883 tau=+1.000 | MRR=0.833 tau=+1.000 | MRR=0.833 tau=+1.000 | MRR=0.733 tau=+1.000 | MRR=0.683 tau=+0.999 | MRR=0.633 tau=+0.992 |

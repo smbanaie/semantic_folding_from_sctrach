@@ -1,0 +1,183 @@
+{
+  "hotpotqa": {
+    "n_queries": 10,
+    "mean_tau_signal": 0.309,
+    "rho_fusgain_vs_tau_signal": {
+      "rho": null,
+      "p": null
+    },
+    "rho_fusgain_vs_top1_disagree": {
+      "rho": null,
+      "p": null
+    },
+    "tau_operator_mean": {
+      "linear|rrf": 0.736,
+      "linear|combsum": 0.838,
+      "linear|combmnz": 0.838,
+      "linear|borda": 0.701,
+      "linear|zscore": 0.977,
+      "linear|minmax": 1.0,
+      "rrf|combsum": 0.763,
+      "rrf|combmnz": 0.763,
+      "rrf|borda": 0.931,
+      "rrf|zscore": 0.731,
+      "rrf|minmax": 0.736,
+      "combsum|combmnz": 1.0,
+      "combsum|borda": 0.731,
+      "combsum|zscore": 0.817,
+      "combsum|minmax": 0.838,
+      "combmnz|borda": 0.731,
+      "combmnz|zscore": 0.817,
+      "combmnz|minmax": 0.838,
+      "borda|zscore": 0.698,
+      "borda|minmax": 0.701,
+      "zscore|minmax": 0.977
+    },
+    "cells": {
+      "TT": {
+        "linear": 1.0,
+        "rrf": 1.0,
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "borda": 1.0,
+        "zscore": 1.0,
+        "minmax": 1.0,
+        "n": 2
+      },
+      "FT": {
+        "linear": 1.0,
+        "rrf": 0.854,
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "borda": 0.667,
+        "zscore": 1.0,
+        "minmax": 1.0,
+        "n": 8
+      }
+    }
+  },
+  "musique": {
+    "n_queries": 10,
+    "mean_tau_signal": -0.062,
+    "rho_fusgain_vs_tau_signal": {
+      "rho": 0.522,
+      "p": 0.1215
+    },
+    "rho_fusgain_vs_top1_disagree": {
+      "rho": -0.167,
+      "p": 0.6454
+    },
+    "tau_operator_mean": {
+      "linear|rrf": 0.753,
+      "linear|combsum": 0.622,
+      "linear|combmnz": 0.586,
+      "linear|borda": 0.66,
+      "linear|zscore": 0.626,
+      "linear|minmax": 1.0,
+      "rrf|combsum": 0.687,
+      "rrf|combmnz": 0.666,
+      "rrf|borda": 0.789,
+      "rrf|zscore": 0.501,
+      "rrf|minmax": 0.753,
+      "combsum|combmnz": 0.842,
+      "combsum|borda": 0.614,
+      "combsum|zscore": 0.396,
+      "combsum|minmax": 0.622,
+      "combmnz|borda": 0.706,
+      "combmnz|zscore": 0.328,
+      "combmnz|minmax": 0.586,
+      "borda|zscore": 0.437,
+      "borda|minmax": 0.66,
+      "zscore|minmax": 0.626
+    },
+    "cells": {
+      "TT": {
+        "linear": 1.0,
+        "rrf": 1.0,
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "borda": 1.0,
+        "zscore": 1.0,
+        "minmax": 1.0,
+        "n": 3
+      },
+      "FT": {
+        "linear": 0.929,
+        "rrf": 0.802,
+        "combsum": 0.878,
+        "combmnz": 0.862,
+        "borda": 0.792,
+        "zscore": 0.929,
+        "minmax": 0.929,
+        "n": 7
+      }
+    }
+  },
+  "scifact": {
+    "n_queries": 10,
+    "mean_tau_signal": 0.318,
+    "rho_fusgain_vs_tau_signal": {
+      "rho": 0.234,
+      "p": 0.5161
+    },
+    "rho_fusgain_vs_top1_disagree": {
+      "rho": 0.248,
+      "p": 0.4888
+    },
+    "tau_operator_mean": {
+      "linear|rrf": 0.663,
+      "linear|combsum": 0.813,
+      "linear|combmnz": 0.813,
+      "linear|borda": 0.643,
+      "linear|zscore": 0.985,
+      "linear|minmax": 1.0,
+      "rrf|combsum": 0.761,
+      "rrf|combmnz": 0.761,
+      "rrf|borda": 0.901,
+      "rrf|zscore": 0.656,
+      "rrf|minmax": 0.663,
+      "combsum|combmnz": 1.0,
+      "combsum|borda": 0.716,
+      "combsum|zscore": 0.803,
+      "combsum|minmax": 0.813,
+      "combmnz|borda": 0.716,
+      "combmnz|zscore": 0.803,
+      "combmnz|minmax": 0.813,
+      "borda|zscore": 0.635,
+      "borda|minmax": 0.643,
+      "zscore|minmax": 0.985
+    },
+    "cells": {
+      "TT": {
+        "linear": 1.0,
+        "rrf": 1.0,
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "borda": 1.0,
+        "zscore": 1.0,
+        "minmax": 1.0,
+        "n": 6
+      },
+      "FT": {
+        "linear": 1.0,
+        "rrf": 1.0,
+        "combsum": 1.0,
+        "combmnz": 1.0,
+        "borda": 1.0,
+        "zscore": 1.0,
+        "minmax": 1.0,
+        "n": 2
+      },
+      "FF": {
+        "linear": 0.115,
+        "rrf": 0.107,
+        "combsum": 0.102,
+        "combmnz": 0.102,
+        "borda": 0.105,
+        "zscore": 0.115,
+        "minmax": 0.115,
+        "n": 2
+      }
+    }
+  }
+}

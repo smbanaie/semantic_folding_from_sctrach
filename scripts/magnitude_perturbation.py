@@ -66,7 +66,8 @@ OUT_DIR = PROJ / "docs/papers/Journal A/appendix_stats"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 OPERATORS = ["linear", "rrf", "combsum", "combmnz", "borda", "zscore", "minmax"]
-CONDITIONS = ["orig", "x2", "log1p", "pow05", "rpr", "shufflescores"]
+CONDITIONS = ["orig", "x2", "log1p", "pow05", "rpr", "shufflescores",
+              "compress", "amplify", "magswap"]
 
 DATASETS = {
     "hotpotqa": (
@@ -137,6 +138,41 @@ def transform(scores, cond, rng):
         perm = rng.permutation(len(vals))
         keys = list(scores.keys())
         return {keys[i]: float(vals[perm[i]]) for i in range(len(keys))}
+    if cond == "compress":
+        # Rank-preserving squash toward equal magnitudes (resolver Cond B/D).
+        # Ties in the original scores must remain ties (they share a rank);
+        # only strictly-ordered gaps are shrunk. Implementation: map each
+        # distinct value to 1 + 0.001 * (cumulative rank span / n), so equal
+        # inputs stay equal and strict order is preserved elsewhere.
+        vals = sorted(set(scores.values()))
+        n_vals = len(vals)
+        newval = {v: 1.0 + 0.001 * i / max(1, n_vals - 1) for i, v in enumerate(vals)}
+        return {d: newval[s] for d, s in scores.items()}
+    if cond == "amplify":
+        # Rank-preserving spread (resolver Cond C): exponentiate the gap.
+        m = min(scores.values())
+        shifted = {d: s - m + 1e-6 for d, s in scores.items()}
+        return {d: float(v ** 4) for d, v in shifted.items()}
+    if cond == "magswap":
+        # Magnitude-swap intervention (reviewer Experiment B): the rank-1 and
+        # rank-2 documents exchange their magnitude GAP positions while ranks
+        # stay strictly monotone — implemented by shrinking the top-2 gap to
+        # 10% of its original size around the midpoint. Ranks are unchanged
+        # (strict order preserved); the local margin the two docs compete on
+        # is compressed 10x, so score-space operators see a near-tie where
+        # they previously saw a clear separation. Rank-only operators are
+        # untouched BY CONSTRUCTION (ranks identical).
+        if len(scores) < 2:
+            return dict(scores)
+        order = sorted(scores, key=lambda d: scores[d], reverse=True)
+        top1, top2 = order[0], order[1]
+        s1, s2 = scores[top1], scores[top2]
+        mid = (s1 + s2) / 2.0
+        small = 0.05 * abs(s1 - s2)
+        out = dict(scores)
+        out[top1] = mid + small
+        out[top2] = mid - small
+        return out
     raise ValueError(cond)
 
 

@@ -326,6 +326,56 @@ Together these establish that rank information and magnitude information are not
 
 ---
 
+### 7.2.13 Confirmatory Core at n=100 (Journal V4 Extension)
+
+The n=50 results above showed directional consistency but no family-wise significance (except one comparison). Following reviewer guidance, we expanded the confirmatory core to **n=100 queries** on HotpotQA, MuSiQue, and NQ-REaR using freshly built indexes (HotpotQA: 1,489 docs; MuSiQue: 2,328 docs; NQ-REaR: 990 docs), SF+SPLADE pair, all seven operators.
+
+**Table 7.9e: Confirmatory n=100 Results**
+
+| Dataset | CombSUM | RRF | Δ | p_Holm | Holm survivors |
+|---------|--------:|----:|---:|-------:|---------------:|
+| HotpotQA | **0.947** | 0.854 | +0.093 | **p_Holm=0.0007** | **15/21** |
+| MuSiQue | **0.952** | 0.908 | +0.044 | <0.0001 | **17/21** |
+| NQ-REaR | 0.746 | 0.718 | +0.028 | — | 4/21 |
+
+At n=100, CombSUM's advantage over RRF is family-wise significant on both multi-hop datasets. The win/tie/loss decomposition shows that switching RRF → CombSUM changes the rank-1 document on **10% of HotpotQA queries**, **4% of MuSiQue queries**, and 18% of NQ-REaR queries. A paired-power analysis (dz = 0.45/0.29/0.13) indicates n ≈ 40/93/488 for 80% power.
+
+Split-half stability (200 random partitions): CombSUM beats RRF on *both* halves simultaneously in **100% of splits** on HotpotQA, 99.5% on MuSiQue, and 79% on NQ-REaR.
+
+### 7.2.14 Operator × Retriever-Pair Interaction Screen
+
+The central claim — operator effectiveness depends on the *pair* — is a factorial statement. Per query, Δ_pair = MRR(CombSUM) − MRR(RRF); the interaction contrast D = Δ_p − Δ_q is tested with sign-flip permutation (10,000 resamples, seed=42).
+
+| Dataset | Contrast | mean Δ(SF+SPLADE) | mean Δ(other) | p_perm |
+|---------|----------|------------------:|--------------:|-------:|
+| HotpotQA | vs SF+DPR | +0.096 | +0.000 | **0.004** |
+| HotpotQA | vs BM25+SPLADE | +0.096 | −0.005 | **0.041** |
+| HotpotQA | vs BM25+DPR | +0.096 | +0.000 | **0.004** |
+| NQ-REaR | vs SF+DPR | +0.013 | +0.000 | 0.738 |
+
+CombSUM's advantage over RRF exists *only* when the pair's joint score geometry provides exploitable magnitude separation (SF+SPLADE), and vanishes for every other pairing. This is a screening analysis, not a powered confirmatory test.
+
+### 7.2.15 Calibration Baselines: Magnitude vs Calibration
+
+To separate informative magnitude from arbitrary scaling, we re-fuse real traces under eight normalizations (raw, min-max, z-score, L2, rank-Gaussian, sigmoid, quantile, softmax). Scale-family normalizations preserve CombSUM's advantage within ±0.01 MRR; order-destroying quantile mapping collapses CombSUM to 0.683 on HotpotQA; rank-Gauss improves MuSiQue to 0.950. The correct design space is *magnitude-preserving but calibration-aware fusion*.
+
+### 7.2.16 Rank-Conditioned Magnitude Analysis
+
+Because per-signal scores are monotone in their own ranks, we test whether magnitude adds information beyond rank via leave-one-query-out logistic regression: M1 uses only normalized ranks; M2 adds magnitudes and local top-margins. The result is a null: **ΔAUC(M2−M1) ≤ 0 on all three datasets** with bootstrap CIs spanning zero. Within a single signal, magnitude carries no gold information beyond what its ranking already expresses. The relevance-bearing content of magnitude therefore lives at the **cross-signal level**: when two heterogeneous-scale signals are fused, relative magnitudes across signals change which document wins after fusion — precisely why operator choice matters at the pair level.
+
+### 7.2.17 Feature-Invariance Harness
+
+Using token-intersection count as an overlap proxy, overlap alone explains most score variance (R² = 0.05–0.35); residual contributions of doc length, Jaccard overlap, and term rarity are small (partial R² ≤ 0.076). No simple non-overlap feature demonstrates pipeline-added ranking information.
+
+### 7.2.18 SciFact 5,183-Document Collapse Decomposition
+
+Gold is present in the 5,183-doc pool for only **3/10 queries**, bounding achievable MRR near 0.13 regardless of operator. All seven operators produce identical top-10 sets (intersection ratio = 1.00). The failure is candidate-construction plus saturation, not operator-specific.
+
+### 7.2.19 Relevance-Bearing Score Magnitude
+
+Three complementary analyses ground H3's conditional form: (i) margin statistics show SPLADE achieves P(Δ>0) = 1.00 on multi-hop while SF collapses there; (ii) calibration shows monotone P(gold | score bin); (iii) supporting-status Spearman ρ is positive for SPLADE (+0.17 to +0.25). Together these demonstrate that SPLADE's magnitude separation tracks gold-vs-distractor status on multi-hop pools.
+
+
 ### 7.2.7 Best Configuration per Dataset
 
 **Table 7.10: Best Configuration per Dataset**

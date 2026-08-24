@@ -224,24 +224,34 @@ A fundamental contribution from our diagnostic framework is the **Score Geometry
 
 #### 5.7.3.1 Score Geometry (Definition 1)
 
-For a retrieval model $R$ and query $q$, the observable score geometry is:
+**Score geometry, formally.** For a signal's per-document score distribution $s$ over a candidate pool we define:
 
-$$\mathcal{G}_R(q) = \big(\pi,\; \mathbf{s},\; \mu_S,\; \sigma_S^2\big)$$
+$$G(s) = (R, \mu, \sigma, \Delta_{12}, \Delta_{15}, \rho, \kappa)$$
 
-where $\pi$ is the ranking, $\mathbf{s}$ is the empirical score vector, and $\mu_S$, $\sigma_S^2$ are the mean and variance. This coordinate system captures exactly what fusion operators act upon.
+where $R$ is the score range, $\mu/\sigma$ the mean and standard deviation, $\Delta_{12}/\Delta_{15}$ the top-1/top-2 and top-1/top-5 margins, $\rho$ the correlation with the paired signal over common documents, and $\kappa$ the distributional shape (skew/kurtosis). Pair geometry $G(s_1, s_2)$ adds cross-signal agreement (Kendall τ, Pearson r, top-k Jaccard overlap).
+
+Three distinct meanings of "magnitude" must be distinguished:
+* **Raw magnitude**: the actual component score.
+* **Relative magnitude**: score separation within a component.
+* **Cross-signal scale**: the comparability of scores between two components.
+
+Each perturbation condition in §7.2.12 targets a different aspect: `x2` tests cross-signal scale sensitivity; `compress` tests within-signal separation; `rpr` tests magnitude replacement while preserving rank.
 
 #### 5.7.3.2 Operator Information Preservation (Proven Claim)
 
-**Claim**: RRF is a function that depends only on rank. Linear interpolation preserves both ordering and magnitude.
+The information-preservation claim is formalized as follows: rank-only operators are invariant to strictly monotonic score transformations, whereas score-space operators remain sensitive to score magnitude. The operator taxonomy is:
 
-*Proof*: RRF's formula $\sum_r 1/(k+\mathrm{rank}_r(d))$ is invariant under any strictly monotonic transformation $\phi$ of raw scores since $\mathrm{rank}(\phi(\mathbf{s})) = \mathrm{rank}(\mathbf{s})$. Linear interpolation $\alpha s_A + (1-\alpha) s_B$ changes when magnitude changes. $\square$
+| Operator family | Uses rank? | Uses raw magnitude? | Scale-sensitive? |
+|-----------------|-----------:|--------------------:|------------------|
+| RRF | ✓ | ✗ | No |
+| Borda | ✓ | ✗ | No |
+| CombSUM | — | ✓ | Yes |
+| CombMNZ | — | ✓ | Yes |
+| Linear (α) | — | ✓ | Yes |
+| z-score | — | ✓ | Calibration-dependent |
+| Min-max | — | ✓ | Calibration-dependent |
 
-| Operator | Formula | Preserves $\pi$ | Preserves $\mathbf{s}$ | Scale-invariant |
-|----------|---------|:---:|:---:|:---:|
-| RRF | $\sum_r 1/(k+\mathrm{rank}_r(d))$ | ✓ | ✗ | ✓ |
-| Linear | $\alpha s_A + (1-\alpha) s_B$ | ✓ | ✓ | ✗ |
-
-This is a **theoretical result derived from the operator definitions**, not an empirical observation. It provides the foundation for understanding all fusion phenomena in this thesis.
+*The taxonomy is conceptual; exact behavior depends on preprocessing and normalization.*
 
 #### 5.7.3.3 The Complementarity Illusion (Definition 2)
 
@@ -283,7 +293,8 @@ $$\big(\tau(\pi_A,\pi_B),\; \mathrm{RRF\text{-}recoverable}(\mathcal{G}_A,\mathc
 - High $\tau$, one-hop task → check Complementarity Illusion; confirm with RRF test; fuse with RRF
 - Low/moderate $\tau$, multi-hop task → independent magnitude-relevant information; use a magnitude-preserving operator (CombSUM-family preferred; α-blend linear when explicit scale control is needed)
 - High $\tau$, no RRF restoration → genuine redundancy; drop weaker signal
-- Score variance collapse ($\sigma_S^2 ightarrow 0$) → representational problem; no operator fixes this
+- Score variance collapse ($\sigma_S^2 
+ightarrow 0$) → representational problem; no operator fixes this
 
 **Status (updated)**: now supported by the expanded evidence base — 11 datasets, 7 operators, 4 retriever pairs, and a second SPLADE checkpoint replicating the operator ordering. The multi-hop branch is revised from "use linear" to "use a magnitude-preserving operator" (CombSUM leads at n=50 on every multi-hop/factoid dataset), and the profile's task-topology axis is explicitly conditioned on signal-B score geometry (§5.7.3.4). Out-of-sample validation beyond these datasets remains future work.
 

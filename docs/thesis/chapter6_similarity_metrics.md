@@ -154,6 +154,14 @@ $$\hat{\mathbf{d}} = \frac{\mathbf{d}}{\sqrt{\text{nnz}(\mathbf{d})}}$$
 - Long documents (more phrases) dominate scores
 - −10.2% MRR vs L2 on Belebele
 
+### 6.6.4 Calibration Battery: Separating Magnitude from Calibration
+
+To determine whether CombSUM's advantage is caused by magnitude itself or simply by better calibration, we apply eight per-signal normalizations before fusion: raw, min-max, z-score, L2, rank-Gaussian, sigmoid, quantile, and softmax.
+
+**Key finding:** scale-family normalizations (min-max, z-score, L2, softmax) preserve CombSUM's advantage within ±0.01 MRR on all datasets — the effect is not an artifact of one particular scale. Order-destroying normalizations behave as theory predicts: quantile mapping collapses CombSUM on HotpotQA (flattens the top-rank margin), while rank-Gauss improves MuSiQue by stabilizing heavy tails without destroying order. Sigmoid compression hurts everywhere by saturating the dynamic range.
+
+The design space is therefore *magnitude-preserving but calibration-aware fusion*: keep monotone order, stabilize tails, never flatten the top margin.
+
 ## 6.7 LambdaMART Re-ranking (Proof-of-Concept)
 
 LambdaMART is a learned re-ranking method that uses gradient-boosted decision trees to optimize retrieval metrics. We evaluated LambdaMART as a proof-of-concept extension to SF+SPLADE.

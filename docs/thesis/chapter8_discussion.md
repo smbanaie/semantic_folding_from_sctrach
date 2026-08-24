@@ -284,6 +284,36 @@ SF occupies a unique position: the only retrieval method providing unsupervised 
 
 ---
 
+
+## 8.4 The Information-Preservation Framework (Journal V4 Findings)
+
+The journal extension of this thesis reframes hybrid fusion as an information-preservation problem rather than solely a choice among aggregation formulas. Rank-only operators such as RRF preserve ordinal information while discarding score magnitude; score-space operators preserve additional information but are consequently sensitive to calibration and score geometry.
+
+### 8.4.1 Confirmatory Evidence at n=100
+
+The confirmatory core demonstrates that CombSUM significantly outperforms RRF after Holm correction within the 21-comparison operator family on both multi-hop datasets: HotpotQA (Δ=+0.093, p_Holm=0.0007) and MuSiQue (Δ=+0.044, p_Holm<0.0001). The effect is conditional — NQ-REaR remains largely non-separable (4/21 comparisons survive), consistent with its large-pool factoid profile.
+
+### 8.4.2 Cross-Signal Scale as the Locus of Magnitude Utility
+
+A critical finding from the rank-conditioned magnitude analysis is that within a single signal, magnitude adds no gold-discrimination information beyond ordinal position (ΔAUC ≤ 0 with bootstrap CIs spanning zero). This null is informative rather than contradictory: per-signal scores are monotone in their own ranks. The utility of magnitude arises at the **cross-signal level** — when two heterogeneous-scale signals are fused, relative magnitudes across signals change which document wins. Relevance-bearing magnitude is thus a property of the pair geometry, not of either component alone.
+
+### 8.4.3 Practical Guidance for Closed-Domain QA
+
+**1. Diagnose before choosing fusion.** Measure score dispersion, top-rank margins, rank agreement, calibration, and gold-score separation when labels are available.
+
+**2. Use RRF when rank is the reliable information source**, especially when component scores are incomparable or poorly calibrated.
+
+**3. Use score-space fusion when magnitude is demonstrably informative**, especially when one component has stable relevance-bearing score separation.
+
+**4. Do not assume "multi-hop implies CombSUM."** Instead: multi-hop + magnitude-bearing sparse signal + complementary geometry → investigate score-space fusion.
+
+**5. Never expect fusion to fix candidate-generation failure.**
+
+### 8.4.4 What Would Falsify Our Interpretation?
+
+Our reading would be weakened if rank-preserving magnitude interventions consistently failed to alter score-space fusion rankings, if magnitude provided relevance information beyond rank after conditioning (it does not within a single signal), or if operator × retriever-pair interactions disappeared under larger confirmatory samples.
+
+
 ## References
 
 - Formal, T., et al. (2021). SPLADE. *SIGIR 2021*.

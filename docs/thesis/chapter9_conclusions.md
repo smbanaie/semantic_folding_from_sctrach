@@ -257,6 +257,30 @@ The 64×64 grid is optimal for 20–200 document corpora. For larger corpora:
 
 ---
 
+
+## 9.4 The Information-Preservation Framework (Journal Extension)
+
+The journal extension of this thesis establishes that hybrid fusion should be understood as an information-preservation problem. Rank-only operators such as RRF preserve ordinal information while discarding score magnitude; score-space operators preserve additional information but are sensitive to calibration and score geometry. Through synthetic controls, rank-preserving interventions on real retrieval outputs, relevance-oriented score analysis, and retriever-pair interaction tests, we show this distinction affects retrieval quality in practice.
+
+The effect is conditional. We do not find that score-space fusion universally dominates rank-only fusion. The strongest effects occur when the fused signals exhibit heterogeneous but relevance-bearing score geometry, particularly in SF+SPLADE multi-hop settings relevant to closed-domain QA. When candidate generation omits gold evidence or component scores become indistinguishable, changing the fusion operator provides little benefit.
+
+**Design principle:** *Choose a fusion operator according to the information properties of the participating retrieval signals and the task, rather than according to a universal preference for rank- or score-based fusion.*
+
+This principle is established for controlled reranking settings; validation at corpus-scale first-stage retrieval remains future work.
+
+## 9.5 Future Work Directions (Journal V4)
+
+1. **Corpus-scale validation**: All results are reranking results over dataset-provided pools; extension to first-stage retrieval at MS MARCO scale is the key open validation.
+
+2. **Second dense retriever**: Testing with Contriever/E5/BGE would establish whether the operator × pair interaction generalizes beyond the DPR normalization profile.
+
+3. **Calibration-aware learned fusion**: The calibration battery shows the design space of magnitude-preserving but calibration-aware fusion; learned operators in this space may outperform both RRF and raw CombSUM.
+
+4. **Geometry predictor at scale**: The framework is delivered but requires n=100 per-query component scores for meaningful training; the divergence rate at n=10 is too low for powered prediction.
+
+5. **Fingerprint-exact feature-invariance test**: The token-intersection proxy establishes a lower bound; testing with actual binary fingerprints remains the decisive instrument.
+
+
 ## References
 
 - Formal, T., Piwowarski, B., & Clinchant, S. (2021). SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking. *Proceedings of SIGIR 2021*.

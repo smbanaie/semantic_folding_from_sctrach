@@ -11,7 +11,19 @@ However, our thesis is not merely an evaluation of Semantic Folding as a standal
 
 ## 1.2 The Complementarity Illusion and the Operator-Topology Constraint
 
-The core premise of hybrid retrieval is that $\text{score}_{\text{hybrid}} \geq \max(\text{score}_{\text{SF}}, \text{score}_{\text{SPLADE}})$. Initial tests using standard linear interpolation ($\alpha \cdot \text{SF} + (1-\alpha) \cdot \text{SPLADE}$) aggressively falsify this assumption. On single-hop tasks, the hybrid strictly degrades performance compared to SPLADE-only. 
+## 1.2 Central Claim and Scope
+
+The central claim of this thesis is that **fusion operators preserve different properties of retrieval scores; in some compositional settings, score magnitude contains relevance-bearing information that rank-only fusion cannot exploit, and whether this information is useful depends on the joint score geometry of the participating retrievers.** This claim is established through a three-tier evaluation hierarchy: confirmatory experiments at n=100 on multi-hop benchmarks (HotpotQA, MuSiQue), replication on additional datasets, and exploratory mechanistic diagnostics.
+
+We make three contributions:
+
+**Contribution 1 — Information preservation.** We characterize hybrid fusion operators by the score information they preserve: rank-only operators are invariant to strictly monotonic score transformations, whereas score-space operators remain sensitive to score magnitude.
+
+**Contribution 2 — Conditional magnitude utility.** Through synthetic controls and rank-preserving interventions on real retrieval traces, we show that score magnitude can affect fused rankings independently of rank, and provide evidence that this magnitude is relevance-bearing in selected multi-hop retriever pairs.
+
+**Contribution 3 — Retriever-pair dependence.** Across multiple retriever pairs and closed-domain QA tasks, we show that operator effectiveness depends on the joint score geometry of the participating signals rather than on task type alone.
+
+We do not claim that rank-only fusion is intrinsically inferior, that magnitude is universally informative, or that these findings transfer directly to first-stage corpus-scale retrieval.
 
 However, we prove this "illusion" is not a singular phenomenon; it is a matrix of failures dictated by task topology. By introducing Reciprocal Rank Fusion (RRF) [40], we prove that the failure on single-hop tasks is not inherently due to redundant ranking topologies (Kendall’s $\tau > 0.80$), but an artifact of **incommensurate score scales**. RRF resolves this by normalizing both signals into a unitless rank space, recovering perfect single-hop performance.
 

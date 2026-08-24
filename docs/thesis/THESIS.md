@@ -71,6 +71,11 @@ Our results demonstrate that sparse methods trade peak performance for zero-shot
 | 7.1 | Dataset Overview | 7 |
 | 7.2 | Cross-Dataset Results | 7 |
 | 7.3 | Performance by Task Type | 7 |
+| 7.4 | Confirmatory n=100 Results | 7 |
+| 7.5 | Operator × Retriever-Pair Interaction Screen | 7 |
+| 7.6 | Calibration Baselines Comparison | 7 |
+| 7.7 | Rank-Conditioned Magnitude Analysis | 7 |
+| 8.1 | Practical Guidance Summary | 8 |
 
 ---
 
@@ -87,6 +92,9 @@ Our results demonstrate that sparse methods trade peak performance for zero-shot
 | 6.1 | Metric Selection Decision Tree | 6 |
 | 7.1 | MRR by Dataset | 7 |
 | 7.2 | Performance vs Hop Count | 7 |
+| 7.3 | Confirmatory n=100 Operator Comparison | 7 |
+| 7.4 | Perturbation Battery on Real Traces | 7 |
+| 7.5 | Conceptual Operator-Selection Map | 8 |
 
 ---
 

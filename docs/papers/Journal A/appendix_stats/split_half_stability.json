@@ -1,0 +1,59 @@
+{
+  "hotpotqa": {
+    "combsum": {
+      "mean": 0.9467,
+      "std_across_splits": 0.0163
+    },
+    "rrf": {
+      "mean": 0.8537,
+      "std_across_splits": 0.0239
+    },
+    "zscore": {
+      "mean": 0.8957,
+      "std_across_splits": 0.023
+    },
+    "linear": {
+      "mean": 0.7023,
+      "std_across_splits": 0.0313
+    },
+    "combsum_gt_rrf_both_halves_pct": 100.0
+  },
+  "musique": {
+    "combsum": {
+      "mean": 0.9517,
+      "std_across_splits": 0.0195
+    },
+    "rrf": {
+      "mean": 0.9083,
+      "std_across_splits": 0.0259
+    },
+    "zscore": {
+      "mean": 0.9517,
+      "std_across_splits": 0.0195
+    },
+    "linear": {
+      "mean": 0.832,
+      "std_across_splits": 0.034
+    },
+    "combsum_gt_rrf_both_halves_pct": 99.5
+  },
+  "nq_rear": {
+    "combsum": {
+      "mean": 0.7457,
+      "std_across_splits": 0.0346
+    },
+    "rrf": {
+      "mean": 0.7178,
+      "std_across_splits": 0.0346
+    },
+    "zscore": {
+      "mean": 0.7325,
+      "std_across_splits": 0.0342
+    },
+    "linear": {
+      "mean": 0.6818,
+      "std_across_splits": 0.0365
+    },
+    "combsum_gt_rrf_both_halves_pct": 79.0
+  }
+}

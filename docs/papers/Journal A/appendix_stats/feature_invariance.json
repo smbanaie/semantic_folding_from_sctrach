@@ -1,0 +1,45 @@
+{
+  "hotpotqa": {
+    "n_rows": 940,
+    "r2_overlap_only": 0.354,
+    "r2_full": 0.4218,
+    "partial_r2_features_beyond_overlap": 0.076,
+    "standardized_betas": {
+      "overlap": 0.0745,
+      "doc_length": -0.0071,
+      "jaccard": 0.0849,
+      "rarity": 0.0089
+    },
+    "mrr_overlap_only": 0.494,
+    "mrr_with_features": 0.656
+  },
+  "musique": {
+    "n_rows": 1000,
+    "r2_overlap_only": 0.0494,
+    "r2_full": 0.0634,
+    "partial_r2_features_beyond_overlap": 0.0087,
+    "standardized_betas": {
+      "overlap": 0.0141,
+      "doc_length": 0.0182,
+      "jaccard": 0.0676,
+      "rarity": 0.0327
+    },
+    "mrr_overlap_only": 0.504,
+    "mrr_with_features": 0.345
+  },
+  "scifact": {
+    "n_rows": 660,
+    "r2_overlap_only": 0.1986,
+    "r2_full": 0.216,
+    "partial_r2_features_beyond_overlap": 0.0142,
+    "standardized_betas": {
+      "overlap": 0.1267,
+      "doc_length": -0.0112,
+      "jaccard": -0.0453,
+      "rarity": -0.0225
+    },
+    "mrr_overlap_only": 0.752,
+    "mrr_with_features": 0.661
+  },
+  "verdict": "Overlap dominates score variance everywhere (R2_overlap 0.0494-0.354); residual feature contributions are small (max partial R2 0.076). The linear proxy also fails to reconstruct the pipeline ranking (MRR far below pipeline level), so these simple features do NOT demonstrate pipeline-added information; invariance at pipeline level remains supported against this feature set, with the fingerprint-exact test still the decisive future instrument."
+}

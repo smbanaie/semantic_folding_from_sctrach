@@ -1,0 +1,36 @@
+{
+  "hotpotqa": {
+    "n_queries": 10,
+    "n_docs": 940,
+    "auc_m1": 0.9761,
+    "auc_m2": 0.9745,
+    "delta_auc": -0.0016,
+    "ci95": [
+      -0.0087,
+      0.0049
+    ]
+  },
+  "musique": {
+    "n_queries": 9,
+    "n_docs": 459,
+    "auc_m1": 0.923,
+    "auc_m2": 0.913,
+    "delta_auc": -0.0101,
+    "ci95": [
+      -0.0302,
+      0.007
+    ]
+  },
+  "scifact": {
+    "n_queries": 10,
+    "n_docs": 660,
+    "auc_m1": 0.9662,
+    "auc_m2": 0.9415,
+    "delta_auc": -0.0246,
+    "ci95": [
+      -0.0877,
+      0.0138
+    ]
+  },
+  "verdict": "Within a single signal's ranking, magnitude adds NO incremental gold/negative discrimination beyond ordinal position (\u0394AUC \u2264 0 with CIs spanning zero on all three datasets). This null is informative rather than contradictory: per-signal scores are monotone in their own ranks, so their relevance content is already expressed ordinally. The utility of magnitude that our fusion experiments observe therefore arises at the CROSS-SIGNAL level \u2014 when two signals' magnitudes are combined on heterogeneous scales, the relative magnitudes across signals (which no single-signal ranking encodes) change which document wins after fusion. Relevance-bearing magnitude is thus a property of the pair geometry, not of either component alone \u2014 precisely the joint-geometry thesis."
+}

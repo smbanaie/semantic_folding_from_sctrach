@@ -101,9 +101,11 @@ in `docs/reports/` but excluded from the matrix (BM25 outperformed SF+SPLADE on 
 
 ### NQ-REaR
 - NQ-REaR results are recorded in BENCHMARK_RESULTS.md (MRR=0.521, comprehensive 85 runs)
+- n=100 confirmatory core (SF+SPLADE × 7 ops): `hotpotqa/v2_20260824_n100_confirmatory_core.md` (CombSUM 0.746, 4/21 Holm survivors — largely non-separable)
 
 ### HotpotQA
 - HotpotQA results are recorded in BENCHMARK_RESULTS.md (MRR=0.726, 48 queries, multi-hop)
+- **n=100 confirmatory core (2026-08-24)**: `hotpotqa/v2_20260824_n100_confirmatory_core.md` — SF+SPLADE × 7 operators; CombSUM **0.947** vs RRF 0.854 (p_Holm=0.0007), 15/21 pairwise Holm survivors
 
 ### NarrativeQA
 - NarrativeQA results are recorded in BENCHMARK_RESULTS.md (MRR=0.939, 49 queries, narrative)
@@ -115,6 +117,7 @@ in `docs/reports/` but excluded from the matrix (BM25 outperformed SF+SPLADE on 
 - MuSiQue results are recorded in BENCHMARK_RESULTS.md (MRR=0.453, 100 queries, multi-hop; v3 MRR=0.554, 44 queries, batch processing)
 - `musique/v3_20260628_134311.md` — Batch-processed benchmark report
 - `musique/v5_20260731_230557_spladeonly.md` — SPLADE-only (α=0.0) benchmark report (MRR=0.876 ± 0.082, 44 Q, 954 docs)
+- n=100 confirmatory core (SF+SPLADE × 7 ops): see `hotpotqa/v2_20260824_n100_confirmatory_core.md` (CombSUM/zscore **0.952** vs RRF 0.908; 17/21 Holm survivors)
 
 ### DROP
 - DROP results are recorded in BENCHMARK_RESULTS.md (MRR=0.320, 50 queries, L2 norm)

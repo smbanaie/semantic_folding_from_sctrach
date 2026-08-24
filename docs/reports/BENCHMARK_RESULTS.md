@@ -156,6 +156,8 @@ UMAP matches or beats t-SNE on 7/8 datasets (average +1.3% MRR) with 10× faster
 
 ### 5.5 RRF vs Linear Fusion (New)
 
+> **Update (2026-08-24, n=100 confirmatory core):** the SF+SPLADE pair was re-run at n=100 on HotpotQA, MuSiQue, and NQ-REaR with all seven operators. CombSUM vs RRF is now family-wise significant on both multi-hop datasets (HotpotQA Δ=+0.093, p_Holm=0.0007; MuSiQue Δ=+0.044) while NQ-REaR remains largely non-separable (4/21 Holm survivors). Full tables: `docs/reports/hotpotqa/v2_20260824_n100_confirmatory_core.md` and `docs/papers/Journal A/appendix_stats/appendix_c_*_n100.md`.
+
 Reciprocal Rank Fusion (RRF) replaces score-level linear combination with rank-level fusion, eliminating the need for α-tuning. Evaluated on 8 datasets (50 queries each, k=60):
 
 | Dataset | Linear (α=0.3) | RRF (k=60) | Δ | Winner |

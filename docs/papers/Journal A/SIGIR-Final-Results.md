@@ -262,3 +262,31 @@ Baseline (raw/raw) and the decisive axis is signal B (SPLADE) normalization:
 ### Establishes / does not
 - Establishes: the magnitude advantage is a *separation* property of signal B, not an artifact of SPLADE's absolute scale; rank-normalization nullifies it (ties to §12).
 - Does not: claim the effect survives every normalization — rank-normalization is the explicit counterexample (honest negative).
+
+---
+
+## Item 7 — Cross-dataset prediction (Tier-2, #14)
+
+**Source:** #14. **Script:** `scripts/cross_dataset_predict.py` (reuses SF+SPLADE n=100 traces; LODO). **Status:** done; folded into V5 §6.6.5 + Appendix E.10.
+
+### Method
+Label Y_q = 1 if RR_CombSUM,q > RR_RRF,q. Features = the 17 geometry features (§6.6.5). Leave-one-dataset-out: train on all datasets but one, test on held-out; rotate over hotpotqa/musique/nq_rear (n=300 pooled). Classifiers: logistic regression + decision tree (simple per #17). Metrics: AUROC, AUPRC, accuracy + bootstrap 95% CI. No random query split (avoids dataset leakage).
+
+### Results (real, n=100 × 3 datasets)
+
+| held-out | n | base | log AUROC | log AUPRC | tree AUROC | tree AUPRC |
+|---|---:|---:|---:|---:|---:|---:|
+| hotpotqa | 100 | 0.210 | 0.624 | 0.272 | 0.628 | 0.298 |
+| musique | 100 | 0.220 | 0.637 | 0.299 | 0.792 | 0.428 |
+| nq_rear | 100 | 0.150 | 0.420 | 0.185 | 0.658 | 0.243 |
+| **pooled LODO** | 300 | 0.193 | 0.536 (0.456–0.616) | 0.223 (0.163–0.322) | **0.702 (0.627–0.775)** | 0.334 (0.245–0.446) |
+
+### Reading
+- **H9 supported (tree):** pooled LODO AUROC = 0.702 (CI excludes 0.5) → pre-fusion geometry predicts the winning operator family on **unseen datasets**. This resolves the §6.6.5 honest weakness ("too few divergent observations"): with n=100 the framework generalizes cross-dataset.
+- Logistic AUROC ≈ 0.54 (near-random) while tree AUROC = 0.70 → the geometry→operator relationship is **non-linear**, justifying the §6.6.5 decision-boundary / margin-regime framing (a linear model misses it; a shallow tree captures it).
+- Base rate is low (0.193: CombSUM beats RRF on only ~19% of queries), so AUPRC 0.334 (tree) vs 0.193 base is a real lift, not base-rate guessing.
+- nq_rear is the hard held-out (tree AUROC 0.66, log 0.42) — honest variation; the pooled estimate is the headline.
+
+### Establishes / does not
+- Establishes: geometry-based operator selection generalizes across datasets (LODO), a major contribution vs the prior "cannot support" admission.
+- Does not: claim near-perfect prediction (AUROC 0.70 is modest); reports honestly, including the weak linear model.

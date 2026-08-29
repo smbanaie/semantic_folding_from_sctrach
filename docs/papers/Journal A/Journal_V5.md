@@ -507,7 +507,7 @@ Replacing SF with BM25 reduces but does not reverse the score-space advantage pa
 
 ### 6.6.5 Predicting Operator Suitability from Pre-Fusion Geometry
 
-The diagnostic framework becomes predictive if measurable pre-fusion properties forecast the winning family. For each query we compute 21 geometry features — nine per signal (mean, std, CV, range, skew, kurtosis, top-1/top-2 and top-1/top-5 margins, entropy) plus three pair features (Pearson correlation, Kendall τ, top-5 Jaccard overlap) — and label each query with the winning operator family (rank-only vs score-space). A leave-one-*dataset*-out logistic regression then tests generalization to unseen tasks (`scripts/geometry_predictor.py`; `appendix_stats/geometry_predictor.{md,json}`). We report the outcome with its power limitation attached: on the n=10 exploratory traces, **34 of 40 queries are operator-ties** (gold at rank 1 under every operator), leaving only 6 divergent queries to learn from — too few for a meaningful fit, and we say so. The framework (features, labels, LODO protocol) is delivered and will attach to the n=100 per-query component traces as required future instrumentation; until then we do not claim a validated operator-selection predictor.
+The diagnostic framework becomes predictive if measurable pre-fusion properties forecast the winning family. For each query we compute 21 geometry features — nine per signal (mean, std, CV, range, skew, kurtosis, top-1/top-2 and top-1/top-5 margins, entropy) plus three pair features (Pearson correlation, Kendall τ, top-5 Jaccard overlap) — and label each query with the winning operator family (rank-only vs score-space). A leave-one-*dataset*-out (LODO) logistic regression then tests generalization to unseen tasks (`scripts/geometry_predictor.py`; `appendix_stats/geometry_predictor.{md,json}`). On the n=10 exploratory traces, 34 of 40 queries are operator-ties (gold at rank 1 under every operator), leaving only 6 divergent queries to learn from — too few for a meaningful fit, and we said so. We have now scaled this to the n=100 component traces (hotpotqa/musique/nq_rear, n=300 pooled) with a decision tree and logistic classifier under strict LODO (never a random query split, so dataset-characteristic leakage is ruled out; `scripts/cross_dataset_predict.py`). **Result: the decision tree generalizes to unseen datasets — pooled LODO AUROC = 0.702 (bootstrap 95% CI 0.627–0.775), AUPRC = 0.334 (0.245–0.446) vs a 0.193 base rate; the logistic model is near-random (AUROC 0.536, CI 0.456–0.616).** The tree's clear win over the linear model shows the geometry→operator relationship is *non-linear* (justifying the §6.6.5 decision-boundary framing), and the AUROC > 0.5 establishes that pre-fusion geometry predicts the winning operator family on held-out datasets — resolving the prior "too few observations" weakness. The framework (features, labels, LODO protocol, real n=100 estimates) is delivered; full table in Appendix E.10.
 
 ### 6.7 Generality across Checkpoints (Item 5)
 
@@ -882,8 +882,8 @@ This is a very strong practical takeaway.
 
 **Claim hierarchy.** Following the reviewer's three-level discipline, the paper's statements sort as:
 - **Demonstrated:** rank-only fusion is invariant to strictly monotonic score transformations (Proposition 1 + perturbation battery, §7.1/§7.4); score-space fusion is sensitive to magnitude (§7.4); these differences change rankings on real retrieval outputs (§7.4, §6.6.3).
-- **Supported:** in the evaluated multi-hop conditions, magnitude-preserving fusion outperforms rank-only fusion with family-wise significance at n=100 (§4.7, Appendix C); the effect varies across datasets and pairs and is mediated by joint score geometry (§6.5, §6.6.4 interaction screen).
-- **Hypothesized:** score magnitude may encode compositional evidence strength (§7.6 provides first grounding, not proof); task-operator compatibility may be predictable from pre-fusion geometry (§6.6.5 framework delivered, validation pending); candidate growth eventually produces score concentration that limits fusion utility (§8.2–8.4 evidence at two scales).
+- **Supported:** in the evaluated multi-hop conditions, magnitude-preserving fusion outperforms rank-only fusion with family-wise significance at n=100 (§4.7, Appendix C); the effect varies across datasets and pairs and is mediated by joint score geometry (§6.5, §6.6.4 interaction screen); pre-fusion geometry predicts the winning operator family on held-out datasets under strict LODO (§6.6.5, AUROC 0.702, Appendix E.10).
+- **Hypothesized:** score magnitude may encode compositional evidence strength (§7.6 provides first grounding, not proof); candidate growth eventually produces score concentration that limits fusion utility (§8.2–8.4 evidence at two scales).
 
 **Conclusion.** This study argues that hybrid fusion should be understood as an information-preservation problem rather than solely as a choice among aggregation formulas. Rank-only operators such as RRF preserve ordinal information while discarding score magnitude; score-space operators preserve additional information but are consequently sensitive to calibration and score geometry. Through synthetic controls, rank-preserving interventions on real retrieval outputs, relevance-oriented score analysis, and retriever-pair interaction tests, we show that this distinction can affect retrieval quality in practice.
 
@@ -1231,3 +1231,25 @@ Item-1 World− degradation, over n=100 SF+SPLADE traces. Reproduce: `scripts/no
 
 Conclusion: effect is within-retriever separation (G_within), not absolute scale; rank-normalization
 of signal B nullifies it (§12). nq_rear: raw/raw ΔMRR +0.068 (present); raw/rank-norm −0.001 (nullified); zscore/rank-norm −0.059 (flipped) — same pattern as hotpotqa/musique.
+---
+
+#### E.10 Cross-dataset prediction (Item 7)
+
+Leave-one-dataset-out (LODO) classifier: train on all datasets but one, test on the held-out; rotate
+over hotpotqa / musique / nq_rear (n=100 each, n=300 pooled). Label Y_q = 1 if RR_CombSUM,q >
+RR_RRF,q. Features = the 17 geometry features of §6.6.5. Classifiers: logistic regression + decision
+tree (no XGBoost, per §17). Metrics: AUROC, AUPRC, accuracy + bootstrap 95% CI. Reproduce:
+`scripts/cross_dataset_predict.py`.
+
+| held-out | n | base | log AUROC | log AUPRC | tree AUROC | tree AUPRC |
+|---|---:|---:|---:|---:|---:|---:|
+| hotpotqa | 100 | 0.210 | 0.624 | 0.272 | 0.628 | 0.298 |
+| musique | 100 | 0.220 | 0.637 | 0.299 | 0.792 | 0.428 |
+| nq_rear | 100 | 0.150 | 0.420 | 0.185 | 0.658 | 0.243 |
+| **pooled LODO** | 300 | 0.193 | 0.536 (0.456-0.616) | 0.223 (0.163-0.322) | **0.702 (0.627-0.775)** | 0.334 (0.245-0.446) |
+
+LODO (never a random query split) rules out dataset-characteristic leakage. The decision tree
+generalizes to unseen datasets (pooled AUROC 0.702, CI excludes 0.5); the logistic model is
+near-random (AUROC 0.536), showing the geometry to operator relationship is non-linear. Base rate
+0.193, so tree AUPRC 0.334 is a real lift. Full table + bootstrap CIs:
+`appendix_stats/cross_dataset_predict.{json,md}`.

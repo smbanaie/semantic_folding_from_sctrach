@@ -114,7 +114,7 @@ Retrieval signal → score space → fusion operator → information retained �
 
 ### 3.1 Retrieval Signal Properties
 
-Each retriever emits, per query, a score distribution over candidates. Two structural properties matter: (a) the **rank** of each candidate (ordinal position), and (b) the **magnitude / margin** between scores (how confidently the retriever distinguishes relevant from irrelevant, and — in multi-hop settings — how many hops were satisfied).
+Each retriever emits, per query, a score distribution over candidates. Two structural properties matter: (a) the **rank** of each candidate (ordinal position), and (b) the **magnitude / margin** between scores (how confidently the retriever distinguishes relevant from irrelevant, and — in multi-hop settings — how much compositional evidence was satisfied).
 
 ### 3.2 Rank Information
 
@@ -122,7 +122,7 @@ Sufficient when the task only requires correct *ordering*: the gold document nee
 
 ### 3.3 Score Magnitude
 
-Carries additional signal when the *degree* of match matters: in multi-hop QA, a high SPLADE/DPR score *may* indicate multiple hops matched and a low score a partial match — we treat this as the **Magnitude Utility Hypothesis (H2)**: *score magnitude is useful for fusion exactly when the score separation between candidates correlates with relevance distinctions that are lost under rank-only transformation.* Magnitude thereby potentially encodes compositional confidence; whether it does in a given retrieval setting is an empirical question our experiments are designed to answer, not an assumption.
+Carries additional signal when the *degree* of match matters: in multi-hop QA, a high SPLADE/DPR score *may* indicate stronger aggregate evidence match across hops, and a low score a weaker one — we treat this as the **Magnitude Utility Hypothesis (H2)**: *score magnitude is useful for fusion exactly when the score separation between candidates correlates with relevance-bearing distinctions that are lost under rank-only transformation.* Magnitude thereby may carry relevance-bearing separation between fully and partially supported candidates; we treat this interpretation as a hypothesis (tested in §7.6) rather than as an intrinsic semantic meaning of the score. Whether it does in a given retrieval setting is an empirical question our experiments are designed to answer, not an assumption.
 
 ### 3.4 Complementarity vs Redundancy
 
@@ -223,7 +223,7 @@ We use *single-hop* for benchmarks whose gold evidence is retrievable through a 
 
 **Statistical findings (n=50 interim; superseded by n=100 below).** The operator *ordering* was already stable at n=50 — CombSUM/CombMNZ rank first on all three datasets (HotpotQA 0.947/0.893; MuSiQue 0.977/0.919; NQ-REaR 0.657/**0.679**) and Borda last (0.857/0.770/0.587) — but after Holm correction **almost no pairwise comparison survives at α=0.05**. On HotpotQA, CombSUM vs linear shows ΔMRR = +0.114 with raw p = 0.0064 that inflates to p_Holm = 0.135 after correction; on MuSiQue, CombSUM vs RRF is +0.060 at raw p = 0.0143 → 0.183 corrected. Only one of 63 comparisons survives: Borda vs CombMNZ on MuSiQue (Δ = −0.149, p_Holm = 0.035). We therefore report effect sizes and raw p-values transparently while acknowledging that, at n=50 with single-gold-per-query MRR, individual operator differences are **directionally consistent but not family-wise significant**. This strengthened rather than weakened our framing: the contribution is the *mechanism* (which information each operator preserves, §3, §6.3.1, §7), not the claim that any two operators are separable at that sample size. The subsequent expansion to n=100 (below) confirms the ordering and brings most HotpotQA/MuSiQue comparisons past family-wise correction.
 
-**Confirmatory core at n=100 (Appendix C, `appendix_stats/appendix_c_*_n100.md`).** All three datasets were re-run end-to-end on freshly built indexes at n=100 (HotpotQA 1489-doc collection; MuSiQue 2328-doc; NQ-REaR 990-doc), SF+SPLADE, all seven operators:
+**Confirmatory core at n=100 (Appendix C, the n=100 Appendix C tables).** All three datasets were re-run end-to-end on freshly built indexes at n=100 (HotpotQA 1489-doc collection; MuSiQue 2328-doc; NQ-REaR 990-doc), SF+SPLADE, all seven operators:
 
 *Confirmatory evaluation; n=100 queries/dataset.*
 
@@ -233,7 +233,7 @@ We use *single-hop* for benchmarks whose gold evidence is retrievable through a 
 | MuSiQue | **0.952** | 0.908 | +0.044 | <0.0001 | 17/21 |
 | NQ-REaR | **0.746** | 0.718 | +0.028 | — (4/21 survive) | 4/21 |
 
-At n=100, CombSUM's advantage over RRF is family-wise significant on both multi-hop datasets, and the full operator ordering is stable: CombSUM first everywhere, Borda last everywhere (0.732/0.652/0.602). Figure 2 plots the seven-operator comparison (`figures/fig2_n100_confirmatory.png`). NQ-REaR remains the least separable dataset — consistent with its large-pool factoid profile rather than undermining the mechanism account.
+At n=100, CombSUM's advantage over RRF is family-wise significant on both multi-hop datasets, and the full operator ordering is stable: CombSUM first everywhere, Borda last everywhere (0.732/0.652/0.602). Figure 1 plots the seven-operator comparison (`figures/fig2_n100_confirmatory.png`). NQ-REaR remains the least separable dataset — consistent with its large-pool factoid profile rather than undermining the mechanism account.
 
 **Table 3 — Master benchmark summary (confirmatory core; SF+SPLADE).**
 
@@ -262,7 +262,7 @@ Read jointly: the two rows where SPLADE magnitude separates gold perfectly (P(Δ
 | MuSiQue | 100 | 8 | 0 | 92 | 8% | 4 (4%) | 0.29 | 93 |
 | NQ-REaR | 100 | 18 | 11 | 71 | 18% | 18 (18%) | 0.13 | 488 |
 
-Figure 6 charts the paired outcomes and rank-1 changes (`figures/fig6_win_loss_power.png`).
+Figure 2 charts the paired outcomes and rank-1 changes (`figures/fig6_win_loss_power.png`).
 
 These rank-1 flips *are* the information bottleneck made visible: CombSUM rescues a handful of compositional queries where SPLADE's magnitude evidence outranks SF's miss, and loses almost nothing back. A paired-power analysis on the observed effect sizes (dz = 0.45 HotpotQA, 0.29 MuSiQue, 0.13 NQ-REaR) indicates n ≈ 40 / 93 / 488 queries respectively for 80% power at α = 0.05 — i.e., our n=100 is adequately powered for the two multi-hop effects but NQ-REaR would need ~500 queries, consistent with its non-separability here.
 
@@ -302,7 +302,7 @@ We did collect nDCG@10, P@1, P@3, R@5, R@10 per run (stored in `op_*/summary.jso
 <sup>†</sup> COVID-QA BM25 computed via the project's `BM25Scorer` (from `semantic_folding/dataset_benchmark/bm25_benchmark.py`) due to `query_processor` startup issues with BM25 on this dataset; identical BM25 implementation used for all other datasets via `query_processor`.
 | NQ-REaR | Factoid | 0.725 | 0.675 | 0.750 | SPLADE > SF ≈ BM25 |
 
-*Caveat:* NarrativeQA measures MRR over the dataset-provided candidate pool (≈372 documents) but its answers are long-form narratives, so MRR=1.000 reflects passage ranking, not answer exactness (AP 0.017 in the SF-only run). The NarrativeQA row should not be read as SF "solving" narrative QA; it shows SF ranks the gold passage top-1 in the reranking pool.
+*Caveat:* NarrativeQA measures MRR over the dataset-provided candidate pool (385 documents) but its answers are long-form narratives, so MRR=1.000 reflects passage ranking, not answer exactness (AP 0.017 in the SF-only run). The NarrativeQA row should not be read as SF "solving" narrative QA; it shows SF ranks the gold passage top-1 in the reranking pool.
 
 ## 6. Fusion Operator Analysis
 
@@ -324,7 +324,7 @@ We did collect nDCG@10, P@1, P@3, R@5, R@10 per run (stored in `op_*/summary.jso
 
 ### 6.1 Complete Operator Matrix (SF + SPLADE) — 10 Datasets
 
-The headline claim of this paper is that fusion-operator effectiveness is task-dependent. To make that claim verifiable we report the **complete 7-operator matrix across all ten benchmarked datasets** (MuSiQue, SciFact, and COVID-QA are included alongside the previously benchmarked datasets). Single-hop/reading-comprehension rows are 10-query exploratory probes (reranking MRR, directional); the multi-hop/factoid discriminating rows (HotpotQA, MuSiQue, NQ-REaR) are reported at the expanded n=50 where available, with the 10-query value in parentheses for continuity.
+The headline claim of this paper is that fusion-operator effectiveness is task-dependent. To make that claim verifiable we report the **complete 7-operator matrix across all ten benchmarked datasets** (MuSiQue, SciFact, and COVID-QA are included alongside the previously benchmarked datasets). Single-hop/reading-comprehension rows are 10-query exploratory probes (reranking MRR, directional); the multi-hop/factoid discriminating rows (HotpotQA, MuSiQue, NQ-REaR) are reported at the **n=50 intermediate replication** where available, with the 10-query value in parentheses for continuity. The confirmatory n=100 evaluation of these three datasets (SF+SPLADE) supersedes the n=50/n=10 values below and is reported in §4.7 and Appendix C.
 
 | Dataset | Type | linear | rrf | combsum | combmnz | borda | zscore | minmax |
 |---------|------|-------:|----:|--------:|--------:|------:|-------:|-------:|
@@ -339,7 +339,7 @@ The headline claim of this paper is that fusion-operator effectiveness is task-d
 | SciFact | claim-verif | 0.960 | 0.960 | 0.960 | 0.940 | 0.890 | 0.930 | 0.910 |
 | COVID-QA | biomedical | 0.900 | 0.900 | 0.900 | 0.900 | 0.800 | 0.900 | 0.900 |
 
-**Reading.** On single-hop tasks the matrix saturates (ceiling at 1.000, or flat at 0.800 for PubMedQA) — operator choice is invisible. On claim-verification (SciFact) all operators tie at ≈0.96, so fusion is irrelevant there too. Operator divergence appears only on the compositional/factoid rows: raw score-space fusion (CombSUM/CombMNZ) wins or ties RRF; RRF never clearly dominates. The largest magnitude-preserving effects are HotpotQA (CombSUM +0.114 over linear) and MuSiQue (CombSUM +0.060/+0.090 over rrf/linear); Figure 1 (`figures/fig1_operator_map_heatmap.png`) renders the complete map as a heatmap. at expanded n=50 these gaps are directionally stable but not family-wise significant after Holm correction (Appendix C), so we describe them as consistent tendencies rather than proven separations. The n=10 exploratory values (parenthesized) show the same direction; we report both and do not over-claim gaps that shrink at n=50.
+**Reading.** On single-hop tasks the matrix saturates (ceiling at 1.000, or flat at 0.800 for PubMedQA) — operator choice is invisible. On claim-verification (SciFact) all operators tie at ≈0.96, so fusion is irrelevant there too. Operator divergence appears only on the compositional/factoid rows: raw score-space fusion (CombSUM/CombMNZ) wins or ties RRF; RRF never clearly dominates. The largest magnitude-preserving effects are HotpotQA (CombSUM +0.114 over linear) and MuSiQue (CombSUM +0.060/+0.090 over rrf/linear); Figure 3 (`figures/fig1_operator_map_heatmap.png`) renders the complete map as a heatmap. at expanded n=50 these gaps are directionally stable but not family-wise significant after Holm correction (Appendix C), so we describe them as consistent tendencies rather than proven separations. The n=10 exploratory values (parenthesized) show the same direction; we report both and do not over-claim gaps that shrink at n=50.
 
 ### 6.2 Rank-space vs Score-space
 
@@ -353,13 +353,13 @@ Normalized score-space variants (zscore, minmax) track linear on single-hop (1.0
 
 The consistent superiority of CombSUM and CombMNZ on compositional multi-hop tasks (HotpotQA, NQ-REaR) — and their parity with RRF on 2WikiMultihopQA and MuSiQue — is not coincidental. These operators implement two complementary information-preserving mechanisms that align with the evidence structure of multi-hop retrieval:
 
-**1. Magnitude preservation (CombSUM).** Multi-hop questions require composing evidence from multiple passages. SPLADE (and BM25) assign higher absolute scores to passages that match more query terms — a passage matching all three hops of a HotpotQA question receives a substantially higher score than one matching only the first hop. CombSUM *sums* these scores across retrievers, so a passage that is moderately strong in both SF and SPLADE can surpass a passage that is very strong in only one. The raw score sum thus encodes *joint evidence strength* — exactly what multi-hop composition requires.
+**1. Magnitude preservation (CombSUM).** Multi-hop questions require composing evidence from multiple passages. SPLADE (and BM25) assign higher absolute scores to passages that match more query terms — a passage matching all three hops of a HotpotQA question *may* receive a substantially higher score than one matching only the first hop. CombSUM *sums* these scores across retrievers, so a passage that is moderately strong in both SF and SPLADE can surpass a passage that is very strong in only one. The raw score sum thus *can* reflect joint evidence strength — a candidate mechanism for why multi-hop composition benefits from magnitude-preserving fusion; we test rather than assume this link in §7.6.
 
 **2. Multiplicity weighting (CombMNZ).** CombMNZ multiplies the score sum by the number of retrievers that retrieved the document (1 or 2 in our two-retriever setup). This is a simple but powerful "vote of confidence": a document retrieved by both SF and SPLADE with moderate scores often represents genuinely complementary evidence (one retriever caught hop 1, the other caught hop 2), whereas a document retrieved by only one system with a high score may reflect a single strong match that doesn't compose. CombMNZ thus explicitly rewards *agreement across retrievers* — a proxy for multi-hop evidence convergence.
 
 **Why they tie RRF on 2WikiMultihopQA and MuSiQue.** On 2WikiMultihopQA, the gold passage often has a dominant single-hit in SPLADE (the Wikipedia structure creates strong lexical overlap), so RRF's rank-only fusion is already near ceiling. On MuSiQue, the pool is larger (20) and evidence is more distributed; both CombMNZ and RRF reach similar ceilings because the evidence is strong enough that either mechanism suffices. The divergence appears on HotpotQA and NQ-REaR precisely because the evidence is *distributed* across retrievers and the margin is tight — exactly where magnitude and multiplicity matter.
 
-**Why Borda and normalized variants lag.** Borda uses (N - rank + 1) scoring, which is a linear rank transform. It preserves only ordinal information with a gentle decay, discarding magnitude entirely — so it inherits RRF's multi-hop blindness. Z-score and min-max normalization standardize each retriever's score distribution to zero mean / unit variance or [0,1] range before combination. This *equalizes* the scale but also *flattens* the very magnitude differences that encode compositional confidence: a passage with strong evidence in both retrievers gets the same normalized boost as one with weak evidence in both. The synthetic experiment (§7.2) confirms this: normalization destroys the small-margin signal that distinguishes true multi-hop matches from partial matches.
+**Why Borda and normalized variants lag.** Borda uses (N - rank + 1) scoring, which is a linear rank transform. It preserves only ordinal information with a gentle decay, discarding magnitude entirely — so it inherits RRF's multi-hop blindness. Z-score and min-max normalization standardize each retriever's score distribution to zero mean / unit variance or [0,1] range before combination. This *equalizes* the scale but also *flattens* the very magnitude differences that can carry relevance-bearing separation: a passage with strong evidence in both retrievers gets the same normalized boost as one with weak evidence in both. The synthetic experiment (§7.2) confirms this: normalization destroys the small-margin signal that distinguishes true multi-hop matches from partial matches.
 
 **Summary.** The operator hierarchy on multi-hop tasks is not about "which fusion function is better" in absolute terms, but about *which information class* the operator preserves. Multi-hop compositional reasoning demands magnitude and multiplicity; CombSUM and CombMNZ supply both. RRF and Borda supply only rank. Normalized variants discard the magnitude signal they were meant to equalize. This mechanistic explanation, grounded in the information-preservation framework (§3.5, §9.1), replaces the earlier descriptive "operator sensitivity" with a mechanistic account of *why* each operator behaves as it does.
 
@@ -369,7 +369,7 @@ Operator sensitivity is a function of task difficulty/type, not a fixed operator
 
 ### 6.5 Second-Model Validation (SF+DPR, BM25+SPLADE, BM25+DPR)
 
-To answer whether the phenomenon is SPLADE-specific (reviewer #4), we replicated the matrix with a second dense retriever, DPR, and swapped signal A (SF ↔ BM25). Full 4-pair × 2-discriminating-dataset design. We report both the n=10 exploratory probe (parenthetical) and the **n=50 expanded** MRR (primary), as linear/rrf/combsum:
+To answer whether the phenomenon is SPLADE-specific (reviewer #4), we replicated the matrix with a second dense retriever, DPR, and swapped signal A (SF ↔ BM25). Full 4-pair × 2-discriminating-dataset design. We report both the n=10 exploratory probe (parenthetical) and the **n=50 intermediate replication** MRR, as linear/rrf/combsum:
 
 | Pair (A + B) | HotpotQA n=50 (lin/rrf/combsum) | HotpotQA n=10 | NQ-REaR n=50 (lin/rrf/combsum) | NQ-REaR n=10 | Winning family (n=50) |
 |--------------|----------------------------|----------------------------|----------------------------|----------------|----------------|
@@ -397,7 +397,7 @@ A remaining concern is that the SF+SPLADE findings might be an artifact of one s
 | zscore | 0.897 | 0.922 | 0.953 | 0.963 |
 | minmax | 0.832 | 0.822 | 0.887 | 0.900 |
 
-The operator ordering is **stable across checkpoints**: CombSUM ranks first on both datasets under both models (HotpotQA 0.947 → 0.960; MuSiQue 0.977 → 0.987 — v3 slightly lifts every score-space operator), Borda remains last on MuSiQue, and the magnitude-vs-rank separation persists essentially unchanged. The finding is therefore not an artifact of one checkpoint but a property of the *pairing* between SF's spatial-magnitude scores and any log1p-pooled learned sparse signal. Full table: `docs/papers/Journal A/appendix_stats/splade_v3_comparison.md`.
+The operator ordering is **stable across checkpoints**: CombSUM ranks first on both datasets under both models (HotpotQA 0.947 → 0.960; MuSiQue 0.977 → 0.987 — v3 slightly lifts every score-space operator), Borda remains last on MuSiQue, and the magnitude-vs-rank separation persists essentially unchanged. The finding is therefore not an artifact of one checkpoint but a property of the *pairing* between SF's spatial-magnitude scores and any log1p-pooled learned sparse signal. Full table: the SPLADE-v3 comparison tables.
 
 ### 6.5.3 α-Sensitivity of the Linear Operator (Reviewer #20)
 
@@ -449,7 +449,7 @@ Computing this over real component scores (`scripts/operator_identifiability.py`
 
 Two regimes emerge cleanly. *Cross-family* pairs (magnitude-preserving vs rank-only, e.g. combsum vs rrf) have an identifiability gap of 1.00 — they never agree on any query, so operator selection genuinely matters and the geometry analysis of §6.5 applies. *Within-family* pairs are largely degenerate: linear ≡ minmax on every query in every dataset (both reduce to affine rescalings whose sums preserve the same ordering under maxnorm'd inputs), and CombSUM ≡ CombMNZ whenever each query has a single dominant top-scorer (MNZ's multiplicity term becomes constant). Mean pairwise identical-ranking rate across all 21 pairs per dataset: 0.105 (HotpotQA), 0.048 (MuSiQue), 0.105 (SciFact) — most operator pairs are identifiable; the exceptions are exactly the mathematically equivalent ones.
 
-**Implication.** Fusion operator choice matters only where the joint score geometry provides degrees of freedom that distinct operators exploit differently. For signal pairs where operators collapse to identical rankings, effort should shift from operator selection toward signal acquisition or calibration. Full table: `docs/papers/Journal A/appendix_stats/operator_identifiability.md`.
+**Implication.** Fusion operator choice matters only where the joint score geometry provides degrees of freedom that distinct operators exploit differently. For signal pairs where operators collapse to identical rankings, effort should shift from operator selection toward signal acquisition or calibration. Full table: the operator identifiability tables.
 
 ### 6.6.2 Can Learning the Fusion Weights Beat the Diagnostic Choice?
 
@@ -537,7 +537,7 @@ Figure 4 renders the family-gap phase diagram across pool sizes, magnitude condi
 - In **magnitude-dominant and mixed conditions the families separate perfectly**: score-space operators recover gold at ≈1.000 accuracy while rank-only operators fail on essentially every such query (0.000). Normalized variants succeed here because the spike dominates after normalization too; their failure mode in the 2-doc toy (§7.2 table above) is specific to *small-margin* regimes where normalization noise swamps the signal.
 - Distribution shape barely matters for the phase boundary — concentrated vs heavy-tail changes only CombSUM/CombMNZ at the margin (0.996 vs 1.000).
 
-This is the operator phase diagram the hypothesis predicts: **the winning operator family is determined by whether task-relevant information lives in rank alone or also in magnitude — not by distributional details.** Full per-cell results: `docs/papers/Journal A/appendix_stats/operator_phase_diagram.md`.
+This is the operator phase diagram the hypothesis predicts: **the winning operator family is determined by whether task-relevant information lives in rank alone or also in magnitude — not by distributional details.** Full per-cell results: the operator phase diagram tables.
 
 *Synthetic control; deterministic construction.*
 | Condition | Score(A) | Score(B) | Margin | linear | rrf | combsum | combmnz | borda | zscore | minmax |
@@ -576,7 +576,7 @@ The battery distinguishes three distinct meanings of "magnitude": **raw magnitud
 
 **Result.**
 
-1. **Rank-only operators are empirically invariant on real data.** RRF produces *identical* MRR and fused rankings (τ=1.000) under *every* rank-preserving condition — including the new `compress`/`amplify`/`magswap` battery on all three datasets — where magnitudes change drastically but order is fixed. On HotpotQA/SF: RRF = 0.883 under orig/x2/log1p/pow05/rpr/compress/amplify/magswap, unchanged to three decimals. Figure 8 summarizes the three-regime structure — original, rank-preserving changes, rank destruction — on MuSiQue real traces (`figures/fig8_causal_centerpiece.png`). Figure 3 visualizes the battery on MuSiQue real traces (`figures/fig3_perturbation_battery.png`). Borda likewise (τ=1.000 throughout).
+1. **Rank-only operators are empirically invariant on real data.** RRF produces *identical* MRR and fused rankings (τ=1.000) under *every* rank-preserving condition — including the new `compress`/`amplify`/`magswap` battery on all three datasets — where magnitudes change drastically but order is fixed. On HotpotQA/SF: RRF = 0.883 under orig/x2/log1p/pow05/rpr/compress/amplify/magswap, unchanged to three decimals. Figure 5 summarizes the three-regime structure — original, rank-preserving changes, rank destruction — on MuSiQue real traces (`figures/fig8_causal_centerpiece.png`). Figure 6 visualizes the battery on MuSiQue real traces (`figures/fig3_perturbation_battery.png`). Borda likewise (τ=1.000 throughout).
 2. **Score-space operators respond to magnitude alone.** Under `compress` on MuSiQue/SPLADE, CombSUM collapses 0.914 → 0.460 while RRF stays frozen at 0.861 — squashing the gaps removes exactly the separation signal that magnitude-sensitive fusion exploits. Under `x2` on MuSiQue/SF, CombSUM drops 0.914 → 0.805 (scale distortion); under `log1p`/`pow05` on HotpotQA/SPLADE, linear falls 0.867 → 0.783.
 3. **Destroying ranks hurts rank-only fusion maximally.** Under `shufflescores`, RRF collapses 0.883 → 0.354 (HotpotQA), 0.861 → 0.397 (MuSiQue); Borda 0.733 → 0.219. Score-space operators degrade less because their magnitude information still carries partial relevance signal when ranks are scrambled.
 
@@ -588,11 +588,11 @@ Beyond that caveat, this completes the controlled-intervention argument: the inf
 
 #### Is it magnitude, or just calibration? (review-requested baseline battery)
 
-To separate *informative magnitude* from *arbitrary scaling*, we re-fuse the real traces under seven per-signal normalizations — raw, min-max, z-score, L2, rank-Gaussian (inverse-normal ranks), sigmoid (median/IQR-scaled logistic), quantile (empirical CDF → uniform), and softmax — applied identically to both signals before fusion (`scripts/calibration_baselines.py`; `appendix_stats/calibration_baselines.{md,json}`). Three findings: (i) **scale-family normalizations preserve CombSUM's advantage** — min-max/z-score/L2/softmax match raw within ±0.006 MRR on all three datasets — so the effect is not an artifact of one particular scale; (ii) **order-destroying normalizations hurt exactly as the theory predicts** — quantile mapping collapses CombSUM to 0.683 on HotpotQA (it flattens the top-rank margin that carries the signal), while rank-Gauss *improves* MuSiQue CombSUM to 0.950 by stabilizing heavy tails without destroying order; (iii) sigmoid compression hurts everywhere (0.853–0.883), confirming that saturating the dynamic range removes discriminative magnitude. The design space the review requests — *magnitude-preserving but calibration-aware fusion* — is therefore empirically visible already: keep monotone order, stabilize tails, never flatten the top margin. Full tables in `calibration_baselines.md`.
+To separate *informative magnitude* from *arbitrary scaling*, we re-fuse the real traces under seven per-signal normalizations — raw, min-max, z-score, L2, rank-Gaussian (inverse-normal ranks), sigmoid (median/IQR-scaled logistic), quantile (empirical CDF → uniform), and softmax — applied identically to both signals before fusion (`scripts/calibration_baselines.py`; `appendix_stats/calibration_baselines.{md,json}`). Three findings: (i) **scale-family normalizations preserve CombSUM's advantage** — min-max/z-score/L2/softmax match raw within ±0.006 MRR on all three datasets — so the effect is not an artifact of one particular scale; (ii) **order-destroying normalizations hurt exactly as the theory predicts** — quantile mapping collapses CombSUM to 0.683 on HotpotQA (it flattens the top-rank margin that carries the signal), while rank-Gauss *improves* MuSiQue CombSUM to 0.950 by stabilizing heavy tails without destroying order; (iii) sigmoid compression hurts everywhere (0.853–0.883), confirming that saturating the dynamic range removes discriminative magnitude. The design space the review requests — *magnitude-preserving but calibration-aware fusion* — is therefore empirically visible already: keep monotone order, stabilize tails, never flatten the top margin. Full tables in the calibration baselines tables.
 
 ### 7.5 Score Margin vs Fusion Error (Where Rank-Only Fusion Fails)
 
-The perturbation experiment shows rank-only fusion *can* respond to magnitude; this analysis locates *where on real queries* that response decides outcomes. For each query we compute the **joint normalized margin**: per signal, margin = (best gold score − best non-gold score)/max|score| (negative = a distractor outscores gold in that signal), then average the two signals. We bin queries by joint margin and measure the rescue rate — P(RRF top-1 wrong ∧ CombSUM top-1 correct) (`scripts/margin_vs_error.py`; real component scores; Figure 7.1).
+The perturbation experiment shows rank-only fusion *can* respond to magnitude; this analysis locates *where on real queries* that response decides outcomes. For each query we compute the **joint normalized margin**: per signal, margin = (best gold score − best non-gold score)/max|score| (negative = a distractor outscores gold in that signal), then average the two signals. We bin queries by joint margin and measure the rescue rate — P(RRF top-1 wrong ∧ CombSUM top-1 correct) (`scripts/margin_vs_error.py`; real component scores; Figure A1).
 
 ![Score margin vs fusion error](figures/margin_vs_error.png)
 
@@ -602,7 +602,7 @@ The perturbation experiment shows rank-only fusion *can* respond to magnitude; t
 2. **The rescue that does occur sits at the smallest margin bin**: MuSiQue's single negative-joint-margin query (gold below a distractor in one signal) is rescued by CombSUM — exactly the regime where magnitude information is decisive and rank-only fusion cannot see it. HotpotQA's rescue falls in the lowest positive bin [0, 0.10).
 3. **Large positive margins → no rescues anywhere** (SciFact [0.30+]: 0/6): when gold already dominates both signals, every operator succeeds and magnitude adds nothing — consistent with the operator-invariant single-hop ceiling of §6.1.
 
-The pattern supports H2's conditional form: magnitude information is operative in the small/negative-margin regime and inert where rank already separates gold cleanly. With n=10 per dataset these rates are illustrative; the margin-binning protocol scales to larger query sets unchanged. Full table: `docs/papers/Journal A/appendix_stats/margin_vs_error.md`.
+The pattern supports H2's conditional form: magnitude information is operative in the small/negative-margin regime and inert where rank already separates gold cleanly. With n=10 per dataset these rates are illustrative; the margin-binning protocol scales to larger query sets unchanged. Full table: the margin vs error tables.
 
 ### 7.6 Relevance-Bearing Score Magnitude (H3)
 
@@ -662,7 +662,7 @@ CombSUM maintains perfect MRR=1.000 across all pool sizes — its magnitude-pres
 
 (P@1 shows the same flatness: 0.800 rank-only / 0.900 magnitude at every N.)
 
-Figure 5 plots MRR and concentration against N (`figures/fig5_pool_growth.png`). **Reading.** The two sweeps answer complementary questions. With B = SPLADE held fixed, the operator ordering at every pool size tracks signal A's geometry: when A = SF (heterogeneous spatial magnitudes), score-space operators dominate dramatically (Table a: CombSUM 1.000 vs RRF ≤0.883); when A = BM25 (integer-scaled lexical scores), the gap compresses to a stable 0.05–0.10 band (Table b: magnitude family 0.950 vs rank-only 0.850) but never inverts. And within either pairing, growing the pool from 20 to 494 distractors does not change any operator's MRR by more than noise — including the collection-sized N=494 pool. Score concentration at the tail is therefore *not* what separates fusion operators; the separation comes from the joint score geometry of the signals being fused, consistent with §6.5's cross-pair finding and §7.4's controlled perturbation result. Full tables: `docs/papers/Journal A/appendix_stats/deep_pool_nsweep.md`.
+Figure 7 plots MRR and concentration against N (`figures/fig5_pool_growth.png`). **Reading.** The two sweeps answer complementary questions. With B = SPLADE held fixed, the operator ordering at every pool size tracks signal A's geometry: when A = SF (heterogeneous spatial magnitudes), score-space operators dominate dramatically (Table a: CombSUM 1.000 vs RRF ≤0.883); when A = BM25 (integer-scaled lexical scores), the gap compresses to a stable 0.05–0.10 band (Table b: magnitude family 0.950 vs rank-only 0.850) but never inverts. And within either pairing, growing the pool from 20 to 494 distractors does not change any operator's MRR by more than noise — including the collection-sized N=494 pool. Score concentration at the tail is therefore *not* what separates fusion operators; the separation comes from the joint score geometry of the signals being fused, consistent with §6.5's cross-pair finding and §7.4's controlled perturbation result. Full tables: the deep-pool sweep tables.
 
 Replacing SF with BM25 reduces but does not reverse the score-space advantage (§6.5 pair results), indicating that the phenomenon is not uniquely attributable to Semantic Folding — although its magnitude depends strongly on the joint score geometry of the pair.
 
@@ -707,6 +707,40 @@ No GPU; CPU-only query; binary SDR fingerprints are compact (~512 B/doc ideal fo
 
 ---
 
+
+
+### 9.6 Practical Guidance
+
+**1. Diagnose before choosing fusion.**
+
+Measure:
+* score dispersion (CV, range)
+* top-rank margins
+* rank agreement (Kendall tau)
+* calibration
+* gold/supporting-score separation when labels are available.
+
+**2. Use RRF when rank is the reliable information source.**
+
+Especially when component scores are incomparable or poorly calibrated.
+
+**3. Use score-space fusion when magnitude is demonstrably informative.**
+
+Especially when one component has stable relevance-bearing score separation.
+
+**4. Do not assume "multi-hop implies CombSUM."**
+
+Instead:
+> multi-hop + magnitude-bearing sparse signal + complementary geometry -> investigate score-space fusion.
+
+**5. Never expect fusion to fix candidate-generation failure.**
+
+This is a very strong practical takeaway.
+
+
+
+
+
 ## 10. Limitations and Conclusion
 
 **Threats to validity.**
@@ -719,7 +753,7 @@ No GPU; CPU-only query; binary SDR fingerprints are compact (~512 B/doc ideal fo
 
 **Figures.** F1 `fig1_operator_map_heatmap` — exploratory operator map; F2 `fig2_n100_confirmatory` — confirmatory core bars; F3 `fig3_perturbation_battery` — magnitude battery on real traces; F4 `fig4_phase_diagram` — synthetic phase facets; F5 `fig5_pool_growth` — candidate-growth curves; F6 `fig6_win_loss_power` — paired outcomes and power; F7 `fig7_conceptual_phase_map` — conceptual operator-selection map (signature summary); F8 `fig8_causal_centerpiece` — three-regime intervention panel. Generated by `scripts/journal_figures.py` + `scripts/journal_figures_v4.py` from committed artifacts (PNG+SVG under `figures/`).
 
-**Conceptual operator-selection map.** Figure 7 places the evaluated datasets on a 2D plane of magnitude informativeness (SPLADE P(gold-margin>0)) versus operator rank-1 disagreement. HotpotQA and MuSiQue sit in the high-informativeness region where score-space fusion wins at n=100; SciFact sits at high informativeness but near-ceiling disagreement where operators are indistinguishable. This map is a *conceptual summary derived from the empirical findings*, not a validated predictor.
+**Conceptual operator-selection map.** Figure 8 places the evaluated datasets on a 2D plane of magnitude informativeness (SPLADE P(gold-margin>0)) versus operator rank-1 disagreement. HotpotQA and MuSiQue sit in the high-informativeness region where score-space fusion wins at n=100; SciFact sits at high informativeness but near-ceiling disagreement where operators are indistinguishable. This map is a *conceptual summary derived from the empirical findings*, not a validated predictor.
 
 **What would falsify our interpretation?** Our reading would be weakened if rank-preserving magnitude interventions consistently failed to alter score-space fusion rankings, if magnitude provided relevance information beyond rank after conditioning (it does not within a single signal — §7.6 — which is why we locate the effect at cross-signal scale), or if operator × retriever-pair interactions disappeared under larger confirmatory samples. We therefore treat these analyses as separable tests rather than assuming that operator differences imply useful magnitude information.
 
@@ -744,7 +778,7 @@ This principle is established for controlled reranking settings; validation at c
 
 - **A.** Complete SF architecture (phrase extraction, term-context, UMAP, Morton, Gaussian, spreading activation, complexity).
 - **B.** Hyperparameters.
-- **C.** Full statistical tables — per-dataset MRR with 95% bootstrap CI and Holm-adjusted Wilcoxon p-values at n=50 for the complete seven-operator matrix (HotpotQA, MuSiQue, NQ-REaR; SF+SPLADE). Full tables below.
+- **C.** Full statistical tables — per-dataset MRR with 95% bootstrap CI and Holm-adjusted Wilcoxon p-values for the complete seven-operator matrix (HotpotQA, MuSiQue, NQ-REaR; SF+SPLADE). The confirmatory **n=100** tables are presented first; the earlier n=50 tables are retained afterward for transparency and historical comparability.
 - **D.** k/α sensitivity.
 - **E.** Magnitude perturbation on real retrieval outputs + additional retrieval traces.
 - **F.** Dataset details.
@@ -754,7 +788,7 @@ This principle is established for controlled reranking settings; validation at c
 
 ### E. Magnitude Perturbation on Real Retrieval Outputs
 
-Real per-document component scores (maxnorm(SF), maxnorm(SPLADE)) captured during the α-sweep endpoint runs were transformed and re-fused with all seven operators (`scripts/magnitude_perturbation.py`, seed=42; full tables in `docs/papers/Journal A/appendix_stats/magnitude_perturbation_<dataset>.md`). Each cell: fused MRR / Kendall τ of the fused ranking vs the unperturbed fused ranking.
+Real per-document component scores (maxnorm(SF), maxnorm(SPLADE)) captured during the α-sweep endpoint runs were transformed and re-fused with all seven operators (`scripts/magnitude_perturbation.py`, seed=42; full tables in the magnitude perturbation tables). Each cell: fused MRR / Kendall τ of the fused ranking vs the unperturbed fused ranking.
 
 #### E.1 HotpotQA — SF signal perturbed
 
@@ -789,7 +823,7 @@ Real per-document component scores (maxnorm(SF), maxnorm(SPLADE)) captured durin
 | rpr | 0.823 / +0.733 | **0.821 / +1.000** | 0.826 / +0.711 | 0.827 / +0.712 | 0.821 / +1.000 | 0.824 / +0.819 | 0.825 / +0.735 |
 | shufflescores | 0.817 / +0.694 | 0.206 / +0.434 | 0.516 / +0.543 | 0.425 / +0.525 | 0.290 / +0.428 | 0.819 / +0.686 | 0.819 / +0.696 |
 
-SciFact replicates the pattern on a claim-verification task: RRF is bit-frozen under every rank-preserving transform (including `rpr`) yet collapses to 0.206 under rank destruction, while score-space operators reorder internally (τ down to 0.71) with essentially unchanged MRR. The SPLADE-perturbed variants for all three datasets (not shown) follow the same shape; see `magnitude_perturbation_<dataset>.md`.
+SciFact replicates the pattern on a claim-verification task: RRF is bit-frozen under every rank-preserving transform (including `rpr`) yet collapses to 0.206 under rank destruction, while score-space operators reorder internally (τ down to 0.71) with essentially unchanged MRR. The SPLADE-perturbed variants for all three datasets (not shown) follow the same shape; see the magnitude perturbation tables.
 
 #### E.4 Reading
 
@@ -822,17 +856,61 @@ SciFact replicates the pattern on a claim-verification task: RRF is bit-frozen u
 
 ![MRR(α) sensitivity](../appendix_alpha/alpha_sweep_plot.png)
 
-**Conclusion.** α = 0.3 is *not* a special point: MRR is flat (within noise) for α ∈ [0.0, 0.6] on every dataset, and degrades only when SF is weighted too heavily (α > 0.6), because the zero-shot SF signal collapses on multi-hop/biomedical tasks and drags the blend toward the SF-only floor. Any α in [0, 0.6] gives the same ranking quality; the choice is immaterial with respect to ranking quality. We retain α = 0.3 as a conservative, SF-downweighted default and report the full curve (§6.5.3) so the claim is auditable. Raw per-α CSVs: `docs/papers/Journal A/appendix_alpha/alpha_sweep_<dataset>.csv`.
+**Conclusion.** α = 0.3 is *not* a special point: MRR is flat (within noise) for α ∈ [0.0, 0.6] on every dataset, and degrades only when SF is weighted too heavily (α > 0.6), because the zero-shot SF signal collapses on multi-hop/biomedical tasks and drags the blend toward the SF-only floor. Any α in [0, 0.6] gives the same ranking quality; the choice is immaterial with respect to ranking quality. We retain α = 0.3 as a conservative, SF-downweighted default and report the full curve (§6.5.3) so the claim is auditable. Raw per-α CSVs: the alpha sweep CSV files.
 
 ---
 
-### C. Full Statistical Tables (n=50, 7 operators, SF+SPLADE)
+### C. Full Statistical Tables (SF+SPLADE, 7 operators)
 
-Protocol: paired bootstrap 95% CIs (10,000 resamples, seed=42); two-sided Wilcoxon signed-rank between every operator pair; Holm–Bonferroni correction across the 21 pairwise comparisons per dataset. Generated by `scripts/appendix_c_stats.py`; per-dataset tables also saved under `docs/papers/Journal A/appendix_stats/`.
+Protocol: paired bootstrap 95% CIs (10,000 resamples, seed=42); two-sided Wilcoxon signed-rank between every operator pair; Holm–Bonferroni correction across the 21 pairwise comparisons per dataset. Generated by `scripts/appendix_c_stats_n100.py` (n=100) and `scripts/appendix_c_stats.py` (n=50); per-dataset tables also saved under `appendix_stats/appendix_c_*_n100.md` and `appendix_c_*.md`.
 
-> **Appendix C status note.** The original n=50 matrix is retained below for transparency and historical comparability. The confirmatory analysis was subsequently expanded to n=100 using the same protocol; all primary statistical claims in the main text are based on the n=100 tables (`appendix_stats/appendix_c_*_n100.md`), and n=50 results are reported only as the earlier analysis.
+> **Appendix C hierarchy.** The **confirmatory n=100** tables (C.1–C.3 below) carry all primary inferential claims in the main text. The **n=50** tables (C.4–C.6) are retained afterward for transparency and historical comparability; they are intermediate-replication results, not the confirmatory evidence.
 
-#### C.1 HotpotQA (n=50; historical — superseded by n=100)
+#### C.1 HotpotQA (n=100; confirmatory core)
+
+| Operator | MRR | 95% CI |
+|----------|----:|--------|
+| borda | 0.732 | [0.656, 0.804] |
+| combmnz | 0.866 | [0.803, 0.923] |
+| combsum | **0.947** | [0.910, 0.978] |
+| linear | 0.702 | [0.639, 0.766] |
+| minmax | 0.702 | [0.639, 0.766] |
+| rrf | 0.854 | [0.802, 0.903] |
+| zscore | 0.896 | [0.846, 0.940] |
+
+Key pairwise tests (15/21 survive Holm at α=0.05): combsum vs rrf Δ=+0.093, raw p=0.0001, p_Holm=0.0007; combsum vs linear Δ=+0.244, p_Holm<0.0001; borda vs combsum Δ=−0.215, p_Holm<0.0001.
+
+#### C.2 MuSiQue (n=100; confirmatory core)
+
+| Operator | MRR | 95% CI |
+|----------|----:|--------|
+| borda | 0.652 | [0.560, 0.743] |
+| combmnz | 0.840 | [0.775, 0.902] |
+| combsum | **0.952** | [0.912, 0.985] |
+| linear | 0.832 | [0.772, 0.888] |
+| minmax | 0.832 | [0.772, 0.888] |
+| rrf | 0.908 | [0.862, 0.952] |
+| zscore | **0.952** | [0.912, 0.985] |
+
+Key pairwise tests (17/21 survive Holm at α=0.05): combsum vs rrf Δ=+0.043, raw p=0.0083, p_Holm=0.0498; combsum vs linear Δ=+0.120, p_Holm=0.0007; combsum vs zscore Δ=0.000 (tie).
+
+#### C.3 NQ-REaR (n=100; confirmatory core)
+
+| Operator | MRR | 95% CI |
+|----------|----:|--------|
+| borda | 0.602 | [0.515, 0.683] |
+| combmnz | 0.701 | [0.618, 0.777] |
+| combsum | **0.746** | [0.671, 0.817] |
+| linear | 0.682 | [0.605, 0.755] |
+| minmax | 0.682 | [0.605, 0.755] |
+| rrf | 0.718 | [0.643, 0.787] |
+| zscore | 0.733 | [0.659, 0.801] |
+
+Only 4/21 comparisons survive Holm at α=0.05 — consistent with the large-pool factoid profile where operator differences are small under any pairing.
+
+> **Appendix C status note (n=50 historical).** The n=50 matrix below is retained for transparency and historical comparability only. The confirmatory analysis was subsequently expanded to n=100 using the same protocol; all primary statistical claims in the main text are based on the n=100 tables above (C.1–C.3), and n=50 results are reported only as the earlier intermediate replication.
+
+#### C.4 HotpotQA (n=50; historical — superseded by n=100)
 
 | Operator | MRR | 95% CI |
 |----------|----:|--------|
@@ -846,7 +924,7 @@ Protocol: paired bootstrap 95% CIs (10,000 resamples, seed=42); two-sided Wilcox
 
 Key pairwise tests: combsum vs linear Δ=+0.114, raw p=0.0064, p_Holm=0.135 (*not significant after correction*); combsum vs rrf Δ=+0.053, raw p=0.083, p_Holm=1.00. No comparison survives Holm at α=0.05.
 
-#### C.2 MuSiQue (n=50; historical — superseded by n=100)
+#### C.5 MuSiQue (n=50; historical — superseded by n=100)
 
 | Operator | MRR | 95% CI |
 |----------|----:|--------|
@@ -860,7 +938,7 @@ Key pairwise tests: combsum vs linear Δ=+0.114, raw p=0.0064, p_Holm=0.135 (*no
 
 Key pairwise tests: combsum vs rrf Δ=+0.060, raw p=0.0143, p_Holm=0.183; combsum vs linear Δ=+0.090, raw p=0.0094, p_Holm=0.141; **borda vs combmnz Δ=−0.149, raw p=0.0018, p_Holm=0.035 — the single family-wise-significant comparison in the study** (rank-only Borda is reliably worse than multiplicity-weighted CombMNZ on MuSiQue).
 
-#### C.3 NQ-REaR (n=50; historical — superseded by n=100)
+#### C.6 NQ-REaR (n=50; historical — superseded by n=100)
 
 | Operator | MRR | 95% CI |
 |----------|----:|--------|
@@ -874,9 +952,9 @@ Key pairwise tests: combsum vs rrf Δ=+0.060, raw p=0.0143, p_Holm=0.183; combsu
 
 No pairwise comparison survives Holm at α=0.05 on this dataset.
 
-#### C.4 Interpretation
+#### C.7 Interpretation (across n=50 and n=100)
 
-The operator *ordering* replicates across all three datasets — magnitude-preserving operators (CombSUM/CombMNZ) first, rank-only Borda last — but individual pairwise differences are directionally consistent rather than family-wise significant at n=50. Two further observations: (i) on the large-pool factoid dataset NQ-REaR the best operator is **CombMNZ** (0.679) rather than CombSUM, consistent with multiplicity weighting adding value when evidence is distributed over a large candidate pool; (ii) Borda shows the widest bootstrap intervals everywhere (e.g. MuSiQue [0.653, 0.880]), consistent with rank-only fusion being the least stable aggregation under pool variance. The confirmatory core has since been expanded to n=100 on all three datasets (SF+SPLADE; `appendix_stats/appendix_c_*_n100.md`). At n=100 the picture sharpens considerably: **15/21** pairwise comparisons survive Holm on HotpotQA (CombSUM vs RRF: Δ=+0.093, p_Holm=0.0007) and **17/21** on MuSiQue (CombSUM 0.952 vs RRF 0.908), while NQ-REaR remains largely non-separable (4/21), consistent with its large-pool factoid profile. The mechanism-level evidence (§6.3.1, §7.2 synthetic magnitude control, §7.4 controlled perturbation, §6.6.4 interaction screen) and these expanded tables now jointly carry the interpretive weight.
+The operator *ordering* replicates across all three datasets — magnitude-preserving operators (CombSUM/CombMNZ) first, rank-only Borda last — but individual pairwise differences are directionally consistent rather than family-wise significant at n=50. Two further observations: (i) on the large-pool factoid dataset NQ-REaR the best operator is **CombMNZ** (0.679) rather than CombSUM, consistent with multiplicity weighting adding value when evidence is distributed over a large candidate pool; (ii) Borda shows the widest bootstrap intervals everywhere (e.g. MuSiQue [0.653, 0.880]), consistent with rank-only fusion being the least stable aggregation under pool variance. The confirmatory core has since been expanded to n=100 on all three datasets (SF+SPLADE; the n=100 Appendix C tables). At n=100 the picture sharpens considerably: **15/21** pairwise comparisons survive Holm on HotpotQA (CombSUM vs RRF: Δ=+0.093, p_Holm=0.0007) and **17/21** on MuSiQue (CombSUM 0.952 vs RRF 0.908), while NQ-REaR remains largely non-separable (4/21), consistent with its large-pool factoid profile. The mechanism-level evidence (§6.3.1, §7.2 synthetic magnitude control, §7.4 controlled perturbation, §6.6.4 interaction screen) and these expanded tables now jointly carry the interpretive weight.
 
 ---
 

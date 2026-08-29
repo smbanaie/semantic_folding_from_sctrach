@@ -659,3 +659,50 @@ Learned sparse retriever reaches ceiling on every multi-hop set where SF collaps
 ---
 
 *Update this file after each completed step with raw results paths and achievement metrics.*
+
+---
+
+## Phase 5: Reviewer-Reconciliation Reruns (completed 2026-08-24, logged post-hoc)
+
+The SIGIR-Final-Reviews.md scorecard (written before the Aug-24 expansion) flagged several
+"blockers" that were in fact **already executed** by the time Journal_V4.md was finalized.
+This section records the completion status so the paper text and the log agree.
+
+### 5.1 n=100 Confirmatory Core (reviewer #2/#5/#14)
+- **Status: ✅ COMPLETE and in Appendix C.**
+- Runs: `benchmark_20260824_034107` (hotpotqa), `_034226` (musique), `_034248` (nq_rear);
+  indexes `run_20260824_032535` (1489 docs/150q), `_033236` (2328 docs/150q), `_033353` (990 docs/100q).
+- Statistics: `scripts/appendix_c_stats_n100.py` → `appendix_stats/appendix_c_{hotpotqa,musique,nq_rear}_n100.{md,json}`.
+- Results (SF+SPLADE): HotpotQA combsum 0.947 / rrf 0.854 (Δ+0.093, p_Holm=0.0007, 15/21 survive);
+  MuSiQue 0.952 / 0.908 (17/21); NQ-REaR 0.746 / 0.718 (4/21).
+- **Journal_V4.md Appendix C now contains the n=100 tables (C.1–C.3) as the primary confirmatory
+  evidence; the n=50 tables are retained as C.4–C.6 historical.**
+
+### 5.2 Rank-Conditioned Magnitude Analysis (reviewer #3 — "single most important missing experiment")
+- **Status: ✅ COMPLETE.** `scripts/rank_conditioned_magnitude.py` → `appendix_stats/rank_conditioned_magnitude.{md,json}`.
+- LOQO logistic: M1 = normalized ranks only; M2 = M1 + magnitudes + top-margins.
+- Result: ΔAUC(M2−M1) ≤ 0 on all three datasets (hotpotqa −0.002, musique −0.010, scifact −0.025),
+  bootstrap CIs span zero. **Null resolves the rank/score circularity**: within a single signal,
+  magnitude carries no gold info beyond rank; the effect lives at the cross-signal level (§7.6, §6.6.4).
+
+### 5.3 Calibration Baseline Battery (reviewer "is it magnitude or calibration?")
+- **Status: ✅ COMPLETE.** `scripts/calibration_baselines.py` → `appendix_stats/calibration_baselines.{md,json}`.
+- 8 per-signal normalizations. Finding: scale-family norms preserve CombSUM's advantage (±0.006);
+  order-destroying norms (quantile) collapse it; sigmoid hurts everywhere.
+
+### 5.4 Other supporting analyses (all present in `appendix_stats/`)
+- feature_invariance, operator_identifiability, geometry_predictor, factorial_interaction,
+  split_half_stability, tau_analysis, magnitude_perturbation (+compress/amplify/magswap),
+  scifact_deep_investigation, win_loss_rank1_n100, learned_fusion_baseline, synthetic_operator_phase.
+
+### 5.5 Reconciliation edits applied to Journal_V4.md (precision pass, not expansion)
+1. Appendix C restructured: n=100 confirmatory tables first (C.1–C.3), n=50 historical (C.4–C.6).
+2. Pool-size taxonomy unified to **385** (NarrativeQA) as the dataset-provided max; 494 = explicit
+   Regime B deep-pool; §9.4 already states "2–385 + controlled padded pools to 494".
+3. Residual "magnitude = reasoning depth / compositional confidence" language in §3.3, §6.3.1
+   softened to "relevance-bearing separation" / "may carry" (reviewer #2/#6).
+4. n=50 relabelled "intermediate replication"; n=100 = confirmatory (§4.7, §6.1, §6.5).
+5. §9.3 "N<100" sentence already deleted in V4; §8.4 already says "consistent with" (not "validates").
+
+**Phase 5 Status: ✅ COMPLETE — no reviewer-requested rerun remains unexecuted; paper text and
+artifacts are now synchronized.**

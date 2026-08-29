@@ -1,0 +1,25 @@
+{
+  "dataset": "hotpotqa",
+  "pair": "sf_dpr",
+  "n_queries": 100,
+  "base_combsum_mrr": 0.5543131844763424,
+  "base_rrf_mrr": 0.5543131844763424,
+  "rho_oracle": {
+    "1.5": {
+      "combsum_mrr": 0.5543131844763424,
+      "rrf_mrr": 0.5543131844763424,
+      "delta_combsum_vs_orig": 0.0
+    },
+    "3.0": {
+      "combsum_mrr": 0.5543131844763424,
+      "rrf_mrr": 0.5543131844763424,
+      "delta_combsum_vs_orig": 0.0
+    },
+    "10.0": {
+      "combsum_mrr": 0.5543131844763424,
+      "rrf_mrr": 0.5543131844763424,
+      "delta_combsum_vs_orig": 0.0
+    }
+  },
+  "invariance_ok": true
+}

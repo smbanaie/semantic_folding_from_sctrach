@@ -348,3 +348,75 @@ Build two synthetic retrievers with *controlled* parameters — rank correlation
 ---
 
 *Items 9+ candidates (not yet specced): #10 Candidate-set intervention (pool difficulty N∈{10,20,50,100,200,500} × distractor type → ΔMRR), #20 causal-language tightening, #21 SF-role clarification, #22 negative-results table. Available on request.*
+
+---
+
+## Item 11 — Oracle / controlled magnitude experiment (Tier-2, #7)
+
+**Source:** SIGIR-Final-Reviews.md Tier-2 #7 + #5 (Oracle). "Controlled magnitude experiment."
+**V5 anchor:** §6.6 / Item 1 counterfactual (World+/World−). This item adds an *oracle* magnitude signal to prove the effect is magnitude-utility, not SPLADE-specific scale.
+
+### Objective
+Take real SF+SPLADE n=100 traces; replace SPLADE magnitude with an **oracle relevance-aligned separation** (gold docs pushed to top of their rank bucket by a controllable factor ρ_oracle ∈ {1.5, 3, 10}), ranks preserved. Confirm CombSUM MRR rises monotonically with ρ_oracle while RRF is exactly invariant. This isolates whether *any* relevance-aligned magnitude (not SPLADE's particular scale) drives the effect — the "controlled magnitude" the reviewer requests.
+
+### SPEC — extend `scripts/counterfactual_magnitude.py` (new `oracle_world`)
+- Reuse Item 1 World+ construction but set signal B's gold score = m_b + ρ_oracle·(s(gold)−m_b) with ρ_oracle ≫ ρ_World+ (stronger, oracle-controlled).
+- Run ρ_oracle ∈ {1.5, 3, 10} on hotpotqa/musique/nq_rear SF+SPLADE.
+- Metrics: MRR(CombSUM), MRR(RRF), ΔMRR vs orig, per ρ_oracle; invariance assert (RRF ranks identical).
+- Compare oracle curve vs World+ (SPLADE-real) curve — if oracle ≥ World+ and both > orig, effect = magnitude-utility.
+
+### Hypotheses
+- **H11**: CombSUM MRR increases monotonically with ρ_oracle; RRF flat (invariance holds). Oracle curve dominates or matches World+ → the useful signal is relevance-aligned separation, not SPLADE-specific scale.
+
+### Success criteria
+- [ ] Oracle world (ρ_oracle grid) implemented; RRF invariant.
+- [ ] MRR(CombSUM) monotonic in ρ_oracle on ≥1 discriminating dataset.
+- [ ] V5 §6.6 + Appendix: oracle vs World+ comparison; answers "controlled magnitude" request.
+
+---
+
+## Item 12 — Statistical robustness / effect sizes (Tier-2, #9 / #18)
+
+**Source:** SIGIR-Final-Reviews.md #18 (Paired effect size) + Tier-2 #9.
+**V5 anchor:** Item 1 already reports bootstrap CI + Wilcoxon + d_z. This item *consolidates* all experiments' effect sizes into one audit table (Appendix J) and adds permutation-test cross-check.
+
+### Objective
+Produce a single consolidated effect-size table across all experiments (Item 1 World±, Item 2 ΔMRR, Item 4 decomposition, Item 6 normalization, Item 9 margin) with ΔMRR, CI, p, Holm-p, d_z, and a permutation-test cross-check — the "statistical robustness" the reviewer wants in Appendix J.
+
+### SPEC — new `scripts/effect_size_consolidation.py`
+- Load each experiment's per-query stats JSON from `appendix_stats/`.
+- For each contrast compute: mean ΔMRR, bias-corrected bootstrap 95% CI (B=10000, seed=42), Wilcoxon p, Holm-corrected p across the family, paired d_z.
+- Permutation test (shuffle query labels, 5000 reps) as a leakage cross-check on the key contrast (CombSUM−RRF).
+- Emit `appendix_stats/effect_size_consolidation.{json,md}` + Appendix J table.
+
+### Hypotheses
+- **H12**: All key contrasts retain CI excluding zero after Holm correction; permutation p < 0.05; d_z reported for every contrast (no "significant" without effect size).
+
+### Success criteria
+- [ ] Consolidated table: every experiment × contrast with ΔMRR/CI/p/Holm-p/d_z.
+- [ ] Permutation cross-check on CombSUM−RRF.
+- [ ] V5 Appendix J populated; resolves #18/#9.
+
+---
+
+## Item 13 — Candidate-pool sensitivity (Tier-2, #10 / #33)
+
+**Source:** SIGIR-Final-Reviews.md #33 (candidate-set construction) + Tier-2 #10.
+**V5 anchor:** §3/§4 methodology. This item (a) documents the 9 candidate-set facts in a dedicated subsection and (b) runs a pool-size sensitivity script.
+
+### Objective
+Defend against the reviewer's "second-largest methodological weakness": artificial candidate pools. (a) Document source/distractors/guarantee/gold/pool-size/per-retriever in V5 §3. (b) Sensitivity script: re-fuse on truncated candidate pools (top-K by union rank, K ∈ {20, 50, 100, full}) and report MRR(CombSUM/RRF) stability — shows results aren't an artifact of pool construction.
+
+### SPEC — new `scripts/candidate_pool_sensitivity.py`
+- For each dataset/pair n=100 trace, build candidate pools of size K by taking the union of top-K docs from each signal.
+- Recompute MRR(CombSUM), MRR(RRF), ΔMRR per K; report stability across K.
+- Emit `appendix_stats/candidate_pool_sensitivity.{json,md}` + figure.
+- V5 §3 new subsection "Candidate-set construction" answering the 9 points from #33.
+
+### Hypotheses
+- **H13**: ΔMRR(CombSUM−RRF) is stable across pool sizes K ≥ 50 (effect not a pool-size artifact); if it shifts, document the regime.
+
+### Success criteria
+- [ ] Pool-size sensitivity table + figure for ≥2 datasets.
+- [ ] V5 §3 candidate-set subsection (9 points answered).
+- [ ] Resolves #33/#10.

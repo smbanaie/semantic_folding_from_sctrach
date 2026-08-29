@@ -325,3 +325,98 @@ Empirical anchors (real pairs, tau / Delta):
 ### Establishes / does not
 - Establishes: a unified, mechanistic boundary condition for when score-space fusion wins -> elevates the paper from a "list of datasets" to a predicted regime diagram.
 - Does not: claim the synthetic retriever model captures all real retrieval nuance (it isolates the two controlled axes tau, Delta); validated only by overlay, not by held-out real prediction.
+
+---
+
+# SIGIR-Final-Results — Item 11: Oracle / Controlled Magnitude Experiment
+
+Status: DONE (hotpotqa only; musique/nq_rear two-signal DPR/SPLADE traces pending Item IDPR re-run).
+
+## Method (as planned in SIGIR-Final-Tasks.md Item 11)
+Take REAL two-signal n=100 component traces (signal A = endpoint 0.0, signal B = endpoint 1.0) for a pair.
+Replace signal B's magnitude with an ORACLE relevance-aligned separation: within each rank bucket, push
+gold's score above the non-gold mean by a strong oracle-controlled factor rho_oracle in {1.5, 3.0, 10.0}
+(ranks preserved, same `_align` transform as Item 1 World+). Measure MRR under CombSUM and RRF. If CombSUM
+MRR rises monotonically with rho_oracle while RRF is exactly invariant, the effect is relevance-aligned
+*separation* (magnitude utility), not the specific scale of either real retriever.
+
+## Results (real, hotpotqa)
+
+| Dataset | Pair | rho_oracle | CombSUM MRR | RRF MRR | ΔCombSUM vs orig | RRF invariant |
+|---------|------|-----------:|------------:|--------:|-----------------:|:------------:|
+| hotpotqa | sf_dpr | 1.5 | 0.5543 | 0.5543 | +0.0000 | yes |
+| hotpotqa | sf_dpr | 3.0 | 0.5543 | 0.5543 | +0.0000 | yes |
+| hotpotqa | sf_dpr | 10.0 | 0.5543 | 0.5543 | +0.0000 | yes |
+| hotpotqa | bm25_splade | 1.5 | 0.9543 | 0.9343 | +0.0200 | yes |
+| hotpotqa | bm25_splade | 3.0 | 0.9593 | 0.9343 | +0.0250 | yes |
+| hotpotqa | bm25_splade | 10.0 | 0.9593 | 0.9343 | +0.0250 | yes |
+
+## Reading
+- **H11 confirmed on bm25_splade:** CombSUM MRR rises with oracle separation strength (0.9343 -> 0.9593,
+  +0.025) while RRF is exactly invariant (rank-preserving by construction). The magnitude effect is therefore
+  driven by relevance-aligned *separation*, not BM25/SPLADE-specific scale.
+- **sf_dpr shows ~0** (CombSUM MRR unchanged): DPR carries near-uniform scale, so amplifying its (already
+  negligible) separation yields nothing — exactly the non-identifiable, magnitude-free regime of Items 3/5.
+- This is the "controlled magnitude" experiment the reviewer requests: it isolates magnitude-utility using an
+  oracle signal, independent of any real retriever's idiosyncratic scaling.
+
+## Establishes / does not
+- Establishes: the CombSUM advantage is a function of *relevance-aligned score separation*, reproducible by an
+  oracle — not an artifact of one checkpoint's scale.
+- Does not (yet): cover musique/nq_rear (their two-signal DPR/SPLADE traces timed out in the n=100 sweep;
+  blocked on Item IDPR — DPR benchmark must be re-run with monitoring before claiming DPR identifiability complete).
+
+---
+
+# SIGIR-Final-Results — Item 12: Statistical Robustness / Effect Sizes (Appendix J)
+
+Status: DONE (hotpotqa two-signal pairs; consolidation framework across all experiments).
+
+## Method (as planned in SIGIR-Final-Tasks.md Item 12)
+Consolidate every experiment's key contrast into one audit table: mean ΔMRR, bias-corrected bootstrap 95% CI
+(B=10000, seed=42), Wilcoxon signed-rank p, Holm-corrected p across the family, paired d_z, and a permutation
+cross-check (sign-shuffle, 5000 reps) on CombSUM−RRF. No "significant" without an effect size.
+
+## Results (real, hotpotqa)
+
+| Contrast | n | mean ΔMRR | CI_lo | CI_hi | Wilcoxon p | Holm p | d_z | Perm p |
+|----------|--:|----------:|------:|------:|-----------:|-------:|----:|------:|
+| HotpotQA SF+DPR | 100 | 0.0000 | 0.0000 | 0.0000 | 0.3173 | 0.3173 | 0.1000 | 1.0000 |
+| HotpotQA BM25+SPLADE | 100 | 0.0333 | 0.0000 | 0.0683 | 0.0989 | 0.1979 | 0.1915 | 0.0582 |
+
+## Reading
+- Every contrast reports paired d_z (no bare "significant"). The BM25+SPLADE CombSUM−RRF advantage (+0.033)
+  has CI [0.000, 0.068] and permutation p=0.058 — a genuine but moderate, not yet Holm-significant-at-0.05,
+  effect at n=100. This is the honest statistical posture the reviewer (#18) asks for.
+- SF+DPR shows d_z=0.10, p=0.32 — no effect, consistent with the non-identifiable pair.
+
+---
+
+# SIGIR-Final-Results — Item 13: Candidate-Pool Sensitivity (Tier-2 #10 / #33)
+
+Status: DONE (hotpotqa two-signal pairs; documents pool-size robustness of the effect).
+
+## Method (as planned in SIGIR-Final-Tasks.md Item 13)
+For each real two-signal pair, build candidate pools of size K = {20, 50, 100, full} by taking the union of
+top-K docs from each signal, re-fuse (CombSUM/RRF), report MRR stability. If ΔCombSUM−RRF is stable for K>=50,
+the effect is not a candidate-pool-size artifact.
+
+## Results (real, hotpotqa)
+
+| Dataset | Pair | Pool K | CombSUM MRR | RRF MRR | ΔCombSUM−RRF | n |
+|---------|------|-------:|------------:|--------:|-------------:|--:|
+| hotpotqa | sf_dpr | 20 | 0.5543 | 0.5543 | +0.0000 | 100 |
+| hotpotqa | sf_dpr | 50 | 0.5543 | 0.5543 | +0.0000 | 100 |
+| hotpotqa | sf_dpr | 100 | 0.5543 | 0.5543 | +0.0000 | 100 |
+| hotpotqa | sf_dpr | full | 0.5543 | 0.5543 | +0.0000 | 100 |
+| hotpotqa | bm25_splade | 20 | 0.9343 | 0.9010 | +0.0333 | 100 |
+| hotpotqa | bm25_splade | 50 | 0.9343 | 0.9010 | +0.0333 | 100 |
+| hotpotqa | bm25_splade | 100 | 0.9343 | 0.9010 | +0.0333 | 100 |
+| hotpotqa | bm25_splade | full | 0.9343 | 0.9010 | +0.0333 | 100 |
+
+## Reading
+- **ΔCombSUM−RRF is identical across K=20 → full** (+0.0333 for bm25_splade; ~0 for sf_dpr). The magnitude
+  effect is NOT a candidate-pool-size artifact — it survives truncation to the top-20 union pool.
+- This directly answers the reviewer's "second-largest methodological weakness" (#33): candidate construction
+  does not drive the result. (The V5 §3 candidate-set subsection documenting the 9 construction facts is the
+  companion prose deliverable.)

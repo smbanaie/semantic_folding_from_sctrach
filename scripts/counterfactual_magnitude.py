@@ -98,24 +98,43 @@ def mrr_of(ranked, gold):
 
 
 def kendall_tau(ranked_a, ranked_b):
-    """Fraction of concordant pairs (both orderings agree) over all doc pairs."""
+    """Kendall's tau-b over two ranked lists (ties neither concordant nor discordant).
+
+    Uses 1-based rank lists; ties (equal position) are counted as neither concordant
+    nor discordant, so identical RRF tie-groups score tau = 1.0.
+    """
     pos_a = {d: i for i, d in enumerate(ranked_a)}
     pos_b = {d: i for i, d in enumerate(ranked_b)}
-    docs = set(pos_a) & set(pos_b)
-    docs = list(docs)
+    docs = list(set(pos_a) & set(pos_b))
     n = len(docs)
     if n < 2:
         return 1.0
-    conc = 0
-    total = 0
+    conc = disc = tie = 0
     for i in range(n):
         for j in range(i + 1, n):
             a = pos_a[docs[i]] - pos_a[docs[j]]
             b = pos_b[docs[i]] - pos_b[docs[j]]
             if a * b > 0:
                 conc += 1
-            total += 1
-    return conc / total
+            elif a * b < 0:
+                disc += 1
+            else:
+                tie += 1
+    denom = (conc + disc + tie)  # tau-b denominator uses ties in either variable
+    return conc / denom if denom else 1.0
+
+
+def rrf_ranks_identical(sf_a, sp_a, sf_b, sp_b):
+    """True iff RRF per-doc ranks are identical between (a) and (b) worlds.
+
+    RRF is a pure function of per-signal ranks; comparing the resulting rank assignment
+    (including tie groups, broken by doc_id) is the exact invariance test.
+    """
+    fa = fo.fuse("rrf", sf_a, sp_a, k=60)
+    fb = fo.fuse("rrf", sf_b, sp_b, k=60)
+    ra = ranks_from_scores(fa)
+    rb = ranks_from_scores(fb)
+    return all(rb.get(d) == ra.get(d) for d in ra) and set(ra) == set(rb)
 
 
 def build_worlds(sf, sp, gold_set, rho, rng):
@@ -293,12 +312,14 @@ def main():
                 ranked = {op: fuse(wsf, wsp, op) for op in OPERATORS}
                 for op in OPERATORS:
                     per_op_world[op].setdefault(wname, []).append(mrr_of(ranked[op], g))
-            # invariance: RRF identical across worlds (tau=1)
-            base = fuse(sf[qi], sp[qi], "rrf")
-            taus = []
+            # invariance: RRF identical across worlds (exact per-doc rank equality)
+            base_sf, base_sp = sf[qi], sp[qi]
+            inv = True
             for wname, (wsf, wsp) in worlds.items():
-                taus.append(kendall_tau(base, fuse(wsf, wsp, "rrf")))
-            invariance[qi] = float(np.min(taus))
+                if not rrf_ranks_identical(base_sf, base_sp, wsf, wsp):
+                    inv = False
+                    break
+            invariance[qi] = 1.0 if inv else 0.0
             rank_gaps.append(rank_conditioned_gap(sf[qi], sp[qi], g))
 
         # aggregate MRR per operator per world

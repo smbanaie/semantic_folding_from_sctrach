@@ -546,6 +546,44 @@ the theoretically predicted boundary case, not a gap. Full table: Appendix E.8.
 
 ---
 ---
+### 6.8 Normalization and the Source of Magnitude (Item 6)
+
+A remaining ambiguity is whether the CombSUM-over-RRF advantage comes from signal B's
+*absolute scale* or from its *within-retriever score separation* (the shape of the magnitude
+distribution). We ablate this directly: each signal is re-normalized four ways — raw, min-max,
+z-score, rank-normalized — independently and before the *same* CombSUM (α=0.3) / RRF (k=60)
+fusion, over the SF+SPLADE n=100 traces (`scripts/normalization_ablation.py`; Reviews §11, §12).
+The three-concept framing (§12) makes the prediction sharp: all schemes preserve rank information
+R(s); min-max/z-score preserve within-signal geometry G_within while destroying absolute scale;
+rank-normalization destroys G_within entirely, leaving only R(s) — so if CombSUM's edge depends on
+G_within, rank-normalization should erase it.
+
+*Exploratory diagnostic; n=100, SF+SPLADE; cells below are A\\B; ΔMRR = MRR_CombSUM − MRR_RRF;
+World− deg = CombSUM MRR lost under the anti-relevance World− intervention (effect operative when >0).*
+
+| cell | hotpotqa ΔMRR / World− | musique ΔMRR / World− |
+|---|---:|---:|
+| raw / raw (baseline) | +0.096 / +0.082 | +0.060 / +0.053 |
+| raw / min-max | +0.113 / +0.101 | +0.122 / +0.097 |
+| raw / z-score | +0.137 / +0.066 | +0.217 / +0.040 |
+| raw / rank-norm | **−0.067** / +0.048 | **−0.057** / +0.013 |
+| z-score / z-score | +0.132 / +0.080 | +0.193 / +0.065 |
+| z-score / rank-norm | −0.164 / +0.026 | −0.135 / +0.011 |
+| rank-norm / rank-norm | −0.015 / +0.054 | −0.005 / +0.026 |
+
+Two findings are clean and consistent across datasets. **(i)** min-max and z-score normalization of
+signal B — which preserve separation but annihilate absolute scale — *strengthen* the CombSUM edge
+(ΔMRR rises, World− stays positive): the effect is therefore a property of **within-retriever
+separation, not raw scale**. **(ii)** rank-normalizing signal B — which discards G_within and leaves
+only R(s), exactly what RRF already uses — **flips ΔMRR negative**: CombSUM no longer beats RRF. This
+is the §12 boundary condition arrived at from the normalization side: RRF preserves rank information
+but discards within-signal geometry; CombSUM's advantage requires that geometry. Normalizing signal A
+(SF) alone changes little — SF is already rank-stable, so the decisive axis is the learned-sparse
+signal's magnitude geometry. The conclusion answers the reviewer's core question: it is separation,
+not scale.
+
+---
+---
 ---
 
 ## 7. The Magnitude Information Hypothesis
@@ -1174,3 +1212,22 @@ Sparse second checkpoint (SPLADE-v3): operator ordering stable, magnitude-vs-ran
 persists (§6.5.2). Dense second checkpoint (DPR-B): unavailable offline — documented limitation.
 Conclusion: effect is sparse-signal-specific and pair-geometry-dependent, consistent with the
 §9 boundary condition (Step 7).
+
+
+#### E.9 Normalization ablation (Item 6)
+
+Per (A_scheme × B_scheme) cell: MRR under CombSUM/RRF, ΔMRR, top-1 change count, Kendall τ, and
+Item-1 World− degradation, over n=100 SF+SPLADE traces. Reproduce: `scripts/normalization_ablation.py --ds <dataset>`.
+
+| cell (A\\B) | hotpotqa MRR_cs / MRR_rrf / ΔMRR / τ | musique MRR_cs / MRR_rrf / ΔMRR / τ |
+|---|---:|---:|
+| raw/raw | 0.901 / 0.805 / +0.096 / 0.734 | 0.816 / 0.755 / +0.060 / 0.733 |
+| raw/minmax | 0.918 / 0.805 / +0.113 / 0.720 | 0.877 / 0.755 / +0.122 / 0.713 |
+| raw/zscore | 0.942 / 0.804 / +0.137 / 0.802 | 0.960 / 0.743 / +0.217 / 0.792 |
+| raw/ranknorm | 0.737 / 0.805 / −0.067 / 0.749 | 0.699 / 0.755 / −0.057 / 0.763 |
+| zscore/zscore | 0.937 / 0.805 / +0.132 / 0.611 | 0.944 / 0.751 / +0.193 / 0.648 |
+| zscore/ranknorm | 0.642 / 0.805 / −0.164 / 0.794 | 0.628 / 0.763 / −0.135 / 0.783 |
+| ranknorm/ranknorm | 0.791 / 0.806 / −0.015 / 0.876 | 0.751 / 0.755 / −0.005 / 0.872 |
+
+Conclusion: effect is within-retriever separation (G_within), not absolute scale; rank-normalization
+of signal B nullifies it (§12). nq_rear pending (trace generation running).

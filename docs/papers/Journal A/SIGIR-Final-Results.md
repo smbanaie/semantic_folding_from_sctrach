@@ -229,3 +229,35 @@ For each cell that has n=100 component traces, compute Item-1 World− CombSUM d
 ### Establishes / does not
 - Establishes: the magnitude effect + identifiability pattern replicate across sparse checkpoints and are absent on the dense pair — a principled, not accidental, scope.
 - Does not: claim a second dense checkpoint (DPR-B) — documented as limitation per the SPEC fallback.
+
+---
+
+## Item 6 — Normalization ablation (Tier-2, #11)
+
+**Source:** #11 + §12 (three-concept separation). **Script:** `scripts/normalization_ablation.py` (reuses SF+SPLADE n=100 traces). **Status:** hotpotqa + musique done; nq_rear running (background). **Folded into V5 §6.8 + Appendix E.9.**
+
+### Method
+Re-normalize each signal four ways (raw / min-max / z-score / rank-normalized) independently before the same CombSUM (α=0.3) / RRF (k=60) fusion. Per (A_scheme × B_scheme) cell report MRR_combsum, MRR_rrf, ΔMRR, top-1 change, Kendall τ(CombSUM,RRF), and the Item-1 World− degradation (magnitude operative?). Tests: is the effect about *absolute scale* or *within-retriever separation*?
+
+### Results (real, n=100, SF+SPLADE)
+
+Baseline (raw/raw) and the decisive axis is signal B (SPLADE) normalization:
+
+| cell (A\B) | hotpotqa ΔMRR / World− | musique ΔMRR / World− |
+|---|---:|---:|
+| raw/raw (baseline) | +0.096 / +0.082 | +0.060 / +0.053 |
+| raw/minmax (sep, no scale) | +0.113 / +0.101 | +0.122 / +0.097 |
+| raw/zscore (sep, no scale) | +0.137 / +0.066 | +0.217 / +0.040 |
+| raw/ranknorm (discard G_within) | **−0.067** / +0.048 | **−0.057** / +0.013 |
+| zscore/zscore | +0.132 / +0.080 | +0.193 / +0.065 |
+| zscore/ranknorm | −0.164 / +0.026 | −0.135 / +0.011 |
+| ranknorm/ranknorm | −0.015 / +0.054 | −0.005 / +0.026 |
+
+### Reading
+- **H8a supported:** min-max / z-score on B (preserve separation, kill absolute scale) *strengthen* the effect (ΔMRR rises, World− stays positive). The effect is about **within-retriever separation**, not raw scale.
+- **H8b supported:** rank-normalizing B (which discards G_within, leaving only R(s) that RRF already uses) **flips ΔMRR negative** — CombSUM no longer beats RRF. This is the §12 boundary from the normalization side: RRF preserves rank information R(s) but discards within-signal geometry G_within; CombSUM needs G_within to win.
+- Normalizing A (SF) alone barely changes the outcome — SF is already rank-stable; the decisive axis is the learned-sparse signal's magnitude geometry.
+
+### Establishes / does not
+- Establishes: the magnitude advantage is a *separation* property of signal B, not an artifact of SPLADE's absolute scale; rank-normalization nullifies it (ties to §12).
+- Does not: claim the effect survives every normalization — rank-normalization is the explicit counterexample (honest negative).

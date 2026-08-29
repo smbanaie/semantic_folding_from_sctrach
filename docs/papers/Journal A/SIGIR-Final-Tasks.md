@@ -79,7 +79,7 @@ This guarantees `rank(s') == rank(s)` per retriever, so RRF (rank-only) output i
 - Per dataset: MRR (RRF, CombSUM) for worlds A–E; paired bootstrap 95% CI (10k resamples, seed=42) on `MRR_World+ − MRR_orig` and `MRR_orig − MRR_World−`.
 - Two-sided Wilcoxon signed-rank on per-query ΔRR between World+ and orig, and orig vs World−.
 - Report effect sizes `d_z` (§18).
-- **Invariance check:** assert `KendallTau(RRF_A, RRF_E) == 1.0` (RRF identical) — hard proof ranks unchanged.
+- **Invariance check (FIXED):** assert RRF **per-doc ranks are exactly identical** across worlds A–E (`rrf_ranks_identical` → True for every query). Initial implementation used Kendall τ==1.0, but RRF produces tied scores for same-rank docs, so τ-b (ties counted as neither concordant nor discordant) is required; the exact-rank-equality check is the rigorous invariant. Verified: all 4 datasets report invariance = 1.0.
 
 ## 4. Scope / datasets & pairs
 

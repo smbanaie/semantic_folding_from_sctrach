@@ -134,3 +134,38 @@ Pooled R²=0.242. No feature CI excludes zero (38 queries, 8 correlated features
 .venv/Scripts/python scripts/geometry_predictor.py --n 100   # when all n=100 traces ready
 ```
 Outputs: `appendix_stats/geometry_predictor_n{N}.{json,md}`.
+
+---
+
+## Item 3 — Operator identifiability (Tier-1, #38-3)
+
+**Source:** Reviews §9 (lines 415–462) + #38-3. **Script:** `scripts/operator_identifiability.py`. **Status:** SF+SPLADE implemented and run (n=10 + n=100 hotpotqa). Other pairs (SF+DPR, BM25+SPLADE, BM25+DPR) need their component traces — not yet generated (see note below).
+
+### Method
+For each operator pair, over N queries: `I_global = #{F_A≠F_B}/N`, `I_k = #{Top_k(F_A)≠Top_k(F_B)}/N` (k∈{1,5,10}), `I_1 = #{argmax differ}/N`, plus per-query Kendall τ and P(τ=1).
+
+### Results — SF+SPLADE, hotpotqa
+
+| operator pair | I_global | I_1 | I_5 | I_10 | mean τ | P(exact) |
+|---|---:|---:|---:|---:|---:|---:|
+| rrf vs combsum (n=100) | 1.000 | 0.290 | 0.580 | 0.570 | — | 0.000 |
+| rrf vs combmnz (n=100) | 1.000 | 0.290 | 0.580 | 0.570 | — | 0.000 |
+| **combsum vs combmnz (n=100)** | **0.000** | **0.000** | **0.000** | **0.000** | — | **1.000** |
+| rrf vs linear (n=100) | 1.000 | 0.360 | 0.700 | 0.530 | — | 0.000 |
+| combsum vs linear (n=100) | 1.000 | 0.090 | 0.520 | 0.520 | — | 0.000 |
+
+(n=10 values are directionally identical: rrf_vs_combsum I_1=0.300; combsum_vs_combmnz I_global=0.000/P(exact)=1.000.)
+
+### Reading
+- **CombSUM and CombMNZ are perfectly non-identifiable on SF+SPLADE (I_global=0, P(exact)=1.0): they return the identical ranking on every query.** CombMNZ adds no information over CombSUM here — a clean, citable finding that simplifies the operator story.
+- **RRF diverges from the score-space operators at top-1 in ~29–36% of queries** (I_1=0.29–0.36) → the operators are *identifiable* exactly where the magnitude effect lives, supporting the §9 claim that "if I_1≈0 the comparison is meaningless" — and conversely that where I_1>0 the comparison is real (SF+SPLADE multi-hop is such a regime).
+- I_global=1.0 everywhere means total-order differences exist on essentially every query, but the decisive disagreement is concentrated at top-1/top-5 (I_1<I_5), i.e. at the decision boundary — consistent with Item 2/4's boundary narrative.
+
+### Prerequisite for the full §9 table
+The cross-pair table (SF+DPR, BM25+SPLADE, BM25+DPR) requires those pairs' component traces, which are not yet generated. The benchmark runs exist (V5 §6.5) but per-query component scores must be extracted (extend `gen_component_traces_n100.py` to those pairs). Until then only SF+SPLADE is reported; the SF+DPR "rankings collapse (0.611=0.611)" claim from §6.5 already pre-figures the expected I_1≈0 there.
+
+### Reproduction
+```
+.venv/Scripts/python scripts/operator_identifiability.py --n 100 --ds hotpotqa --pair sf_splade
+```
+Outputs: `appendix_stats/operator_identifiability_sf_splade_hotpotqa_n100.{json,md}`.

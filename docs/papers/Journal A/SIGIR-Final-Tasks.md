@@ -119,11 +119,90 @@ Also run on **BM25+SPLADE** and **SF+DPR** if their n=100 component traces are a
 
 ---
 
-## Queue (NOT this turn — for subsequent items after user confirms V5 update)
+## Queue (remaining, post-Item-2)
 
 - **Item 3** — Operator identifiability (§9; formalize I_global/Top-k/Top-1 table).
-- **Item 4** — Top-rank ΔRR decomposition (§8; extend to distribution table).
-- **Item 5** — Extra sparse + dense checkpoint (§13/#38-5; SPLADE-B, DPR-B) for generality.
+- **Item 4** — Top-rank ΔRR decomposition (#38-4; why a few queries drive MRR diff).
+- **Item 5** — Extra sparse + dense checkpoint (#38-5; SPLADE-v3 exists in §6.5.2, add 2nd dense).
+
+---
+
+## Item 3 — Operator identifiability (Tier-1, #38-3)
+
+**Source:** SIGIR-Final-Reviews.md §9 (lines 415–462) + #38-3 (line 1563). "Formalize it" — turn the concept into the I_global / I_k / I_1 table across retriever pairs.
+**V5 anchor:** §6.6.1 Operator Identifiability already exists (descriptive); this item makes it quantitative + adds the cross-pair table.
+
+### Objective
+Show that on some retriever pairs the two fusion operators are *non-identifiable* (they return the same ranking for almost every query), which is exactly where the magnitude-effect "disappears" — explaining why some fusion comparisons are meaningless (the §9 argument: if I_1 ≈ 0, arguing RRF vs CombSUM is moot for MRR).
+
+### SPEC — new script `scripts/operator_identifiability.py`
+For each retriever pair (SF+SPLADE, SF+DPR, BM25+SPLADE, BM25+DPR) and each operator pair (RRF vs CombSUM, RRF vs CombMNZ, CombSUM vs CombMNZ):
+- `I_global = #{q: F_A(q) ≠ F_B(q)} / N` (full ranking differs)
+- `I_k = #{q: Top_k(F_A) ≠ Top_k(F_B)} / N` for k ∈ {1, 5, 10}
+- `I_1 = #{q: argmax(F_A) ≠ argmax(F_B)} / N`
+Compute Kendall τ(F_A, F_B) per query and report P(τ=1) (exact rank equality).
+Reuse `fuse()` + `mrr_of()` from `counterfactual_magnitude.py` / `geometry_predictor.py` loaders.
+
+### Hypotheses
+- H5a: SF+SPLADE and SF+DPR show low I_1 on multi-hop (operators diverge → effect visible); BM25+DPR / uniform-scale pairs show I_1 ≈ 0 (non-identifiable → effect disappears, matching §9's "meaningless comparison" claim and the §22 negative-results row "SF+DPR: operator non-identifiability").
+- H5b: I_global > I_1 always (total-order differences exist even when top-1 agrees) — characterizes *where* they differ (top-rank vs tail).
+
+### Success criteria
+- [ ] I_global / I_k / I_1 table for ≥4 pairs × ≥3 operator pairs, real numbers.
+- [ ] Kendall τ + P(exact equality) reported.
+- [ ] V5 §6.6.1 upgraded to the quantitative table + Appendix entry.
+
+---
+
+## Item 4 — Top-rank ΔRR decomposition (#38-4)
+
+**Source:** #38-4 (line 1567): "Explains why a small number of queries produce the MRR difference." Paired with the decision-boundary framing (line 1608) and Item 2's Type A–D.
+**V5 anchor:** §7.5 (margin vs error), §7.8 (when RRF discards useful info). This item quantifies *distribution* of the ΔMRR contribution.
+
+### Objective
+Decompose the total CombSUM−RRF MRR gap into per-query contributions and show it is concentrated in a small number of top-rank decision-boundary queries (Type A/B from Item 2), not spread evenly — i.e. the effect is a *boundary* phenomenon, strengthening the causal/decision-boundary narrative.
+
+### SPEC — extend `scripts/geometry_predictor.py` (or new `scripts/toprank_decomposition.py`)
+- For each dataset, compute `ΔRR_q = RR_CombSUM,q − RR_RRF,q` per query; rank queries by |ΔRR_q|.
+- Report: Gini/concentration of ΔRR (top-10% queries' share of total |ΔRR|); count of queries with ΔRR_q = 0 (Type C) vs contributing.
+- Cross-tabulate with Item 2 Type A/B/C/D and with joint_margin bucket (negative-margin regime dominates the contribution).
+- Distribution table: P(ΔRR>0), P(ΔRR<0), P(ΔRR=0); mean ΔRR among contributors.
+
+### Hypotheses
+- H6: ≥80% of the total |ΔMRR| comes from <20% of queries (heavy concentration at the decision boundary). Non-contributing queries (Type C, large positive margin) dominate the count but ~0 the gap.
+
+### Success criteria
+- [ ] Per-dataset ΔRR concentration (top-k% share) + zero-contribution count.
+- [ ] Cross-tab with Type A–D + margin regime.
+- [ ] V5 §7.5/§7.8 updated with the decomposition; feeds the central "decision boundary" figure (§23).
+
+---
+
+## Item 5 — Extra sparse + dense checkpoint for generality (#38-5)
+
+**Source:** SIGIR-Final-Reviews.md §13 (lines 619–636) + #38-5 (line 1571). "One additional sparse + one additional dense checkpoint … 2×2 matrix rather than one checkpoint determining everything."
+**V5 anchor:** §6.5.2 "Second Learned Sparse Checkpoint (SPLADE-v3; Reviewer #18)" ALREADY EXISTS — so the sparse half is partly done. The gap: a **second dense checkpoint** and the formal 2×2 generalization matrix.
+
+### Objective
+Defend generality: show the operator/geometry findings replicate across a *second* sparse checkpoint (SPLADE-v3, in V5) and a *second* dense checkpoint (DPR variant), so the result is not an artifact of one model's idiosyncratic scaling.
+
+### SPEC
+- Sparse: reuse SPLADE-v3 traces from §6.5.2 (confirm n + gold maps exist); if missing, regenerate via `gen_component_traces_n100.py` variant.
+- Dense: add a **second DPR checkpoint** (DPR-B, e.g. a differently trained/initialized DPR or a different dense bi-encoder). MUST confirm availability before implementation — if no second dense checkpoint exists in-repo, this becomes a model-download/generation task (flag: requires user go-ahead + compute).
+- Build the 2×2 matrix: {SPLADE-A, SPLADE-v3} × {DPR-A, DPR-B} (or BM25 as the fixed sparse/dense anchor) and re-run the Item 1 counterfactual + Item 3 identifiability on each cell.
+- Report: does the relevance-aligned-magnitude effect + non-identifiability pattern hold across all four cells? (Generality claim.)
+
+### Hypotheses
+- H7: The magnitude effect (Item 1 World− degradation) and I_1 pattern (Item 3) replicate across the 2×2 cells where signals have heterogeneous scale; collapse on uniform-scale dense pairs — confirming the effect is *pair-geometry-dependent*, not checkpoint-dependent.
+
+### Risks / prerequisites
+- **Blocker:** second dense checkpoint (DPR-B) availability unconfirmed. Need user confirmation + possibly model download. Sparse half (SPLADE-v3) already in V5 §6.5.2.
+- Compute: each new pair needs component traces (reuse `gen_component_traces_n100.py` pattern).
+
+### Success criteria
+- [ ] 2×2 generalization matrix populated with real numbers.
+- [ ] Generality statement in V5 (new §6.7 "Generality across checkpoints" + Appendix).
+- [ ] If DPR-B unavailable, document as a limitation + keep SPLADE-v3 as the single second-checkpoint evidence (honest scoping).
 
 ---
 
@@ -131,7 +210,7 @@ Also run on **BM25+SPLADE** and **SF+DPR** if their n=100 component traces are a
 
 **Source:** SIGIR-Final-Reviews.md §6 (geometry → ΔMRR regression, top-k features) + §7 (winning-query Type A–D).
 **Script:** `scripts/geometry_predictor.py` (reuses Item 1 SF+SPLADE component traces; no re-index).
-**Status:** n=10 complete (4 datasets). n=100 partial: hotpotqa done; musique/nq_rear traces still regenerating (`gen_component_traces_n100.py`, background). Updated when full n=100 lands.
+**Status:** n=10 complete (4 datasets); n=100 hotpotqa done, musique/nq_rear pending generator. n=100 confirmatory run chained to the trace generator via `temp/watch_n100_and_update.py` (background, will commit).
 
 ### Objective
 Show query-level score-geometry features — especially top-k relevance-conditioned margins — predict when CombSUM beats RRF (ΔMRR_q > 0), turning the geometry framework from descriptive to explanatory, and characterize the winning-query population (Type A–D).
@@ -156,4 +235,4 @@ Show query-level score-geometry features — especially top-k relevance-conditio
 - [x] HotpotQA n=100 confirms H4b (Type-A smaller joint_margin).
 - [x] Type A–D decomposition produced.
 - [x] Results in SIGIR-Final-Results.md; only real numbers.
-- [ ] V5 update (§7.9 + Appendix E.6) pending user confirmation.
+- [ ] V5 update (§7.9 + Appendix E.6) pending n=100 confirmatory + user confirmation.

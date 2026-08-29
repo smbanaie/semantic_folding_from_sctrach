@@ -236,3 +236,115 @@ Show query-level score-geometry features — especially top-k relevance-conditio
 - [x] Type A–D decomposition produced.
 - [x] Results in SIGIR-Final-Results.md; only real numbers.
 - [ ] V5 update (§7.9 + Appendix E.6) pending n=100 confirmatory + user confirmation.
+
+---
+
+## Queue (post-Item-5; next 3 planned)
+
+- **Item 6** — Normalization ablation (#11): is it *absolute scale* or *within-retriever separation* that carries the effect? Raw/Min-max/Z-score/Rank-normalized.
+- **Item 7** — Cross-dataset prediction (#14): leave-one-dataset-out classifier — does pre-fusion geometry predict CombSUM > RRF on unseen datasets?
+- **Item 8** — Synthetic phase diagram (#15): τ × Δ heatmap of MRR_CombSUM − MRR_RRF (mechanistic map of fusion behavior).
+
+(Already implemented & committed: Items 1–5. Item 3 full cross-pair table + Item 4/5 V5 folds still pending the background trace generator proc_73f6dfb204ff.)
+
+---
+
+## Item 6 — Normalization ablation (Tier-2, #11)
+
+**Source:** SIGIR-Final-Reviews.md §11 (lines 520–566) + §12 (three-concept separation, lines 568–598).
+**V5 anchor:** §6.5.3 already sweeps α (linear weight); this item isolates the *normalization* of each signal's magnitudes before fusion — the confound the reviewer flags ("is it absolute scale or within-retriever separation?").
+
+### Objective
+Disentangle two rival explanations of the magnitude effect: (a) absolute-score *scale* of signal B, vs (b) *within-retriever score separation* (the shape of the magnitude distribution). By re-normalizing each signal four ways *before* the same CombSUM/RRF fusion, we test which normalization regime preserves the relevance-aligned-magnitude advantage.
+
+### SPEC — new script `scripts/normalization_ablation.py`
+Reuse the existing SF+SPLADE n=100 component traces (`*_sf_splade_comp_*.json`). For each query, transform signal B (SPLADE) and/or signal A (SF) independently via four schemes, then recompute MRR under CombSUM and RRF:
+- **Raw**: s as-is (current behaviour).
+- **Min-max**: (s − min)/(max − min) per query.
+- **Z-score**: (s − μ)/σ per query.
+- **Rank-normalized**: replace score by percentile rank.
+Hold the fusion operator fixed (CombSUM α=0.3, RRF k=60). Metrics per (normalization_A × normalization_B) cell:
+- MRR (CombSUM, RRF), ΔMRR = MRR_CombSUM − MRR_RRF.
+- top-1 change count; Kendall τ(CombSUM, RRF).
+- Re-run the Item-1 World− intervention under each cell to see whether the magnitude effect (World− degradation) survives normalization.
+Also report the three-concept framing (§12): rank information R(s) preserved by all; within-signal geometry G_within altered by normalization; cross-signal calibration G_cross changed.
+
+### Hypotheses
+- **H8a**: The effect (CombSUM > RRF, positive World− degradation) persists under Min-max and Z-score (these preserve *separation* but kill *absolute scale*) → confirms the effect is about **within-retriever separation**, not raw scale.
+- **H8b**: Rank-normalized collapses CombSUM and RRF to near-identical rankings (I_1 ≈ 0) — because rank-normalization discards G_within entirely, leaving only R(s), which RRF already uses → predicts the §9 "non-identifiable" boundary from the normalization side.
+
+### Risks / prerequisites
+- No new traces needed (reuses SF+SPLADE n=100). Pure offline re-normalization + re-fusion → fast.
+- Edge case: σ=0 queries (degenerate) → skip or add tiny epsilon.
+
+### Success criteria
+- [ ] 4×4 normalization cell matrix (or the 4 single-signal schemes) with real MRR/ΔMRR/τ.
+- [ ] World− degradation reported per cell (effect survives vs dies).
+- [ ] V5 new §6.8 "Normalization and the source of magnitude" + Appendix E.9; ties to §12 three-concept terminology.
+- [ ] Answers the reviewer's core question explicitly: scale vs separation.
+
+---
+
+## Item 7 — Cross-dataset prediction (Tier-2, #14)
+
+**Source:** SIGIR-Final-Reviews.md §14 (lines 640–704). "Elevate the paper considerably."
+**V5 anchor:** §6.6.5 already builds geometry features + a (underpowered) leave-one-*dataset*-out logistic predictor on n=10. This item scales it to n=100, adds AUROC/AUPRC/CIs, and removes the "too few divergent queries" weakness.
+
+### Objective
+Test whether pre-fusion geometry *predicts* the winning operator family (CombSUM > RRF) on **unseen datasets** — the generalization claim the n=10 study admitted it couldn't support. Use leave-one-dataset-out (LODO), never random query split (avoids dataset-characteristic leakage).
+
+### SPEC — extend `scripts/geometry_predictor.py` (new `cross_dataset_predict.py`)
+- Label Y_q = 1 if RR_CombSUM,q > RR_RRF,q else 0, per query, over all n=100 traces (hotpotqa, musique, nq_rear; add SciFact/2Wiki if traces exist).
+- Features: the 21 geometry features from §6.6.5 (9 per signal + 3 pair features).
+- LODO: train on all datasets but one, test on the held-out; rotate. Classifiers: logistic regression + decision tree (keep simple per §17 — no XGBoost/LightGBM to avoid statistical-attack surface).
+- Metrics: AUROC, AUPRC, accuracy, calibration (reliability curve), bootstrap 95% CI (B=10000, seed=42) on pooled LODO predictions.
+- Report per-held-out-dataset AUROC + the pooled estimate.
+
+### Hypotheses
+- **H9**: LODO AUROC > 0.5 (geometry generalizes to unseen datasets); modest but significant AUROC (~0.6–0.7) is a *major* contribution vs the current "cannot support" admission.
+- Null/limitation: if AUROC ≈ 0.5, report honestly as a negative result (feeds §22) and keep the per-dataset (not cross-dataset) finding.
+
+### Risks / prerequisites
+- Needs n=100 component traces for ≥3 datasets (hotpotqa/musique/nq_rear available from Items 1–5; SciFact/2Wiki need regen — optional).
+- Underpowered if divergent queries (Y=1) are few per dataset → report base rate + AUPRC, not just accuracy.
+
+### Success criteria
+- [ ] LODO AUROC/AUPRC/accuracy + CIs for ≥3 datasets.
+- [ ] Calibration reported; leakage explicitly ruled out (LODO, not random split).
+- [ ] V5 §6.6.5 upgraded with the cross-dataset result + Appendix E.10; resolves the current "too few observations" honest weakness.
+
+---
+
+## Item 8 — Synthetic phase diagram (Tier-3, #15)
+
+**Source:** SIGIR-Final-Reviews.md §15 (lines 706–753). "Relatively cheap and conceptually powerful."
+**V5 anchor:** new; gives a *mechanistic map* of fusion behavior — the central figure the reviewer asks for in §23.
+
+### Objective
+Build two synthetic retrievers with *controlled* parameters — rank correlation τ ∈ [−1,1] and score-margin difference Δ — and map MRR_CombSUM − MRR_RRF across the (τ, Δ) plane. This isolates the regimes where magnitude-aware fusion helps, hurts, or is neutral, independent of any real corpus.
+
+### SPEC — new script `scripts/synthetic_phase_diagram.py`
+- Generate, per (τ, Δ) cell on a grid (τ ∈ {−0.9,…,0.9}, Δ ∈ {0, 0.25, 0.5, 1, 2}):
+  - Retriever A scores: a relevance-aligned base (gold docs high) + noise.
+  - Retriever B scores: constructed to have target Kendall τ with A's *ranking* and target score-margin Δ vs A.
+  - A fixed gold set per query (e.g. top-1 or top-3 of a latent relevant ranking).
+- Compute MRR under CombSUM and RRF; record ΔMRR = MRR_CombSUM − MRR_RRF.
+- Aggregate over many synthetic queries per cell (seeded); produce a heatmap (τ × Δ) of mean ΔMRR.
+- Validate against real data: overlay the empirical (τ, Δ) of the real SF+SPLADE vs SF+DPR pairs to show the diagram *explains* why SF+SPLADE helps and SF+DPR doesn't.
+
+### Hypotheses
+- **H10**: ΔMRR > 0 (CombSUM helps) requires BOTH high τ (retrievers agree on ranking) AND positive Δ (SF carries larger magnitude separation on gold) — i.e. the effect lives in a specific (τ, Δ) quadrant, matching the real SF+SPLADE location; low-τ or zero-Δ cells show ΔMRR ≈ 0 or negative.
+- This mechanistically recovers Items 3/5: SF+DPR sits in a zero-Δ / non-identifiable cell → effect absent.
+
+### Risks / prerequisites
+- Synthetic generator must reproduce the *real* τ/Δ of SF+SPLADE & SF+DPR as a validation anchor (use `operator_identifiability.py` / `geometry_predictor.py` feature extractors to get empirical τ, Δ).
+- Pure simulation → fast, no model loads, fully offline.
+
+### Success criteria
+- [ ] (τ, Δ) heatmap of ΔMRR with real-data anchor points overlaid.
+- [ ] Regime description: where magnitude-aware fusion helps/hurts/neutral.
+- [ ] V5 new §6.9 "A mechanistic phase diagram of fusion" + the heatmap as a central figure (feeds §23 one-central-figure request); Appendix E.11 with the grid values.
+
+---
+
+*Items 9+ candidates (not yet specced): #10 Candidate-set intervention (pool difficulty N∈{10,20,50,100,200,500} × distractor type → ΔMRR), #20 causal-language tightening, #21 SF-role clarification, #22 negative-results table. Available on request.*

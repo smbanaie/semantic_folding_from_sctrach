@@ -1,0 +1,52 @@
+{
+  "pair": "bm25_splade",
+  "dataset": "hotpotqa",
+  "sample_size": 100,
+  "table": {
+    "rrf_vs_combsum": {
+      "n": 100,
+      "I_global": 1.0,
+      "I_1": 0.1,
+      "I_5": 0.4,
+      "I_10": 0.41,
+      "mean_kendall_tau": 0.736927432860992,
+      "P_exact_rank_equal": 0.0
+    },
+    "rrf_vs_combmnz": {
+      "n": 100,
+      "I_global": 1.0,
+      "I_1": 0.1,
+      "I_5": 0.4,
+      "I_10": 0.41,
+      "mean_kendall_tau": 0.736927432860992,
+      "P_exact_rank_equal": 0.0
+    },
+    "combsum_vs_combmnz": {
+      "n": 100,
+      "I_global": 0.0,
+      "I_1": 0.0,
+      "I_5": 0.0,
+      "I_10": 0.0,
+      "mean_kendall_tau": 1.0,
+      "P_exact_rank_equal": 1.0
+    },
+    "rrf_vs_linear": {
+      "n": 100,
+      "I_global": 1.0,
+      "I_1": 0.14,
+      "I_5": 0.36,
+      "I_10": 0.42,
+      "mean_kendall_tau": 0.6527603205683323,
+      "P_exact_rank_equal": 0.0
+    },
+    "combsum_vs_linear": {
+      "n": 100,
+      "I_global": 1.0,
+      "I_1": 0.1,
+      "I_5": 0.39,
+      "I_10": 0.42,
+      "mean_kendall_tau": 0.7994832037956736,
+      "P_exact_rank_equal": 0.0
+    }
+  }
+}

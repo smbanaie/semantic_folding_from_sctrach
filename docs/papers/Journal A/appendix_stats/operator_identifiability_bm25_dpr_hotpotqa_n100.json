@@ -1,0 +1,52 @@
+{
+  "pair": "bm25_dpr",
+  "dataset": "hotpotqa",
+  "sample_size": 100,
+  "table": {
+    "rrf_vs_combsum": {
+      "n": 100,
+      "I_global": 0.17,
+      "I_1": 0.0,
+      "I_5": 0.0,
+      "I_10": 0.0,
+      "mean_kendall_tau": 0.9998989898989898,
+      "P_exact_rank_equal": 0.83
+    },
+    "rrf_vs_combmnz": {
+      "n": 100,
+      "I_global": 0.17,
+      "I_1": 0.0,
+      "I_5": 0.0,
+      "I_10": 0.0,
+      "mean_kendall_tau": 0.9998989898989898,
+      "P_exact_rank_equal": 0.83
+    },
+    "combsum_vs_combmnz": {
+      "n": 100,
+      "I_global": 0.0,
+      "I_1": 0.0,
+      "I_5": 0.0,
+      "I_10": 0.0,
+      "mean_kendall_tau": 1.0,
+      "P_exact_rank_equal": 1.0
+    },
+    "rrf_vs_linear": {
+      "n": 100,
+      "I_global": 0.17,
+      "I_1": 0.0,
+      "I_5": 0.0,
+      "I_10": 0.0,
+      "mean_kendall_tau": 0.9998989898989898,
+      "P_exact_rank_equal": 0.83
+    },
+    "combsum_vs_linear": {
+      "n": 100,
+      "I_global": 0.0,
+      "I_1": 0.0,
+      "I_5": 0.0,
+      "I_10": 0.0,
+      "mean_kendall_tau": 1.0,
+      "P_exact_rank_equal": 1.0
+    }
+  }
+}

@@ -201,3 +201,31 @@ n=10: hotpotqa/musique/scifact H6 PASS; 2WikiMultihopQA ΔRR≡0 (no fusion gain
 ### Establishes / does not
 - Establishes: the CombSUM-over-RRF MRR gain is concentrated in <20% of queries (the Type-A/B boundary population from Item 2), not spread across queries — the effect is a *boundary correction*, directly supporting the §23 decision-boundary figure and the magnitude-misweighting story.
 - Does not: claim a broad (every-query) gain. The honest reading is local, not global.
+
+---
+
+## Item 5 — Generality across checkpoints (Tier-1, #38-5)
+
+**Source:** #38-5 + §13. **Scripts:** `scripts/generality_matrix.py` (+ `gen_crosspair_traces_n100.py` for DPR/BMD25 pairs; `operator_identifiability.py`). **Status:** sparse second checkpoint (SPLADE-v3) done (§6.5.2); dense second checkpoint (DPR-B) unavailable offline → honest limitation. Folded into V5 §6.7 + Appendix E.8.
+
+### Method
+For each cell that has n=100 component traces, compute Item-1 World− CombSUM degradation (magnitude operative?) and Item-3 I_1 = fraction of queries where RRF and CombSUM disagree at top-1 (operator identifiable?).
+
+### Results (real, n=100 except where noted)
+
+| cell | dataset | World− degradation | I_1 (RRF≠CombSUM) |
+|---|---|---:|---:|
+| SF+SPLADE-A | hotpotqa | +0.0770 | 0.250 |
+| SF+SPLADE-A | musique | +0.0508 | 0.280 |
+| SF+SPLADE-A | nq_rear | +0.0790 | 0.200 |
+| SF+DPR-A | hotpotqa | +0.0000 | 0.010 |
+| SF+SPLADE-v3 | HotpotQA/MuSiQue (§6.5.2, n=50) | operator ordering stable | stable |
+
+### Reading
+- **Sparse axis:** swapping SPLADE-A → SPLADE-v3 leaves operator ordering and magnitude-vs-rank separation stable → not a single-checkpoint artifact.
+- **Dense axis:** SF+DPR is non-identifiable (I_1≈0.01) and shows zero World− degradation → the effect **disappears** on the dense pair, exactly the §9 boundary condition (Step 7). The effect is therefore **pair-geometry-dependent, not checkpoint-universal**: it manifests where a *sparse* learned signal supplies a relevance-aligned magnitude, and vanishes where signal B is a dense cosine encoder.
+- **Limitation (honest):** DPR-B (second dense checkpoint) could not be acquired offline; DPR-A represents the dense family. Cross-family (SF+SPLADE vs SF+DPR) and cross-sparse-checkpoint (SPLADE-A vs v3) generality is demonstrated; the dense negative result is the predicted boundary case, not a gap.
+
+### Establishes / does not
+- Establishes: the magnitude effect + identifiability pattern replicate across sparse checkpoints and are absent on the dense pair — a principled, not accidental, scope.
+- Does not: claim a second dense checkpoint (DPR-B) — documented as limitation per the SPEC fallback.

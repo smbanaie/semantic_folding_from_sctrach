@@ -1,0 +1,21 @@
+{
+  "sample_size": 100,
+  "dataset": "nq_rear",
+  "cells": {
+    "SF+SPLADE-A": {
+      "n": 100,
+      "mean_worldneg_degradation": 0.07900000000000001,
+      "item1_worldneg_CI": null,
+      "item3_I1_rrf_vs_combsum": 0.2
+    },
+    "SF+SPLADE-v3": {
+      "status": "pending"
+    },
+    "SF+DPR-A": {
+      "status": "pending"
+    },
+    "SF+DPR-B": {
+      "status": "pending"
+    }
+  }
+}

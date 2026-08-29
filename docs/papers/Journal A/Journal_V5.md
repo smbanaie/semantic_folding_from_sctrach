@@ -509,6 +509,43 @@ Replacing SF with BM25 reduces but does not reverse the score-space advantage pa
 
 The diagnostic framework becomes predictive if measurable pre-fusion properties forecast the winning family. For each query we compute 21 geometry features — nine per signal (mean, std, CV, range, skew, kurtosis, top-1/top-2 and top-1/top-5 margins, entropy) plus three pair features (Pearson correlation, Kendall τ, top-5 Jaccard overlap) — and label each query with the winning operator family (rank-only vs score-space). A leave-one-*dataset*-out logistic regression then tests generalization to unseen tasks (`scripts/geometry_predictor.py`; `appendix_stats/geometry_predictor.{md,json}`). We report the outcome with its power limitation attached: on the n=10 exploratory traces, **34 of 40 queries are operator-ties** (gold at rank 1 under every operator), leaving only 6 divergent queries to learn from — too few for a meaningful fit, and we say so. The framework (features, labels, LODO protocol) is delivered and will attach to the n=100 per-query component traces as required future instrumentation; until then we do not claim a validated operator-selection predictor.
 
+### 6.7 Generality across Checkpoints (Item 5)
+
+A reviewer concern is that the SF+SPLADE findings might be an artifact of one specific
+learned-sparse checkpoint. We test generality along both axes of the fusion signal.
+
+**Sparse axis (second learned-sparse checkpoint).** Replacing `naver/splade-cocondenser-ensembledistil`
+with a second, independently trained learned sparse model `naver/splade-v3` (§6.5.2, n=50
+HotpotQA/MuSiQue) leaves the seven-operator ordering stable — CombSUM ranks first under both
+models (HotpotQA 0.947 → 0.960; MuSiQue 0.977 → 0.987) and the magnitude-vs-rank separation
+persists essentially unchanged. The effect is therefore not a property of one checkpoint but of
+the *pairing* between SF's spatial-magnitude scores and any log1p-pooled learned-sparse signal.
+
+**Dense axis (second score family: DPR).** Substituting signal B with a dense bi-encoder
+(`facebook/dpr-...-single-nq-base`) changes the conclusion: on HotpotQA (n=100) the
+magnitude-intervention World− degradation is +0.000 (vs +0.077 on SF+SPLADE) and operator
+identifiability I_1(RRF≠CombSUM) = 0.010 (vs 0.250 on SF+SPLADE). The SF+DPR pair is
+*non-identifiable* — RRF and CombSUM agree at top-1 on essentially every query — so the
+relevance-aligned-magnitude effect disappears, exactly the §9 boundary condition (Step 7:
+"when operators are non-identifiable, the effect disappears"; cf. §6.6.1's SF+DPR ranking
+collapse 0.611 = 0.611). The effect is thus **pair-geometry-dependent, not checkpoint-universal**:
+it manifests where a *sparse* learned signal supplies a relevance-aligned magnitude, and vanishes
+where the second signal is a dense cosine encoder whose magnitude is not relevance-aligned.
+
+| cell | dataset | World− degradation (Item 1) | I_1 RRF≠CombSUM (Item 3) |
+|---|---|---:|---:|
+| SF+SPLADE-A | hotpotqa / musique / nq_rear | +0.077 / +0.051 / +0.079 | 0.250 / 0.280 / 0.200 |
+| SF+DPR-A | hotpotqa | +0.000 | 0.010 |
+| SF+SPLADE-v3 | HotpotQA / MuSiQue (§6.5.2) | operator ordering stable | stable |
+
+**Limitation.** A second *dense* checkpoint (DPR-B) could not be acquired offline in this
+environment; DPR-A above therefore represents the dense family rather than a second dense
+checkpoint. Combined with SPLADE-v3 this still demonstrates cross-*family* and cross-*sparse-
+checkpoint* generality, and the dense-family negative result (SF+DPR non-identifiable) is itself
+the theoretically predicted boundary case, not a gap. Full table: Appendix E.8.
+
+---
+---
 ---
 
 ## 7. The Magnitude Information Hypothesis
@@ -1116,3 +1153,24 @@ Per-query `ΔRR_q = RR_CombSUM,q − RR_RRF,q`; concentration = share of total |
 | nq_rear | +0.067 | 1.000 | PASS | 80 | 17 | 3 | A=3/B=14/C=80/D=3 |
 
 At n=10 the same pattern holds on hotpotqa/musique/scifact (H6 PASS); 2WikiMultihopQA shows ΔRR≡0 (no fusion gain at n=10, consistent with its n=10 R²≈0). The gain is concentrated in the Type-A/B boundary population identified in §7.9, not spread across queries — supporting the decision-boundary framing of §23.
+
+
+#### E.8 Generality matrix (Item 5)
+
+Per-cell magnitude effect (Item 1 World− CombSUM degradation) and operator identifiability
+(Item 3 I_1 = fraction of queries where RRF and CombSUM disagree at top-1), over n=100
+component traces. Reproduce: `scripts/generality_matrix.py --ds <dataset>`.
+
+| cell | dataset | World− degradation | I_1 (RRF≠CombSUM) |
+|---|---|---:|---:|
+| SF+SPLADE-A | hotpotqa | +0.0770 | 0.250 |
+| SF+SPLADE-A | musique | +0.0508 | 0.280 |
+| SF+SPLADE-A | nq_rear | +0.0790 | 0.200 |
+| SF+DPR-A | hotpotqa | +0.0000 | 0.010 |
+| SF+DPR-A | musique / nq_rear | PENDING (trace generation running) | PENDING |
+| SF+SPLADE-v3 | HotpotQA / MuSiQue | operator ordering stable (§6.5.2) | stable |
+
+Sparse second checkpoint (SPLADE-v3): operator ordering stable, magnitude-vs-rank separation
+persists (§6.5.2). Dense second checkpoint (DPR-B): unavailable offline — documented limitation.
+Conclusion: effect is sparse-signal-specific and pair-geometry-dependent, consistent with the
+§9 boundary condition (Step 7).

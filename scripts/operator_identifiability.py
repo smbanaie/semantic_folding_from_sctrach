@@ -41,10 +41,17 @@ PAIRS = {
 OPERATORS = ["rrf", "combsum", "combmnz", "linear", "borda", "zscore", "minmax"]
 
 
-def comp_path(ds, n):
+def comp_path(ds, n, pair="sf_splade"):
+    if pair == "sf_splade":
+        # legacy naming (no pair prefix)
+        if n == 100:
+            return ALPHA_DIR / f"{ds}_comp_1.0_n100.json", ALPHA_DIR / f"{ds}_comp_0.0_n100.json"
+        return ALPHA_DIR / f"{ds}_comp_1.0.json", ALPHA_DIR / f"{ds}_comp_0.0.json"
     if n == 100:
-        return ALPHA_DIR / f"{ds}_comp_1.0_n100.json", ALPHA_DIR / f"{ds}_comp_0.0_n100.json"
-    return ALPHA_DIR / f"{ds}_comp_1.0.json", ALPHA_DIR / f"{ds}_comp_0.0.json"
+        return (ALPHA_DIR / f"{ds}_{pair}_comp_1.0_n100.json",
+                ALPHA_DIR / f"{ds}_{pair}_comp_0.0_n100.json")
+    return (ALPHA_DIR / f"{ds}_{pair}_comp_1.0.json",
+            ALPHA_DIR / f"{ds}_{pair}_comp_0.0.json")
 
 
 def load_components(path):
@@ -134,7 +141,7 @@ def main():
                     help="pair label (used only for output naming when traces supplied)")
     args = ap.parse_args()
     N = args.n
-    c1, c0 = comp_path(args.ds, N)
+    c1, c0 = comp_path(args.ds, N, args.pair)
     if not (c1.exists() and c0.exists()):
         print(f"SKIP {args.pair}: missing {c1.name}/{c0.name}")
         return

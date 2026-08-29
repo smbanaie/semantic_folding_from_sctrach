@@ -1,0 +1,97 @@
+{
+  "sample_size": 10,
+  "results": {
+    "hotpotqa": {
+      "n": 10,
+      "total_abs_delta": 1.1666666666666667,
+      "mean_delta": 0.11666666666666667,
+      "n_zero": 8,
+      "n_pos": 2,
+      "n_neg": 0,
+      "top10_share_hi_delta": 0.5714285714285715,
+      "top20_share_hi_delta": 1.0,
+      "h6_ge_80pct_in_20pct": true,
+      "type_counts": {
+        "A": 1,
+        "B": 1,
+        "C": 8,
+        "D": 0
+      },
+      "mean_joint_margin_by_type": {
+        "A": 0.013160182882863858,
+        "B": 0.10492274193769097,
+        "C": -0.21651709362053856,
+        "D": null
+      }
+    },
+    "musique": {
+      "n": 10,
+      "total_abs_delta": 0.5138888888888888,
+      "mean_delta": 0.05138888888888889,
+      "n_zero": 8,
+      "n_pos": 2,
+      "n_neg": 0,
+      "top10_share_hi_delta": 0.972972972972973,
+      "top20_share_hi_delta": 1.0,
+      "h6_ge_80pct_in_20pct": true,
+      "type_counts": {
+        "A": 0,
+        "B": 2,
+        "C": 8,
+        "D": 0
+      },
+      "mean_joint_margin_by_type": {
+        "A": null,
+        "B": -0.3397806362493356,
+        "C": -0.16658601053639452,
+        "D": null
+      }
+    },
+    "scifact": {
+      "n": 10,
+      "total_abs_delta": 0.0582010582010582,
+      "mean_delta": -0.001058201058201058,
+      "n_zero": 8,
+      "n_pos": 1,
+      "n_neg": 1,
+      "top10_share_hi_delta": 0.5909090909090909,
+      "top20_share_hi_delta": 1.0,
+      "h6_ge_80pct_in_20pct": true,
+      "type_counts": {
+        "A": 0,
+        "B": 1,
+        "C": 8,
+        "D": 1
+      },
+      "mean_joint_margin_by_type": {
+        "A": null,
+        "B": -0.5187843768512169,
+        "C": 0.40756065178701917,
+        "D": -0.8320162980339797
+      }
+    },
+    "2wikimultihopqa": {
+      "n": 10,
+      "total_abs_delta": 0.0,
+      "mean_delta": 0.0,
+      "n_zero": 10,
+      "n_pos": 0,
+      "n_neg": 0,
+      "top10_share_hi_delta": 0.0,
+      "top20_share_hi_delta": 0.0,
+      "h6_ge_80pct_in_20pct": false,
+      "type_counts": {
+        "A": 0,
+        "B": 0,
+        "C": 10,
+        "D": 0
+      },
+      "mean_joint_margin_by_type": {
+        "A": null,
+        "B": null,
+        "C": -0.1373429246641337,
+        "D": null
+      }
+    }
+  }
+}

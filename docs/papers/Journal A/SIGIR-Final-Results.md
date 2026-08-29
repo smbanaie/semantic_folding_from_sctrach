@@ -178,3 +178,26 @@ The cross-pair table (SF+DPR, BM25+SPLADE, BM25+DPR) requires those pairs' compo
 .venv/Scripts/python scripts/operator_identifiability.py --n 100 --ds hotpotqa --pair sf_splade
 ```
 Outputs: `appendix_stats/operator_identifiability_sf_splade_hotpotqa_n100.{json,md}`.
+
+---
+
+## Item 4 — Top-rank ΔRR decomposition (Tier-1, #38-4)
+
+**Source:** #38-4. **Script:** `scripts/toprank_decomposition.py` (reuses SF+SPLADE traces; no re-index). **Status:** n=10 + n=100 complete (hotpotqa/musique/nq_rear at n=100; scifact/2wiki only at n=10 — no n=100 traces generated). Folded into V5 §7.10 + Appendix E.7.
+
+### Method
+Per query `ΔRR_q = RR_CombSUM,q − RR_RRF,q`; concentration = share of total |ΔRR| carried by the top-20% queries (H6: ≥80% in <20%); cross-tab with Type A/B/C/D (Item 2) and joint_margin regime.
+
+### Results (n=100, real)
+
+| dataset | mean ΔRR | top20% share | H6 | #zero | #pos | #neg | Type A/B/C/D |
+|---|---:|---:|---|---:|---:|---:|---|
+| hotpotqa | +0.089 | 0.980 | PASS | 75 | 21 | 4 | A=3/B=18/C=75/D=4 |
+| musique | +0.062 | 0.973 | PASS | 71 | 23 | 6 | A=5/B=18/C=71/D=6 |
+| nq_rear | +0.067 | 1.000 | PASS | 80 | 17 | 3 | A=3/B=14/C=80/D=3 |
+
+n=10: hotpotqa/musique/scifact H6 PASS; 2WikiMultihopQA ΔRR≡0 (no fusion gain at n=10, consistent with its R²≈0).
+
+### Establishes / does not
+- Establishes: the CombSUM-over-RRF MRR gain is concentrated in <20% of queries (the Type-A/B boundary population from Item 2), not spread across queries — the effect is a *boundary correction*, directly supporting the §23 decision-boundary figure and the magnitude-misweighting story.
+- Does not: claim a broad (every-query) gain. The honest reading is local, not global.

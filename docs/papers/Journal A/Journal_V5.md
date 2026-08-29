@@ -654,6 +654,24 @@ Features: global (`Δ12`, `Δ15`, `σ`, `τ_signal`, `κ`) and top-k relevance-c
 > **Geometry → gain:** query-level top-k relevance-conditioned margin predicts the direction of the CombSUM-over-RRF gain; the effect is confined to the negative-margin decision-boundary population, consistent with the causal intervention of §7.6.1.
 
 ---
+### 7.10 The Fusion Gain Is a Decision-Boundary Phenomenon (Item 4)
+
+§7.9 shows *which* queries win; here we ask *how concentrated* the gain is. Decompose the
+total CombSUM−RRF MRR gap into per-query contributions `ΔRR_q = RR_CombSUM,q − RR_RRF,q`
+(`scripts/toprank_decomposition.py`; full table in Appendix E.7). On n=100 HotpotQA/MuSiQue/NQ-REaR
+the gain is overwhelmingly localized: the top-20% of queries by |ΔRR_q| carry 0.98 / 0.97 / 1.00 of
+the total |ΔRR| (H6: ≥80% in <20% — confirmed on all three). Type-C (no change) queries dominate the
+*count* (75/71/80 of 100) but contribute ≈0 to the gap; the entire MRR difference comes from the
+small Type-A/B boundary population that §7.9 already localized to the negative-margin regime. This is
+the quantitative backing for the central decision-boundary figure (§23): score-magnitude fusion is not
+a broad effect but a sharp boundary correction, which is exactly why a magnitude-blind operator (RRF)
+loses on a few queries rather than broadly.
+
+> **Boundary concentration:** ≥97% of the CombSUM-over-RRF MRR gain originates from <20% of queries
+> (the negative-margin decision-boundary population), confirming the effect is local, not global.
+
+---
+---
 ---
 
 ## 8. Representation and Scaling Boundaries
@@ -1087,3 +1105,14 @@ The operator *ordering* replicates across all three datasets — magnitude-prese
 18. Hawkins, J., & Ahmad, S. (2016). Why neurons have thousands of synapses, and the bounded specificity hypothesis. *Frontiers in Neural Circuits*. (HTM / SDR theoretical basis.)
 19. Möller, T., Reina, A., Jayakumar, R., & Pietsch, M. (2020). COVID-QA: A Question Answering Dataset for COVID-19. *Proceedings of the 1st Workshop on NLP for COVID-19 at ACL 2020*. https://aclanthology.org/2020.nlpcovid19-acl.18/ (COVID-QA; 2,019 QA pairs over 147 CORD-19 abstracts.)
 20. McInnes, L., Healy, J., & Melville, J. (2018). UMAP: uniform manifold approximation and projection for dimension reduction. *arXiv:1802.03426*. (UMAP.)
+#### E.7 Top-rank ΔRR decomposition (Item 4)
+
+Per-query `ΔRR_q = RR_CombSUM,q − RR_RRF,q`; concentration = share of total |ΔRR| carried by the top-20% queries (H6: ≥80% in <20%). Reproduce: `scripts/toprank_decomposition.py --n 100`.
+
+| dataset (n=100) | mean ΔRR | top20% share | H6 | #zero | #pos | #neg | Type A/B/C/D |
+|---|---:|---:|---|---:|---:|---:|---|
+| hotpotqa | +0.089 | 0.980 | PASS | 75 | 21 | 4 | A=3/B=18/C=75/D=4 |
+| musique | +0.062 | 0.973 | PASS | 71 | 23 | 6 | A=5/B=18/C=71/D=6 |
+| nq_rear | +0.067 | 1.000 | PASS | 80 | 17 | 3 | A=3/B=14/C=80/D=3 |
+
+At n=10 the same pattern holds on hotpotqa/musique/scifact (H6 PASS); 2WikiMultihopQA shows ΔRR≡0 (no fusion gain at n=10, consistent with its n=10 R²≈0). The gain is concentrated in the Type-A/B boundary population identified in §7.9, not spread across queries — supporting the decision-boundary framing of §23.

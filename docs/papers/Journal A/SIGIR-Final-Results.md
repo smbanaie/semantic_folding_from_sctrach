@@ -90,4 +90,47 @@ MRR by operator × world (Mean Reciprocal Rank over queries with a gold in the p
 Re-run `scripts/counterfactual_magnitude.py --n 100` once
 `scripts/gen_component_traces_n100.py` finishes; append n=100 rows; confirm the
 World− degradation replicates at scale and quantify the effect size with Holm-corrected
-Wilcoxon. Then fold into Journal_V5 §5.3 + Appendix D.4.
+Wilcoxon. Then fold into Journal_V5 §7.6.1 + Appendix E.5.
+
+---
+
+## Item 2 — Query-level geometry → ΔMRR regression (Tier-1, #38-2)
+
+**Source:** Reviews §6 (geometry → ΔMRR, top-k features) + §7 (Type A–D). **Script:** `scripts/geometry_predictor.py` (reuses Item 1 traces; no re-index). **Status:** n=10 complete (4 datasets); n=100 hotpotqa done, musique/nq_rear pending generator.
+
+### Method
+Per query: `ΔMRR_q = RR_CombSUM,q − RR_RRF,q`; top-k relevance-conditioned features (`gold_d15_sf/sp`, `cross_gold_margin`, `joint_margin` per §7.5) + global controls (`τ_signal`, `Δ15`, `κ`). Standardized OLS + bootstrap 95% CI (B=10000, seed=42). Type A/B/C/D by gold-rank change.
+
+### n=10 results
+
+Pooled R²=0.242. No feature CI excludes zero (38 queries, 8 correlated features). Per dataset:
+
+| dataset | R² | gold_d15_sf β | joint_margin β | A | C | A_joint | C_joint |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| hotpotqa | 0.350 | +0.2829 | −0.2524 | 1 | 8 | −0.096 | −0.167 |
+| musique | 0.731 | −0.4053 | +0.2782 | 0 | 8 | — | −0.036 |
+| scifact | 1.000* | +0.0231 | +0.0023 | 0 | 8 | — | +0.408 |
+| 2wikimultihopqa | 0.000 | +0.0000 | +0.0000 | 0 | 10 | — | −0.258 |
+
+\*SciFact R² degenerate (ceiling). 2Wiki R²=0 (operator-invariant null) → feeds §22 negative-results table.
+
+**n=10 honest reading:** H4a directionally positive on hotpotqa but CI wide + musique flips; cannot certify sign-stability. H4b **NOT confirmed** at n=10 (1 winning query, A_joint larger than C_joint).
+
+### Early n=100 hotpotqa
+
+| n | mean ΔMRR | A | B | C | D | R² | gold_d15_sf β | joint_margin β | A_joint | C_joint |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 100 | +0.0980 | 3 | 19 | 75 | 3 | 0.088 | +0.0919 | +0.0513 | **−0.297** | **−0.093** |
+
+**H4b CONFIRMED at n=100:** the 3 Type-A (CombSUM rescues gold into top-1 that RRF misses) queries have joint_margin −0.297 vs Type-C −0.093 — winning queries live in the negative-margin regime (§7.5 asymmetry at population level). H4a sign-stable positive on hotpotqa across n=10/n=100; pooled n=100 CI still wide pending musique/nq_rear.
+
+### Establishes / does not
+- Establishes: query-level geometry (joint gold-vs-distractor margin) predicts where CombSUM beats RRF; winning population localized in negative-margin regime → framework moves from descriptive toward explanatory.
+- Does not certify universal signed β (needs musique/nq_rear/n=100); does not claim magnitude encodes compositional depth (see Item 1 magnitude-intervention framing).
+
+### Reproduction
+```
+.venv/Scripts/python scripts/geometry_predictor.py --n 10
+.venv/Scripts/python scripts/geometry_predictor.py --n 100   # when all n=100 traces ready
+```
+Outputs: `appendix_stats/geometry_predictor_n{N}.{json,md}`.

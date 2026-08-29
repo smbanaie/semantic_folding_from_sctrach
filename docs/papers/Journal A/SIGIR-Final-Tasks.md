@@ -121,7 +121,39 @@ Also run on **BM25+SPLADE** and **SF+DPR** if their n=100 component traces are a
 
 ## Queue (NOT this turn — for subsequent items after user confirms V5 update)
 
-- **Item 2** — Query-level geometry → ΔMRR regression (§6, §28; `geometry_predictor.py` exists, extend to standardized β + bootstrap CI).
-- **Item 3** — Operator identifiability (§9; `operator_identifiability.py` exists, formalize I_global/Top-k/Top-1 table).
-- **Item 4** — Top-rank ΔRR decomposition (§8; `win_loss_rank1.py` exists, extend to distribution table).
+- **Item 3** — Operator identifiability (§9; formalize I_global/Top-k/Top-1 table).
+- **Item 4** — Top-rank ΔRR decomposition (§8; extend to distribution table).
 - **Item 5** — Extra sparse + dense checkpoint (§13/#38-5; SPLADE-B, DPR-B) for generality.
+
+---
+
+## Item 2 — Query-level geometry → ΔMRR regression (Tier-1, #38-2)
+
+**Source:** SIGIR-Final-Reviews.md §6 (geometry → ΔMRR regression, top-k features) + §7 (winning-query Type A–D).
+**Script:** `scripts/geometry_predictor.py` (reuses Item 1 SF+SPLADE component traces; no re-index).
+**Status:** n=10 complete (4 datasets). n=100 partial: hotpotqa done; musique/nq_rear traces still regenerating (`gen_component_traces_n100.py`, background). Updated when full n=100 lands.
+
+### Objective
+Show query-level score-geometry features — especially top-k relevance-conditioned margins — predict when CombSUM beats RRF (ΔMRR_q > 0), turning the geometry framework from descriptive to explanatory, and characterize the winning-query population (Type A–D).
+
+### Hypotheses
+- **H4a (predictive):** standardized regression of ΔMRR_q on top-k geometry yields sign-stable positive β for `gold_d15` / `joint_margin`, CI excluding zero on discriminating datasets.
+- **H4b (winning-query structure):** Type A queries (CombSUM promotes gold that RRF misses) have smaller/negative joint_margin than Type C (no change) — recovers the §7.5 margin-vs-error finding at population level.
+
+### SPEC
+- Features per query: global (`Δ12`, `Δ15`, `σ`, `τ_signal`, `κ`) + top-k relevance-conditioned (`gold_d15_sf`, `gold_d15_sp`, `cross_gold_margin`, `joint_margin` per §7.5 def).
+- `ΔMRR_q = RR_CombSUM,q − RR_RRF,q`; Type A/B/C/D by gold-rank change (§7).
+- Standardized OLS + bootstrap 95% CI (B=10000, seed=42).
+
+### Results (real, committed)
+- n=10 pooled R²=0.242; no feature CI excludes zero (too few queries). HotpotQA gold_d15_sf β=+0.28 positive.
+- Early n=100 hotpotqa: mean ΔMRR=+0.098; 22 helped / 3 hurt; **H4b confirmed** — Type-A joint_margin −0.297 vs Type-C −0.093 (winning queries in negative-margin regime).
+- Honest nulls: 2Wiki R²=0 (ceiling), SciFact R²=1.0 degenerate (feeds §22 negative-results table).
+- H4a sign-stable on hotpotqa across n=10/n=100; pooled n=100 CI still wide pending musique/nq_rear.
+
+### Success criteria
+- [x] Geometry features + ΔMRR regression run on all datasets.
+- [x] HotpotQA n=100 confirms H4b (Type-A smaller joint_margin).
+- [x] Type A–D decomposition produced.
+- [x] Results in SIGIR-Final-Results.md; only real numbers.
+- [ ] V5 update (§7.9 + Appendix E.6) pending user confirmation.

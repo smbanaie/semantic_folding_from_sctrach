@@ -257,6 +257,7 @@ Baseline (raw/raw) and the decisive axis is signal B (SPLADE) normalization:
 - **H8a supported:** min-max / z-score on B (preserve separation, kill absolute scale) *strengthen* the effect (ΔMRR rises, World− stays positive). The effect is about **within-retriever separation**, not raw scale.
 - **H8b supported:** rank-normalizing B (which discards G_within, leaving only R(s) that RRF already uses) **flips ΔMRR negative** — CombSUM no longer beats RRF. This is the §12 boundary from the normalization side: RRF preserves rank information R(s) but discards within-signal geometry G_within; CombSUM needs G_within to win.
 - Normalizing A (SF) alone barely changes the outcome — SF is already rank-stable; the decisive axis is the learned-sparse signal's magnitude geometry.
+- **nq_rear (n=100) confirms** the same pattern: raw/raw ΔMRR +0.068 (effect present); raw/rank-norm −0.001 (nullified); zscore/rank-norm −0.059 (flipped negative). Finding is consistent across all three datasets.
 
 ### Establishes / does not
 - Establishes: the magnitude advantage is a *separation* property of signal B, not an artifact of SPLADE's absolute scale; rank-normalization nullifies it (ties to §12).

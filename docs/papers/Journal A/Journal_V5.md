@@ -1230,4 +1230,4 @@ Item-1 World− degradation, over n=100 SF+SPLADE traces. Reproduce: `scripts/no
 | ranknorm/ranknorm | 0.791 / 0.806 / −0.015 / 0.876 | 0.751 / 0.755 / −0.005 / 0.872 |
 
 Conclusion: effect is within-retriever separation (G_within), not absolute scale; rank-normalization
-of signal B nullifies it (§12). nq_rear pending (trace generation running).
+of signal B nullifies it (§12). nq_rear: raw/raw ΔMRR +0.068 (present); raw/rank-norm −0.001 (nullified); zscore/rank-norm −0.059 (flipped) — same pattern as hotpotqa/musique.

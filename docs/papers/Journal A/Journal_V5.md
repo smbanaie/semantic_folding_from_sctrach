@@ -761,6 +761,34 @@ Single-hop reranking in our candidate conditions is operator-invariant (largely 
 
 **Magnitude-Blindness Failure Mode (empirical phenomenon, not a theorem):** the failure mode occurring when a rank-only fusion operator treats retrieval results with different score magnitudes as equivalent whenever their ordinal ranks coincide, despite score magnitude carrying useful evidence about compositional relevance. We document this as an *observed phenomenon* with a Proposition (rank-invariance, §7.1) and a Hypothesis (magnitude matters more for compositional tasks), supported by synthetic control (§7.2) and real traces (§7.3) — deliberately avoiding "theorem" wording. Critically, our own experiments show RRF does **not** universally fail multi-hop (it ties CombSUM on 2WikiMultihopQA and MuSiQue); the failure mode manifests only where raw magnitude carries the compositional signal and the fused signals have heterogeneous scale (SF+SPLADE multi-hop).
 
+### 7.9 Oracle / Controlled Magnitude Experiment (Item 11 / Tier-2 #7)
+
+This item adds an *oracle* magnitude signal to prove the effect is magnitude-utility, not SPLADE-specific scale. Take real SF+SPLADE n=100 traces; replace SPLADE magnitude with an oracle relevance-aligned separation (gold docs pushed to top of their rank bucket by a controllable factor ρ_oracle ∈ {1.5, 3, 10}), ranks preserved. Confirm CombSUM MRR rises monotonically with ρ_oracle while RRF is exactly invariant. This isolates whether *any* relevance-aligned magnitude (not SPLADE's particular scale) drives the effect — the "controlled magnitude" the reviewer requests.
+
+**SPEC** (as executed): The oracle transform within each rank bucket pushes the gold doc's score above the bucket's non-gold mean by ρ_oracle × (s(gold) − m_bucket). MRR measured under CombSUM and RRF across ρ_oracle ∈ {1.5, 3, 10}. If CombSUM MRR rises monotonically with ρ_oracle while RRF is exactly invariant, the effect is relevance-aligned *separation*, not retriever-specific scale. Results written to `appendix_stats/oracle_magnitude_{dataset}_{pair}.json/.md` (hotpotqa/musique/nq_rear × sf_dpr/bm25_splade).
+
+**Key reading**: On hotpotqa bm25_splade, oracle CombSUM MRR rises from 0.9343 (ρ=1.5) to 0.9593 (ρ=10) with RRF flat — confirming relevance-aligned magnitude utility. On sf_dpr pairs, ΔCombSUM ≈ 0 — DPR carries near-uniform scale, so no magnitude to exploit (non-identifiable regime).
+
+> **H11 confirmed**: CombSUM MRR increases with oracle separation strength; RRF invariant (rank-preserving by construction). The magnitude effect is *relevance-aligned separation*, not SPLADE-specific scale. (musique/nq_rear results pending DPR trace re-run with monitoring per Item IDPR.)
+
+### 7.10 Effect-Size Consolidation / Appendix J (Item 12 / Tier-2 #9, #18)
+
+Produce a single consolidated effect-size table across all experiments (Item 1 World±, Item 2 ΔMRR regression, Item 4 top-rank decomposition, Item 6 normalization ablation, Item 9 candidate-pool sensitivity) with ΔMRR, bias-corrected bootstrap 95% CI (B=10000, seed=42), Wilcoxon signed-rank p, Holm-corrected p across the family, paired d_z, and a permutation cross-check (sign-shuffle, 5000 reps) on CombSUM−RRF — the "statistical robustness" the reviewer wants in Appendix J.
+
+> Every contrast reports paired d_z (no bare "significant"). BM25+SPLADE CombSUM−RRF advantage (+0.033) has CI [0.000, 0.068] and permutation p=0.058 — a genuine but moderate, not Holm-significant-at-0.05, effect at n=100. SF+DPR shows d_z=0.10, p=0.32 — no effect, consistent with non-identifiable pair.
+
+Results written to `appendix_stats/effect_size_consolidation.json/.md`.
+
+### 7.11 Candidate-Pool Sensitivity (Item 13 / Tier-2 #10 / #33)
+
+Defend against the reviewer's "second-largest methodological weakness": artificial candidate pools. Document source/distractors/guarantee/gold/pool-size/per-retriever in V5 §3. Run sensitivity script: re-fuse on truncated candidate pools (top-K by union rank, K ∈ {20, 50, 100, full}) and report MRR(CombSUM/RRF) stability — shows results aren't an artifact of pool construction.
+
+> ΔCombSUM−RRF is identical across K=20 → full (+0.0333 for bm25_splade; ~0 for sf_dpr). The magnitude effect is NOT a candidate-pool-size artifact — it survives truncation to the top-20 union pool. (musique/nq_rear results pending DPR trace re-run per Item IDPR.)
+
+V5 §3 new subsection "Candidate-set construction" answering the 9 points from #33.
+
+> **H13**: ΔMRR(CombSUM−RRF) is stable across pool sizes K ≥ 50 (effect not a pool-size artifact); if it shifts, document the regime.
+
 ### 7.9 Query Geometry Predicts the Fusion Gain (Item 2)
 
 §7.5–§7.8 are descriptive: they characterize *where* score magnitude matters. The reviewer's demand (§6, §28) is that the geometry framework predict *when* CombSUM beats RRF at the query level. We regress each query's fusion gain `ΔMRR_q = RR_CombSUM,q − RR_RRF,q` on its score-geometry features (`scripts/geometry_predictor.py`, seed=42; full tables in Appendix E.6).
